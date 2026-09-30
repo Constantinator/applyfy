@@ -10,15 +10,29 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Export PDF du CV (impression du navigateur) : page A4, fond blanc. */
+/*
+ * Export PDF du CV (impression du navigateur), page A4.
+ * Marge de page à 0 : les navigateurs impriment l'URL, le titre et la date DANS la
+ * marge ; sans marge, ces en-têtes / pieds de page disparaissent. La marge visible
+ * (10 mm) est portée par le document lui-même (cf. CvEditor).
+ */
 @page {
   size: A4;
-  margin: 14mm 16mm;
+  margin: 0;
 }
 
 @media print {
+  html,
   body {
     /* !important : l'arrière-plan de l'app est posé par une classe utilitaire sur <body>. */
     background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    /* Imprime les couleurs du CV (titre, filets) telles qu'à l'écran. */
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }
