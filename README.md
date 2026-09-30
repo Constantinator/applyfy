@@ -40,6 +40,9 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
   avec des protections SSRF (`src/lib/offer-import.ts`).
 - **Résumé de l'offre** : bouton « Générer un résumé » (missions, profil, avantages), modifiable
   et enregistré avec la candidature (colonne `offer_summary`, migration `0004`).
+- **Adapter mon CV** (fiche candidature) : upload d'un CV PDF (3,5 Mo max) analysé avec
+  l'offre → expériences à mettre en avant, mots-clés manquants, points forts. Le CV n'est pas
+  stocké ; les suggestions le sont (colonnes `cv_suggestions*`, migration `0005`).
 - Nécessite `ANTHROPIC_API_KEY` côté serveur (voir `.env.example`). Modèle : `claude-opus-5-5`
   (`src/lib/claude.ts`).
 

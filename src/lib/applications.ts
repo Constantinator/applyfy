@@ -1,6 +1,7 @@
 import "server-only";
 
 import { requireUser } from "./auth";
+import type { CvSuggestions } from "./cv-types";
 import { demoStore } from "./demo-data";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 import {
@@ -306,6 +307,26 @@ export async function deleteApplication(id: string) {
   }
 
   return { ok: true as const };
+}
+
+/** Enregistre les dernières suggestions d'adaptation du CV (le CV n'est pas stocké). */
+export async function saveCvSuggestions(id: string, suggestions: CvSuggestions) {
+  const cv_suggestions_at = new Date().toISOString();
+
+  if (!isSupabaseConfigured()) {
+    const app = demoStore.applications.find((a) => a.id === id);
+    if (app) Object.assign(app, { cv_suggestions: suggestions, cv_suggestions_at });
+    return;
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("applications")
+    .update({ cv_suggestions: suggestions, cv_suggestions_at })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
 }
 
 async function findForUpdate(id: string) {

@@ -1,3 +1,5 @@
+import type { CvSuggestions } from "./cv-types";
+
 export const APPLICATION_STATUSES = [
   "brouillon",
   "envoyee",
@@ -27,6 +29,9 @@ export type ApplicationDetail = Application & {
   offer_description: string | null;
   /** Résumé généré par l'assistant (migration 0004). */
   offer_summary?: string | null;
+  /** Suggestions d'adaptation du CV (migration 0005). */
+  cv_suggestions?: CvSuggestions | null;
+  cv_suggestions_at?: string | null;
   notes: string | null;
 };
 

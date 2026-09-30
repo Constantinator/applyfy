@@ -19,6 +19,16 @@ import { APPLICATION_STATUSES, STATUS_LABELS, type ApplicationStatus } from "@/l
 
 const initialState: NewApplicationState = { status: "idle" };
 
+/** Champs que l'import depuis un lien tente de remplir. */
+const IMPORTED_FIELDS = ["position", "company", "location", "description"] as const;
+type ImportedField = (typeof IMPORTED_FIELDS)[number];
+const FIELD_LABELS: Record<ImportedField, string> = {
+  position: "poste",
+  company: "entreprise",
+  location: "localisation",
+  description: "description",
+};
+
 const inputClassName =
   "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none aria-invalid:border-rose-400 disabled:bg-slate-100 disabled:text-slate-400";
 
@@ -107,9 +117,12 @@ export function NewApplicationForm({
 
   const [importStatus, setImportStatus] = useState<AsyncStatus>({ state: "idle" });
   const [summaryStatus, setSummaryStatus] = useState<AsyncStatus>({ state: "idle" });
-  // Import incapable de récupérer le texte de l'offre (site protégé, LinkedIn, Indeed…) :
-  // on invite l'utilisateur à le copier-coller. Cause technique conservée pour l'afficher.
-  const [manualCopyReason, setManualCopyReason] = useState<string | null>(null);
+  // Résultat incomplet de l'import depuis un lien : échec total (site bloqué, LinkedIn,
+  // Indeed…) ou partiel. `missing` = champs que l'import n'a pas pu remplir.
+  const [importAlert, setImportAlert] = useState<{
+    kind: "failed" | "partial";
+    missing: ImportedField[];
+  } | null>(null);
 
   // Valeurs courantes lisibles après un await (évite les closures périmées).
   const current = useRef({ company, position, location, description });
@@ -132,47 +145,58 @@ export function NewApplicationForm({
     if (!isHttpUrl(url) || url === lastImportedUrl.current) return;
     lastImportedUrl.current = url;
     setImportStatus({ state: "loading" });
-    setManualCopyReason(null);
+    setImportAlert(null);
 
     const result = await importOfferAction(url);
+    const now = current.current;
+    // Seuls les champs encore vides sont signalés comme « à compléter ».
+    const stillEmpty = (fields: readonly ImportedField[]) => fields.filter((f) => !now[f].trim());
+
     if (!result.ok) {
       setImportStatus({ state: "idle" }); // le bandeau d'alerte prend le relais
-      setManualCopyReason(result.error);
+      setImportAlert({ kind: "failed", missing: stillEmpty(IMPORTED_FIELDS) });
       return;
     }
 
     // On ne remplace jamais ce que l'utilisateur a déjà saisi.
     const { offer } = result;
-    const now = current.current;
+    const retrieved: Record<ImportedField, string> = {
+      position: offer.position.slice(0, 160),
+      company: normalizeCompanyName(offer.company).slice(0, 120),
+      location: offer.location.slice(0, 120),
+      description: offer.description.slice(0, OFFER_DESCRIPTION_MAX_LENGTH),
+    };
+    const setters: Record<ImportedField, (value: string) => void> = {
+      position: setPosition,
+      company: setCompany,
+      location: setLocation,
+      description: setDescription,
+    };
     const filled: string[] = [];
-    if (offer.position && !now.position.trim()) {
-      setPosition(offer.position.slice(0, 160));
-      filled.push("poste");
-    }
-    if (offer.company && !now.company.trim()) {
-      setCompany(normalizeCompanyName(offer.company).slice(0, 120));
-      filled.push("entreprise");
-    }
-    if (offer.location && !now.location.trim()) {
-      setLocation(offer.location.slice(0, 120));
-      filled.push("localisation");
-    }
-    if (offer.description && !now.description.trim()) {
-      setDescription(offer.description.slice(0, OFFER_DESCRIPTION_MAX_LENGTH));
-      filled.push("description");
-    } else if (!offer.description && !now.description.trim()) {
-      // Page lue (poste, entreprise…) mais sans le texte de l'annonce.
-      setManualCopyReason("Le texte de l'annonce n'est pas lisible sur cette page.");
+    for (const field of IMPORTED_FIELDS) {
+      if (retrieved[field] && !now[field].trim()) {
+        setters[field](retrieved[field]);
+        filled.push(FIELD_LABELS[field]);
+      }
     }
 
-    setImportStatus(
-      filled.length > 0
-        ? {
-            state: "success",
-            message: `✓ Pré-rempli depuis la page : ${filled.join(", ")}. Vérifie les informations.`,
-          }
-        : { state: "error", message: "Aucune nouvelle information à pré-remplir depuis cette page." },
-    );
+    const notRetrieved = IMPORTED_FIELDS.filter((field) => !retrieved[field]);
+    if (notRetrieved.length === IMPORTED_FIELDS.length) {
+      setImportStatus({ state: "idle" });
+      setImportAlert({ kind: "failed", missing: stillEmpty(IMPORTED_FIELDS) });
+    } else if (notRetrieved.length > 0) {
+      setImportStatus({ state: "idle" });
+      setImportAlert({ kind: "partial", missing: stillEmpty(notRetrieved) });
+    } else {
+      setImportStatus(
+        filled.length > 0
+          ? {
+              state: "success",
+              message: `✓ Pré-rempli depuis la page : ${filled.join(", ")}. Vérifie les informations.`,
+            }
+          : { state: "success", message: "✓ Tous les champs étaient déjà remplis." },
+      );
+    }
   }
 
   async function generateSummary() {
@@ -189,7 +213,16 @@ export function NewApplicationForm({
   const isDraft = status === "brouillon";
   const canSummarize =
     aiEnabled && description.trim().length >= SUMMARY_MIN_LENGTH && summaryStatus.state !== "loading";
-  const showManualCopyAlert = manualCopyReason !== null && description.trim() === "";
+  // Le bandeau disparaît quand tous les champs signalés ont été complétés.
+  const fieldValues: Record<ImportedField, string> = { company, position, location, description };
+  const missingNow = importAlert?.missing.filter((f) => !fieldValues[f].trim()) ?? [];
+  const alertVisible = importAlert !== null && missingNow.length > 0;
+  const highlight = (field: ImportedField) =>
+    alertVisible && missingNow.includes(field)
+      ? importAlert.kind === "failed"
+        ? " ring-2 ring-orange-300"
+        : " ring-2 ring-yellow-300"
+      : "";
 
   return (
     <form action={formAction} noValidate className="space-y-6">
@@ -242,29 +275,25 @@ export function NewApplicationForm({
         </Field>
         <StatusLine status={importStatus} loadingText="Lecture de l'offre en cours…" />
 
-        {/* Disparaît dès que la description contient du texte (collé ou saisi). */}
-        {showManualCopyAlert && (
+        {/* Disparaît quand tous les champs signalés (surlignés) ont été complétés. */}
+        {alertVisible && (
           <div
             role="alert"
-            className="flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900"
+            data-import-alert={importAlert.kind}
+            className={`flex gap-3 rounded-xl border p-4 text-sm ${
+              importAlert.kind === "failed"
+                ? "border-orange-300 bg-orange-50 text-orange-900"
+                : "border-yellow-300 bg-yellow-50 text-yellow-900"
+            }`}
           >
             <span aria-hidden="true" className="text-lg leading-none">
-              ⚠️
+              {importAlert.kind === "failed" ? "⛔" : "⚠️"}
             </span>
-            <div className="space-y-2 text-sm">
-              <p className="font-medium">
-                Nous n&apos;avons pas pu récupérer le texte de cette offre automatiquement.
-                Copie-colle manuellement la description de l&apos;offre dans le champ ci-dessous.
-              </p>
-              {manualCopyReason && <p className="text-amber-800">{manualCopyReason}</p>}
-              <button
-                type="button"
-                onClick={() => document.getElementById("offer_description")?.focus()}
-                className="font-semibold text-amber-900 underline underline-offset-4 hover:text-amber-700"
-              >
-                Aller au champ description ↓
-              </button>
-            </div>
+            <p className="font-medium">
+              {importAlert.kind === "failed"
+                ? "Ce site bloque l'import automatique. Remplis les informations manuellement ci-dessous."
+                : "Certaines informations n'ont pas pu être récupérées automatiquement. Vérifie et complète les champs ci-dessous."}
+            </p>
           </div>
         )}
 
@@ -279,7 +308,7 @@ export function NewApplicationForm({
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               onBlur={() => setCompany((c) => normalizeCompanyName(c))}
-              className={inputClassName}
+              className={inputClassName + highlight("company")}
             />
           </Field>
           <Field name="position" label="Poste visé *" error={errors.position}>
@@ -290,7 +319,7 @@ export function NewApplicationForm({
               placeholder="Ex. Product Manager"
               value={position}
               onChange={(e) => setPosition(e.target.value)}
-              className={inputClassName}
+              className={inputClassName + highlight("position")}
             />
           </Field>
         </div>
@@ -302,7 +331,7 @@ export function NewApplicationForm({
             placeholder="Ex. Paris, Lyon, Télétravail…"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            className={inputClassName}
+            className={inputClassName + highlight("location")}
           />
         </Field>
 
@@ -319,7 +348,7 @@ export function NewApplicationForm({
             placeholder="Missions, profil recherché, avantages…"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className={`${inputClassName} ${showManualCopyAlert ? "border-amber-400 ring-2 ring-amber-100" : ""}`}
+            className={inputClassName + highlight("description")}
           />
         </Field>
 

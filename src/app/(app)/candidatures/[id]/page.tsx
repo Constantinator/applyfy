@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CvAdapter } from "@/components/application/cv-adapter";
 import { DeleteApplicationButton } from "@/components/application/delete-application-button";
 import { DocumentsList } from "@/components/application/documents-list";
 import { FollowUpBox } from "@/components/application/follow-up-box";
@@ -8,6 +9,10 @@ import { StatusChanger } from "@/components/application/status-changer";
 import { Timeline } from "@/components/application/timeline";
 import { StatusBadge } from "@/components/status-badge";
 import { buildFollowUpMessage, getApplicationDetail, needsFollowUp } from "@/lib/applications";
+import { isClaudeConfigured } from "@/lib/claude";
+
+// L'analyse de CV (Server Action de cette page) peut prendre 20 à 40 s.
+export const maxDuration = 90;
 
 // Date sans heure (YYYY-MM-DD) : formatée en UTC pour ne pas dépendre du fuseau du serveur.
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -140,6 +145,14 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
           <Card title="Documents">
             <DocumentsList documents={documents} />
           </Card>
+
+          <CvAdapter
+            applicationId={app.id}
+            hasOfferDescription={Boolean(app.offer_description)}
+            aiEnabled={isClaudeConfigured()}
+            saved={app.cv_suggestions ?? null}
+            savedAt={app.cv_suggestions_at ?? null}
+          />
 
           <FollowUpBox
             applicationId={app.id}

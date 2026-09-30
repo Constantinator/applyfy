@@ -16,6 +16,13 @@ if (process.env.VERCEL_ENV === "production") {
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      // Upload de CV en PDF (3,5 Mo max, cf. src/lib/cv-types.ts), sous la limite
+      // de 4,5 Mo des requêtes Vercel.
+      bodySizeLimit: "4mb",
+    },
+  },
 };
 
 export default nextConfig;
