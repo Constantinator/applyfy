@@ -68,13 +68,6 @@ export function CvEditor({
     setDirty(true);
   }
 
-  function acceptAllImprovements() {
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.querySelectorAll("mark").forEach((mark) => mark.replaceWith(...mark.childNodes));
-    setDirty(true);
-  }
-
   const toolbarButton =
     "rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50";
 
@@ -98,6 +91,7 @@ export function CvEditor({
           </button>
         </div>
 
+        {/* Affichage seulement : masquer les surlignages ne modifie pas le document. */}
         <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-slate-700">
           <input
             type="checkbox"
@@ -107,9 +101,6 @@ export function CvEditor({
           />
           Surligner les améliorations
         </label>
-        <button type="button" onClick={acceptAllImprovements} className={toolbarButton}>
-          Tout accepter
-        </button>
 
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden text-xs text-slate-500 sm:inline" aria-live="polite">
