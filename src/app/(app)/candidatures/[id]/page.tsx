@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DeleteApplicationButton } from "@/components/application/delete-application-button";
 import { DocumentsList } from "@/components/application/documents-list";
 import { FollowUpBox } from "@/components/application/follow-up-box";
 import { StatusChanger } from "@/components/application/status-changer";
@@ -153,6 +154,16 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
           <Timeline events={events} />
         </Card>
       </div>
+
+      <section
+        aria-label="Supprimer la candidature"
+        className="flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p className="text-sm text-slate-500">
+          Cette candidature n&apos;est plus d&apos;actualité ? Tu peux la supprimer définitivement.
+        </p>
+        <DeleteApplicationButton applicationId={app.id} company={app.company} />
+      </section>
     </main>
   );
 }

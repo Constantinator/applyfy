@@ -1,40 +1,25 @@
 import Link from "next/link";
 
-import { ApplicationsList } from "@/components/dashboard/applications-list";
+import { ApplicationsView } from "@/components/dashboard/applications-view";
 import { StatsCards } from "@/components/dashboard/stats-cards";
-import { StatusFilter, type FilterOption } from "@/components/dashboard/status-filter";
-import { FOLLOW_UP_AFTER_DAYS, getApplications, needsFollowUp } from "@/lib/applications";
-import { APPLICATION_STATUSES, STATUS_LABELS, isApplicationStatus } from "@/lib/types";
-
-const FOLLOW_UP_FILTER = "a_relancer";
+import { getApplications } from "@/lib/applications";
+import { FOLLOW_UP_AFTER_DAYS, FOLLOW_UP_FILTER, needsFollowUp } from "@/lib/follow-up";
+import { DEFAULT_SORT, isSortKey } from "@/lib/sort-applications";
+import { isApplicationStatus } from "@/lib/types";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
-  const { filtre, ajout } = await searchParams;
-  const active =
+  const { filtre, tri, ajout, suppression } = await searchParams;
+  const initialFilter =
     filtre === FOLLOW_UP_FILTER || isApplicationStatus(filtre) ? filtre : "toutes";
+  const initialSort = isSortKey(tri) ? tri : DEFAULT_SORT;
 
   const { applications, source } = await getApplications();
-  const toFollowUp = applications.filter((app) => needsFollowUp(app));
-
-  const visible =
-    active === "toutes"
-      ? applications
-      : active === FOLLOW_UP_FILTER
-        ? toFollowUp
-        : applications.filter((app) => app.status === active);
+  // Date de référence unique, transmise au client pour des calculs identiques des deux côtés.
+  const now = new Date();
+  const toFollowUp = applications.filter((app) => needsFollowUp(app, now));
 
   const countByStatus = (status: string) =>
     applications.filter((app) => app.status === status).length;
-
-  const filterOptions: FilterOption[] = [
-    { value: "toutes", label: "Toutes", count: applications.length },
-    { value: FOLLOW_UP_FILTER, label: "À relancer", count: toFollowUp.length },
-    ...APPLICATION_STATUSES.map((status) => ({
-      value: status,
-      label: STATUS_LABELS[status],
-      count: countByStatus(status),
-    })),
-  ];
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6">
@@ -51,6 +36,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200"
         >
           ✓ Candidature ajoutée.
+        </p>
+      )}
+      {suppression === "ok" && (
+        <p
+          role="status"
+          className="rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-700 ring-1 ring-slate-200"
+        >
+          Candidature supprimée.
         </p>
       )}
 
@@ -86,9 +79,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         ]}
       />
 
-      <StatusFilter options={filterOptions} active={active} />
-
-      <ApplicationsList applications={visible} />
+      <ApplicationsView
+        applications={applications}
+        nowIso={now.toISOString()}
+        initialFilter={initialFilter}
+        initialSort={initialSort}
+      />
     </main>
   );
 }

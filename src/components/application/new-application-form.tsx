@@ -9,6 +9,7 @@ import {
   type NewApplicationState,
 } from "@/app/actions/applications";
 import { importOfferAction, summarizeOfferAction } from "@/app/actions/offer";
+import { normalizeCompanyName } from "@/lib/normalize";
 import {
   OFFER_DESCRIPTION_MAX_LENGTH,
   OFFER_SUMMARY_MAX_LENGTH,
@@ -106,6 +107,9 @@ export function NewApplicationForm({
 
   const [importStatus, setImportStatus] = useState<AsyncStatus>({ state: "idle" });
   const [summaryStatus, setSummaryStatus] = useState<AsyncStatus>({ state: "idle" });
+  // Import incapable de récupérer le texte de l'offre (site protégé, LinkedIn, Indeed…) :
+  // on invite l'utilisateur à le copier-coller. Cause technique conservée pour l'afficher.
+  const [manualCopyReason, setManualCopyReason] = useState<string | null>(null);
 
   // Valeurs courantes lisibles après un await (évite les closures périmées).
   const current = useRef({ company, position, location, description });
@@ -128,10 +132,12 @@ export function NewApplicationForm({
     if (!isHttpUrl(url) || url === lastImportedUrl.current) return;
     lastImportedUrl.current = url;
     setImportStatus({ state: "loading" });
+    setManualCopyReason(null);
 
     const result = await importOfferAction(url);
     if (!result.ok) {
-      setImportStatus({ state: "error", message: `${result.error} Remplis les champs à la main.` });
+      setImportStatus({ state: "idle" }); // le bandeau d'alerte prend le relais
+      setManualCopyReason(result.error);
       return;
     }
 
@@ -144,7 +150,7 @@ export function NewApplicationForm({
       filled.push("poste");
     }
     if (offer.company && !now.company.trim()) {
-      setCompany(offer.company.slice(0, 120));
+      setCompany(normalizeCompanyName(offer.company).slice(0, 120));
       filled.push("entreprise");
     }
     if (offer.location && !now.location.trim()) {
@@ -154,6 +160,9 @@ export function NewApplicationForm({
     if (offer.description && !now.description.trim()) {
       setDescription(offer.description.slice(0, OFFER_DESCRIPTION_MAX_LENGTH));
       filled.push("description");
+    } else if (!offer.description && !now.description.trim()) {
+      // Page lue (poste, entreprise…) mais sans le texte de l'annonce.
+      setManualCopyReason("Le texte de l'annonce n'est pas lisible sur cette page.");
     }
 
     setImportStatus(
@@ -180,6 +189,7 @@ export function NewApplicationForm({
   const isDraft = status === "brouillon";
   const canSummarize =
     aiEnabled && description.trim().length >= SUMMARY_MIN_LENGTH && summaryStatus.state !== "loading";
+  const showManualCopyAlert = manualCopyReason !== null && description.trim() === "";
 
   return (
     <form action={formAction} noValidate className="space-y-6">
@@ -232,6 +242,32 @@ export function NewApplicationForm({
         </Field>
         <StatusLine status={importStatus} loadingText="Lecture de l'offre en cours…" />
 
+        {/* Disparaît dès que la description contient du texte (collé ou saisi). */}
+        {showManualCopyAlert && (
+          <div
+            role="alert"
+            className="flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900"
+          >
+            <span aria-hidden="true" className="text-lg leading-none">
+              ⚠️
+            </span>
+            <div className="space-y-2 text-sm">
+              <p className="font-medium">
+                Nous n&apos;avons pas pu récupérer le texte de cette offre automatiquement.
+                Copie-colle manuellement la description de l&apos;offre dans le champ ci-dessous.
+              </p>
+              {manualCopyReason && <p className="text-amber-800">{manualCopyReason}</p>}
+              <button
+                type="button"
+                onClick={() => document.getElementById("offer_description")?.focus()}
+                className="font-semibold text-amber-900 underline underline-offset-4 hover:text-amber-700"
+              >
+                Aller au champ description ↓
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <Field name="company" label="Nom de l'entreprise *" error={errors.company}>
             <input
@@ -242,6 +278,7 @@ export function NewApplicationForm({
               placeholder="Ex. Doctolib"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
+              onBlur={() => setCompany((c) => normalizeCompanyName(c))}
               className={inputClassName}
             />
           </Field>
@@ -282,7 +319,7 @@ export function NewApplicationForm({
             placeholder="Missions, profil recherché, avantages…"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className={inputClassName}
+            className={`${inputClassName} ${showManualCopyAlert ? "border-amber-400 ring-2 ring-amber-100" : ""}`}
           />
         </Field>
 

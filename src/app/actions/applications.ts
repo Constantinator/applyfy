@@ -6,9 +6,11 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import {
   changeApplicationStatus,
   createApplication,
+  deleteApplication,
   recordFollowUp,
   today,
 } from "@/lib/applications";
+import { normalizeCompanyName } from "@/lib/normalize";
 import { OFFER_DESCRIPTION_MAX_LENGTH, OFFER_SUMMARY_MAX_LENGTH } from "@/lib/offer-limits";
 import { STATUS_LABELS, isApplicationStatus, type ApplicationStatus } from "@/lib/types";
 
@@ -60,6 +62,26 @@ export async function followUpAction(
 
   revalidateApplication(id);
   return { status: "success", message: "Relance enregistrée dans l'historique." };
+}
+
+export async function deleteApplicationAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { status: "error", message: "Candidature invalide." };
+
+  try {
+    const result = await deleteApplication(id);
+    if (!result.ok) return { status: "error", message: result.error };
+  } catch (error) {
+    unstable_rethrow(error); // laisse passer la redirection vers /login de requireUser()
+    console.error("[deleteApplication]", error);
+    return { status: "error", message: "La suppression a échoué. Réessaie dans un instant." };
+  }
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard?suppression=ok");
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +137,7 @@ export async function createApplicationAction(
 ): Promise<NewApplicationState> {
   const text = (name: NewApplicationField) => String(formData.get(name) ?? "").trim();
   const values = {
-    company: text("company"),
+    company: normalizeCompanyName(text("company")),
     position: text("position"),
     location: text("location"),
     offer_url: text("offer_url"),

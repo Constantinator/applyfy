@@ -13,10 +13,11 @@ import {
   type ApplicationStatus,
 } from "./types";
 
-/** Délai (en jours) sans réponse après lequel une relance est suggérée. */
-export const FOLLOW_UP_AFTER_DAYS = 7;
+import { FOLLOW_UP_STATUSES } from "./follow-up";
 
-const FOLLOW_UP_STATUSES: ApplicationStatus[] = ["envoyee", "relancee"];
+// Règles de relance déplacées dans follow-up.ts (utilisables côté client).
+export { FOLLOW_UP_AFTER_DAYS, daysSince, needsFollowUp } from "./follow-up";
+
 const RESPONSE_STATUSES: ApplicationStatus[] = ["entretien", "offre", "refusee"];
 
 const LIST_COLUMNS =
@@ -259,6 +260,54 @@ export async function recordFollowUp(id: string, message: string) {
   return { ok: true as const };
 }
 
+/**
+ * Supprime définitivement une candidature de l'utilisateur connecté.
+ * L'historique et les documents sont supprimés en cascade (clés étrangères),
+ * les fichiers éventuels du bucket Storage sont supprimés explicitement.
+ */
+export async function deleteApplication(id: string) {
+  if (!isSupabaseConfigured()) {
+    const index = demoStore.applications.findIndex((app) => app.id === id);
+    if (index === -1) return { ok: false as const, error: "Candidature introuvable." };
+    demoStore.applications.splice(index, 1);
+    demoStore.events = demoStore.events.filter((e) => e.application_id !== id);
+    demoStore.documents = demoStore.documents.filter((d) => d.application_id !== id);
+    return { ok: true as const };
+  }
+
+  const user = await requireUser();
+  if (!isUuid(id)) return { ok: false as const, error: "Candidature introuvable." };
+  const supabase = await createClient();
+
+  // Chemins des fichiers à retirer du Storage (lus avant la cascade).
+  const { data: files } = await supabase
+    .from("application_documents")
+    .select("storage_path")
+    .eq("application_id", id)
+    .eq("user_id", user.id)
+    .not("storage_path", "is", null);
+
+  const { data: deleted, error } = await supabase
+    .from("applications")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id");
+  if (error) throw new Error(`Suppression impossible : ${error.message}`);
+  if (!deleted || deleted.length === 0) {
+    return { ok: false as const, error: "Candidature introuvable." };
+  }
+
+  const paths = (files ?? []).map((f) => f.storage_path as string);
+  if (paths.length > 0) {
+    const { error: storageError } = await supabase.storage.from("documents").remove(paths);
+    // La candidature est déjà supprimée : un fichier orphelin ne doit pas bloquer l'utilisateur.
+    if (storageError) console.error("[deleteApplication] storage", storageError.message);
+  }
+
+  return { ok: true as const };
+}
+
 async function findForUpdate(id: string) {
   if (!isSupabaseConfigured()) {
     return demoStore.applications.find((app) => app.id === id) ?? null;
@@ -310,18 +359,6 @@ async function applyUpdate(
 // ---------------------------------------------------------------------------
 // Utilitaires
 // ---------------------------------------------------------------------------
-
-export function daysSince(date: string | null, now = new Date()): number | null {
-  if (!date) return null;
-  const diff = now.getTime() - new Date(date).getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-export function needsFollowUp(app: Application, now = new Date()): boolean {
-  if (!FOLLOW_UP_STATUSES.includes(app.status)) return false;
-  const days = daysSince(app.last_contact_at ?? app.applied_at, now);
-  return days !== null && days >= FOLLOW_UP_AFTER_DAYS;
-}
 
 const longDate = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",

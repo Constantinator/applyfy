@@ -1,23 +1,24 @@
-import Link from "next/link";
-
 export type FilterOption = { value: string; label: string; count: number };
 
 export function StatusFilter({
   options,
   active,
+  onChange,
 }: {
   options: FilterOption[];
   active: string;
+  onChange: (value: string) => void;
 }) {
   return (
-    <nav aria-label="Filtrer les candidatures" className="flex flex-wrap gap-2">
+    <div role="group" aria-label="Filtrer les candidatures" className="flex flex-wrap gap-2">
       {options.map((option) => {
         const isActive = option.value === active;
         return (
-          <Link
+          <button
             key={option.value}
-            href={option.value === "toutes" ? "/dashboard" : `/dashboard?filtre=${option.value}`}
-            aria-current={isActive ? "page" : undefined}
+            type="button"
+            onClick={() => onChange(option.value)}
+            aria-pressed={isActive}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive
                 ? "bg-slate-900 text-white"
@@ -28,9 +29,9 @@ export function StatusFilter({
             <span className={`ml-1.5 ${isActive ? "text-slate-300" : "text-slate-400"}`}>
               {option.count}
             </span>
-          </Link>
+          </button>
         );
       })}
-    </nav>
+    </div>
   );
 }

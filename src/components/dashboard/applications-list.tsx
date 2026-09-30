@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { StatusBadge } from "@/components/status-badge";
-import { daysSince, needsFollowUp } from "@/lib/applications";
+import { daysSince, needsFollowUp } from "@/lib/follow-up";
 import type { Application } from "@/lib/types";
 
 // Dates sans heure (YYYY-MM-DD) : lues comme minuit UTC, donc formatées en UTC
@@ -17,16 +17,16 @@ function formatDate(date: string | null) {
   return date ? dateFormatter.format(new Date(date)) : "—";
 }
 
-function lastContactLabel(app: Application) {
-  const days = daysSince(app.last_contact_at ?? app.applied_at);
+function lastContactLabel(app: Application, now: Date) {
+  const days = daysSince(app.last_contact_at ?? app.applied_at, now);
   if (days === null) return "Pas encore envoyée";
   if (days === 0) return "Aujourd'hui";
   if (days === 1) return "Hier";
   return `Il y a ${days} jours`;
 }
 
-function FollowUpButton({ app }: { app: Application }) {
-  const due = needsFollowUp(app);
+function FollowUpButton({ app, now }: { app: Application; now: Date }) {
+  const due = needsFollowUp(app, now);
   return (
     <Link
       href={`/candidatures/${app.id}#relance`}
@@ -41,7 +41,14 @@ function FollowUpButton({ app }: { app: Application }) {
   );
 }
 
-export function ApplicationsList({ applications }: { applications: Application[] }) {
+export function ApplicationsList({
+  applications,
+  now,
+}: {
+  applications: Application[];
+  /** Date de référence commune au serveur et au client (évite les écarts d'hydratation). */
+  now: Date;
+}) {
   if (applications.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
@@ -81,11 +88,11 @@ export function ApplicationsList({ applications }: { applications: Application[]
             <div className="mt-3 flex items-center justify-between gap-3">
               <div className="text-xs text-slate-500">
                 <p>Envoyée : {formatDate(app.applied_at)}</p>
-                <p className={needsFollowUp(app) ? "font-medium text-amber-700" : ""}>
-                  Dernier contact : {lastContactLabel(app)}
+                <p className={needsFollowUp(app, now) ? "font-medium text-amber-700" : ""}>
+                  Dernier contact : {lastContactLabel(app, now)}
                 </p>
               </div>
-              <FollowUpButton app={app} />
+              <FollowUpButton app={app} now={now} />
             </div>
           </li>
         ))}
@@ -131,13 +138,13 @@ export function ApplicationsList({ applications }: { applications: Application[]
                 <td className="px-4 py-3 text-slate-600">{formatDate(app.applied_at)}</td>
                 <td
                   className={`px-4 py-3 ${
-                    needsFollowUp(app) ? "font-medium text-amber-700" : "text-slate-600"
+                    needsFollowUp(app, now) ? "font-medium text-amber-700" : "text-slate-600"
                   }`}
                 >
-                  {lastContactLabel(app)}
+                  {lastContactLabel(app, now)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <FollowUpButton app={app} />
+                  <FollowUpButton app={app} now={now} />
                 </td>
               </tr>
             ))}
