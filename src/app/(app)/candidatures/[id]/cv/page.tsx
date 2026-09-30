@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import { Playfair_Display } from "next/font/google";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CvEditor } from "@/components/application/cv-editor";
 import { getApplicationDetail } from "@/lib/applications";
 import { sanitizeCvHtml } from "@/lib/cv-html";
+import { readCvStyle } from "@/lib/cv-style";
 
 export const metadata: Metadata = { title: "Mon CV amélioré — Applyfy" };
+
+// Police optionnelle du CV (auto-hébergée par next/font), chargée seulement sur cette page.
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", display: "swap" });
 
 /** Premier <h1> du CV (le nom du candidat), pour nommer le fichier PDF. */
 function candidateName(html: string) {
@@ -22,7 +27,7 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
 
   return (
     <main
-      className={`mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
+      className={`${playfair.variable} mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
     >
       <div className="space-y-1 print:hidden">
         <Link
@@ -42,6 +47,7 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
         <CvEditor
           applicationId={app.id}
           initialHtml={sanitizeCvHtml(app.cv_improved_html)}
+          initialStyle={readCvStyle(app.cv_improved_style)}
           savedAt={app.cv_improved_at ?? null}
           pdfTitle={["CV", candidateName(app.cv_improved_html), "-", app.company]
             .filter(Boolean)

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { requireUser } from "./auth";
+import type { CvStyle } from "./cv-style";
 import type { CvSuggestions } from "./cv-types";
 import { demoStore } from "./demo-data";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
@@ -342,24 +343,37 @@ export async function saveCvSuggestions(id: string, suggestions: CvSuggestions) 
 }
 
 /** Enregistre le CV amélioré (HTML déjà nettoyé par sanitizeCvHtml). */
-export async function saveImprovedCv(id: string, html: string) {
+/**
+ * Enregistre le CV amélioré (HTML déjà nettoyé par sanitizeCvHtml) et, si fourni, sa
+ * personnalisation (police, taille, couleur, mise en page).
+ */
+export async function saveImprovedCv(id: string, html: string, style?: CvStyle) {
   const cv_improved_at = new Date().toISOString();
+  const patch = {
+    cv_improved_html: html,
+    cv_improved_at,
+    ...(style ? { cv_improved_style: style } : {}),
+  };
 
   if (!isSupabaseConfigured()) {
     const app = demoStore.applications.find((a) => a.id === id);
     if (!app) throw new Error("Candidature introuvable.");
-    Object.assign(app, { cv_improved_html: html, cv_improved_at });
+    Object.assign(app, patch);
     return;
   }
 
   const user = await requireUser();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("applications")
-    .update({ cv_improved_html: html, cv_improved_at })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
+  const update = (values: Record<string, unknown>) =>
+    supabase.from("applications").update(values).eq("id", id).eq("user_id", user.id).select("id");
+
+  let { data, error } = await update(patch);
+  // Colonne cv_improved_style absente (migration 0009 non appliquée) : le texte du CV
+  // est tout de même enregistré, sans la personnalisation.
+  if (error && style && /cv_improved_style/.test(error.message)) {
+    console.error("[saveImprovedCv] style non enregistré (migration 0009 ?)", error.message);
+    ({ data, error } = await update({ cv_improved_html: html, cv_improved_at }));
+  }
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error("Candidature introuvable.");
 }

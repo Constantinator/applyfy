@@ -13,6 +13,7 @@ import {
 import { generateImprovedCv, isClaudeConfigured, suggestCvAdaptations, type OfferContext } from "@/lib/claude";
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
+import { readCvStyle } from "@/lib/cv-style";
 import { readCvSuggestions, type CvSuggestions } from "@/lib/cv-types";
 import { getProfileCvFile } from "@/lib/profile";
 
@@ -159,7 +160,11 @@ export async function generateImprovedCvAction(
 
 export type SaveCvResult = { ok: true; savedAt: string } | { ok: false; error: string };
 
-export async function saveImprovedCvAction(id: string, html: string): Promise<SaveCvResult> {
+export async function saveImprovedCvAction(
+  id: string,
+  html: string,
+  style?: unknown,
+): Promise<SaveCvResult> {
   if (typeof id !== "string" || typeof html !== "string") return { ok: false, error: "Requête invalide." };
   if (html.length > CV_HTML_MAX_LENGTH) return { ok: false, error: "Le CV est trop long." };
 
@@ -168,7 +173,8 @@ export async function saveImprovedCvAction(id: string, html: string): Promise<Sa
   if (!detail) return { ok: false, error: "Candidature introuvable." };
 
   try {
-    await saveImprovedCv(id, sanitizeCvHtml(html));
+    // Style revalidé côté serveur : toute valeur inconnue revient à sa valeur par défaut.
+    await saveImprovedCv(id, sanitizeCvHtml(html), style === undefined ? undefined : readCvStyle(style));
   } catch (error) {
     unstable_rethrow(error);
     console.error("[saveImprovedCv]", error);

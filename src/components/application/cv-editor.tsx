@@ -3,6 +3,21 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { saveImprovedCvAction } from "@/app/actions/cv";
+import { applyLayout } from "@/lib/cv-layout";
+import {
+  CV_ACCENTS,
+  CV_FONTS,
+  CV_FONT_SIZE_MAX,
+  CV_FONT_SIZE_MIN,
+  CV_FONT_SIZE_STEP,
+  CV_LAYOUTS,
+  DEFAULT_CV_STYLE,
+  type CvAccent,
+  type CvLayout,
+  type CvStyle,
+} from "@/lib/cv-style";
+
+import { FontCombobox } from "./font-combobox";
 
 const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -19,23 +34,22 @@ const PAGE_PADDING_MM = 10;
 const PX_PER_MM = 96 / 25.4;
 /** Petite marge de sécurité (écarts de rendu entre écran et impression). */
 const FIT_SAFETY_PX = 6;
+/** Pas de réduction automatique de la police pour tenir sur 1 page. */
+const FIT_STEP_PX = 0.25;
 
-const BASE_FONT_PX = 11.5;
-const MIN_FONT_PX = 10;
-const FONT_STEP_PX = 0.25;
+const px = (value: number) => `${value.toLocaleString("fr-FR")} px`;
 
 // Mise en forme du document (HTML sans classes : balises stylées par le conteneur).
-// Tailles en em : tout le CV suit la taille de police ajustée pour tenir sur 1 page.
-// Hiérarchie : nom > titre > sections > contenu. Une seule colonne, vrais titres :
-// structure lisible par les ATS.
+// Tailles en em : tout le CV suit la taille de police. Couleur d'accent (nom et titres
+// de section) via la variable --cv-accent. Vrais titres : structure lisible par les ATS.
 const documentStyles = [
   // Nom
-  "[&_h1]:text-[2.3em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:text-slate-950",
-  // Titre (1er paragraphe en gras sous le nom) et coordonnées
-  "[&_h1+p]:mt-1 [&_h1+p]:text-[1.2em] [&_h1+p]:font-semibold [&_h1+p]:text-blue-800",
+  "[&_h1]:text-[2.3em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:text-[var(--cv-accent)]",
+  // Titre (1er paragraphe sous le nom) et coordonnées
+  "[&_h1+p]:mt-1 [&_h1+p]:text-[1.2em] [&_h1+p]:font-semibold [&_h1+p]:text-slate-700",
   "[&_h1+p+p]:mt-0.5 [&_h1+p+p]:text-[0.95em] [&_h1+p+p]:text-slate-600",
   // Sections : séparées par une ligne fine
-  "[&_h2]:mt-[1.1em] [&_h2]:mb-[0.45em] [&_h2]:border-b [&_h2]:border-slate-300 [&_h2]:pb-[0.2em] [&_h2]:text-[1.05em] [&_h2]:font-bold [&_h2]:tracking-[0.08em] [&_h2]:text-slate-900 [&_h2]:uppercase",
+  "[&_h2]:mt-[1.1em] [&_h2]:mb-[0.45em] [&_h2]:border-b [&_h2]:border-slate-300 [&_h2]:pb-[0.2em] [&_h2]:text-[1.05em] [&_h2]:font-bold [&_h2]:tracking-[0.08em] [&_h2]:text-[var(--cv-accent)] [&_h2]:uppercase",
   // Entrées (poste, diplôme…) et leurs métadonnées (structure · dates)
   "[&_h3]:mt-[0.7em] [&_h3]:text-[1.02em] [&_h3]:font-semibold [&_h3]:text-slate-900",
   "[&_em]:text-[0.95em] [&_em]:text-slate-500 [&_em]:not-italic",
@@ -44,16 +58,212 @@ const documentStyles = [
   "[&_strong]:font-semibold",
 ].join(" ");
 
+// Deux colonnes : en-tête pleine largeur, puis <div> gauche (compétences, langues…) et
+// <div> droite (profil, expériences, formation), cf. lib/cv-layout.
+const twoColumnStyles = [
+  "grid grid-cols-[34%_minmax(0,1fr)] content-start gap-x-[7mm]",
+  "[&>*]:col-span-2 [&>div]:col-span-1 [&>div]:min-w-0",
+  "[&>div:last-child]:border-l [&>div:last-child]:border-slate-200 [&>div:last-child]:pl-[6mm]",
+].join(" ");
+
 type ToolbarCommand = "bold" | "italic" | "insertUnorderedList";
+
+const TOOLBAR_BUTTONS: { command: ToolbarCommand; title: string; label: React.ReactNode }[] = [
+  { command: "bold", title: "Gras", label: <strong>G</strong> },
+  { command: "italic", title: "Italique", label: <em className="font-serif">I</em> },
+  { command: "insertUnorderedList", title: "Liste à puces", label: "• Liste" },
+];
+
+const NO_ACTIVE_FORMATS: Record<ToolbarCommand, boolean> = {
+  bold: false,
+  italic: false,
+  insertUnorderedList: false,
+};
+
+/** Panneau de mise en forme : police, taille, gras/italique/liste, couleur, mise en page. */
+function StylePanel({
+  style,
+  appliedSize,
+  onChange,
+  activeFormats,
+  onFormat,
+}: {
+  style: CvStyle;
+  appliedSize: number;
+  onChange: (patch: Partial<CvStyle>) => void;
+  activeFormats: Record<ToolbarCommand, boolean>;
+  onFormat: (command: ToolbarCommand) => void;
+}) {
+  const sectionTitle = "text-xs font-semibold tracking-wide text-slate-500 uppercase";
+  return (
+    <aside aria-label="Mise en forme du CV" className="card space-y-6 p-5 print:hidden">
+      <h2 className="font-semibold text-slate-900">Mise en forme</h2>
+
+      <div className="space-y-2">
+        <label htmlFor="cv-font" className={`block ${sectionTitle}`}>
+          Police
+        </label>
+        <FontCombobox id="cv-font" value={style.font} onChange={(font) => onChange({ font })} />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <label htmlFor="cv-size" className={sectionTitle}>
+            Taille
+          </label>
+          <output htmlFor="cv-size" className="text-sm font-semibold text-slate-900 tabular-nums">
+            {px(style.fontSize)}
+          </output>
+        </div>
+        <input
+          id="cv-size"
+          type="range"
+          min={CV_FONT_SIZE_MIN}
+          max={CV_FONT_SIZE_MAX}
+          step={CV_FONT_SIZE_STEP}
+          value={style.fontSize}
+          onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
+          className="w-full accent-blue-600"
+        />
+        <div className="flex justify-between text-[11px] text-slate-400">
+          <span>{px(CV_FONT_SIZE_MIN)}</span>
+          <span>{px(CV_FONT_SIZE_MAX)}</span>
+        </div>
+        {appliedSize < style.fontSize && (
+          <p className="text-xs text-amber-700">
+            Réduite à {px(appliedSize)} pour tenir sur 1 page.
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <p className={sectionTitle}>Mise en forme</p>
+        <div role="toolbar" aria-label="Mise en forme du texte" className="grid grid-cols-3 gap-2">
+          {TOOLBAR_BUTTONS.map(({ command, title, label }) => {
+            const active = activeFormats[command];
+            return (
+              <button
+                key={command}
+                type="button"
+                // mousedown sans preventDefault ferait perdre la sélection du texte dans le CV.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onFormat(command)}
+                aria-pressed={active}
+                aria-label={title}
+                title={title}
+                className={`h-9 rounded-md border text-sm font-medium transition ${
+                  active
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-slate-500">S&apos;applique au texte sélectionné dans le CV.</p>
+      </div>
+
+      <fieldset className="space-y-2">
+        <legend className={sectionTitle}>Couleur d&apos;accent</legend>
+        <div className="flex flex-wrap gap-2 pt-1">
+          {(Object.keys(CV_ACCENTS) as CvAccent[]).map((accent) => {
+            const selected = style.accent === accent;
+            return (
+              <button
+                key={accent}
+                type="button"
+                onClick={() => onChange({ accent })}
+                aria-pressed={selected}
+                aria-label={CV_ACCENTS[accent].label}
+                title={CV_ACCENTS[accent].label}
+                className={`h-8 w-8 rounded-full ring-offset-2 transition ${
+                  selected ? "ring-2 ring-slate-900" : "ring-1 ring-slate-200 hover:ring-slate-400"
+                }`}
+                style={{ backgroundColor: CV_ACCENTS[accent].value }}
+              />
+            );
+          })}
+        </div>
+        <p className="text-xs text-slate-500">
+          {CV_ACCENTS[style.accent].label} · nom et titres de section
+        </p>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className={sectionTitle}>Mise en page</legend>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          {(Object.keys(CV_LAYOUTS) as CvLayout[]).map((layout) => {
+            const selected = style.layout === layout;
+            return (
+              <button
+                key={layout}
+                type="button"
+                onClick={() => onChange({ layout })}
+                aria-pressed={selected}
+                className={`rounded-xl border p-2.5 text-left text-xs font-medium transition ${
+                  selected
+                    ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-500/15"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                {/* Mini aperçu de la mise en page */}
+                <span aria-hidden="true" className="mb-2 block rounded-md border border-slate-200 bg-white p-1.5">
+                  <span className="mb-1 block h-1.5 w-1/2 rounded bg-slate-300" />
+                  {layout === "une_colonne" ? (
+                    <span className="block space-y-0.5">
+                      <span className="block h-1 rounded bg-slate-200" />
+                      <span className="block h-1 rounded bg-slate-200" />
+                      <span className="block h-1 w-3/4 rounded bg-slate-200" />
+                    </span>
+                  ) : (
+                    <span className="flex gap-1">
+                      <span className="block w-1/3 space-y-0.5">
+                        <span className="block h-1 rounded bg-slate-200" />
+                        <span className="block h-1 rounded bg-slate-200" />
+                      </span>
+                      <span className="block flex-1 space-y-0.5">
+                        <span className="block h-1 rounded bg-slate-200" />
+                        <span className="block h-1 rounded bg-slate-200" />
+                        <span className="block h-1 w-3/4 rounded bg-slate-200" />
+                      </span>
+                    </span>
+                  )}
+                </span>
+                {CV_LAYOUTS[layout]}
+              </button>
+            );
+          })}
+        </div>
+        {style.layout === "deux_colonnes" && (
+          <p className="text-xs text-slate-500">
+            À gauche : compétences, langues, outils… À droite : profil, expériences, formation.
+          </p>
+        )}
+      </fieldset>
+
+      <button
+        type="button"
+        onClick={() => onChange(DEFAULT_CV_STYLE)}
+        className="btn-secondary w-full px-3 py-2 text-sm"
+      >
+        Réinitialiser
+      </button>
+    </aside>
+  );
+}
 
 export function CvEditor({
   applicationId,
   initialHtml,
+  initialStyle,
   savedAt: initialSavedAt,
   pdfTitle,
 }: {
   applicationId: string;
   initialHtml: string;
+  initialStyle: CvStyle;
   savedAt: string | null;
   /** Titre du document pendant l'impression = nom de fichier proposé pour le PDF. */
   pdfTitle: string;
@@ -64,12 +274,15 @@ export function CvEditor({
   const [savedAt, setSavedAt] = useState(initialSavedAt);
   const [error, setError] = useState<string | null>(null);
   const [showMarks, setShowMarks] = useState(true);
-  const [fontPx, setFontPx] = useState(BASE_FONT_PX);
+  const [style, setStyle] = useState<CvStyle>(initialStyle);
+  /** Taille réellement appliquée (≤ taille choisie, réduite si le CV dépasse 1 page). */
+  const [fontPx, setFontPx] = useState(initialStyle.fontSize);
   /** Hauteur du contenu en nombre de pages A4 (≤ 1 : tient sur une page). */
   const [pages, setPages] = useState(1);
 
-  // Ajuste la taille de police pour que le CV tienne sur une page A4 (10 px minimum).
-  const fitToPage = useCallback(() => {
+  // Ajuste la police pour tenir sur une page A4 : part de la taille choisie et réduit
+  // jusqu'à 10 px si nécessaire.
+  const fitToPage = useCallback((chosenSize: number) => {
     const editor = editorRef.current;
     if (!editor) return;
     const pageHeightPx = PAGE_HEIGHT_MM * PX_PER_MM;
@@ -77,10 +290,10 @@ export function CvEditor({
     // Mesure la hauteur réelle du contenu : la hauteur minimale d'une page A4 (affichage
     // écran) est neutralisée pendant la mesure, sinon tout CV paraîtrait trop long.
     editor.style.minHeight = "0px";
-    let size = BASE_FONT_PX;
+    let size = chosenSize;
     editor.style.fontSize = `${size}px`;
-    while (editor.scrollHeight > limit && size > MIN_FONT_PX) {
-      size = Math.max(MIN_FONT_PX, size - FONT_STEP_PX);
+    while (editor.scrollHeight > limit && size > CV_FONT_SIZE_MIN) {
+      size = Math.max(CV_FONT_SIZE_MIN, size - FIT_STEP_PX);
       editor.style.fontSize = `${size}px`;
     }
     const contentHeight = editor.scrollHeight;
@@ -89,21 +302,30 @@ export function CvEditor({
     setPages(contentHeight / pageHeightPx);
   }, []);
 
-  // Au chargement (une fois la police Inter prête, elle change la hauteur du texte).
+  // Mise en page initiale (le HTML enregistré peut précéder un changement de réglage).
+  const layoutApplied = useRef(false);
   useLayoutEffect(() => {
-    fitToPage();
+    if (layoutApplied.current || !editorRef.current) return;
+    applyLayout(editorRef.current, initialStyle.layout);
+    layoutApplied.current = true;
+  }, [initialStyle.layout]);
+
+  // Recalcule l'ajustement à chaque changement de style (police, taille, mise en page)
+  // et une fois les polices web chargées (elles changent la hauteur du texte).
+  useLayoutEffect(() => {
+    fitToPage(style.fontSize);
     let active = true;
-    document.fonts?.ready.then(() => active && fitToPage());
+    document.fonts?.ready.then(() => active && fitToPage(style.fontSize));
     return () => {
       active = false;
     };
-  }, [fitToPage]);
+  }, [fitToPage, style]);
 
-  // Après une modification (avec un léger délai pour ne pas recalculer à chaque touche).
+  // Après une modification du texte (avec un léger délai pour ne pas recalculer à chaque touche).
   const fitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function scheduleFit() {
     if (fitTimer.current) clearTimeout(fitTimer.current);
-    fitTimer.current = setTimeout(fitToPage, 300);
+    fitTimer.current = setTimeout(() => fitToPage(style.fontSize), 300);
   }
   useEffect(() => () => {
     if (fitTimer.current) clearTimeout(fitTimer.current);
@@ -117,11 +339,18 @@ export function CvEditor({
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  function updateStyle(patch: Partial<CvStyle>) {
+    const next = { ...style, ...patch };
+    if (next.layout !== style.layout && editorRef.current) applyLayout(editorRef.current, next.layout);
+    setStyle(next);
+    setDirty(true);
+  }
+
   async function save() {
     if (!editorRef.current) return;
     setSaving(true);
     setError(null);
-    const result = await saveImprovedCvAction(applicationId, editorRef.current.innerHTML);
+    const result = await saveImprovedCvAction(applicationId, editorRef.current.innerHTML, style);
     setSaving(false);
     if (result.ok) {
       setSavedAt(result.savedAt);
@@ -131,16 +360,37 @@ export function CvEditor({
     }
   }
 
+  // État des boutons G / I / Liste selon la sélection courante dans le CV (comme Google Docs).
+  const [activeFormats, setActiveFormats] = useState(NO_ACTIVE_FORMATS);
+  const refreshActiveFormats = useCallback(() => {
+    const selection = document.getSelection();
+    const editor = editorRef.current;
+    if (!editor || !selection?.anchorNode || !editor.contains(selection.anchorNode)) {
+      setActiveFormats(NO_ACTIVE_FORMATS);
+      return;
+    }
+    setActiveFormats({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      insertUnorderedList: document.queryCommandState("insertUnorderedList"),
+    });
+  }, []);
+  useEffect(() => {
+    document.addEventListener("selectionchange", refreshActiveFormats);
+    return () => document.removeEventListener("selectionchange", refreshActiveFormats);
+  }, [refreshActiveFormats]);
+
   function format(command: ToolbarCommand) {
     editorRef.current?.focus();
     // execCommand reste la seule API native d'édition riche des contentEditable.
     document.execCommand(command);
+    refreshActiveFormats();
     setDirty(true);
     scheduleFit();
   }
 
   function exportPdf() {
-    fitToPage();
+    fitToPage(style.fontSize);
     // Le titre du document devient le nom de fichier proposé par « Enregistrer au format PDF ».
     const previousTitle = document.title;
     document.title = pdfTitle;
@@ -153,124 +403,122 @@ export function CvEditor({
   }
 
   const fits = pages <= 1.001;
-  const toolbarButton =
-    "rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50";
 
   return (
-    <div className="space-y-4 print:space-y-0">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur print:hidden">
-        <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-          <button type="button" onClick={() => format("bold")} className={toolbarButton} title="Gras">
-            <strong>G</strong>
-          </button>
-          <button type="button" onClick={() => format("italic")} className={toolbarButton} title="Italique">
-            <em>I</em>
-          </button>
-          <button
-            type="button"
-            onClick={() => format("insertUnorderedList")}
-            className={toolbarButton}
-            title="Liste à puces"
-          >
-            • Liste
-          </button>
-        </div>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start print:block">
+      <div className="min-w-0 space-y-4 print:space-y-0">
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur print:hidden">
+          {/* Affichage seulement : masquer les surlignages ne modifie pas le document. */}
+          <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={showMarks}
+              onChange={(e) => setShowMarks(e.target.checked)}
+              className="accent-blue-600"
+            />
+            Surligner les améliorations
+          </label>
 
-        {/* Affichage seulement : masquer les surlignages ne modifie pas le document. */}
-        <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={showMarks}
-            onChange={(e) => setShowMarks(e.target.checked)}
-            className="accent-blue-600"
-          />
-          Surligner les améliorations
-        </label>
-
-        <div className="ml-auto flex items-center gap-2">
-          <span className="hidden text-xs text-slate-500 sm:inline" aria-live="polite">
-            {saving
-              ? "Enregistrement…"
-              : dirty
-                ? "Modifications non enregistrées"
-                : savedAt
-                  ? `Enregistré le ${timeFormatter.format(new Date(savedAt))}`
-                  : ""}
-          </span>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving || !dirty}
-            className="btn-secondary px-3 py-1.5 text-sm"
-          >
-            Enregistrer
-          </button>
-          <button
-            type="button"
-            onClick={exportPdf}
-            className="btn-primary px-3 py-1.5 text-sm"
-          >
-            Exporter en PDF
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200 print:hidden">
-          {error}
-        </p>
-      )}
-
-      <div className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between print:hidden">
-        <p className="text-slate-500">
-          <mark className="rounded bg-yellow-200 px-1">Surligné</mark> = passage ajouté ou reformulé
-          par l&apos;assistant. Clique dans le document pour le modifier. « Exporter en PDF » ouvre
-          l&apos;impression : choisis « Enregistrer au format PDF ».
-        </p>
-        <p
-          role="status"
-          className={`shrink-0 font-medium ${fits ? "text-emerald-700" : "text-red-700"}`}
-        >
-          {fits
-            ? `✓ Tient sur 1 page${fontPx < BASE_FONT_PX ? ` (police ajustée à ${fontPx.toLocaleString("fr-FR")} px)` : ""}`
-            : `⚠ Dépasse d'une page (${Math.ceil(pages)} pages) même en police 10 px : raccourcis le contenu.`}
-        </p>
-      </div>
-
-      {/* Page A4 éditable — mêmes dimensions qu'à l'impression */}
-      <div className="overflow-x-auto pb-2 print:overflow-visible print:pb-0">
-        <div className="relative mx-auto w-[210mm] bg-white shadow-lg ring-1 ring-slate-200 print:shadow-none print:ring-0">
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            role="textbox"
-            aria-multiline="true"
-            aria-label="CV amélioré, modifiable"
-            spellCheck
-            onInput={() => {
-              setDirty(true);
-              scheduleFit();
-            }}
-            dangerouslySetInnerHTML={{ __html: initialHtml }}
-            style={{ fontSize: `${fontPx}px`, padding: `${PAGE_PADDING_MM}mm` }}
-            className={`min-h-[297mm] leading-[1.4] text-slate-800 [font-family:var(--font-inter),Arial,Helvetica,sans-serif] outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${documentStyles} ${
-              showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
-            } [&_mark]:text-inherit print:[&_mark]:bg-transparent`}
-          />
-          {/* Repère visuel de fin de page (écran uniquement) */}
-          {!fits && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-red-400 print:hidden"
-              style={{ top: `${PAGE_HEIGHT_MM}mm` }}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="hidden text-xs text-slate-500 sm:inline" aria-live="polite">
+              {saving
+                ? "Enregistrement…"
+                : dirty
+                  ? "Modifications non enregistrées"
+                  : savedAt
+                    ? `Enregistré le ${timeFormatter.format(new Date(savedAt))}`
+                    : ""}
+            </span>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || !dirty}
+              className="btn-secondary px-3 py-1.5 text-sm"
             >
-              <span className="absolute right-2 -top-5 rounded bg-red-50 px-1.5 text-[11px] font-medium text-red-700">
-                Fin de la page 1
-              </span>
-            </div>
-          )}
+              Enregistrer
+            </button>
+            <button type="button" onClick={exportPdf} className="btn-primary px-3 py-1.5 text-sm">
+              Générer le PDF
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200 print:hidden">
+            {error}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between print:hidden">
+          <p className="text-slate-500">
+            <mark className="rounded bg-yellow-200 px-1">Surligné</mark> = passage ajouté ou reformulé
+            par l&apos;assistant. « Générer le PDF » ouvre l&apos;impression : choisis « Enregistrer
+            au format PDF ».
+          </p>
+          <p
+            role="status"
+            className={`shrink-0 font-medium ${fits ? "text-emerald-700" : "text-red-700"}`}
+          >
+            {fits
+              ? `✓ Tient sur 1 page${fontPx < style.fontSize ? ` (police ajustée à ${px(fontPx)})` : ""}`
+              : `⚠ Dépasse d'une page (${Math.ceil(pages)} pages) même en police 10 px : raccourcis le contenu.`}
+          </p>
+        </div>
+
+        {/* Page A4 éditable — mêmes dimensions qu'à l'impression */}
+        <div className="overflow-x-auto pb-2 print:overflow-visible print:pb-0">
+          <div className="relative mx-auto w-[210mm] bg-white shadow-lg ring-1 ring-slate-200 print:shadow-none print:ring-0">
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              role="textbox"
+              aria-multiline="true"
+              aria-label="CV amélioré, modifiable"
+              spellCheck
+              onInput={() => {
+                setDirty(true);
+                scheduleFit();
+              }}
+              dangerouslySetInnerHTML={{ __html: initialHtml }}
+              style={
+                {
+                  fontSize: `${fontPx}px`,
+                  padding: `${PAGE_PADDING_MM}mm`,
+                  fontFamily: CV_FONTS[style.font].stack,
+                  "--cv-accent": CV_ACCENTS[style.accent].value,
+                } as React.CSSProperties
+              }
+              className={`min-h-[297mm] leading-[1.4] text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${documentStyles} ${
+                style.layout === "deux_colonnes" ? twoColumnStyles : ""
+              } ${
+                showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
+              } [&_mark]:text-inherit print:[&_mark]:bg-transparent`}
+            />
+            {/* Repère visuel de fin de page (écran uniquement) */}
+            {!fits && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-red-400 print:hidden"
+                style={{ top: `${PAGE_HEIGHT_MM}mm` }}
+              >
+                <span className="absolute right-2 -top-5 rounded bg-red-50 px-1.5 text-[11px] font-medium text-red-700">
+                  Fin de la page 1
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="xl:sticky xl:top-6">
+        <StylePanel
+          style={style}
+          appliedSize={fontPx}
+          onChange={updateStyle}
+          activeFormats={activeFormats}
+          onFormat={format}
+        />
       </div>
     </div>
   );
