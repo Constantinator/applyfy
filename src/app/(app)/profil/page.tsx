@@ -25,19 +25,19 @@ export default async function ProfilePage() {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900">
         ← Retour au dashboard
       </Link>
 
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Mon profil</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon profil</h1>
         {user?.email && <p className="mt-1 text-sm text-slate-500">{user.email}</p>}
       </div>
 
       <section
         aria-labelledby="profil-cv-title"
-        className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"
+        className="space-y-4 card p-5 sm:p-6"
       >
         <div>
           <h2 id="profil-cv-title" className="font-semibold text-slate-900">
@@ -57,7 +57,7 @@ export default async function ProfilePage() {
 
       <section
         aria-labelledby="rappels-title"
-        className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"
+        className="space-y-4 card p-5 sm:p-6"
       >
         <div>
           <h2 id="rappels-title" className="font-semibold text-slate-900">

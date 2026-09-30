@@ -32,7 +32,7 @@ const documentStyles = [
   // Nom
   "[&_h1]:text-[2.3em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:text-slate-950",
   // Titre (1er paragraphe en gras sous le nom) et coordonnées
-  "[&_h1+p]:mt-1 [&_h1+p]:text-[1.2em] [&_h1+p]:font-semibold [&_h1+p]:text-indigo-800",
+  "[&_h1+p]:mt-1 [&_h1+p]:text-[1.2em] [&_h1+p]:font-semibold [&_h1+p]:text-blue-800",
   "[&_h1+p+p]:mt-0.5 [&_h1+p+p]:text-[0.95em] [&_h1+p+p]:text-slate-600",
   // Sections : séparées par une ligne fine
   "[&_h2]:mt-[1.1em] [&_h2]:mb-[0.45em] [&_h2]:border-b [&_h2]:border-slate-300 [&_h2]:pb-[0.2em] [&_h2]:text-[1.05em] [&_h2]:font-bold [&_h2]:tracking-[0.08em] [&_h2]:text-slate-900 [&_h2]:uppercase",
@@ -182,7 +182,7 @@ export function CvEditor({
             type="checkbox"
             checked={showMarks}
             onChange={(e) => setShowMarks(e.target.checked)}
-            className="accent-violet-600"
+            className="accent-blue-600"
           />
           Surligner les améliorations
         </label>
@@ -201,14 +201,14 @@ export function CvEditor({
             type="button"
             onClick={save}
             disabled={saving || !dirty}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 disabled:opacity-50"
+            className="btn-secondary px-3 py-1.5 text-sm"
           >
             Enregistrer
           </button>
           <button
             type="button"
             onClick={exportPdf}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-500"
+            className="btn-primary px-3 py-1.5 text-sm"
           >
             Exporter en PDF
           </button>
@@ -216,7 +216,7 @@ export function CvEditor({
       </div>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200 print:hidden">
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200 print:hidden">
           {error}
         </p>
       )}
@@ -229,7 +229,7 @@ export function CvEditor({
         </p>
         <p
           role="status"
-          className={`shrink-0 font-medium ${fits ? "text-emerald-700" : "text-rose-700"}`}
+          className={`shrink-0 font-medium ${fits ? "text-emerald-700" : "text-red-700"}`}
         >
           {fits
             ? `✓ Tient sur 1 page${fontPx < BASE_FONT_PX ? ` (police ajustée à ${fontPx.toLocaleString("fr-FR")} px)` : ""}`
@@ -254,7 +254,7 @@ export function CvEditor({
             }}
             dangerouslySetInnerHTML={{ __html: initialHtml }}
             style={{ fontSize: `${fontPx}px`, padding: `${PAGE_PADDING_MM}mm` }}
-            className={`min-h-[297mm] leading-[1.4] text-slate-800 [font-family:var(--font-cv),Arial,Helvetica,sans-serif] outline-none focus-visible:ring-2 focus-visible:ring-violet-300 print:min-h-0 ${documentStyles} ${
+            className={`min-h-[297mm] leading-[1.4] text-slate-800 [font-family:var(--font-inter),Arial,Helvetica,sans-serif] outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${documentStyles} ${
               showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
             } [&_mark]:text-inherit print:[&_mark]:bg-transparent`}
           />
@@ -262,10 +262,10 @@ export function CvEditor({
           {!fits && (
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-rose-400 print:hidden"
+              className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-red-400 print:hidden"
               style={{ top: `${PAGE_HEIGHT_MM}mm` }}
             >
-              <span className="absolute right-2 -top-5 rounded bg-rose-50 px-1.5 text-[11px] font-medium text-rose-700">
+              <span className="absolute right-2 -top-5 rounded bg-red-50 px-1.5 text-[11px] font-medium text-red-700">
                 Fin de la page 1
               </span>
             </div>

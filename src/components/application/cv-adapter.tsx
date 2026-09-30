@@ -29,7 +29,7 @@ function Spinner() {
   return (
     <span
       aria-hidden="true"
-      className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-violet-600"
+      className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
     />
   );
 }
@@ -182,7 +182,7 @@ export function CvAdapter({
                 name="cv-source"
                 checked={source === cv.id}
                 onChange={() => setSource(cv.id)}
-                className="mt-0.5 accent-violet-600"
+                className="mt-0.5 accent-blue-600"
               />
               <span>
                 {cv.name} <span className="text-slate-500">({cv.fileName})</span>
@@ -193,7 +193,7 @@ export function CvAdapter({
       ) : (
         <p className="text-xs text-slate-500">
           Astuce : enregistre tes CV dans{" "}
-          <Link href="/profil" className="font-medium text-violet-700 underline underline-offset-2">
+          <Link href="/profil" className="font-medium text-blue-700 underline underline-offset-2">
             Mon profil
           </Link>{" "}
           pour ne plus avoir à les importer.
@@ -208,7 +208,7 @@ export function CvAdapter({
               name="cv-source"
               checked={source === UPLOAD}
               onChange={() => setSource(UPLOAD)}
-              className="mt-0.5 accent-violet-600"
+              className="mt-0.5 accent-blue-600"
             />
             <span>Importer un nouveau CV</span>
           </label>
@@ -234,7 +234,7 @@ export function CvAdapter({
               className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
             />
             <p className="mt-1 text-xs text-slate-500">PDF, {CV_MAX_LABEL} max.</p>
-            {fileError && <p className="mt-1 text-sm text-rose-600">{fileError}</p>}
+            {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
           </div>
         )}
       </div>
@@ -242,7 +242,7 @@ export function CvAdapter({
   );
 
   return (
-    <section aria-labelledby="cv-title" className="rounded-2xl border border-slate-200 bg-white p-5">
+    <section aria-labelledby="cv-title" className="card p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 id="cv-title" className="font-semibold text-slate-900">
@@ -259,7 +259,7 @@ export function CvAdapter({
             type="button"
             onClick={() => setPickerOpenedAt(adaptState)}
             disabled={!aiEnabled || busy}
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="btn-primary px-4 py-2 text-sm"
           >
             {suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
           </button>
@@ -287,7 +287,7 @@ export function CvAdapter({
               type="button"
               onClick={runAnalysis}
               disabled={busy || !sourceReady}
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="btn-primary px-4 py-2 text-sm"
             >
               {analyzing ? "Analyse en cours…" : "Analyser mon CV"}
             </button>
@@ -308,7 +308,7 @@ export function CvAdapter({
             </p>
           )}
           {adaptState.status === "error" && !analyzing && (
-            <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200">
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
               {adaptState.message}
             </p>
           )}
@@ -319,7 +319,7 @@ export function CvAdapter({
         <div className="mt-5 space-y-5">
           <SuggestionsView suggestions={suggestions} />
 
-          <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
             <h3 className="font-semibold text-slate-900">📄 CV amélioré</h3>
             <p className="mt-1 text-sm text-slate-600">
               Génère un CV complet qui applique ces suggestions, avec les améliorations surlignées.
@@ -330,7 +330,7 @@ export function CvAdapter({
                 type="button"
                 onClick={runGeneration}
                 disabled={busy || !aiEnabled}
-                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="btn-primary px-4 py-2 text-sm"
               >
                 {generating
                   ? "Rédaction en cours…"
@@ -341,7 +341,7 @@ export function CvAdapter({
               {hasImprovedCv && !generating && (
                 <Link
                   href={`/candidatures/${applicationId}/cv`}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-violet-700 ring-1 ring-violet-300 hover:bg-white"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-blue-700 ring-1 ring-blue-300 hover:bg-white"
                 >
                   Ouvrir mon CV amélioré →
                 </Link>
@@ -360,7 +360,7 @@ export function CvAdapter({
               </p>
             )}
             {generateState.status === "error" && !generating && (
-              <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200">
+              <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
                 {generateState.message}
               </p>
             )}

@@ -10,7 +10,7 @@ import {
 } from "@/lib/reminders";
 
 const selectClassName =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400";
+  "input py-2";
 
 export function ReminderSettingsForm({
   initial,
@@ -50,7 +50,7 @@ export function ReminderSettingsForm({
           type="checkbox"
           checked={settings.enabled}
           onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
-          className="mt-0.5 h-4 w-4 accent-indigo-600"
+          className="mt-0.5 h-4 w-4 accent-blue-600"
         />
         <span>
           <span className="block text-sm font-medium text-slate-900">
@@ -117,14 +117,14 @@ export function ReminderSettingsForm({
           type="button"
           onClick={save}
           disabled={pending || !dirty}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="btn-primary px-4 py-2 text-sm"
         >
           {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
         {feedback && !pending && (
           <p
             role={feedback.ok ? "status" : "alert"}
-            className={`text-sm ${feedback.ok ? "text-emerald-700" : "text-rose-600"}`}
+            className={`text-sm ${feedback.ok ? "text-emerald-700" : "text-red-600"}`}
           >
             {feedback.text}
           </p>

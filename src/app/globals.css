@@ -1,13 +1,127 @@
 @import "tailwindcss";
 
+/*
+ * Système de design Applyfy.
+ * Couleurs = palette Tailwind : primaire blue-600 (#2563EB) → cyan-500 (#06B6D4),
+ * fonds white / slate-50 (#F8FAFC), textes slate-900 (#0F172A) / slate-500 (#64748B),
+ * bordures slate-200 (#E2E8F0), succès emerald-500, alerte amber-500, erreur red-500.
+ */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
+  font-family: var(--font-sans);
+}
+
+/* Dégradé de marque */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(90deg, var(--color-blue-600), var(--color-cyan-500));
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(90deg, var(--color-blue-600), var(--color-cyan-500));
+  background-clip: text;
+  color: transparent;
+}
+
+/* Bouton principal : dégradé bleu → cyan */
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  background-image: linear-gradient(90deg, var(--color-blue-600), var(--color-cyan-500));
+  color: white;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgb(37 99 235 / 0.2), 0 4px 12px -2px rgb(6 182 212 / 0.25);
+  transition: filter 150ms, box-shadow 150ms, transform 150ms;
+
+  &:hover {
+    filter: brightness(1.06);
+    box-shadow: 0 1px 2px rgb(37 99 235 / 0.25), 0 8px 18px -4px rgb(6 182 212 / 0.35);
+  }
+  &:active {
+    transform: translateY(1px);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-600);
+    outline-offset: 2px;
+  }
+  &:disabled,
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+    opacity: 0.55;
+    box-shadow: none;
+  }
+}
+
+/* Bouton secondaire : blanc, bordure légère */
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-slate-200);
+  background-color: white;
+  color: var(--color-slate-700);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 150ms, border-color 150ms;
+
+  &:hover {
+    background-color: var(--color-slate-50);
+    border-color: var(--color-slate-300);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-600);
+    outline-offset: 2px;
+  }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+/* Champs de formulaire : coins arrondis, focus bleu */
+@utility input {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-slate-200);
+  background-color: white;
+  padding: 0.625rem 0.875rem;
+  font-size: var(--text-sm);
   color: var(--color-slate-900);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  transition: border-color 150ms, box-shadow 150ms;
+
+  &::placeholder {
+    color: var(--color-slate-400);
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--color-blue-500);
+    box-shadow: 0 0 0 4px rgb(59 130 246 / 0.15);
+  }
+  &[aria-invalid="true"] {
+    border-color: var(--color-red-400);
+  }
+  &:disabled {
+    background-color: var(--color-slate-100);
+    color: var(--color-slate-400);
+    cursor: not-allowed;
+  }
+}
+
+/* Carte : fond blanc, coins arrondis, ombre légère */
+@utility card {
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--color-slate-200);
+  background-color: white;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px -8px rgb(15 23 42 / 0.08);
 }
 
 /*

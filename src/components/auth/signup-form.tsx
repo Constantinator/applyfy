@@ -11,7 +11,7 @@ import { FormError, inputClassName, submitClassName } from "./form-field";
 const initialState: AuthFormState = { status: "idle" };
 
 function RuleItem({ ok, touched, label }: { ok: boolean; touched: boolean; label: string }) {
-  const color = ok ? "text-emerald-600" : touched ? "text-rose-600" : "text-slate-500";
+  const color = ok ? "text-emerald-600" : touched ? "text-red-600" : "text-slate-500";
   return (
     <li className={`flex items-center gap-2 text-sm ${color}`}>
       <span aria-hidden="true" className="w-4 text-center font-bold">
@@ -44,7 +44,7 @@ export function SignupForm() {
         </p>
         <Link
           href="/login"
-          className="inline-block text-sm font-medium text-indigo-600 hover:text-indigo-500"
+          className="inline-block text-sm font-medium text-blue-600 hover:text-blue-500"
         >
           Aller à la connexion
         </Link>
@@ -135,7 +135,7 @@ export function SignupForm() {
 
       <p className="text-center text-sm text-slate-500">
         Déjà un compte ?{" "}
-        <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+        <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
           Se connecter
         </Link>
       </p>

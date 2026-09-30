@@ -13,7 +13,7 @@ export function DocumentsList({ documents }: { documents: ApplicationDocument[] 
           className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"
         >
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -34,7 +34,7 @@ export function DocumentsList({ documents }: { documents: ApplicationDocument[] 
           <a
             href={`/candidatures/${doc.application_id}/documents/${doc.id}`}
             download={doc.file_name}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-indigo-600 ring-1 ring-indigo-200 hover:bg-indigo-50"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-blue-600 ring-1 ring-blue-200 hover:bg-blue-50"
           >
             Télécharger
           </a>

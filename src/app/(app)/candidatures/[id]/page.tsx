@@ -45,7 +45,7 @@ function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white p-5 ${className}`}>
+    <section className={`card p-5 ${className}`}>
       <h2 className="mb-4 font-semibold text-slate-900">{title}</h2>
       {children}
     </section>
@@ -72,7 +72,7 @@ export default async function ApplicationPage({
   const { application: app, events, documents, source } = detail;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900">
         ← Retour au dashboard
       </Link>
@@ -94,11 +94,11 @@ export default async function ApplicationPage({
       )}
 
       {/* En-tête */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold text-slate-900">{app.company}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{app.company}</h1>
               <StatusBadge status={app.status} />
             </div>
             <p className="mt-1 text-slate-600">
@@ -118,7 +118,7 @@ export default async function ApplicationPage({
                   {app.contact_email && (
                     <a
                       href={`mailto:${app.contact_email}`}
-                      className="block truncate font-normal text-indigo-600 hover:text-indigo-500"
+                      className="block truncate font-normal text-blue-600 hover:text-blue-500"
                     >
                       {app.contact_email}
                     </a>
@@ -133,7 +133,7 @@ export default async function ApplicationPage({
                       href={app.offer_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-indigo-600 hover:text-indigo-500"
+                      className="font-medium text-blue-600 hover:text-blue-500"
                     >
                       Voir l&apos;offre ↗
                     </a>
@@ -154,7 +154,7 @@ export default async function ApplicationPage({
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {app.offer_summary && (
-            <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+            <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
               <h2 className="mb-4 font-semibold text-slate-900">
                 <span aria-hidden="true">✨ </span>Résumé de l&apos;offre
               </h2>

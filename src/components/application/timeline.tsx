@@ -42,7 +42,7 @@ export function Timeline({ events }: { events: ApplicationEvent[] }) {
             {event.content &&
               (isLong ? (
                 <details className="mt-1 text-sm text-slate-600">
-                  <summary className="cursor-pointer text-indigo-600 hover:text-indigo-500">
+                  <summary className="cursor-pointer text-blue-600 hover:text-blue-500">
                     Voir le message
                   </summary>
                   <p className="mt-2 rounded-lg bg-slate-50 p-3 whitespace-pre-line">

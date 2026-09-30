@@ -78,21 +78,21 @@ export function FollowUpBox({
           rows={12}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 p-3 text-sm leading-relaxed text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+          className="input leading-relaxed"
         />
 
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={copy}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            className="btn-secondary px-3 py-2 text-sm"
           >
             {copied ? "Copié ✓" : "Copier le message"}
           </button>
           {mailto && (
             <a
               href={mailto}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+              className="btn-secondary px-3 py-2 text-sm"
             >
               Ouvrir dans ma messagerie
             </a>
@@ -100,7 +100,7 @@ export function FollowUpBox({
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-400 disabled:opacity-60 sm:ml-auto"
+            className="btn-primary px-4 py-2 text-sm sm:ml-auto"
           >
             {pending ? "Enregistrement…" : "Marquer comme relancée"}
           </button>
@@ -109,7 +109,7 @@ export function FollowUpBox({
         {state.status !== "idle" && (
           <p
             role={state.status === "error" ? "alert" : "status"}
-            className={`mt-2 text-sm ${state.status === "error" ? "text-rose-600" : "text-emerald-700"}`}
+            className={`mt-2 text-sm ${state.status === "error" ? "text-red-600" : "text-emerald-700"}`}
           >
             {state.message}
           </p>

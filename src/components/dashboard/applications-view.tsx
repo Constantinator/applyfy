@@ -92,7 +92,7 @@ export function ApplicationsView({
               setSort(value);
               syncUrl({ filtre: filter, tri: value });
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+            className="input w-auto py-1.5"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

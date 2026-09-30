@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -8,9 +7,6 @@ import { getApplicationDetail } from "@/lib/applications";
 import { sanitizeCvHtml } from "@/lib/cv-html";
 
 export const metadata: Metadata = { title: "Mon CV amélioré — Applyfy" };
-
-// Police du CV (auto-hébergée par next/font) ; Arial en repli (cf. CvEditor).
-const inter = Inter({ subsets: ["latin"], variable: "--font-cv", display: "swap" });
 
 /** Premier <h1> du CV (le nom du candidat), pour nommer le fichier PDF. */
 function candidateName(html: string) {
@@ -26,7 +22,7 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
 
   return (
     <main
-      className={`${inter.variable} mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6 print:max-w-none print:space-y-0 print:p-0`}
+      className={`mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
     >
       <div className="space-y-1 print:hidden">
         <Link
@@ -35,7 +31,7 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
         >
           ← Retour à la candidature {app.company}
         </Link>
-        <h1 className="text-2xl font-semibold text-slate-900">Mon CV amélioré</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon CV amélioré</h1>
         <p className="text-sm text-slate-500">
           Adapté au poste « {app.position} » chez {app.company}.
         </p>
@@ -59,7 +55,7 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
           </p>
           <Link
             href={`/candidatures/${app.id}`}
-            className="mt-4 inline-block rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+            className="btn-primary mt-4 px-4 py-2 text-sm"
           >
             Aller à la fiche
           </Link>

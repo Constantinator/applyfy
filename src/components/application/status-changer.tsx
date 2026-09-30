@@ -50,7 +50,7 @@ export function StatusChanger({
           name="status"
           value={selected}
           onChange={(e) => setSelected(e.target.value as ApplicationStatus)}
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+          className="input min-w-0 flex-1 py-2"
         >
           {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map((status) => (
             <option key={status} value={status}>
@@ -68,7 +68,7 @@ export function StatusChanger({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium whitespace-nowrap text-white hover:bg-slate-700 disabled:opacity-60"
+          className="btn-primary px-4 py-2 text-sm"
         >
           {pending ? "…" : "Changer le statut"}
         </button>
@@ -76,7 +76,7 @@ export function StatusChanger({
       {state.status !== "idle" && (
         <p
           role={state.status === "error" ? "alert" : "status"}
-          className={`text-sm ${state.status === "error" ? "text-rose-600" : "text-emerald-700"}`}
+          className={`text-sm ${state.status === "error" ? "text-red-600" : "text-emerald-700"}`}
         >
           {state.message}
         </p>

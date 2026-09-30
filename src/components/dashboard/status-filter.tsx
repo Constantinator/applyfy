@@ -21,12 +21,12 @@ export function StatusFilter({
             aria-pressed={isActive}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive
-                ? "bg-slate-900 text-white"
+                ? "bg-brand-gradient text-white shadow-sm shadow-blue-600/20"
                 : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
             }`}
           >
             {option.label}
-            <span className={`ml-1.5 ${isActive ? "text-slate-300" : "text-slate-400"}`}>
+            <span className={`ml-1.5 ${isActive ? "text-blue-100" : "text-slate-400"}`}>
               {option.count}
             </span>
           </button>

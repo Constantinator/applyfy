@@ -21,7 +21,7 @@ export function DeleteApplicationButton({
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
-        className="rounded-lg px-4 py-2 text-sm font-medium text-rose-700 ring-1 ring-rose-300 hover:bg-rose-50"
+        className="rounded-lg px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-300 hover:bg-red-50"
       >
         Supprimer la candidature
       </button>
@@ -46,7 +46,7 @@ export function DeleteApplicationButton({
           {state.status === "error" && (
             <p
               role="alert"
-              className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200"
+              className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200"
             >
               {state.message}
             </p>
@@ -57,14 +57,14 @@ export function DeleteApplicationButton({
               autoFocus
               onClick={() => dialogRef.current?.close()}
               disabled={pending}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+              className="btn-secondary px-4 py-2 text-sm"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-500 disabled:opacity-60"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-60"
             >
               {pending ? "Suppression…" : "Supprimer définitivement"}
             </button>

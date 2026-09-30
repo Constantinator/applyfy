@@ -25,7 +25,7 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 const inputClassName =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none";
+  "input py-2";
 const smallButton =
   "rounded-lg px-3 py-1.5 text-sm font-medium ring-1 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -51,7 +51,7 @@ function CvRow({
     <li className="rounded-xl border border-slate-200 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-xs font-bold text-rose-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-xs font-bold text-red-600">
             PDF
           </span>
           {editing ? (
@@ -74,7 +74,7 @@ function CvRow({
                 autoFocus
                 className={inputClassName}
               />
-              <button type="submit" disabled={busy || !name.trim()} className={`${smallButton} bg-indigo-600 text-white ring-indigo-600`}>
+              <button type="submit" disabled={busy || !name.trim()} className={`${smallButton} bg-blue-600 text-white ring-blue-600`}>
                 OK
               </button>
               <button
@@ -100,7 +100,7 @@ function CvRow({
 
         {!editing && (
           <div className="flex flex-wrap gap-2">
-            <a href={`/profil/cv/${cv.id}`} target="_blank" rel="noopener" className={`${smallButton} text-indigo-600 ring-indigo-200 hover:bg-indigo-50`}>
+            <a href={`/profil/cv/${cv.id}`} target="_blank" rel="noopener" className={`${smallButton} text-blue-600 ring-blue-200 hover:bg-blue-50`}>
               Voir
             </a>
             <a href={`/profil/cv/${cv.id}?telecharger=1`} className={`${smallButton} text-slate-700 ring-slate-300 hover:bg-slate-50`}>
@@ -111,12 +111,12 @@ function CvRow({
             </button>
             {confirmDelete ? (
               <span className="flex items-center gap-2">
-                <span className="text-sm text-rose-700">Supprimer ?</span>
+                <span className="text-sm text-red-700">Supprimer ?</span>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => onAction(() => deleteProfileCvAction(cv.id))}
-                  className={`${smallButton} bg-rose-600 text-white ring-rose-600`}
+                  className={`${smallButton} bg-red-600 text-white ring-red-600`}
                 >
                   Oui, supprimer
                 </button>
@@ -125,7 +125,7 @@ function CvRow({
                 </button>
               </span>
             ) : (
-              <button type="button" disabled={busy} onClick={() => setConfirmDelete(true)} className={`${smallButton} text-rose-700 ring-rose-200 hover:bg-rose-50`}>
+              <button type="button" disabled={busy} onClick={() => setConfirmDelete(true)} className={`${smallButton} text-red-700 ring-red-200 hover:bg-red-50`}>
                 Supprimer
               </button>
             )}
@@ -216,7 +216,7 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
               }}
               className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
             />
-            {fileError && <p className="mt-1 text-sm text-rose-600">{fileError}</p>}
+            {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
           </div>
           <div>
             <label htmlFor="new-cv-name" className="mb-1 block text-xs text-slate-500">
@@ -234,7 +234,7 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
           <button
             type="submit"
             disabled={busy || !file || Boolean(fileError) || !newName.trim()}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="btn-primary px-4 py-2 text-sm"
           >
             {busy ? "Enregistrement…" : "Ajouter ce CV"}
           </button>
@@ -242,7 +242,7 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
       )}
 
       {feedback && !busy && (
-        <p role={feedback.ok ? "status" : "alert"} className={`text-sm ${feedback.ok ? "text-emerald-700" : "text-rose-600"}`}>
+        <p role={feedback.ok ? "status" : "alert"} className={`text-sm ${feedback.ok ? "text-emerald-700" : "text-red-600"}`}>
           {feedback.text}
         </p>
       )}

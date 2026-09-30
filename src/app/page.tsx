@@ -1,46 +1,32 @@
 import Link from "next/link";
 
+import { IconActivity, IconBell, IconDocument, IconFolder } from "@/components/icons";
+import { Logo } from "@/components/logo";
+
 const FEATURES = [
   {
     title: "Suivi en temps réel",
     description:
       "Toutes tes candidatures au même endroit, avec leur statut à jour : envoyée, relancée, entretien, offre.",
-    icon: (
-      <path d="M3 13h4l3-8 4 14 3-6h4" strokeLinecap="round" strokeLinejoin="round" />
-    ),
+    icon: IconActivity,
   },
   {
     title: "Ton CV optimisé",
     description:
       "Adapte ton CV et ta lettre à chaque offre, sans perdre ce qui fait ta personnalité.",
-    icon: (
-      <>
-        <path d="M7 3h7l5 5v13H7z" strokeLinejoin="round" />
-        <path d="M14 3v5h5M10 13h6M10 17h4" strokeLinecap="round" />
-      </>
-    ),
+    icon: IconDocument,
   },
   {
     title: "Rappels de relance",
     description:
       "Applyfy te prévient quand une entreprise tarde à répondre et prépare ton message de relance.",
-    icon: (
-      <>
-        <path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z" strokeLinejoin="round" />
-        <path d="M10 21h4" strokeLinecap="round" />
-      </>
-    ),
+    icon: IconBell,
   },
   {
     title: "Tous tes documents",
     description:
       "CV, lettres, offres et échanges : chaque candidature garde son historique complet.",
-    icon: (
-      <path
-        d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
-        strokeLinejoin="round"
-      />
-    ),
+    icon: IconFolder,
   },
 ];
 
@@ -63,21 +49,51 @@ const STEPS = [
   },
 ];
 
-function Logo() {
+/** Aperçu décoratif du dashboard dans le hero. */
+function DashboardPreview() {
+  const rows = [
+    { company: "Doctolib", role: "Product Manager", status: "Entretien", tone: "bg-violet-50 text-violet-700" },
+    { company: "Qonto", role: "Business Developer", status: "Envoyée", tone: "bg-blue-50 text-blue-700" },
+    { company: "Alan", role: "Growth Marketing", status: "À relancer", tone: "bg-amber-50 text-amber-700" },
+  ];
   return (
-    <span className="flex items-center gap-2 font-semibold text-slate-900">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-        A
-      </span>
-      Applyfy
-    </span>
+    <div aria-hidden="true" className="card mx-auto mt-16 max-w-3xl overflow-hidden text-left">
+      <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+        <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+        <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+      </div>
+      <div className="grid grid-cols-3 gap-3 p-5">
+        {[
+          ["Candidatures", "12"],
+          ["Entretiens", "3"],
+          ["À relancer", "2"],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-xl border border-slate-200 p-3">
+            <p className="text-xs text-slate-500">{label}</p>
+            <p className="mt-1 text-xl font-bold text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+      <ul className="divide-y divide-slate-100 border-t border-slate-100">
+        {rows.map((row) => (
+          <li key={row.company} className="flex items-center justify-between px-5 py-3 text-sm">
+            <span>
+              <span className="font-semibold text-slate-900">{row.company}</span>
+              <span className="text-slate-500"> · {row.role}</span>
+            </span>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${row.tone}`}>{row.status}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
 export default function LandingPage() {
   return (
     <div className="flex flex-1 flex-col bg-white">
-      <header className="sticky top-0 z-10 border-b border-slate-100 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" aria-label="Applyfy, accueil">
             <Logo />
@@ -89,10 +105,7 @@ export default function LandingPage() {
             <Link href="/login" className="text-slate-600 hover:text-slate-900">
               Se connecter
             </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-500 sm:px-4"
-            >
+            <Link href="/signup" className="btn-primary px-4 py-2 text-sm">
               Créer mon compte
             </Link>
           </nav>
@@ -101,93 +114,93 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="bg-gradient-to-b from-indigo-50 to-white">
-          <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 sm:py-28">
-            <p className="mb-4 inline-block rounded-full bg-white px-3 py-1 text-sm font-medium text-indigo-700 ring-1 ring-indigo-100">
+        <section className="relative overflow-hidden">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 -top-40 h-[34rem] bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.14),rgba(6,182,212,0.08)_40%,transparent_70%)]"
+          />
+          <div className="relative mx-auto max-w-5xl px-4 pt-20 pb-24 text-center sm:px-6 sm:pt-28">
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 py-1 pr-3 pl-1 text-sm text-slate-600 shadow-sm">
+              <span className="bg-brand-gradient rounded-full px-2 py-0.5 text-xs font-semibold text-white">
+                Nouveau
+              </span>
               Pour tous ceux qui cherchent leur prochain job
             </p>
-            <h1 className="text-4xl font-bold tracking-tight text-balance text-slate-900 sm:text-6xl">
+            <h1 className="text-4xl font-extrabold tracking-tight text-balance text-slate-900 sm:text-6xl sm:leading-[1.05]">
               Trouve ton job.{" "}
-              <span className="text-indigo-600">Sans te noyer dans les candidatures.</span>
+              <span className="text-brand-gradient">Sans te noyer dans les candidatures.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-pretty text-slate-600">
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-slate-500">
               Applyfy centralise tes candidatures, t&apos;aide à construire des CV et lettres qui te
               ressemblent, et te rappelle quand relancer.
             </p>
             <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link
-                href="/signup"
-                className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white shadow-sm hover:bg-indigo-500"
-              >
+              <Link href="/signup" className="btn-primary px-6 py-3 text-base">
                 Créer mon compte
               </Link>
-              <a
-                href="#comment-ca-marche"
-                className="rounded-lg bg-white px-6 py-3 font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
-              >
+              <a href="#comment-ca-marche" className="btn-secondary px-6 py-3 text-base">
                 Voir comment ça marche
               </a>
             </div>
             <p className="mt-5 text-sm text-slate-500">
               J&apos;ai déjà un compte →{" "}
-              <Link href="/login" className="font-medium text-indigo-600 underline-offset-4 hover:underline">
+              <Link href="/login" className="font-medium text-blue-600 underline-offset-4 hover:underline">
                 Se connecter
               </Link>
             </p>
+
+            <DashboardPreview />
           </div>
         </section>
 
-        {/* Features */}
-        <section aria-labelledby="features-title" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <h2 id="features-title" className="text-center text-3xl font-bold text-slate-900">
-            Tout ce qu&apos;il te faut pour décrocher ton job
-          </h2>
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((feature) => (
-              <article
-                key={feature.title}
-                className="rounded-2xl border border-slate-200 bg-white p-6 transition-shadow hover:shadow-md"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.8}
-                    className="h-6 w-6"
-                    aria-hidden="true"
-                  >
-                    {feature.icon}
-                  </svg>
-                </span>
-                <h3 className="mt-4 font-semibold text-slate-900">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{feature.description}</p>
-              </article>
-            ))}
+        {/* Fonctionnalités */}
+        <section aria-labelledby="features-title" className="border-t border-slate-100 bg-slate-50">
+          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+            <p className="text-center text-sm font-semibold tracking-wide text-blue-600 uppercase">
+              Fonctionnalités
+            </p>
+            <h2 id="features-title" className="mt-2 text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              Tout ce qu&apos;il te faut pour décrocher ton job
+            </h2>
+            <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {FEATURES.map((feature) => (
+                <article
+                  key={feature.title}
+                  className="card p-6 transition-transform duration-200 hover:-translate-y-0.5"
+                >
+                  <span className="bg-brand-gradient flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm shadow-blue-600/20">
+                    <feature.icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-5 font-semibold text-slate-900">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500">{feature.description}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* Comment ça marche */}
-        <section
-          id="comment-ca-marche"
-          aria-labelledby="steps-title"
-          className="scroll-mt-16 bg-slate-50"
-        >
-          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-            <h2 id="steps-title" className="text-center text-3xl font-bold text-slate-900">
+        <section id="comment-ca-marche" aria-labelledby="steps-title" className="scroll-mt-16 bg-white">
+          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+            <p className="text-center text-sm font-semibold tracking-wide text-blue-600 uppercase">
               Comment ça marche
-            </h2>
-            <p className="mt-3 text-center text-slate-600">
-              4 étapes, et ta recherche d&apos;emploi devient enfin organisée.
             </p>
-            <ol className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <h2 id="steps-title" className="mt-2 text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              4 étapes, et ta recherche devient organisée
+            </h2>
+            <ol className="relative mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Ligne de liaison entre les étapes (grand écran) */}
+              <span
+                aria-hidden="true"
+                className="absolute top-5 right-[12%] left-[12%] hidden h-px bg-gradient-to-r from-blue-200 via-cyan-200 to-blue-200 lg:block"
+              />
               {STEPS.map((step, index) => (
-                <li key={step.title} className="rounded-2xl bg-white p-6 ring-1 ring-slate-200">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">
+                <li key={step.title} className="relative text-center">
+                  <span className="bg-brand-gradient relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-md shadow-blue-600/25 ring-4 ring-white">
                     {index + 1}
                   </span>
-                  <h3 className="mt-4 font-semibold text-slate-900">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
+                  <h3 className="mt-5 font-semibold text-slate-900">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500">{step.description}</p>
                 </li>
               ))}
             </ol>
@@ -195,23 +208,27 @@ export default function LandingPage() {
         </section>
 
         {/* Appel à l'action final */}
-        <section aria-labelledby="cta-title" className="px-4 py-20 sm:px-6">
-          <div className="mx-auto max-w-3xl rounded-3xl bg-indigo-600 px-6 py-12 text-center sm:px-12">
-            <h2 id="cta-title" className="text-3xl font-bold text-white">
+        <section aria-labelledby="cta-title" className="px-4 pb-24 sm:px-6">
+          <div className="bg-brand-gradient relative mx-auto max-w-4xl overflow-hidden rounded-3xl px-6 py-14 text-center shadow-xl shadow-blue-600/20 sm:px-12">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)]"
+            />
+            <h2 id="cta-title" className="relative text-3xl font-bold tracking-tight text-white">
               Prêt·e à reprendre le contrôle de ta recherche ?
             </h2>
-            <p className="mt-3 text-indigo-100">
+            <p className="relative mt-3 text-blue-50">
               Crée ton compte en une minute et ajoute ta première candidature.
             </p>
             <Link
               href="/signup"
-              className="mt-8 inline-block rounded-lg bg-amber-400 px-6 py-3 font-semibold text-slate-900 shadow-sm hover:bg-amber-300"
+              className="relative mt-8 inline-flex rounded-lg bg-white px-6 py-3 font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
             >
               Créer mon compte
             </Link>
-            <p className="mt-5 text-sm text-indigo-100">
+            <p className="relative mt-5 text-sm text-blue-50">
               J&apos;ai déjà un compte →{" "}
-              <Link href="/login" className="font-medium text-white underline-offset-4 hover:underline">
+              <Link href="/login" className="font-semibold text-white underline-offset-4 hover:underline">
                 Se connecter
               </Link>
             </p>
@@ -219,9 +236,17 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-slate-100">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-6 text-sm text-slate-500 sm:flex-row sm:px-6">
-          <Logo />
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 text-sm text-slate-500 sm:flex-row sm:px-6">
+          <Logo size="sm" />
+          <nav className="flex gap-6">
+            <a href="#comment-ca-marche" className="hover:text-slate-900">
+              Comment ça marche
+            </a>
+            <Link href="/login" className="hover:text-slate-900">
+              Se connecter
+            </Link>
+          </nav>
           <p>© {new Date().getFullYear()} Applyfy</p>
         </div>
       </footer>
