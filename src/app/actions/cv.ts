@@ -14,7 +14,7 @@ import { generateImprovedCv, isClaudeConfigured, suggestCvAdaptations, type Offe
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
 import type { CvSuggestions } from "@/lib/cv-types";
-import { getProfileCvBytes } from "@/lib/profile";
+import { getProfileCvFile } from "@/lib/profile";
 
 export type AdaptCvState =
   | { status: "idle" }
@@ -43,11 +43,12 @@ async function prepare(formData: FormData): Promise<Prepared> {
 
   let bytes: Buffer;
   if (formData.get("source") === "profil") {
-    const profileCv = await getProfileCvBytes();
+    // Un CV du profil, désigné par son id (propriété vérifiée par getProfileCvFile).
+    const profileCv = await getProfileCvFile(String(formData.get("cvId") ?? ""));
     if (!profileCv) {
-      return { ok: false, message: "Aucun CV dans ton profil. Importe-le depuis « Mon profil »." };
+      return { ok: false, message: "Ce CV n'existe plus dans ton profil. Choisis-en un autre." };
     }
-    bytes = profileCv;
+    bytes = profileCv.bytes;
   } else {
     const upload = await readPdfUpload(formData.get("cv"));
     if (!upload.ok) return { ok: false, message: upload.error };

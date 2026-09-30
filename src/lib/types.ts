@@ -3,6 +3,7 @@ import type { CvSuggestions } from "./cv-types";
 export const APPLICATION_STATUSES = [
   "brouillon",
   "envoyee",
+  "en_attente",
   "relancee",
   "entretien",
   "offre",
@@ -10,6 +11,9 @@ export const APPLICATION_STATUSES = [
 ] as const;
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+/** Statuts « réponse reçue » (regroupés dans le sélecteur de statut). */
+export const RESPONSE_STATUSES: ApplicationStatus[] = ["entretien", "offre", "refusee"];
 
 export type Application = {
   id: string;
@@ -69,6 +73,7 @@ export type ApplicationDocument = {
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   brouillon: "Brouillon",
   envoyee: "Envoyée",
+  en_attente: "En attente",
   relancee: "Relancée",
   entretien: "Entretien",
   offre: "Offre reçue",

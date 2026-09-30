@@ -67,7 +67,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           { label: "Candidatures", value: applications.length },
           {
             label: "En attente de réponse",
-            value: countByStatus("envoyee") + countByStatus("relancee"),
+            value:
+              countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
           },
           { label: "Entretiens", value: countByStatus("entretien") },
           {

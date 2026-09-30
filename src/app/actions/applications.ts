@@ -7,12 +7,13 @@ import {
   changeApplicationStatus,
   createApplication,
   deleteApplication,
+  markApplicationSent,
   recordFollowUp,
   today,
 } from "@/lib/applications";
 import { normalizeCompanyName } from "@/lib/normalize";
 import { OFFER_DESCRIPTION_MAX_LENGTH, OFFER_SUMMARY_MAX_LENGTH } from "@/lib/offer-limits";
-import { STATUS_LABELS, isApplicationStatus, type ApplicationStatus } from "@/lib/types";
+import { STATUS_LABELS, isApplicationStatus } from "@/lib/types";
 
 export type ActionState =
   | { status: "idle" }
@@ -64,6 +65,26 @@ export async function followUpAction(
   return { status: "success", message: "Relance enregistrée dans l'historique." };
 }
 
+export async function markAsSentAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const id = String(formData.get("id") ?? "");
+  const sentOn = String(formData.get("sent_on") ?? "").trim() || today();
+
+  if (!id) return { status: "error", message: "Candidature invalide." };
+  if (!isValidIsoDate(sentOn)) return { status: "error", message: "Date d'envoi invalide." };
+  if (sentOn > today()) {
+    return { status: "error", message: "La date d'envoi ne peut pas être dans le futur." };
+  }
+
+  const result = await markApplicationSent(id, sentOn);
+  if (!result.ok) return { status: "error", message: result.error };
+
+  revalidateApplication(id);
+  return { status: "success", message: "✓ Candidature marquée comme envoyée." };
+}
+
 export async function deleteApplicationAction(
   _prev: ActionState,
   formData: FormData,
@@ -94,9 +115,7 @@ export type NewApplicationField =
   | "location"
   | "offer_url"
   | "offer_description"
-  | "offer_summary"
-  | "applied_at"
-  | "status";
+  | "offer_summary";
 
 export type NewApplicationState = {
   status: "idle" | "error";
@@ -143,8 +162,6 @@ export async function createApplicationAction(
     offer_url: text("offer_url"),
     offer_description: text("offer_description"),
     offer_summary: text("offer_summary"),
-    applied_at: text("applied_at"),
-    status: text("status"),
   };
 
   const fieldErrors: NewApplicationState["fieldErrors"] = {};
@@ -167,31 +184,20 @@ export async function createApplicationAction(
     fieldErrors.offer_summary = "Résumé trop long (4 000 caractères max).";
   }
 
-  const status: ApplicationStatus | null = isApplicationStatus(values.status) ? values.status : null;
-  if (!status) fieldErrors.status = "Choisis un statut.";
-
-  // Un brouillon n'a pas encore été envoyé : pas de date de candidature.
-  let appliedAt: string | null = null;
-  if (status && status !== "brouillon") {
-    if (!isValidIsoDate(values.applied_at)) fieldErrors.applied_at = "Date invalide.";
-    else if (values.applied_at > today()) fieldErrors.applied_at = "La date ne peut pas être dans le futur.";
-    else appliedAt = values.applied_at;
-  }
-
-  if (Object.keys(fieldErrors).length > 0 || !status) {
+  if (Object.keys(fieldErrors).length > 0) {
     return { status: "error", message: "Corrige les champs indiqués.", fieldErrors, values };
   }
 
+  // Toujours créée en brouillon : le statut se change ensuite depuis la fiche.
+  let id: string;
   try {
-    await createApplication({
+    id = await createApplication({
       company: values.company,
       position: values.position,
       location: values.location || null,
       offer_url: values.offer_url || null,
       offer_description: values.offer_description || null,
       offer_summary: values.offer_summary || null,
-      status,
-      applied_at: appliedAt,
     });
   } catch (error) {
     unstable_rethrow(error); // laisse passer la redirection vers /login de requireUser()
@@ -204,5 +210,5 @@ export async function createApplicationAction(
   }
 
   revalidatePath("/dashboard");
-  redirect("/dashboard?ajout=ok");
+  redirect(`/candidatures/${id}?creee=1`);
 }

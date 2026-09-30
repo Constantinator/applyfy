@@ -15,7 +15,6 @@ import {
   OFFER_SUMMARY_MAX_LENGTH,
   SUMMARY_MIN_LENGTH,
 } from "@/lib/offer-limits";
-import { APPLICATION_STATUSES, STATUS_LABELS, type ApplicationStatus } from "@/lib/types";
 
 const initialState: NewApplicationState = { status: "idle" };
 
@@ -97,15 +96,8 @@ function Field({
   );
 }
 
-export function NewApplicationForm({
-  defaultDate,
-  aiEnabled,
-}: {
-  defaultDate: string;
-  aiEnabled: boolean;
-}) {
+export function NewApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
   const [state, formAction, pending] = useActionState(createApplicationAction, initialState);
-  const [status, setStatus] = useState<ApplicationStatus>("envoyee");
 
   // Champs contrôlés : pré-remplis par l'import d'offre et par le résumé.
   const [company, setCompany] = useState("");
@@ -132,7 +124,6 @@ export function NewApplicationForm({
   const lastImportedUrl = useRef("");
 
   const errors = state.fieldErrors ?? {};
-  const values = state.values ?? {};
   const a11y = (name: NewApplicationField) => ({
     id: name,
     name,
@@ -210,7 +201,6 @@ export function NewApplicationForm({
     setSummaryStatus({ state: "success", message: "✓ Résumé généré. Tu peux le modifier." });
   }
 
-  const isDraft = status === "brouillon";
   const canSummarize =
     aiEnabled && description.trim().length >= SUMMARY_MIN_LENGTH && summaryStatus.state !== "loading";
   // Le bandeau disparaît quand tous les champs signalés ont été complétés.
@@ -395,42 +385,10 @@ export function NewApplicationForm({
         )}
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-        <h2 className="font-semibold text-slate-900">Suivi</h2>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field name="status" label="Statut initial" error={errors.status}>
-            <select
-              {...a11y("status")}
-              value={status}
-              onChange={(e) => setStatus(e.target.value as ApplicationStatus)}
-              className={inputClassName}
-            >
-              {APPLICATION_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field
-            name="applied_at"
-            label="Date de candidature"
-            hint={isDraft ? "Pas de date pour un brouillon non envoyé." : undefined}
-            error={errors.applied_at}
-          >
-            <input
-              {...a11y("applied_at")}
-              type="date"
-              max={defaultDate}
-              disabled={isDraft}
-              defaultValue={values.applied_at || defaultDate}
-              className={inputClassName}
-            />
-          </Field>
-        </div>
-      </section>
+      <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">
+        La candidature sera créée en <strong>brouillon</strong>. Une fois ta candidature envoyée,
+        clique sur « Marquer comme envoyée » depuis sa fiche.
+      </p>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Link

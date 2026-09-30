@@ -12,6 +12,7 @@ import {
   type ApplicationEvent,
   type ApplicationEventType,
   type ApplicationStatus,
+  RESPONSE_STATUSES,
 } from "./types";
 
 import { FOLLOW_UP_STATUSES } from "./follow-up";
@@ -19,7 +20,6 @@ import { FOLLOW_UP_STATUSES } from "./follow-up";
 // Règles de relance déplacées dans follow-up.ts (utilisables côté client).
 export { FOLLOW_UP_AFTER_DAYS, daysSince, needsFollowUp } from "./follow-up";
 
-const RESPONSE_STATUSES: ApplicationStatus[] = ["entretien", "offre", "refusee"];
 
 const LIST_COLUMNS =
   "id, company, position, location, offer_url, contact_name, contact_email, status, applied_at, last_contact_at, created_at";
@@ -166,31 +166,26 @@ export type NewApplicationInput = {
   offer_url: string | null;
   offer_description: string | null;
   offer_summary: string | null;
-  status: ApplicationStatus;
-  /** Date d'envoi (YYYY-MM-DD) ; null pour un brouillon. */
-  applied_at: string | null;
 };
 
-/** Crée une candidature et ses premiers événements d'historique. Retourne son id. */
+/**
+ * Crée une candidature, toujours à l'état de brouillon (pas encore envoyée),
+ * avec son premier événement d'historique. Retourne son id.
+ */
 export async function createApplication(input: NewApplicationInput): Promise<string> {
   const { offer_summary, ...fields } = input;
   const row = {
     ...fields,
     // Colonne ajoutée par la migration 0004 : envoyée seulement si un résumé existe.
     ...(offer_summary ? { offer_summary } : {}),
-    last_contact_at: input.applied_at,
+    status: "brouillon" as ApplicationStatus,
+    applied_at: null,
+    last_contact_at: null,
   };
 
-  const events: { type: ApplicationEventType; content: string | null; created_at: string }[] = [];
-  if (input.applied_at) {
-    // Daté du jour d'envoi déclaré, pour un historique chronologique fidèle.
-    events.push({ type: "envoi", content: null, created_at: `${input.applied_at}T12:00:00.000Z` });
-  }
-  events.push({
-    type: "creation",
-    content: `Ajoutée dans Applyfy — statut initial : ${STATUS_LABELS[input.status]}`,
-    created_at: new Date().toISOString(),
-  });
+  const events: { type: ApplicationEventType; content: string | null; created_at: string }[] = [
+    { type: "creation", content: "Ajoutée dans Applyfy (brouillon)", created_at: new Date().toISOString() },
+  ];
 
   if (!isSupabaseConfigured()) {
     const id = crypto.randomUUID();
@@ -246,6 +241,23 @@ export async function changeApplicationStatus(id: string, status: ApplicationSta
 
   const content = `${STATUS_LABELS[current.status]} → ${STATUS_LABELS[status]}`;
   await applyUpdate(id, patch, eventType, content);
+  return { ok: true as const };
+}
+
+/**
+ * Passe un brouillon à « Envoyée » à la date indiquée (YYYY-MM-DD, aujourd'hui par
+ * défaut) : date d'envoi, dernier contact et événement « envoi » daté de ce jour.
+ */
+export async function markApplicationSent(id: string, sentOn: string) {
+  const current = await findForUpdate(id);
+  if (!current) return { ok: false as const, error: "Candidature introuvable." };
+  if (current.status !== "brouillon") {
+    return { ok: false as const, error: "Cette candidature est déjà marquée comme envoyée." };
+  }
+
+  const patch: ApplicationPatch = { status: "envoyee", applied_at: sentOn, last_contact_at: sentOn };
+  const eventDate = sentOn === today() ? new Date().toISOString() : `${sentOn}T12:00:00.000Z`;
+  await applyUpdate(id, patch, "envoi", null, eventDate);
   return { ok: true as const };
 }
 
@@ -376,6 +388,8 @@ async function applyUpdate(
   patch: ApplicationPatch,
   type: ApplicationEventType,
   content: string | null,
+  /** Date de l'événement (ISO) ; maintenant par défaut. */
+  eventAt: string = new Date().toISOString(),
 ) {
   if (!isSupabaseConfigured()) {
     const app = demoStore.applications.find((a) => a.id === id);
@@ -385,7 +399,7 @@ async function applyUpdate(
       application_id: id,
       type,
       content,
-      created_at: new Date().toISOString(),
+      created_at: eventAt,
     });
     return;
   }
@@ -396,7 +410,7 @@ async function applyUpdate(
 
   const { error: eventError } = await supabase
     .from("application_events")
-    .insert({ application_id: id, type, content });
+    .insert({ application_id: id, type, content, created_at: eventAt });
   if (eventError) throw new Error(eventError.message);
 }
 

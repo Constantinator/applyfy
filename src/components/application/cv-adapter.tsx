@@ -9,7 +9,7 @@ import {
   type AdaptCvState,
   type GenerateCvState,
 } from "@/app/actions/cv";
-import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions } from "@/lib/cv-types";
+import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
 
 const initialAdaptState: AdaptCvState = { status: "idle" };
 const initialGenerateState: GenerateCvState = { status: "idle" };
@@ -22,7 +22,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Europe/Paris",
 });
 
-type Source = "profil" | "upload";
+/** Valeur de source pour « importer un nouveau CV » (sinon : id d'un CV du profil). */
+const UPLOAD = "upload";
 
 function Spinner() {
   return (
@@ -97,7 +98,7 @@ export function CvAdapter({
   aiEnabled,
   saved,
   savedAt,
-  profileCv,
+  profileCvs,
   hasImprovedCv,
 }: {
   applicationId: string;
@@ -105,7 +106,7 @@ export function CvAdapter({
   aiEnabled: boolean;
   saved: CvSuggestions | null;
   savedAt: string | null;
-  profileCv: { fileName: string } | null;
+  profileCvs: ProfileCv[];
   hasImprovedCv: boolean;
 }) {
   const [adaptState, adaptAction, analyzing] = useActionState(adaptCvAction, initialAdaptState);
@@ -114,8 +115,9 @@ export function CvAdapter({
     initialGenerateState,
   );
 
-  // Source du CV, partagée par l'analyse et la génération du CV amélioré.
-  const [source, setSource] = useState<Source>(profileCv ? "profil" : "upload");
+  // Source du CV (id d'un CV du profil, ou "upload"), partagée par l'analyse et la
+  // génération du CV amélioré.
+  const [source, setSource] = useState<string>(profileCvs[0]?.id ?? UPLOAD);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   // Le choix du CV s'affiche à la demande ; il se referme dès qu'une analyse réussit
@@ -126,7 +128,8 @@ export function CvAdapter({
   const suggestions = result?.suggestions ?? saved;
   const generatedAt = result?.generatedAt ?? savedAt;
   const busy = analyzing || generating;
-  const sourceReady = source === "profil" ? Boolean(profileCv) : Boolean(file) && !fileError;
+  const selectedProfileCv = profileCvs.find((cv) => cv.id === source) ?? null;
+  const sourceReady = source === UPLOAD ? Boolean(file) && !fileError : Boolean(selectedProfileCv);
   const pickerOpen =
     pickerOpenedAt !== null &&
     (analyzing || adaptState === pickerOpenedAt || adaptState.status === "error");
@@ -134,8 +137,13 @@ export function CvAdapter({
   function buildFormData() {
     const formData = new FormData();
     formData.set("id", applicationId);
-    formData.set("source", source);
-    if (source === "upload" && file) formData.set("cv", file);
+    if (source === UPLOAD) {
+      formData.set("source", "upload");
+      if (file) formData.set("cv", file);
+    } else {
+      formData.set("source", "profil");
+      formData.set("cvId", source);
+    }
     return formData;
   }
 
@@ -154,48 +162,54 @@ export function CvAdapter({
     startTransition(() => generateAction(formData));
   }
 
+  const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700";
+
   const sourcePicker = (
     <fieldset className="space-y-3" disabled={busy}>
       <legend className="text-sm font-medium text-slate-700">Quel CV utiliser ?</legend>
 
-      {profileCv ? (
-        <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-700">
-          <input
-            type="radio"
-            name="cv-source"
-            checked={source === "profil"}
-            onChange={() => setSource("profil")}
-            className="mt-0.5 accent-violet-600"
-          />
-          <span>
-            Le CV de mon profil <span className="text-slate-500">({profileCv.fileName})</span>
-          </span>
-        </label>
+      {profileCvs.length > 0 ? (
+        <div className="space-y-2">
+          {profileCvs.map((cv) => (
+            <label key={cv.id} className={radioClass}>
+              <input
+                type="radio"
+                name="cv-source"
+                checked={source === cv.id}
+                onChange={() => setSource(cv.id)}
+                className="mt-0.5 accent-violet-600"
+              />
+              <span>
+                {cv.name} <span className="text-slate-500">({cv.fileName})</span>
+              </span>
+            </label>
+          ))}
+        </div>
       ) : (
         <p className="text-xs text-slate-500">
-          Astuce : enregistre ton CV dans{" "}
+          Astuce : enregistre tes CV dans{" "}
           <Link href="/profil" className="font-medium text-violet-700 underline underline-offset-2">
             Mon profil
           </Link>{" "}
-          pour ne plus avoir à l&apos;importer.
+          pour ne plus avoir à les importer.
         </p>
       )}
 
       <div className="space-y-2">
-        {profileCv && (
-          <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-700">
+        {profileCvs.length > 0 && (
+          <label className={radioClass}>
             <input
               type="radio"
               name="cv-source"
-              checked={source === "upload"}
-              onChange={() => setSource("upload")}
+              checked={source === UPLOAD}
+              onChange={() => setSource(UPLOAD)}
               className="mt-0.5 accent-violet-600"
             />
-            <span>Importer un autre CV</span>
+            <span>Importer un nouveau CV</span>
           </label>
         )}
-        {source === "upload" && (
-          <div className={profileCv ? "pl-6" : ""}>
+        {source === UPLOAD && (
+          <div className={profileCvs.length > 0 ? "pl-6" : ""}>
             <label htmlFor="cv-file" className="sr-only">
               CV au format PDF
             </label>

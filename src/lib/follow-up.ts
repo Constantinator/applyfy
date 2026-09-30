@@ -4,7 +4,8 @@ import type { Application, ApplicationStatus } from "./types";
 /** Délai (en jours) sans réponse après lequel une relance est suggérée. */
 export const FOLLOW_UP_AFTER_DAYS = 7;
 
-export const FOLLOW_UP_STATUSES: ApplicationStatus[] = ["envoyee", "relancee"];
+/** Statuts « en attente d'une réponse » : candidats à une relance. */
+export const FOLLOW_UP_STATUSES: ApplicationStatus[] = ["envoyee", "en_attente", "relancee"];
 
 /** Valeur du filtre « À relancer » du dashboard (?filtre=a_relancer). */
 export const FOLLOW_UP_FILTER = "a_relancer";

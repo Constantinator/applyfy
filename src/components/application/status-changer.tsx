@@ -1,9 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 
 import { updateStatusAction, type ActionState } from "@/app/actions/applications";
-import { APPLICATION_STATUSES, STATUS_LABELS, type ApplicationStatus } from "@/lib/types";
+import {
+  APPLICATION_STATUSES,
+  RESPONSE_STATUSES,
+  STATUS_LABELS,
+  type ApplicationStatus,
+} from "@/lib/types";
 
 const initialState: ActionState = { status: "idle" };
 
@@ -15,9 +20,26 @@ export function StatusChanger({
   currentStatus: ApplicationStatus;
 }) {
   const [state, formAction, pending] = useActionState(updateStatusAction, initialState);
+  // Sélection contrôlée, resynchronisée quand le statut change ailleurs sur la page
+  // (ex. « Marquer comme envoyée ») — sans remonter le composant ni perdre son message.
+  const [selected, setSelected] = useState<ApplicationStatus>(currentStatus);
+  const [syncedStatus, setSyncedStatus] = useState(currentStatus);
+  if (currentStatus !== syncedStatus) {
+    setSyncedStatus(currentStatus);
+    setSelected(currentStatus);
+  }
 
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form
+      // Soumission manuelle : avec action=, React réinitialiserait le formulaire après
+      // l'envoi et le sélecteur réafficherait son option initiale.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+      className="flex flex-col gap-2"
+    >
       <input type="hidden" name="id" value={applicationId} />
       <label htmlFor="status" className="text-sm font-medium text-slate-700">
         Statut de la candidature
@@ -26,14 +48,22 @@ export function StatusChanger({
         <select
           id="status"
           name="status"
-          defaultValue={currentStatus}
+          value={selected}
+          onChange={(e) => setSelected(e.target.value as ApplicationStatus)}
           className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
         >
-          {APPLICATION_STATUSES.map((status) => (
+          {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map((status) => (
             <option key={status} value={status}>
               {STATUS_LABELS[status]}
             </option>
           ))}
+          <optgroup label="Réponse reçue">
+            {RESPONSE_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {STATUS_LABELS[status]}
+              </option>
+            ))}
+          </optgroup>
         </select>
         <button
           type="submit"

@@ -9,9 +9,15 @@ import { StatusChanger } from "@/components/application/status-changer";
 import { Timeline } from "@/components/application/timeline";
 import { FormattedText } from "@/components/formatted-text";
 import { StatusBadge } from "@/components/status-badge";
-import { buildFollowUpMessage, getApplicationDetail, needsFollowUp } from "@/lib/applications";
+import { MarkAsSent } from "@/components/application/mark-as-sent";
+import {
+  buildFollowUpMessage,
+  getApplicationDetail,
+  needsFollowUp,
+  today,
+} from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
-import { getProfileCv } from "@/lib/profile";
+import { listProfileCvs } from "@/lib/profile";
 
 // Analyse de CV et génération du CV amélioré (Server Actions de cette page) : 30 à 90 s.
 export const maxDuration = 120;
@@ -45,15 +51,19 @@ function Card({
   );
 }
 
-export default async function ApplicationPage({ params }: PageProps<"/candidatures/[id]">) {
+export default async function ApplicationPage({
+  params,
+  searchParams,
+}: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
-  const [detail, profileCv] = await Promise.all([
+  const { creee } = await searchParams;
+  const [detail, profileCvs] = await Promise.all([
     getApplicationDetail(id),
     // Non bloquant : la fiche reste affichée même si le profil est indisponible
-    // (ex. migration 0006 pas encore appliquée).
-    getProfileCv().catch((error) => {
+    // (ex. migration 0007 pas encore appliquée).
+    listProfileCvs().catch((error) => {
       console.error("[fiche] CV du profil", error);
-      return null;
+      return [];
     }),
   ]);
   if (!detail) notFound();
@@ -70,6 +80,15 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
         <p className="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
           Mode démo : tes modifications sont gardées en mémoire jusqu&apos;au redémarrage du
           serveur.
+        </p>
+      )}
+
+      {creee === "1" && (
+        <p
+          role="status"
+          className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200"
+        >
+          ✓ Candidature créée en brouillon.
         </p>
       )}
 
@@ -129,6 +148,8 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
         </div>
       </section>
 
+      {app.status === "brouillon" && <MarkAsSent applicationId={app.id} today={today()} />}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {app.offer_summary && (
@@ -158,7 +179,7 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
             aiEnabled={isClaudeConfigured()}
             saved={app.cv_suggestions ?? null}
             savedAt={app.cv_suggestions_at ?? null}
-            profileCv={profileCv}
+            profileCvs={profileCvs}
             hasImprovedCv={Boolean(app.cv_improved_html)}
           />
 

@@ -277,7 +277,7 @@ type DemoStore = {
   events: ApplicationEvent[];
   documents: ApplicationDocument[];
   /** CV du profil (mode démo : en mémoire). */
-  profileCv?: { fileName: string; data: Buffer; uploadedAt: string };
+  profileCvs: { id: string; name: string; fileName: string; data: Buffer; uploadedAt: string }[];
 };
 
 const globalForDemo = globalThis as unknown as { applyfyDemoStore?: DemoStore };
@@ -286,4 +286,7 @@ export const demoStore: DemoStore = (globalForDemo.applyfyDemoStore ??= {
   applications: APPLICATIONS,
   events: EVENTS,
   documents: DOCUMENTS,
+  profileCvs: [],
 });
+// Store créé par une version précédente du code (rechargement à chaud en dev).
+demoStore.profileCvs ??= [];

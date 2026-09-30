@@ -20,9 +20,10 @@ const STATUS_RANK: Record<ApplicationStatus, number> = {
   offre: 0,
   entretien: 1,
   relancee: 2,
-  envoyee: 3,
-  brouillon: 4,
-  refusee: 5,
+  en_attente: 3,
+  envoyee: 4,
+  brouillon: 5,
+  refusee: 6,
 };
 
 const collator = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
