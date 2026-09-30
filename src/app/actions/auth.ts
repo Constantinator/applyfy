@@ -1,13 +1,17 @@
 "use server";
 
 import type { AuthError } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { PASSWORD_SET_FLAG, requireInvitedUser, safeRedirectPath } from "@/lib/auth";
+import { safeRedirectPath } from "@/lib/auth";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/password";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
-export type AuthFormState = { status: "idle" } | { status: "error"; message: string };
+export type AuthFormState =
+  | { status: "idle" }
+  | { status: "error"; message: string }
+  | { status: "check-email"; email: string };
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const NOT_CONFIGURED: AuthFormState = {
@@ -23,11 +27,11 @@ function authErrorMessage(error: AuthError): string {
       return "Confirme d'abord ton adresse email via le lien reçu par mail.";
     case "weak_password":
       return "Ce mot de passe est trop faible, choisis-en un autre.";
-    case "same_password":
-      return "Choisis un mot de passe différent de l'actuel.";
-    case "session_not_found":
-    case "session_expired":
-      return "Ton lien d'invitation a expiré. Demande une nouvelle invitation.";
+    case "user_already_exists":
+    case "email_exists":
+      return "Un compte existe déjà avec cet email. Connecte-toi.";
+    case "signup_disabled":
+      return "Les inscriptions sont momentanément fermées.";
     case "over_request_rate_limit":
     case "over_email_send_rate_limit":
       return "Trop de tentatives. Réessaie dans quelques minutes.";
@@ -52,21 +56,19 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
   redirect(safeRedirectPath(formData.get("next")));
 }
 
-/**
- * Activation d'un compte invité : l'invité est connecté via le lien d'invitation
- * et définit ici son mot de passe. Pas d'inscription publique (signUp) dans l'app.
- */
-export async function activateAccountAction(
+export async function signupAction(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
   if (!isSupabaseConfigured()) return NOT_CONFIGURED;
 
-  await requireInvitedUser();
-
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const confirmation = String(formData.get("confirmation") ?? "");
 
+  if (!EMAIL_PATTERN.test(email)) {
+    return { status: "error", message: "Entre une adresse email valide." };
+  }
   // Validation côté serveur : fait foi même si le formulaire est contourné.
   if (!isPasswordValid(password)) {
     return {
@@ -81,17 +83,22 @@ export async function activateAccountAction(
     return { status: "error", message: "Les deux mots de passe ne correspondent pas." };
   }
 
+  // Les Server Actions sont toujours appelées avec un en-tête Origin (contrôle CSRF de Next.js).
+  const origin = (await headers()).get("origin") ?? "http://localhost:3000";
+
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({
+  const { data, error } = await supabase.auth.signUp({
+    email,
     password,
-    data: { [PASSWORD_SET_FLAG]: true },
+    options: { emailRedirectTo: `${origin}/auth/confirm?next=/dashboard` },
   });
   if (error) return { status: "error", message: authErrorMessage(error) };
 
-  // Réémet le JWT pour que le drapeau password_set soit visible immédiatement (proxy, DAL).
-  await supabase.auth.refreshSession();
+  // Confirmation d'email désactivée dans Supabase : session ouverte, direction le dashboard.
+  if (data.session) redirect("/dashboard");
 
-  redirect("/dashboard");
+  // Sinon, l'utilisateur doit cliquer sur le lien reçu par email (→ /auth/confirm → /dashboard).
+  return { status: "check-email", email };
 }
 
 export async function logoutAction() {

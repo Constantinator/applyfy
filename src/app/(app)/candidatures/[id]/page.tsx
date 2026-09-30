@@ -8,10 +8,12 @@ import { Timeline } from "@/components/application/timeline";
 import { StatusBadge } from "@/components/status-badge";
 import { buildFollowUpMessage, getApplicationDetail, needsFollowUp } from "@/lib/applications";
 
+// Date sans heure (YYYY-MM-DD) : formatée en UTC pour ne pas dépendre du fuseau du serveur.
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
   month: "long",
   year: "numeric",
+  timeZone: "UTC",
 });
 
 function formatDate(date: string | null) {
@@ -113,13 +115,24 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card title="Texte de l'offre">
+          {app.offer_summary && (
+            <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+              <h2 className="mb-4 font-semibold text-slate-900">
+                <span aria-hidden="true">✨ </span>Résumé de l&apos;offre
+              </h2>
+              <p className="text-sm leading-relaxed whitespace-pre-line text-slate-700">
+                {app.offer_summary}
+              </p>
+            </section>
+          )}
+
+          <Card title="Description de l'offre">
             {app.offer_description ? (
               <p className="max-h-96 overflow-y-auto text-sm leading-relaxed whitespace-pre-line text-slate-700">
                 {app.offer_description}
               </p>
             ) : (
-              <p className="text-sm text-slate-500">Aucun texte d&apos;offre enregistré.</p>
+              <p className="text-sm text-slate-500">Aucune description enregistrée.</p>
             )}
           </Card>
 

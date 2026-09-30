@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { ApplicationsList } from "@/components/dashboard/applications-list";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { StatusFilter, type FilterOption } from "@/components/dashboard/status-filter";
@@ -7,7 +9,7 @@ import { APPLICATION_STATUSES, STATUS_LABELS, isApplicationStatus } from "@/lib/
 const FOLLOW_UP_FILTER = "a_relancer";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
-  const { filtre } = await searchParams;
+  const { filtre, ajout } = await searchParams;
   const active =
     filtre === FOLLOW_UP_FILTER || isApplicationStatus(filtre) ? filtre : "toutes";
 
@@ -43,11 +45,28 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </p>
       )}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Mes candidatures</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
+      {ajout === "ok" && (
+        <p
+          role="status"
+          className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200"
+        >
+          ✓ Candidature ajoutée.
         </p>
+      )}
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Mes candidatures</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
+          </p>
+        </div>
+        <Link
+          href="/candidatures/nouvelle"
+          className="rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold whitespace-nowrap text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        >
+          + Nouvelle candidature
+        </Link>
       </div>
 
       <StatsCards

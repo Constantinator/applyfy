@@ -25,6 +25,8 @@ export type Application = {
 
 export type ApplicationDetail = Application & {
   offer_description: string | null;
+  /** Résumé généré par l'assistant (migration 0004). */
+  offer_summary?: string | null;
   notes: string | null;
 };
 

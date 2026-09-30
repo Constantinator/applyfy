@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { WaitlistForm } from "@/components/landing/waitlist-form";
-
 const FEATURES = [
   {
     title: "Suivi en temps réel",
@@ -91,12 +89,12 @@ export default function LandingPage() {
             <Link href="/login" className="text-slate-600 hover:text-slate-900">
               Se connecter
             </Link>
-            <a
-              href="#liste-attente"
+            <Link
+              href="/signup"
               className="rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-500 sm:px-4"
             >
-              Liste d&apos;attente
-            </a>
+              Créer mon compte
+            </Link>
           </nav>
         </div>
       </header>
@@ -106,7 +104,7 @@ export default function LandingPage() {
         <section className="bg-gradient-to-b from-indigo-50 to-white">
           <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 sm:py-28">
             <p className="mb-4 inline-block rounded-full bg-white px-3 py-1 text-sm font-medium text-indigo-700 ring-1 ring-indigo-100">
-              Pour les étudiants en recherche d&apos;emploi
+              Pour tous ceux qui cherchent leur prochain job
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-balance text-slate-900 sm:text-6xl">
               Trouve ton job.{" "}
@@ -117,12 +115,12 @@ export default function LandingPage() {
               ressemblent, et te rappelle quand relancer.
             </p>
             <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-              <a
-                href="#liste-attente"
+              <Link
+                href="/signup"
                 className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white shadow-sm hover:bg-indigo-500"
               >
-                Rejoindre la liste d&apos;attente
-              </a>
+                Créer mon compte
+              </Link>
               <a
                 href="#comment-ca-marche"
                 className="rounded-lg bg-white px-6 py-3 font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
@@ -131,7 +129,7 @@ export default function LandingPage() {
               </a>
             </div>
             <p className="mt-5 text-sm text-slate-500">
-              J&apos;ai déjà un accès →{" "}
+              J&apos;ai déjà un compte →{" "}
               <Link href="/login" className="font-medium text-indigo-600 underline-offset-4 hover:underline">
                 Se connecter
               </Link>
@@ -196,21 +194,23 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Liste d'attente */}
-        <section id="liste-attente" aria-labelledby="waitlist-title" className="scroll-mt-16 px-4 py-20 sm:px-6">
+        {/* Appel à l'action final */}
+        <section aria-labelledby="cta-title" className="px-4 py-20 sm:px-6">
           <div className="mx-auto max-w-3xl rounded-3xl bg-indigo-600 px-6 py-12 text-center sm:px-12">
-            <h2 id="waitlist-title" className="text-3xl font-bold text-white">
-              Sois parmi les premiers à tester Applyfy
+            <h2 id="cta-title" className="text-3xl font-bold text-white">
+              Prêt·e à reprendre le contrôle de ta recherche ?
             </h2>
             <p className="mt-3 text-indigo-100">
-              Inscris-toi à la liste d&apos;attente : on te prévient dès l&apos;ouverture de la bêta.
+              Crée ton compte en une minute et ajoute ta première candidature.
             </p>
-            <div className="mx-auto mt-8 max-w-lg">
-              <WaitlistForm />
-            </div>
-            <p className="mt-4 text-xs text-indigo-200">Pas de spam. Désinscription en un clic.</p>
-            <p className="mt-3 text-sm text-indigo-100">
-              J&apos;ai déjà un accès →{" "}
+            <Link
+              href="/signup"
+              className="mt-8 inline-block rounded-lg bg-amber-400 px-6 py-3 font-semibold text-slate-900 shadow-sm hover:bg-amber-300"
+            >
+              Créer mon compte
+            </Link>
+            <p className="mt-5 text-sm text-indigo-100">
+              J&apos;ai déjà un compte →{" "}
               <Link href="/login" className="font-medium text-white underline-offset-4 hover:underline">
                 Se connecter
               </Link>

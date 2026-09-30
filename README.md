@@ -22,12 +22,26 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
 3. Copier `.env.example` en `.env.local` et renseigner l'URL et la clé publishable.
 4. Authentication > URL Configuration : définir la *Site URL* et ajouter
    `<URL>/auth/confirm` aux *Redirect URLs* (en local : `http://localhost:3000/auth/confirm`).
-5. **Désactiver les inscriptions publiques** : Authentication > Sign In / Providers >
-   décocher *Allow new users to sign up* (les invitations continuent de fonctionner).
-6. **Template d'invitation** : Authentication > Emails > *Invite user*, remplacer le lien par
-   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`
+5. **Autoriser les inscriptions** : Authentication > Sign In / Providers >
+   *Allow new users to sign up* doit être coché.
+6. *Confirm email* (même écran) :
+   - désactivé → l'utilisateur arrive directement sur le dashboard après l'inscription ;
+   - activé → il reçoit un lien de confirmation (→ `/auth/confirm` → `/dashboard`).
+     En production, configurer un SMTP (Authentication > Emails > SMTP Settings) :
+     l'envoi d'emails intégré de Supabase est très limité.
 7. Recommandé : *Password requirements* aligné sur les règles de l'app
    (8 caractères, majuscule, chiffre, caractère spécial).
+
+## Assistant IA (Claude)
+
+- **Import depuis un lien** : dans le formulaire d'ajout, coller le lien d'une offre pré-remplit
+  poste, entreprise, localisation (et description si vide). Données structurées schema.org
+  `JobPosting` en priorité ; sinon extraction par Claude. La page est récupérée côté serveur
+  avec des protections SSRF (`src/lib/offer-import.ts`).
+- **Résumé de l'offre** : bouton « Générer un résumé » (missions, profil, avantages), modifiable
+  et enregistré avec la candidature (colonne `offer_summary`, migration `0004`).
+- Nécessite `ANTHROPIC_API_KEY` côté serveur (voir `.env.example`). Modèle : `claude-opus-5-5`
+  (`src/lib/claude.ts`).
 
 ## Déployer sur Vercel
 
@@ -38,6 +52,7 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
    variables de `.env.example` :
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `ANTHROPIC_API_KEY` (secrète, pour l'assistant IA)
 
    Ce sont des variables `NEXT_PUBLIC_*` : elles sont intégrées au build, donc
    **redéployer** après toute modification. Si elles manquent, le build de production
@@ -47,18 +62,14 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
    - *Site URL* = le domaine de production ;
    - *Redirect URLs* : ajouter `https://applyfy.vercel.app/auth/confirm`
      (et `https://*-<équipe>.vercel.app/auth/confirm` pour les previews si besoin).
-5. Tester : inscription à la liste d'attente, invitation d'un email de test,
-   activation du compte, connexion.
+5. Tester : création de compte depuis la landing, accès au dashboard, déconnexion, connexion.
 
-## Authentification (accès sur invitation)
+## Authentification
 
-- Les visiteurs s'inscrivent sur la liste d'attente (table `waitlist`).
-- Pour donner accès : Supabase > Authentication > Users > *Invite user* avec l'email.
-- L'invité clique sur le lien → `/auth/confirm` ouvre sa session → `/signup` où il
-  définit son mot de passe (drapeau `password_set` dans `user_metadata`) → `/dashboard`.
-- Ensuite il se connecte via `/login`. `/signup` est inaccessible sans lien d'invitation.
+- Parcours : landing → `/signup` (email + mot de passe + confirmation) → `/dashboard`.
+- `/login` pour les comptes existants.
 - `src/proxy.ts` rafraîchit la session et redirige : non connecté → `/login`,
-  invité sans mot de passe → `/signup`, connecté sur `/login` → `/dashboard`.
+  connecté sur `/login` ou `/signup` → `/dashboard`.
 - `requireUser()` (`src/lib/auth.ts`) est appelé à chaque accès aux données, et les
   tables sont protégées par RLS (`user_id = auth.uid()`) : chaque utilisateur ne voit
   que ses propres candidatures.
@@ -69,13 +80,13 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
 src/
   proxy.ts                         # Session Supabase + redirections d'authentification
   app/
-    page.tsx                       # Landing page (/) + liste d'attente
-    (auth)/login, (auth)/signup    # Connexion, activation de compte invité
-    auth/confirm/route.ts          # Lien d'invitation Supabase
+    page.tsx                       # Landing page (/)
+    (auth)/login, (auth)/signup    # Connexion, création de compte
+    auth/confirm/route.ts          # Lien de confirmation d'email Supabase
     (app)/dashboard/               # Dashboard des candidatures
     (app)/candidatures/[id]/       # Fiche candidature (historique, relance, documents)
     (app)/candidatures/nouvelle/   # Formulaire + assistant (à venir)
-    actions/                       # Server Actions (auth, candidatures, liste d'attente)
+    actions/                       # Server Actions (auth, candidatures)
   components/                      # UI (landing, auth, dashboard, fiche candidature)
   lib/
     applications.ts                # Accès aux données + règles de relance

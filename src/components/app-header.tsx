@@ -24,14 +24,6 @@ export function AppHeader({ user }: { user: CurrentUser | null }) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <Link
-            href="/candidatures/nouvelle"
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:px-4"
-          >
-            + <span className="hidden sm:inline">Nouvelle candidature</span>
-            <span className="sm:hidden">Ajouter</span>
-          </Link>
-
           {user ? (
             <div className="flex items-center gap-3">
               {user.email && (

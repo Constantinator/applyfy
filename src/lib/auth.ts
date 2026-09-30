@@ -5,14 +5,7 @@ import { cache } from "react";
 
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
-export type CurrentUser = { id: string; email: string | null; passwordSet: boolean };
-
-/**
- * Drapeau posé dans user_metadata quand l'utilisateur a défini son mot de passe.
- * Les comptes sont créés sur invitation (Supabase invite) : l'invité arrive connecté
- * via le lien reçu par email, mais sans mot de passe tant qu'il n'est pas passé par /signup.
- */
-export const PASSWORD_SET_FLAG = "password_set";
+export type CurrentUser = { id: string; email: string | null };
 
 /**
  * Utilisateur connecté (JWT vérifié par Supabase), mémorisé pour la durée du rendu.
@@ -26,30 +19,16 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const claims = data?.claims;
   if (error || !claims?.sub) return null;
 
-  return {
-    id: claims.sub,
-    email: (claims.email as string | undefined) ?? null,
-    passwordSet: claims.user_metadata?.[PASSWORD_SET_FLAG] === true,
-  };
+  return { id: claims.sub, email: (claims.email as string | undefined) ?? null };
 });
 
 /**
  * À appeler avant tout accès aux données utilisateur (Server Components,
- * Server Actions, Route Handlers). Redirige vers /login si non connecté,
- * et vers /signup si l'invité n'a pas encore défini son mot de passe.
+ * Server Actions, Route Handlers). Redirige vers /login si non connecté.
  */
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!user.passwordSet) redirect("/signup");
-  return user;
-}
-
-/** Pour /signup : invité connecté via son lien, qui n'a pas encore de mot de passe. */
-export async function requireInvitedUser(): Promise<CurrentUser> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/#liste-attente");
-  if (user.passwordSet) redirect("/dashboard");
   return user;
 }
 

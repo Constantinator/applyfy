@@ -15,6 +15,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "Europe/Paris", // horodatages réels : affichés à l'heure de Paris
+
 });
 
 export function Timeline({ events }: { events: ApplicationEvent[] }) {

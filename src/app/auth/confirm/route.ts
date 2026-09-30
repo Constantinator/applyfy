@@ -4,18 +4,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safeRedirectPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-// Liens envoyés par Supabase Auth (invitation, etc.).
-// Le template d'email "Invite user" doit pointer ici :
-//   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite
-// Le format ?code=… (PKCE) est aussi géré.
+// Lien de confirmation d'email envoyé par Supabase après l'inscription.
+// Gère les deux formats : ?code=… (PKCE, par défaut) et ?token_hash=…&type=… (template personnalisé).
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
+  const next = safeRedirectPath(searchParams.get("next"));
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-
-  // Un invité doit d'abord définir son mot de passe.
-  const next = type === "invite" ? "/signup" : safeRedirectPath(searchParams.get("next"));
 
   const supabase = await createClient();
   let ok = false;

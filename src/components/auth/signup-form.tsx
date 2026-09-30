@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
-import { activateAccountAction, type AuthFormState } from "@/app/actions/auth";
+import { signupAction, type AuthFormState } from "@/app/actions/auth";
 import { PASSWORD_MAX_LENGTH, PASSWORD_RULES, isPasswordValid } from "@/lib/password";
 
 import { FormError, inputClassName, submitClassName } from "./form-field";
@@ -24,32 +25,58 @@ function RuleItem({ ok, touched, label }: { ok: boolean; touched: boolean; label
   );
 }
 
-/** Formulaire d'activation d'un compte invité : définition du mot de passe. */
-export function SignupForm({ email }: { email: string | null }) {
-  const [state, formAction, pending] = useActionState(activateAccountAction, initialState);
+export function SignupForm() {
+  const [state, formAction, pending] = useActionState(signupAction, initialState);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+
+  if (state.status === "check-email") {
+    return (
+      <div role="status" className="space-y-3 text-center">
+        <p className="text-4xl" aria-hidden="true">
+          📬
+        </p>
+        <h2 className="text-lg font-semibold text-slate-900">Vérifie ta boîte mail</h2>
+        <p className="text-sm text-slate-600">
+          Un lien de confirmation a été envoyé à <strong>{state.email}</strong>. Clique dessus pour
+          activer ton compte et accéder à ton dashboard.
+        </p>
+        <Link
+          href="/login"
+          className="inline-block text-sm font-medium text-indigo-600 hover:text-indigo-500"
+        >
+          Aller à la connexion
+        </Link>
+      </div>
+    );
+  }
 
   const touched = password.length > 0;
   const tooLong = password.length > PASSWORD_MAX_LENGTH;
   const passwordOk = isPasswordValid(password);
   const confirmationOk = confirmation.length > 0 && confirmation === password;
-  const canSubmit = passwordOk && confirmationOk && !pending;
+  const canSubmit = passwordOk && confirmationOk && email.length > 0 && !pending;
 
   return (
     <form action={formAction} className="space-y-4">
       {state.status === "error" && <FormError message={state.message} />}
 
-      {email && (
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium text-slate-700">Email</p>
-          <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-slate-700 ring-1 ring-slate-200">
-            {email}
-          </p>
-          {/* Aide les gestionnaires de mots de passe à associer le compte. */}
-          <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
-        </div>
-      )}
+      <div className="space-y-1.5">
+        <label htmlFor="email" className="text-sm font-medium text-slate-700">
+          Email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={inputClassName}
+        />
+      </div>
 
       <div className="space-y-1.5">
         <label htmlFor="password" className="text-sm font-medium text-slate-700">
@@ -103,8 +130,15 @@ export function SignupForm({ email }: { email: string | null }) {
       </div>
 
       <button type="submit" disabled={!canSubmit} className={submitClassName}>
-        {pending ? "Activation…" : "Activer mon compte"}
+        {pending ? "Création du compte…" : "Créer mon compte"}
       </button>
+
+      <p className="text-center text-sm text-slate-500">
+        Déjà un compte ?{" "}
+        <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+          Se connecter
+        </Link>
+      </p>
     </form>
   );
 }

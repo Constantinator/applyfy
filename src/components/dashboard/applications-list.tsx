@@ -4,10 +4,13 @@ import { StatusBadge } from "@/components/status-badge";
 import { daysSince, needsFollowUp } from "@/lib/applications";
 import type { Application } from "@/lib/types";
 
+// Dates sans heure (YYYY-MM-DD) : lues comme minuit UTC, donc formatées en UTC
+// pour ne pas reculer d'un jour selon le fuseau du serveur.
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
   month: "short",
   year: "numeric",
+  timeZone: "UTC",
 });
 
 function formatDate(date: string | null) {

@@ -82,7 +82,8 @@ export async function getApplicationDetail(id: string): Promise<ApplicationDetai
   const [appRes, eventsRes, docsRes] = await Promise.all([
     supabase
       .from("applications")
-      .select(`${LIST_COLUMNS}, offer_description, notes`)
+      // "*" : reste compatible si la migration 0004 (offer_summary) n'est pas encore appliquée.
+      .select("*")
       .eq("id", id)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -155,6 +156,73 @@ export async function getDocumentDownload(
 // ---------------------------------------------------------------------------
 
 type ApplicationPatch = Partial<Pick<Application, "status" | "applied_at" | "last_contact_at">>;
+
+export type NewApplicationInput = {
+  company: string;
+  position: string;
+  location: string | null;
+  offer_url: string | null;
+  offer_description: string | null;
+  offer_summary: string | null;
+  status: ApplicationStatus;
+  /** Date d'envoi (YYYY-MM-DD) ; null pour un brouillon. */
+  applied_at: string | null;
+};
+
+/** Crée une candidature et ses premiers événements d'historique. Retourne son id. */
+export async function createApplication(input: NewApplicationInput): Promise<string> {
+  const { offer_summary, ...fields } = input;
+  const row = {
+    ...fields,
+    // Colonne ajoutée par la migration 0004 : envoyée seulement si un résumé existe.
+    ...(offer_summary ? { offer_summary } : {}),
+    last_contact_at: input.applied_at,
+  };
+
+  const events: { type: ApplicationEventType; content: string | null; created_at: string }[] = [];
+  if (input.applied_at) {
+    // Daté du jour d'envoi déclaré, pour un historique chronologique fidèle.
+    events.push({ type: "envoi", content: null, created_at: `${input.applied_at}T12:00:00.000Z` });
+  }
+  events.push({
+    type: "creation",
+    content: `Ajoutée dans Applyfy — statut initial : ${STATUS_LABELS[input.status]}`,
+    created_at: new Date().toISOString(),
+  });
+
+  if (!isSupabaseConfigured()) {
+    const id = crypto.randomUUID();
+    demoStore.applications.push({
+      id,
+      ...row,
+      contact_name: null,
+      contact_email: null,
+      notes: null,
+      created_at: new Date().toISOString(),
+    });
+    demoStore.events.push(
+      ...events.map((e) => ({ id: crypto.randomUUID(), application_id: id, ...e })),
+    );
+    return id;
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("applications")
+    .insert({ ...row, user_id: user.id })
+    .select("id")
+    .single();
+  if (error) throw new Error(`Création de la candidature impossible : ${error.message}`);
+
+  const { error: eventsError } = await supabase
+    .from("application_events")
+    .insert(events.map((e) => ({ ...e, application_id: data.id, user_id: user.id })));
+  if (eventsError) throw new Error(eventsError.message);
+
+  return data.id as string;
+}
 
 /** Change le statut et consigne l'événement correspondant dans l'historique. */
 export async function changeApplicationStatus(id: string, status: ApplicationStatus) {
@@ -255,7 +323,11 @@ export function needsFollowUp(app: Application, now = new Date()): boolean {
   return days !== null && days >= FOLLOW_UP_AFTER_DAYS;
 }
 
-const longDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" });
+const longDate = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC", // date sans heure, cf. applications-list.tsx
+});
 
 /** Message de relance pré-rempli, modifiable par l'utilisateur. */
 export function buildFollowUpMessage(app: Application): string {
@@ -277,8 +349,11 @@ export function buildFollowUpMessage(app: Application): string {
   ].join("\n");
 }
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
+const isoDateInParis = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" });
+
+/** Date du jour (YYYY-MM-DD) à l'heure de Paris, quel que soit le fuseau du serveur. */
+export function today() {
+  return isoDateInParis.format(new Date());
 }
 
 function isUuid(value: string) {

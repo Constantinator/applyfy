@@ -16,7 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         next={safeRedirectPath(next)}
         notice={
           erreur === "lien"
-            ? "Ce lien est invalide ou a expiré. Si c'était une invitation, demande-en une nouvelle."
+            ? "Ce lien de confirmation est invalide ou a expiré. Connecte-toi ou recrée ton compte."
             : undefined
         }
       />

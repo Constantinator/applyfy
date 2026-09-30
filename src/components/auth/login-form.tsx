@@ -62,8 +62,8 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
 
       <p className="text-center text-sm text-slate-500">
         Pas encore de compte ?{" "}
-        <Link href="/#liste-attente" className="font-medium text-indigo-600 hover:text-indigo-500">
-          Rejoindre la liste d&apos;attente
+        <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
+          Créer un compte
         </Link>
       </p>
     </form>

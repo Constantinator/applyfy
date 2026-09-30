@@ -2,8 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/candidatures"];
-const SIGNUP_PAGE = "/signup";
-const PASSWORD_SET_FLAG = "password_set"; // cf. src/lib/auth.ts
+const AUTH_PAGES = ["/login", "/signup"];
 
 function matches(pathname: string, prefixes: string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -37,7 +36,6 @@ export async function proxy(request: NextRequest) {
   // Ne rien exécuter entre createServerClient et getClaims (rafraîchissement du token).
   const { data } = await supabase.auth.getClaims();
   const isLoggedIn = Boolean(data?.claims?.sub);
-  const passwordSet = data?.claims?.user_metadata?.[PASSWORD_SET_FLAG] === true;
   const { pathname, search } = request.nextUrl;
 
   const redirectTo = (destination: URL) => {
@@ -52,19 +50,7 @@ export async function proxy(request: NextRequest) {
     return redirectTo(loginUrl);
   }
 
-  // Inscription sur invitation uniquement : /signup n'est accessible qu'aux invités
-  // arrivés via leur lien (session ouverte) et qui n'ont pas encore de mot de passe.
-  if (matches(pathname, [SIGNUP_PAGE])) {
-    if (!isLoggedIn) return redirectTo(new URL("/#liste-attente", request.url));
-    if (passwordSet) return redirectTo(new URL("/dashboard", request.url));
-    return response;
-  }
-
-  if (isLoggedIn && !passwordSet && (matches(pathname, PROTECTED_PREFIXES) || pathname === "/login")) {
-    return redirectTo(new URL(SIGNUP_PAGE, request.url));
-  }
-
-  if (isLoggedIn && pathname === "/login") {
+  if (isLoggedIn && matches(pathname, AUTH_PAGES)) {
     return redirectTo(new URL("/dashboard", request.url));
   }
 

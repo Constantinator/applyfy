@@ -1,9 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect, unstable_rethrow } from "next/navigation";
 
-import { changeApplicationStatus, recordFollowUp } from "@/lib/applications";
-import { STATUS_LABELS, isApplicationStatus } from "@/lib/types";
+import {
+  changeApplicationStatus,
+  createApplication,
+  recordFollowUp,
+  today,
+} from "@/lib/applications";
+import { OFFER_DESCRIPTION_MAX_LENGTH, OFFER_SUMMARY_MAX_LENGTH } from "@/lib/offer-limits";
+import { STATUS_LABELS, isApplicationStatus, type ApplicationStatus } from "@/lib/types";
 
 export type ActionState =
   | { status: "idle" }
@@ -53,4 +60,127 @@ export async function followUpAction(
 
   revalidateApplication(id);
   return { status: "success", message: "Relance enregistrée dans l'historique." };
+}
+
+// ---------------------------------------------------------------------------
+// Création
+// ---------------------------------------------------------------------------
+
+export type NewApplicationField =
+  | "company"
+  | "position"
+  | "location"
+  | "offer_url"
+  | "offer_description"
+  | "offer_summary"
+  | "applied_at"
+  | "status";
+
+export type NewApplicationState = {
+  status: "idle" | "error";
+  message?: string;
+  fieldErrors?: Partial<Record<NewApplicationField, string>>;
+  /** Valeurs soumises, pour ré-afficher le formulaire en cas d'erreur. */
+  values?: Partial<Record<NewApplicationField, string>>;
+};
+
+const LIMITS = {
+  company: 120,
+  position: 160,
+  location: 120,
+  offer_url: 2000,
+  offer_description: OFFER_DESCRIPTION_MAX_LENGTH,
+  offer_summary: OFFER_SUMMARY_MAX_LENGTH,
+};
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidIsoDate(value: string) {
+  if (!ISO_DATE.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export async function createApplicationAction(
+  _prev: NewApplicationState,
+  formData: FormData,
+): Promise<NewApplicationState> {
+  const text = (name: NewApplicationField) => String(formData.get(name) ?? "").trim();
+  const values = {
+    company: text("company"),
+    position: text("position"),
+    location: text("location"),
+    offer_url: text("offer_url"),
+    offer_description: text("offer_description"),
+    offer_summary: text("offer_summary"),
+    applied_at: text("applied_at"),
+    status: text("status"),
+  };
+
+  const fieldErrors: NewApplicationState["fieldErrors"] = {};
+
+  if (!values.company) fieldErrors.company = "Indique le nom de l'entreprise.";
+  else if (values.company.length > LIMITS.company) fieldErrors.company = "Nom trop long.";
+
+  if (!values.position) fieldErrors.position = "Indique le poste visé.";
+  else if (values.position.length > LIMITS.position) fieldErrors.position = "Intitulé trop long.";
+
+  if (values.location.length > LIMITS.location) fieldErrors.location = "Localisation trop longue.";
+
+  if (values.offer_url && (values.offer_url.length > LIMITS.offer_url || !isHttpUrl(values.offer_url))) {
+    fieldErrors.offer_url = "Le lien doit commencer par http:// ou https://";
+  }
+  if (values.offer_description.length > LIMITS.offer_description) {
+    fieldErrors.offer_description = "Texte trop long (20 000 caractères max).";
+  }
+  if (values.offer_summary.length > LIMITS.offer_summary) {
+    fieldErrors.offer_summary = "Résumé trop long (4 000 caractères max).";
+  }
+
+  const status: ApplicationStatus | null = isApplicationStatus(values.status) ? values.status : null;
+  if (!status) fieldErrors.status = "Choisis un statut.";
+
+  // Un brouillon n'a pas encore été envoyé : pas de date de candidature.
+  let appliedAt: string | null = null;
+  if (status && status !== "brouillon") {
+    if (!isValidIsoDate(values.applied_at)) fieldErrors.applied_at = "Date invalide.";
+    else if (values.applied_at > today()) fieldErrors.applied_at = "La date ne peut pas être dans le futur.";
+    else appliedAt = values.applied_at;
+  }
+
+  if (Object.keys(fieldErrors).length > 0 || !status) {
+    return { status: "error", message: "Corrige les champs indiqués.", fieldErrors, values };
+  }
+
+  try {
+    await createApplication({
+      company: values.company,
+      position: values.position,
+      location: values.location || null,
+      offer_url: values.offer_url || null,
+      offer_description: values.offer_description || null,
+      offer_summary: values.offer_summary || null,
+      status,
+      applied_at: appliedAt,
+    });
+  } catch (error) {
+    unstable_rethrow(error); // laisse passer la redirection vers /login de requireUser()
+    console.error("[createApplication]", error);
+    return {
+      status: "error",
+      message: "L'enregistrement a échoué. Réessaie dans un instant.",
+      values,
+    };
+  }
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard?ajout=ok");
 }
