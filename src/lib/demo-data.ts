@@ -1,3 +1,4 @@
+import type { AccountName } from "./person-name";
 import type { ReminderSettings } from "./reminders";
 import type {
   ApplicationDetail,
@@ -281,6 +282,8 @@ type DemoStore = {
   profileCvs: { id: string; name: string; fileName: string; data: Buffer; uploadedAt: string }[];
   /** Réglages des rappels de relance (mode démo). */
   reminderSettings?: ReminderSettings;
+  /** Prénom et nom du compte (mode démo). */
+  accountName?: AccountName;
 };
 
 const globalForDemo = globalThis as unknown as { applyfyDemoStore?: DemoStore };

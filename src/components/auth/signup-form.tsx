@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 
 import { signupAction, type AuthFormState } from "@/app/actions/auth";
 import { PASSWORD_MAX_LENGTH, PASSWORD_RULES, isPasswordValid } from "@/lib/password";
+import { PERSON_NAME_MAX_LENGTH } from "@/lib/person-name";
 
 import { FormError, inputClassName, submitClassName } from "./form-field";
 
@@ -27,6 +28,8 @@ function RuleItem({ ok, touched, label }: { ok: boolean; touched: boolean; label
 
 export function SignupForm() {
   const [state, formAction, pending] = useActionState(signupAction, initialState);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -56,11 +59,52 @@ export function SignupForm() {
   const tooLong = password.length > PASSWORD_MAX_LENGTH;
   const passwordOk = isPasswordValid(password);
   const confirmationOk = confirmation.length > 0 && confirmation === password;
-  const canSubmit = passwordOk && confirmationOk && email.length > 0 && !pending;
+  const canSubmit =
+    passwordOk &&
+    confirmationOk &&
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    email.length > 0 &&
+    !pending;
 
   return (
     <form action={formAction} className="space-y-4">
       {state.status === "error" && <FormError message={state.message} />}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label htmlFor="firstName" className="text-sm font-medium text-slate-700">
+            Prénom
+          </label>
+          <input
+            id="firstName"
+            name="firstName"
+            type="text"
+            required
+            maxLength={PERSON_NAME_MAX_LENGTH}
+            autoComplete="given-name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className={inputClassName}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="lastName" className="text-sm font-medium text-slate-700">
+            Nom
+          </label>
+          <input
+            id="lastName"
+            name="lastName"
+            type="text"
+            required
+            maxLength={PERSON_NAME_MAX_LENGTH}
+            autoComplete="family-name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className={inputClassName}
+          />
+        </div>
+      </div>
 
       <div className="space-y-1.5">
         <label htmlFor="email" className="text-sm font-medium text-slate-700">

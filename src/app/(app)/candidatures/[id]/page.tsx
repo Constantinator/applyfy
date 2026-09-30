@@ -17,7 +17,9 @@ import {
   needsFollowUp,
   today,
 } from "@/lib/applications";
+import { getAccountName } from "@/lib/account";
 import { isClaudeConfigured } from "@/lib/claude";
+import { fullName } from "@/lib/person-name";
 import { readCvSuggestions } from "@/lib/cv-types";
 import { listProfileCvs } from "@/lib/profile";
 
@@ -59,13 +61,18 @@ export default async function ApplicationPage({
 }: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
   const { creee } = await searchParams;
-  const [detail, profileCvs] = await Promise.all([
+  const [detail, profileCvs, accountName] = await Promise.all([
     getApplicationDetail(id),
     // Non bloquant : la fiche reste affichée même si le profil est indisponible
     // (ex. migration 0007 pas encore appliquée).
     listProfileCvs().catch((error) => {
       console.error("[fiche] CV du profil", error);
       return [];
+    }),
+    // Non bloquant : sans nom, la lettre reprend celui du CV.
+    getAccountName().catch((error) => {
+      console.error("[fiche] nom du compte", error);
+      return null;
     }),
   ]);
   if (!detail) notFound();
@@ -192,6 +199,7 @@ export default async function ApplicationPage({
             profileCvs={profileCvs}
             hasLetter={Boolean(app.cover_letter_html)}
             letterSavedAt={app.cover_letter_at ?? null}
+            signerName={accountName ? fullName(accountName) : null}
           />
 
           <FollowUpBox

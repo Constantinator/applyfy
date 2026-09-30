@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { AccountNameForm } from "@/components/profile/account-name-form";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
+import { getAccountName } from "@/lib/account";
 import { ReminderSettingsForm } from "@/components/profile/reminder-settings-form";
 import { getCurrentUser } from "@/lib/auth";
 import { PROFILE_CV_LIMIT } from "@/lib/cv-types";
@@ -14,8 +16,9 @@ export const metadata: Metadata = { title: "Mon profil — Applyfy" };
 
 export default async function ProfilePage() {
   await connection(); // toujours rendu à la requête : la liste des CV change
-  const [user, cvs, reminderSettings] = await Promise.all([
+  const [user, accountName, cvs, reminderSettings] = await Promise.all([
     getCurrentUser(),
+    getAccountName(),
     listProfileCvs(),
     // Non bloquant : valeurs par défaut si les préférences sont indisponibles (migration 0008).
     getReminderSettings().catch((error) => {
@@ -34,6 +37,18 @@ export default async function ProfilePage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon profil</h1>
         {user?.email && <p className="mt-1 text-sm text-slate-500">{user.email}</p>}
       </div>
+
+      <section aria-labelledby="identite-title" className="space-y-4 card p-5 sm:p-6">
+        <div>
+          <h2 id="identite-title" className="font-semibold text-slate-900">
+            Prénom et nom
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Utilisés pour signer tes lettres de motivation et remplir leur objet.
+          </p>
+        </div>
+        <AccountNameForm initial={accountName} />
+      </section>
 
       <section
         aria-labelledby="profil-cv-title"

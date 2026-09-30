@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
+import { getAccountName } from "@/lib/account";
 import { getApplicationDetail, MissingMigrationError, saveEditedDocument } from "@/lib/applications";
 import {
   claudeErrorMessage,
@@ -15,6 +16,7 @@ import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, sanitizeCvHtml } from "@/lib/cv-html";
 import { DEFAULT_LETTER_STYLE, readCvStyle } from "@/lib/cv-style";
 import { PROFILE_SUMMARY_MAX, PROFILE_SUMMARY_MIN } from "@/lib/cv-types";
+import { fullName } from "@/lib/person-name";
 import { getProfileCvFile } from "@/lib/profile";
 
 import type { SaveCvResult } from "./cv";
@@ -29,14 +31,12 @@ async function readCandidate(formData: FormData): Promise<CandidateProfile | { e
   const source = formData.get("source");
 
   if (source === "resume") {
-    const name = String(formData.get("name") ?? "").trim();
     const summary = String(formData.get("summary") ?? "").trim();
-    if (name.length < 2 || name.length > 80) return { error: "Indique ton prénom et ton nom." };
     if (summary.length < PROFILE_SUMMARY_MIN) {
       return { error: "Décris ton profil en quelques phrases (formation, expériences, compétences)." };
     }
     if (summary.length > PROFILE_SUMMARY_MAX) return { error: "Ton résumé est trop long." };
-    return { kind: "resume", name, summary };
+    return { kind: "resume", summary };
   }
 
   if (source === "profil") {
@@ -65,19 +65,32 @@ export async function generateCoverLetterAction(
   if (!detail) return { status: "error", message: "Candidature introuvable." };
   const app = detail.application;
 
+  // Prénom et nom du compte : signature et objet de la lettre.
+  const accountName = await getAccountName();
+  const signer = accountName ? fullName(accountName) : null;
+
   const candidate = await readCandidate(formData);
   if ("error" in candidate) return { status: "error", message: candidate.error };
+  if (candidate.kind === "resume" && !signer) {
+    return { status: "error", message: "Renseigne d'abord ton prénom et ton nom dans « Mon profil »." };
+  }
 
   let html: string;
   try {
-    const letter = await generateCoverLetter(candidate, {
-      position: app.position,
-      company: app.company,
-      location: app.location,
-      summary: app.offer_summary ?? null,
-      description: app.offer_description,
-    });
+    const letter = await generateCoverLetter(
+      candidate,
+      {
+        position: app.position,
+        company: app.company,
+        location: app.location,
+        summary: app.offer_summary ?? null,
+        description: app.offer_description,
+      },
+      signer,
+    );
     if (!letter) return { status: "error", message: "La lettre n'a pas pu être rédigée. Réessaie." };
+    // Le nom du compte fait foi (en-tête, objet et signature), même si le CV en indique un autre.
+    if (signer) letter.nom = signer;
     html = sanitizeCvHtml(coverLetterToHtml(letter, app.position));
   } catch (error) {
     return { status: "error", message: claudeErrorMessage(error, "generateCoverLetter") };

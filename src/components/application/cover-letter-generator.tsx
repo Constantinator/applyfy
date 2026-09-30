@@ -33,6 +33,7 @@ export function CoverLetterGenerator({
   profileCvs,
   letterSavedAt,
   hasLetter,
+  signerName,
 }: {
   applicationId: string;
   hasOfferDescription: boolean;
@@ -40,12 +41,13 @@ export function CoverLetterGenerator({
   profileCvs: ProfileCv[];
   letterSavedAt: string | null;
   hasLetter: boolean;
+  /** Prénom et nom du compte (signature de la lettre), null s'ils ne sont pas renseignés. */
+  signerName: string | null;
 }) {
   const [state, generate, generating] = useActionState(generateCoverLetterAction, initialState);
   const [source, setSource] = useState<string>(profileCvs[0]?.id ?? RESUME);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
   // Avec une lettre existante, le choix du profil s'affiche à la demande (regénération).
   const [pickerOpen, setPickerOpen] = useState(!hasLetter);
@@ -55,7 +57,7 @@ export function CoverLetterGenerator({
     source === UPLOAD
       ? Boolean(file) && !fileError
       : source === RESUME
-        ? name.trim().length >= 2 && summary.trim().length >= PROFILE_SUMMARY_MIN
+        ? Boolean(signerName) && summary.trim().length >= PROFILE_SUMMARY_MIN
         : Boolean(selectedProfileCv);
 
   function run() {
@@ -67,7 +69,6 @@ export function CoverLetterGenerator({
       if (file) formData.set("cv", file);
     } else if (source === RESUME) {
       formData.set("source", "resume");
-      formData.set("name", name);
       formData.set("summary", summary);
     } else {
       formData.set("source", "profil");
@@ -168,19 +169,6 @@ export function CoverLetterGenerator({
             {source === RESUME && (
               <div className="space-y-3 pl-6">
                 <div>
-                  <label htmlFor="letter-name" className="text-xs font-medium text-slate-600">
-                    Prénom et nom
-                  </label>
-                  <input
-                    id="letter-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    maxLength={80}
-                    autoComplete="name"
-                    className="input mt-1 py-2 text-sm"
-                  />
-                </div>
-                <div>
                   <label htmlFor="letter-summary" className="text-xs font-medium text-slate-600">
                     Ton profil : formation, expériences, compétences, ce que tu cherches
                   </label>
@@ -210,6 +198,20 @@ export function CoverLetterGenerator({
             )}
           </fieldset>
 
+          {signerName ? (
+            <p className="text-xs text-slate-600">
+              Lettre signée <strong className="font-medium text-slate-900">{signerName}</strong> (nom de ton compte).
+            </p>
+          ) : (
+            <p className="text-xs text-amber-700">
+              Ajoute ton prénom et ton nom dans{" "}
+              <Link href="/profil" className="font-medium underline underline-offset-2">
+                Mon profil
+              </Link>{" "}
+              pour signer la lettre
+              {source === RESUME ? " : ils sont nécessaires avec « Décrire mon profil »." : " (sinon, le nom de ton CV est utilisé)."}
+            </p>
+          )}
           {!hasOfferDescription && (
             <p className="text-xs text-amber-700">
               Cette candidature n&apos;a pas de description d&apos;offre : la lettre sera moins

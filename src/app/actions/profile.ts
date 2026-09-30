@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 
+import { saveAccountName } from "@/lib/account";
 import { readPdfUpload } from "@/lib/cv-file";
+import { validateAccountName } from "@/lib/person-name";
 import { CV_NAME_MAX_LENGTH } from "@/lib/cv-types";
 import {
   ProfileCvError,
@@ -56,6 +58,15 @@ export async function renameProfileCvAction(id: string, rawName: string): Promis
   return run("renameProfileCv", async () => {
     await renameProfileCv(String(id), name.name);
     return `✓ CV renommé en « ${name.name} ».`;
+  });
+}
+
+export async function saveAccountNameAction(firstName: unknown, lastName: unknown): Promise<ProfileActionResult> {
+  const name = validateAccountName(firstName, lastName);
+  if (!name.ok) return name;
+  return run("saveAccountName", async () => {
+    await saveAccountName(name.name);
+    return "✓ Prénom et nom enregistrés.";
   });
 }
 

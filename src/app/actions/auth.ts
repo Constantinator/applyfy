@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { safeRedirectPath } from "@/lib/auth";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/password";
+import { validateAccountName } from "@/lib/person-name";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 export type AuthFormState =
@@ -62,10 +63,12 @@ export async function signupAction(
 ): Promise<AuthFormState> {
   if (!isSupabaseConfigured()) return NOT_CONFIGURED;
 
+  const name = validateAccountName(formData.get("firstName"), formData.get("lastName"));
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const confirmation = String(formData.get("confirmation") ?? "");
 
+  if (!name.ok) return { status: "error", message: name.error };
   if (!EMAIL_PATTERN.test(email)) {
     return { status: "error", message: "Entre une adresse email valide." };
   }
@@ -90,7 +93,12 @@ export async function signupAction(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${origin}/auth/confirm?next=/dashboard` },
+    options: {
+      emailRedirectTo: `${origin}/auth/confirm?next=/dashboard`,
+      // Prénom et nom dans les métadonnées du compte (cf. lib/account) : enregistrés même
+      // si l'email doit encore être confirmé.
+      data: { first_name: name.name.firstName, last_name: name.name.lastName },
+    },
   });
   if (error) return { status: "error", message: authErrorMessage(error) };
 
