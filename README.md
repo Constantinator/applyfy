@@ -53,6 +53,17 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
 - Nécessite `ANTHROPIC_API_KEY` côté serveur (voir `.env.example`). Modèle : `claude-opus-5-5`
   (`src/lib/claude.ts`).
 
+## Rappels de relance par email
+
+- Réglages dans « Mon profil » : activés par défaut, 1er rappel 5/7/10/14 jours après
+  l'envoi (7 par défaut), 2e rappel 7/10/14 jours après le 1er (14 par défaut).
+- Tâche quotidienne `GET /api/cron/relances` (Vercel Cron, `vercel.json`, 7 h UTC),
+  protégée par `CRON_SECRET`. Candidatures « Envoyée » / « En attente » avec une date
+  d'envoi ; 2 rappels maximum ; chaque rappel est ajouté à l'historique.
+- Envoi via l'API Brevo ; lecture de toutes les candidatures avec la clé `service_role`
+  (serveur uniquement). Migration `0008`.
+- Test sans envoi : `curl -H "Authorization: Bearer $CRON_SECRET" "<URL>/api/cron/relances?dry=1"`.
+
 ## Déployer sur Vercel
 
 1. Pousser le dépôt sur GitHub (ou GitLab / Bitbucket).

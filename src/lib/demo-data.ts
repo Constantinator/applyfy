@@ -1,3 +1,4 @@
+import type { ReminderSettings } from "./reminders";
 import type {
   ApplicationDetail,
   ApplicationDocument,
@@ -278,6 +279,8 @@ type DemoStore = {
   documents: ApplicationDocument[];
   /** CV du profil (mode démo : en mémoire). */
   profileCvs: { id: string; name: string; fileName: string; data: Buffer; uploadedAt: string }[];
+  /** Réglages des rappels de relance (mode démo). */
+  reminderSettings?: ReminderSettings;
 };
 
 const globalForDemo = globalThis as unknown as { applyfyDemoStore?: DemoStore };

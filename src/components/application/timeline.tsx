@@ -7,6 +7,7 @@ const DOT_STYLES: Record<ApplicationEventType, string> = {
   reponse: "bg-violet-500",
   changement_statut: "bg-slate-500",
   note: "bg-slate-300",
+  rappel: "bg-sky-400",
 };
 
 const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {

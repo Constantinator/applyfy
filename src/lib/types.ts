@@ -47,7 +47,8 @@ export type ApplicationEventType =
   | "relance"
   | "reponse"
   | "changement_statut"
-  | "note";
+  | "note"
+  | "rappel";
 
 export type ApplicationEvent = {
   id: string;
@@ -86,6 +87,7 @@ export const EVENT_LABELS: Record<ApplicationEventType, string> = {
   reponse: "Réponse reçue",
   changement_statut: "Statut modifié",
   note: "Note",
+  rappel: "Rappel de relance envoyé",
 };
 
 export const DOCUMENT_LABELS: Record<DocumentKind, string> = {

@@ -3,6 +3,7 @@ import "server-only";
 import { requireUser } from "./auth";
 import { PROFILE_CV_LIMIT, type ProfileCv } from "./cv-types";
 import { demoStore } from "./demo-data";
+import { DEFAULT_REMINDER_SETTINGS, readReminderSettings, type ReminderSettings } from "./reminders";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 const BUCKET = "documents";
@@ -166,4 +167,39 @@ export async function deleteProfileCv(id: string) {
   const { error: storageError } = await supabase.storage.from(BUCKET).remove([data[0].storage_path]);
   // Déjà retiré de la liste : un fichier orphelin ne doit pas bloquer l'utilisateur.
   if (storageError) console.error("[deleteProfileCv] storage", storageError.message);
+}
+
+// ---------------------------------------------------------------------------
+// Rappels de relance
+// ---------------------------------------------------------------------------
+
+export async function getReminderSettings(): Promise<ReminderSettings> {
+  if (!isSupabaseConfigured()) return demoStore.reminderSettings ?? DEFAULT_REMINDER_SETTINGS;
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("reminders_enabled, first_reminder_days, second_reminder_days")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (error) throw new Error(`Chargement des préférences impossible : ${error.message}`);
+  return readReminderSettings(data);
+}
+
+export async function saveReminderSettings(settings: ReminderSettings) {
+  if (!isSupabaseConfigured()) {
+    demoStore.reminderSettings = settings;
+    return;
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").upsert({
+    id: user.id,
+    reminders_enabled: settings.enabled,
+    first_reminder_days: settings.firstDays,
+    second_reminder_days: settings.secondDays,
+  });
+  if (error) throw new Error(`Enregistrement des préférences impossible : ${error.message}`);
 }

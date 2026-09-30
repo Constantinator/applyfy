@@ -5,7 +5,14 @@ import { unstable_rethrow } from "next/navigation";
 
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_NAME_MAX_LENGTH } from "@/lib/cv-types";
-import { ProfileCvError, addProfileCv, deleteProfileCv, renameProfileCv } from "@/lib/profile";
+import {
+  ProfileCvError,
+  addProfileCv,
+  deleteProfileCv,
+  renameProfileCv,
+  saveReminderSettings,
+} from "@/lib/profile";
+import { isFirstReminderOption, isSecondReminderOption } from "@/lib/reminders";
 
 export type ProfileActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -56,5 +63,21 @@ export async function deleteProfileCvAction(id: string): Promise<ProfileActionRe
   return run("deleteProfileCv", async () => {
     await deleteProfileCv(String(id));
     return "CV supprimé.";
+  });
+}
+
+export async function saveReminderSettingsAction(input: {
+  enabled: boolean;
+  firstDays: number;
+  secondDays: number;
+}): Promise<ProfileActionResult> {
+  const firstDays = Number(input?.firstDays);
+  const secondDays = Number(input?.secondDays);
+  if (!isFirstReminderOption(firstDays) || !isSecondReminderOption(secondDays)) {
+    return { ok: false, error: "Délai invalide." };
+  }
+  return run("saveReminderSettings", async () => {
+    await saveReminderSettings({ enabled: input.enabled === true, firstDays, secondDays });
+    return "✓ Préférences de rappel enregistrées.";
   });
 }
