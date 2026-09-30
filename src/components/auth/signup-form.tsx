@@ -37,9 +37,6 @@ export function SignupForm() {
   if (state.status === "check-email") {
     return (
       <div role="status" className="space-y-3 text-center">
-        <p className="text-4xl" aria-hidden="true">
-          📬
-        </p>
         <h2 className="text-lg font-semibold text-slate-900">Vérifie ta boîte mail</h2>
         <p className="text-sm text-slate-600">
           Un lien de confirmation a été envoyé à <strong>{state.email}</strong>. Clique dessus pour

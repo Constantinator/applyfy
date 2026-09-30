@@ -96,7 +96,7 @@ export function CoverLetterGenerator({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 id="letter-title" className="font-semibold text-slate-900">
-            <span aria-hidden="true">✉️ </span>Lettre de motivation
+            Lettre de motivation
           </h2>
           <p className="mt-1 text-sm text-slate-500">
             {hasLetter && letterSavedAt
@@ -232,7 +232,7 @@ export function CoverLetterGenerator({
               disabled={generating || !sourceReady}
               className="btn-primary px-4 py-2 text-sm"
             >
-              {generating ? "Rédaction en cours…" : "✉️ Générer ma lettre de motivation"}
+              {generating ? "Rédaction en cours…" : "Générer ma lettre de motivation"}
             </button>
             {hasLetter && !generating && (
               <button

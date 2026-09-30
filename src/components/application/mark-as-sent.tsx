@@ -46,7 +46,7 @@ export function MarkAsSent({ applicationId, today }: { applicationId: string; to
             disabled={pending}
             className="btn-primary px-5 py-2.5 text-sm"
           >
-            {pending ? "Enregistrement…" : "✉️ Marquer comme envoyée"}
+            {pending ? "Enregistrement…" : "Marquer comme envoyée"}
           </button>
         </div>
       </form>

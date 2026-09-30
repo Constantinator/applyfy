@@ -164,7 +164,7 @@ export default async function ApplicationPage({
           {app.offer_summary && (
             <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
               <h2 className="mb-4 font-semibold text-slate-900">
-                <span aria-hidden="true">✨ </span>Résumé de l&apos;offre
+                Résumé de l&apos;offre
               </h2>
               <FormattedText text={app.offer_summary} />
             </section>

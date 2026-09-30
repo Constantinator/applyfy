@@ -348,9 +348,8 @@ export function NewApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
               type="button"
               onClick={generateSummary}
               disabled={!canSummarize}
-              className="inline-flex items-center gap-2 btn-primary px-4 py-2 text-sm"
+              className="btn-primary px-4 py-2 text-sm"
             >
-              <span aria-hidden="true">✨</span>
               {summary ? "Régénérer le résumé" : "Générer un résumé"}
             </button>
             {!aiEnabled ? (
