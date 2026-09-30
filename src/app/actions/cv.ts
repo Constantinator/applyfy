@@ -13,7 +13,7 @@ import {
 import { generateImprovedCv, isClaudeConfigured, suggestCvAdaptations, type OfferContext } from "@/lib/claude";
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
-import type { CvSuggestions } from "@/lib/cv-types";
+import { readCvSuggestions, type CvSuggestions } from "@/lib/cv-types";
 import { getProfileCvFile } from "@/lib/profile";
 
 export type AdaptCvState =
@@ -127,13 +127,14 @@ export async function generateImprovedCvAction(
   if (!prepared.ok) return { status: "error", message: prepared.message };
 
   const app = prepared.detail.application;
-  if (!app.cv_suggestions) {
+  const suggestions = readCvSuggestions(app.cv_suggestions);
+  if (!suggestions) {
     return { status: "error", message: "Lance d'abord l'analyse de ton CV pour cette offre." };
   }
 
   let html: string;
   try {
-    const improved = await generateImprovedCv(prepared.pdfBase64, prepared.offer, app.cv_suggestions);
+    const improved = await generateImprovedCv(prepared.pdfBase64, prepared.offer, suggestions);
     if (!improved) return { status: "error", message: "Le CV amélioré n'a pas pu être généré." };
     html = sanitizeCvHtml(improvedCvToHtml(improved));
   } catch (error) {

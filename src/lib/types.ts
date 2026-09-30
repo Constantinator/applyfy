@@ -1,5 +1,3 @@
-import type { CvSuggestions } from "./cv-types";
-
 export const APPLICATION_STATUSES = [
   "brouillon",
   "envoyee",
@@ -34,7 +32,8 @@ export type ApplicationDetail = Application & {
   /** Résumé généré par l'assistant (migration 0004). */
   offer_summary?: string | null;
   /** Suggestions d'adaptation du CV (migration 0005). */
-  cv_suggestions?: CvSuggestions | null;
+  /** JSON brut (ancien ou nouveau format) : à lire avec readCvSuggestions(). */
+  cv_suggestions?: unknown;
   cv_suggestions_at?: string | null;
   /** CV amélioré, HTML nettoyé (migration 0006). */
   cv_improved_html?: string | null;

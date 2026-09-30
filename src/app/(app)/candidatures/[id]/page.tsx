@@ -17,6 +17,7 @@ import {
   today,
 } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
+import { readCvSuggestions } from "@/lib/cv-types";
 import { listProfileCvs } from "@/lib/profile";
 
 // Analyse de CV et génération du CV amélioré (Server Actions de cette page) : 30 à 90 s.
@@ -177,7 +178,7 @@ export default async function ApplicationPage({
             applicationId={app.id}
             hasOfferDescription={Boolean(app.offer_description)}
             aiEnabled={isClaudeConfigured()}
-            saved={app.cv_suggestions ?? null}
+            saved={readCvSuggestions(app.cv_suggestions)}
             savedAt={app.cv_suggestions_at ?? null}
             profileCvs={profileCvs}
             hasImprovedCv={Boolean(app.cv_improved_html)}

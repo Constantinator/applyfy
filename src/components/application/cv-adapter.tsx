@@ -34,60 +34,65 @@ function Spinner() {
   );
 }
 
+function SuggestionList({
+  icon,
+  title,
+  items,
+  empty,
+  tone,
+}: {
+  icon: string;
+  title: string;
+  items: string[];
+  empty: string;
+  tone: "match" | "missing";
+}) {
+  const styles =
+    tone === "match"
+      ? { box: "border-emerald-200 bg-emerald-50/60", marker: "text-emerald-600" }
+      : { box: "border-amber-200 bg-amber-50/60", marker: "text-amber-600" };
+
+  return (
+    <section className={`rounded-xl border p-4 ${styles.box}`}>
+      <h3 className="flex items-center gap-2 font-semibold text-slate-900">
+        <span aria-hidden="true">{icon}</span> {title}
+        <span className="text-sm font-normal text-slate-500">({items.length})</span>
+      </h3>
+      {items.length > 0 ? (
+        <ul className="mt-3 space-y-1.5 text-sm text-slate-800">
+          {items.map((item, i) => (
+            <li key={`${i}-${item}`} className="flex gap-2">
+              <span aria-hidden="true" className={styles.marker}>
+                •
+              </span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-slate-500">{empty}</p>
+      )}
+    </section>
+  );
+}
+
 function SuggestionsView({ suggestions }: { suggestions: CvSuggestions }) {
   return (
-    <div className="space-y-4">
-      <p className="rounded-xl bg-violet-50 p-4 text-sm leading-relaxed text-violet-950 ring-1 ring-violet-200">
-        {suggestions.adequation}
-      </p>
-
-      {/* Empilées : la colonne principale de la fiche est trop étroite pour 3 colonnes lisibles. */}
-      <div className="grid gap-4">
-        <section className="rounded-xl border border-slate-200 p-4">
-          <h3 className="flex items-center gap-2 font-semibold text-slate-900">
-            <span aria-hidden="true">🎯</span> Expériences à mettre en avant
-          </h3>
-          <ol className="mt-3 space-y-3">
-            {suggestions.experiences.map((item) => (
-              <li key={item.experience} className="text-sm">
-                <p className="font-medium text-slate-900">{item.experience}</p>
-                <p className="mt-0.5 text-slate-600">{item.pourquoi}</p>
-                <p className="mt-1 text-indigo-700">→ {item.conseil}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 p-4">
-          <h3 className="flex items-center gap-2 font-semibold text-slate-900">
-            <span aria-hidden="true">🔑</span> Mots-clés manquants
-          </h3>
-          <ul className="mt-3 space-y-3">
-            {suggestions.mots_cles.map((item) => (
-              <li key={item.mot_cle} className="text-sm">
-                <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 font-medium text-amber-900">
-                  {item.mot_cle}
-                </span>
-                <p className="mt-1 text-slate-600">{item.ou_l_ajouter}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 p-4">
-          <h3 className="flex items-center gap-2 font-semibold text-slate-900">
-            <span aria-hidden="true">💪</span> Points forts à valoriser
-          </h3>
-          <ul className="mt-3 space-y-3">
-            {suggestions.points_forts.map((item) => (
-              <li key={item.point} className="text-sm">
-                <p className="font-medium text-slate-900">{item.point}</p>
-                <p className="mt-0.5 text-slate-600">{item.comment_le_valoriser}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+    <div className="grid gap-4">
+      <SuggestionList
+        icon="✅"
+        title="Ce qui matche"
+        items={suggestions.ce_qui_matche}
+        empty="Aucun point fort identifié pour ce poste."
+        tone="match"
+      />
+      <SuggestionList
+        icon="⚠️"
+        title="Ce qui manque"
+        items={suggestions.ce_qui_manque}
+        empty="Rien d'important ne manque à ton CV pour ce poste."
+        tone="missing"
+      />
     </div>
   );
 }

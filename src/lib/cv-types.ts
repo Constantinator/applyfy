@@ -1,12 +1,40 @@
 // Types et limites de l'adaptation de CV, partagés entre le serveur et l'interface.
 
+/** Suggestions d'adaptation du CV : deux listes de points courts (une ligne chacun). */
 export type CvSuggestions = {
-  /** Synthèse en 1-2 phrases de l'adéquation entre le CV et l'offre. */
-  adequation: string;
-  experiences: { experience: string; pourquoi: string; conseil: string }[];
-  mots_cles: { mot_cle: string; ou_l_ajouter: string }[];
-  points_forts: { point: string; comment_le_valoriser: string }[];
+  /** Points forts du profil pour ce poste. */
+  ce_qui_matche: string[];
+  /** Mots-clés et compétences de l'offre à ajouter au CV. */
+  ce_qui_manque: string[];
 };
+
+/** Format enregistré avant la version « Ce qui matche / Ce qui manque ». */
+type LegacyCvSuggestions = {
+  points_forts?: { point: string }[];
+  mots_cles?: { mot_cle: string; ou_l_ajouter?: string }[];
+};
+
+/**
+ * Lit des suggestions enregistrées (JSON en base), quel que soit leur format :
+ * l'ancien format est converti. Retourne null si le contenu est inexploitable.
+ */
+export function readCvSuggestions(raw: unknown): CvSuggestions | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Partial<CvSuggestions> & LegacyCvSuggestions;
+  const strings = (list: unknown) =>
+    Array.isArray(list) ? list.filter((item): item is string => typeof item === "string") : [];
+
+  if (Array.isArray(value.ce_qui_matche) || Array.isArray(value.ce_qui_manque)) {
+    return { ce_qui_matche: strings(value.ce_qui_matche), ce_qui_manque: strings(value.ce_qui_manque) };
+  }
+  if (Array.isArray(value.points_forts) || Array.isArray(value.mots_cles)) {
+    return {
+      ce_qui_matche: (value.points_forts ?? []).map((p) => p.point).filter(Boolean),
+      ce_qui_manque: (value.mots_cles ?? []).map((m) => m.mot_cle).filter(Boolean),
+    };
+  }
+  return null;
+}
 
 /** CV enregistré dans le profil. */
 export type ProfileCv = { id: string; name: string; fileName: string; uploadedAt: string };
