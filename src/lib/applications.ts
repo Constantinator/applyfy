@@ -329,6 +329,29 @@ export async function saveCvSuggestions(id: string, suggestions: CvSuggestions) 
   if (error) throw new Error(error.message);
 }
 
+/** Enregistre le CV amélioré (HTML déjà nettoyé par sanitizeCvHtml). */
+export async function saveImprovedCv(id: string, html: string) {
+  const cv_improved_at = new Date().toISOString();
+
+  if (!isSupabaseConfigured()) {
+    const app = demoStore.applications.find((a) => a.id === id);
+    if (!app) throw new Error("Candidature introuvable.");
+    Object.assign(app, { cv_improved_html: html, cv_improved_at });
+    return;
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("applications")
+    .update({ cv_improved_html: html, cv_improved_at })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Candidature introuvable.");
+}
+
 async function findForUpdate(id: string) {
   if (!isSupabaseConfigured()) {
     return demoStore.applications.find((app) => app.id === id) ?? null;

@@ -1,11 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 
-import { adaptCvAction, type AdaptCvState } from "@/app/actions/cv";
+import {
+  adaptCvAction,
+  generateImprovedCvAction,
+  type AdaptCvState,
+  type GenerateCvState,
+} from "@/app/actions/cv";
 import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions } from "@/lib/cv-types";
 
-const initialState: AdaptCvState = { status: "idle" };
+const initialAdaptState: AdaptCvState = { status: "idle" };
+const initialGenerateState: GenerateCvState = { status: "idle" };
 
 const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -14,6 +21,17 @@ const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
   minute: "2-digit",
   timeZone: "Europe/Paris",
 });
+
+type Source = "profil" | "upload";
+
+function Spinner() {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-violet-600"
+    />
+  );
+}
 
 function SuggestionsView({ suggestions }: { suggestions: CvSuggestions }) {
   return (
@@ -79,37 +97,133 @@ export function CvAdapter({
   aiEnabled,
   saved,
   savedAt,
+  profileCv,
+  hasImprovedCv,
 }: {
   applicationId: string;
   hasOfferDescription: boolean;
   aiEnabled: boolean;
   saved: CvSuggestions | null;
   savedAt: string | null;
+  profileCv: { fileName: string } | null;
+  hasImprovedCv: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(adaptCvAction, initialState);
-  // État de l'action au moment où le formulaire a été ouvert : dès qu'une nouvelle
-  // analyse réussit, l'état change et le formulaire se referme de lui-même.
-  const [openedAt, setOpenedAt] = useState<AdaptCvState | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [adaptState, adaptAction, analyzing] = useActionState(adaptCvAction, initialAdaptState);
+  const [generateState, generateAction, generating] = useActionState(
+    generateImprovedCvAction,
+    initialGenerateState,
+  );
 
-  const result = state.status === "success" ? state : null;
+  // Source du CV, partagée par l'analyse et la génération du CV amélioré.
+  const [source, setSource] = useState<Source>(profileCv ? "profil" : "upload");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  // Le choix du CV s'affiche à la demande ; il se referme dès qu'une analyse réussit
+  // (l'état de l'action change par rapport à celui de l'ouverture).
+  const [pickerOpenedAt, setPickerOpenedAt] = useState<AdaptCvState | null>(null);
+
+  const result = adaptState.status === "success" ? adaptState : null;
   const suggestions = result?.suggestions ?? saved;
   const generatedAt = result?.generatedAt ?? savedAt;
-  const showForm =
-    openedAt !== null && (pending || state === openedAt || state.status === "error");
+  const busy = analyzing || generating;
+  const sourceReady = source === "profil" ? Boolean(profileCv) : Boolean(file) && !fileError;
+  const pickerOpen =
+    pickerOpenedAt !== null &&
+    (analyzing || adaptState === pickerOpenedAt || adaptState.status === "error");
 
-  function closeForm() {
-    setOpenedAt(null);
-    setFileName(null);
-    setFileError(null);
+  function buildFormData() {
+    const formData = new FormData();
+    formData.set("id", applicationId);
+    formData.set("source", source);
+    if (source === "upload" && file) formData.set("cv", file);
+    return formData;
   }
 
+  function runAnalysis() {
+    if (!sourceReady || busy) return;
+    const formData = buildFormData();
+    startTransition(() => adaptAction(formData));
+  }
+
+  function runGeneration() {
+    if (!sourceReady || busy) {
+      setPickerOpenedAt(adaptState); // il faut d'abord choisir un CV
+      return;
+    }
+    const formData = buildFormData();
+    startTransition(() => generateAction(formData));
+  }
+
+  const sourcePicker = (
+    <fieldset className="space-y-3" disabled={busy}>
+      <legend className="text-sm font-medium text-slate-700">Quel CV utiliser ?</legend>
+
+      {profileCv ? (
+        <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-700">
+          <input
+            type="radio"
+            name="cv-source"
+            checked={source === "profil"}
+            onChange={() => setSource("profil")}
+            className="mt-0.5 accent-violet-600"
+          />
+          <span>
+            Le CV de mon profil <span className="text-slate-500">({profileCv.fileName})</span>
+          </span>
+        </label>
+      ) : (
+        <p className="text-xs text-slate-500">
+          Astuce : enregistre ton CV dans{" "}
+          <Link href="/profil" className="font-medium text-violet-700 underline underline-offset-2">
+            Mon profil
+          </Link>{" "}
+          pour ne plus avoir à l&apos;importer.
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {profileCv && (
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="cv-source"
+              checked={source === "upload"}
+              onChange={() => setSource("upload")}
+              className="mt-0.5 accent-violet-600"
+            />
+            <span>Importer un autre CV</span>
+          </label>
+        )}
+        {source === "upload" && (
+          <div className={profileCv ? "pl-6" : ""}>
+            <label htmlFor="cv-file" className="sr-only">
+              CV au format PDF
+            </label>
+            <input
+              id="cv-file"
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(e) => {
+                const selected = e.target.files?.[0] ?? null;
+                setFile(selected);
+                if (!selected) setFileError(null);
+                else if (selected.type && selected.type !== "application/pdf")
+                  setFileError("Choisis un fichier PDF.");
+                else if (selected.size > CV_MAX_BYTES) setFileError(`Ce fichier dépasse ${CV_MAX_LABEL}.`);
+                else setFileError(null);
+              }}
+              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
+            />
+            <p className="mt-1 text-xs text-slate-500">PDF, {CV_MAX_LABEL} max.</p>
+            {fileError && <p className="mt-1 text-sm text-rose-600">{fileError}</p>}
+          </div>
+        )}
+      </div>
+    </fieldset>
+  );
+
   return (
-    <section
-      aria-labelledby="cv-title"
-      className="rounded-2xl border border-slate-200 bg-white p-5"
-    >
+    <section aria-labelledby="cv-title" className="rounded-2xl border border-slate-200 bg-white p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 id="cv-title" className="font-semibold text-slate-900">
@@ -118,14 +232,14 @@ export function CvAdapter({
           <p className="mt-1 text-sm text-slate-500">
             {suggestions && generatedAt
               ? `Suggestions générées le ${dateTimeFormatter.format(new Date(generatedAt))}.`
-              : "Importe ton CV : l'assistant te dit quoi mettre en avant pour ce poste."}
+              : "L'assistant compare ton CV à l'offre et te dit quoi mettre en avant."}
           </p>
         </div>
-        {!showForm && (
+        {!pickerOpen && (
           <button
             type="button"
-            onClick={() => setOpenedAt(state)}
-            disabled={!aiEnabled}
+            onClick={() => setPickerOpenedAt(adaptState)}
+            disabled={!aiEnabled || busy}
             className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
@@ -137,40 +251,9 @@ export function CvAdapter({
         <p className="mt-3 text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       )}
 
-      {showForm && (
-        <form
-          // Soumission manuelle (et non via action=) : React ne vide pas le formulaire,
-          // le fichier reste sélectionné si l'analyse échoue et doit être relancée.
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (fileError || !fileName || pending) return;
-            const formData = new FormData(e.currentTarget);
-            startTransition(() => formAction(formData));
-          }}
-          className="mt-4 space-y-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"
-        >
-          <input type="hidden" name="id" value={applicationId} />
-          <label htmlFor="cv" className="block text-sm font-medium text-slate-700">
-            Ton CV (PDF, {CV_MAX_LABEL} max)
-          </label>
-          <input
-            id="cv"
-            name="cv"
-            type="file"
-            accept="application/pdf,.pdf"
-            required
-            disabled={pending}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              setFileName(file?.name ?? null);
-              if (!file) setFileError(null);
-              else if (file.type && file.type !== "application/pdf") setFileError("Choisis un fichier PDF.");
-              else if (file.size > CV_MAX_BYTES) setFileError(`Ce fichier dépasse ${CV_MAX_LABEL}.`);
-              else setFileError(null);
-            }}
-            className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
-          />
-          {fileError && <p className="text-sm text-rose-600">{fileError}</p>}
+      {pickerOpen && (
+        <div className="mt-4 space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          {sourcePicker}
           {!hasOfferDescription && (
             <p className="text-xs text-amber-700">
               Cette candidature n&apos;a pas de description d&apos;offre : les suggestions se baseront
@@ -178,51 +261,91 @@ export function CvAdapter({
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Ton CV est transmis à Claude (Anthropic) pour l&apos;analyse ; Applyfy ne le conserve pas.
+            Ton CV est transmis à Claude (Anthropic) pour l&apos;analyse.
           </p>
-
           <div className="flex flex-wrap items-center gap-2">
             <button
-              type="submit"
-              disabled={pending || !fileName || Boolean(fileError)}
+              type="button"
+              onClick={runAnalysis}
+              disabled={busy || !sourceReady}
               className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {pending ? "Analyse en cours…" : "Analyser mon CV"}
+              {analyzing ? "Analyse en cours…" : "Analyser mon CV"}
             </button>
-            {!pending && (
+            {!busy && (
               <button
                 type="button"
-                onClick={closeForm}
+                onClick={() => setPickerOpenedAt(null)}
                 className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
               >
                 Annuler
               </button>
             )}
           </div>
-
-          {pending && (
+          {analyzing && (
             <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
-              <span
-                aria-hidden="true"
-                className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-violet-600"
-              />
-              L&apos;assistant lit ton CV et l&apos;offre… cela prend généralement 20 à 40 secondes.
+              <Spinner />
+              L&apos;assistant lit ton CV et l&apos;offre… cela prend généralement 30 à 60 secondes.
             </p>
           )}
-          {state.status === "error" && !pending && (
-            <p
-              role="alert"
-              className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200"
-            >
-              {state.message}
+          {adaptState.status === "error" && !analyzing && (
+            <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200">
+              {adaptState.message}
             </p>
           )}
-        </form>
+        </div>
       )}
 
-      {suggestions && !pending && (
-        <div className="mt-5">
+      {suggestions && !analyzing && (
+        <div className="mt-5 space-y-5">
           <SuggestionsView suggestions={suggestions} />
+
+          <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+            <h3 className="font-semibold text-slate-900">📄 CV amélioré</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Génère un CV complet qui applique ces suggestions, avec les améliorations surlignées.
+              Tu pourras le modifier puis l&apos;exporter en PDF.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={runGeneration}
+                disabled={busy || !aiEnabled}
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {generating
+                  ? "Rédaction en cours…"
+                  : hasImprovedCv
+                    ? "Regénérer le CV amélioré"
+                    : "Générer mon CV amélioré"}
+              </button>
+              {hasImprovedCv && !generating && (
+                <Link
+                  href={`/candidatures/${applicationId}/cv`}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-violet-700 ring-1 ring-violet-300 hover:bg-white"
+                >
+                  Ouvrir mon CV amélioré →
+                </Link>
+              )}
+            </div>
+            {!sourceReady && !generating && (
+              <p className="mt-2 text-xs text-slate-500">
+                Le CV d&apos;origine est nécessaire : choisis-le via « Refaire l&apos;analyse » ou
+                enregistre-le dans ton profil.
+              </p>
+            )}
+            {generating && (
+              <p role="status" className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+                <Spinner />
+                Rédaction de ton CV amélioré… cela peut prendre jusqu&apos;à une minute.
+              </p>
+            )}
+            {generateState.status === "error" && !generating && (
+              <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200">
+                {generateState.message}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </section>

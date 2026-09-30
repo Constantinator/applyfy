@@ -32,6 +32,9 @@ export type ApplicationDetail = Application & {
   /** Suggestions d'adaptation du CV (migration 0005). */
   cv_suggestions?: CvSuggestions | null;
   cv_suggestions_at?: string | null;
+  /** CV amélioré, HTML nettoyé (migration 0006). */
+  cv_improved_html?: string | null;
+  cv_improved_at?: string | null;
   notes: string | null;
 };
 

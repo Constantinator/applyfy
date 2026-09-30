@@ -5,7 +5,7 @@ import type { CurrentUser } from "@/lib/auth";
 
 export function AppHeader({ user }: { user: CurrentUser | null }) {
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className="border-b border-slate-200 bg-white print:hidden">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 sm:gap-6">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-slate-900">
@@ -24,13 +24,15 @@ export function AppHeader({ user }: { user: CurrentUser | null }) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
+          <Link
+            href="/profil"
+            title={user?.email ?? undefined}
+            className="text-sm font-medium whitespace-nowrap text-slate-600 hover:text-slate-900"
+          >
+            Mon profil
+          </Link>
           {user ? (
             <div className="flex items-center gap-3">
-              {user.email && (
-                <span className="hidden max-w-48 truncate text-sm text-slate-500 lg:inline" title={user.email}>
-                  {user.email}
-                </span>
-              )}
               <form action={logoutAction}>
                 <button
                   type="submit"

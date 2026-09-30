@@ -43,6 +43,12 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
 - **Adapter mon CV** (fiche candidature) : upload d'un CV PDF (3,5 Mo max) analysé avec
   l'offre → expériences à mettre en avant, mots-clés manquants, points forts. Le CV n'est pas
   stocké ; les suggestions le sont (colonnes `cv_suggestions*`, migration `0005`).
+- **CV amélioré** : à partir du CV et des suggestions, Claude rédige un CV complet (sans rien
+  inventer), passages améliorés surlignés. Éditable sur `/candidatures/[id]/cv`, export PDF via
+  l'impression du navigateur. HTML nettoyé côté serveur (`src/lib/cv-html.ts`), migration `0006`.
+- **Mon profil** (`/profil`) : CV de référence stocké dans le bucket privé `documents`
+  (`<user_id>/profil/cv.pdf`), réutilisable dans « Adapter mon CV ».
+- Descriptions importées mises en forme sans modifier le contenu (`src/lib/format-offer.ts`).
 - Nécessite `ANTHROPIC_API_KEY` côté serveur (voir `.env.example`). Modèle : `claude-opus-5-5`
   (`src/lib/claude.ts`).
 

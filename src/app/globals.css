@@ -9,3 +9,16 @@ body {
   color: var(--color-slate-900);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* Export PDF du CV (impression du navigateur) : page A4, fond blanc. */
+@page {
+  size: A4;
+  margin: 14mm 16mm;
+}
+
+@media print {
+  body {
+    /* !important : l'arrière-plan de l'app est posé par une classe utilitaire sur <body>. */
+    background: white !important;
+  }
+}

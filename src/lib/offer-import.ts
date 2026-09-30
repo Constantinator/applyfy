@@ -4,6 +4,7 @@ import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 
 import { extractOfferFields, isClaudeConfigured } from "./claude";
+import { decodeEntities, formatOfferDescription } from "./format-offer";
 
 export type ImportedOffer = {
   position: string;
@@ -148,21 +149,14 @@ async function readLimited(response: Response): Promise<string> {
 // Analyse du HTML
 // ---------------------------------------------------------------------------
 
-function decodeEntities(text: string) {
-  const named: Record<string, string> = {
-    amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", eacute: "é", egrave: "è",
-    agrave: "à", ccedil: "ç", ecirc: "ê", ocirc: "ô", ucirc: "û", icirc: "î", rsquo: "’", hellip: "…",
-  };
-  return text.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
-    if (entity[0] === "#") {
-      const code = entity[1]?.toLowerCase() === "x" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
-    }
-    return named[entity.toLowerCase()] ?? match;
-  });
+/** Description JSON-LD → texte structuré (titres, paragraphes, puces), contenu inchangé. */
+function formatJobDescription(raw: string) {
+  // Certains sites encodent le HTML de la description en entités (&lt;p&gt;…).
+  const html = raw.includes("&lt;") && !raw.includes("<") ? decodeEntities(raw) : raw;
+  return formatOfferDescription(html);
 }
 
-/** HTML → texte lisible (listes et paragraphes conservés). */
+/** HTML → texte lisible, pour l'extraction par Claude (listes et paragraphes conservés). */
 function htmlToText(html: string) {
   return decodeEntities(
     html
@@ -232,7 +226,7 @@ function findJobPosting(html: string): ImportedOffer | null {
         position: decodeEntities(asText(node.title)),
         company: decodeEntities(asText(node.hiringOrganization)),
         location: decodeEntities(jobLocation(node)),
-        description: htmlToText(typeof node.description === "string" ? node.description : ""),
+        description: formatJobDescription(typeof node.description === "string" ? node.description : ""),
         source: "structured",
       };
     }

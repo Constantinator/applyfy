@@ -276,6 +276,8 @@ type DemoStore = {
   applications: ApplicationDetail[];
   events: ApplicationEvent[];
   documents: ApplicationDocument[];
+  /** CV du profil (mode démo : en mémoire). */
+  profileCv?: { fileName: string; data: Buffer; uploadedAt: string };
 };
 
 const globalForDemo = globalThis as unknown as { applyfyDemoStore?: DemoStore };

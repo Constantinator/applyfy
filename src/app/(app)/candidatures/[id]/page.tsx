@@ -7,12 +7,14 @@ import { DocumentsList } from "@/components/application/documents-list";
 import { FollowUpBox } from "@/components/application/follow-up-box";
 import { StatusChanger } from "@/components/application/status-changer";
 import { Timeline } from "@/components/application/timeline";
+import { FormattedText } from "@/components/formatted-text";
 import { StatusBadge } from "@/components/status-badge";
 import { buildFollowUpMessage, getApplicationDetail, needsFollowUp } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
+import { getProfileCv } from "@/lib/profile";
 
-// L'analyse de CV (Server Action de cette page) peut prendre 20 à 40 s.
-export const maxDuration = 90;
+// Analyse de CV et génération du CV amélioré (Server Actions de cette page) : 30 à 90 s.
+export const maxDuration = 120;
 
 // Date sans heure (YYYY-MM-DD) : formatée en UTC pour ne pas dépendre du fuseau du serveur.
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -45,7 +47,15 @@ function Card({
 
 export default async function ApplicationPage({ params }: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
-  const detail = await getApplicationDetail(id);
+  const [detail, profileCv] = await Promise.all([
+    getApplicationDetail(id),
+    // Non bloquant : la fiche reste affichée même si le profil est indisponible
+    // (ex. migration 0006 pas encore appliquée).
+    getProfileCv().catch((error) => {
+      console.error("[fiche] CV du profil", error);
+      return null;
+    }),
+  ]);
   if (!detail) notFound();
 
   const { application: app, events, documents, source } = detail;
@@ -126,17 +136,13 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
               <h2 className="mb-4 font-semibold text-slate-900">
                 <span aria-hidden="true">✨ </span>Résumé de l&apos;offre
               </h2>
-              <p className="text-sm leading-relaxed whitespace-pre-line text-slate-700">
-                {app.offer_summary}
-              </p>
+              <FormattedText text={app.offer_summary} />
             </section>
           )}
 
           <Card title="Description de l'offre">
             {app.offer_description ? (
-              <p className="max-h-96 overflow-y-auto text-sm leading-relaxed whitespace-pre-line text-slate-700">
-                {app.offer_description}
-              </p>
+              <FormattedText text={app.offer_description} className="max-h-[32rem] overflow-y-auto pr-2" />
             ) : (
               <p className="text-sm text-slate-500">Aucune description enregistrée.</p>
             )}
@@ -152,6 +158,8 @@ export default async function ApplicationPage({ params }: PageProps<"/candidatur
             aiEnabled={isClaudeConfigured()}
             saved={app.cv_suggestions ?? null}
             savedAt={app.cv_suggestions_at ?? null}
+            profileCv={profileCv}
+            hasImprovedCv={Boolean(app.cv_improved_html)}
           />
 
           <FollowUpBox
