@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CoverLetterGenerator } from "@/components/application/cover-letter-generator";
 import { CvAdapter } from "@/components/application/cv-adapter";
 import { DeleteApplicationButton } from "@/components/application/delete-application-button";
 import { DocumentsList } from "@/components/application/documents-list";
@@ -20,7 +21,7 @@ import { isClaudeConfigured } from "@/lib/claude";
 import { readCvSuggestions } from "@/lib/cv-types";
 import { listProfileCvs } from "@/lib/profile";
 
-// Analyse de CV et génération du CV amélioré (Server Actions de cette page) : 30 à 90 s.
+// Analyse de CV, CV amélioré et lettre de motivation (Server Actions de cette page) : 30 à 90 s.
 export const maxDuration = 120;
 
 // Date sans heure (YYYY-MM-DD) : formatée en UTC pour ne pas dépendre du fuseau du serveur.
@@ -182,6 +183,15 @@ export default async function ApplicationPage({
             savedAt={app.cv_suggestions_at ?? null}
             profileCvs={profileCvs}
             hasImprovedCv={Boolean(app.cv_improved_html)}
+          />
+
+          <CoverLetterGenerator
+            applicationId={app.id}
+            hasOfferDescription={Boolean(app.offer_description)}
+            aiEnabled={isClaudeConfigured()}
+            profileCvs={profileCvs}
+            hasLetter={Boolean(app.cover_letter_html)}
+            letterSavedAt={app.cover_letter_at ?? null}
           />
 
           <FollowUpBox

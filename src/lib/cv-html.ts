@@ -23,7 +23,7 @@ function escapeHtml(text: string) {
 }
 
 /** Texte → HTML échappé, passages ⟦…⟧ surlignés avec <mark>. */
-function inline(text: string) {
+export function inline(text: string) {
   return escapeHtml(text.trim())
     .replace(/⟦([\s\S]*?)⟧/g, "<mark>$1</mark>")
     .replace(/[⟦⟧]/g, ""); // délimiteur orphelin
@@ -83,6 +83,12 @@ export function sanitizeCvHtml(html: string): string {
   }
   out += escapeText(html.slice(last));
   return out;
+}
+
+/** Texte du premier <h1> (le nom du candidat), pour nommer le fichier PDF. */
+export function firstHeadingText(html: string) {
+  const match = html.match(/<h1>([\s\S]*?)<\/h1>/i);
+  return match ? match[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim() : "";
 }
 
 /** Texte hors balises : « < » et « > » échappés, entités existantes conservées. */

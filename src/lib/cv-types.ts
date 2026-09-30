@@ -46,3 +46,7 @@ export const CV_NAME_MAX_LENGTH = 60;
 /** Sous la limite de 4,5 Mo des requêtes Vercel (cf. serverActions.bodySizeLimit). */
 export const CV_MAX_BYTES = 3.5 * 1024 * 1024;
 export const CV_MAX_LABEL = "3,5 Mo";
+
+/** Résumé de profil saisi à la main (lettre de motivation sans CV). */
+export const PROFILE_SUMMARY_MIN = 40;
+export const PROFILE_SUMMARY_MAX = 4000;

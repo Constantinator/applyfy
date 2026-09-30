@@ -47,8 +47,16 @@ export const DEFAULT_CV_STYLE: CvStyle = {
   layout: "une_colonne",
 };
 
+/** Réglages par défaut de la lettre de motivation (une seule colonne, texte un peu plus grand). */
+export const DEFAULT_LETTER_STYLE: CvStyle = {
+  font: "inter",
+  fontSize: 12,
+  accent: "noir",
+  layout: "une_colonne",
+};
+
 /** Lit un style enregistré (JSON) en ignorant toute valeur inconnue ou hors limites. */
-export function readCvStyle(raw: unknown): CvStyle {
+export function readCvStyle(raw: unknown, defaults: CvStyle = DEFAULT_CV_STYLE): CvStyle {
   const value = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof CvStyle, unknown>>;
   const size = Number(value.fontSize);
   const validSize =
@@ -57,16 +65,16 @@ export function readCvStyle(raw: unknown): CvStyle {
     size <= CV_FONT_SIZE_MAX &&
     Number.isInteger(size / CV_FONT_SIZE_STEP);
   return {
-    font: typeof value.font === "string" && value.font in CV_FONTS ? (value.font as CvFont) : DEFAULT_CV_STYLE.font,
-    fontSize: validSize ? size : DEFAULT_CV_STYLE.fontSize,
+    font: typeof value.font === "string" && value.font in CV_FONTS ? (value.font as CvFont) : defaults.font,
+    fontSize: validSize ? size : defaults.fontSize,
     accent:
       typeof value.accent === "string" && value.accent in CV_ACCENTS
         ? (value.accent as CvAccent)
-        : DEFAULT_CV_STYLE.accent,
+        : defaults.accent,
     layout:
       typeof value.layout === "string" && value.layout in CV_LAYOUTS
         ? (value.layout as CvLayout)
-        : DEFAULT_CV_STYLE.layout,
+        : defaults.layout,
   };
 }
 

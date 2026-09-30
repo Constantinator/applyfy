@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { saveCoverLetterAction } from "@/app/actions/cover-letter";
 import { saveImprovedCvAction } from "@/app/actions/cv";
 import { applyLayout } from "@/lib/cv-layout";
 import {
@@ -20,6 +21,7 @@ import {
   CV_FONT_SIZE_STEP,
   CV_LAYOUTS,
   DEFAULT_CV_STYLE,
+  DEFAULT_LETTER_STYLE,
   type CvAccent,
   type CvLayout,
   type CvStyle,
@@ -36,9 +38,9 @@ const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 // Géométrie identique à l'écran et à l'impression : page A4 (@page margin 0 dans
-// globals.css) avec une marge intérieure de 10 mm → ce qui tient à l'écran tient au PDF.
+// globals.css) avec une marge intérieure (10 mm pour le CV, 20 mm pour la lettre) →
+// ce qui tient à l'écran tient au PDF.
 const PAGE_HEIGHT_MM = 297;
-const PAGE_PADDING_MM = 10;
 const PX_PER_MM = 96 / 25.4;
 /** Petite marge de sécurité (écarts de rendu entre écran et impression). */
 const FIT_SAFETY_PX = 6;
@@ -63,6 +65,18 @@ const documentStyles = [
   "[&_em]:text-[0.95em] [&_em]:text-slate-500 [&_em]:not-italic",
   // Contenu
   "[&_p]:my-[0.15em] [&_ul]:my-[0.25em] [&_ul]:list-disc [&_ul]:pl-[1.3em] [&_ol]:list-decimal [&_ol]:pl-[1.3em] [&_li]:my-[0.1em] [&_li]:pl-[0.1em]",
+  "[&_strong]:font-semibold",
+].join(" ");
+
+// Lettre de motivation (cf. lib/cover-letter) : <h1> nom, <p> coordonnées, destinataire et
+// date, <h2> objet, puis paragraphes aérés.
+const letterStyles = [
+  "[&_h1]:text-[1.7em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:text-[var(--cv-accent)]",
+  "[&_h1+p]:!mt-[0.2em] [&_h1+p]:text-[0.95em] [&_h1+p]:text-slate-600",
+  "[&_h2]:mt-[1.6em] [&_h2]:mb-[1.2em] [&_h2]:text-[1em] [&_h2]:font-semibold [&_h2]:text-[var(--cv-accent)]",
+  "[&_h3]:mt-[0.8em] [&_h3]:font-semibold",
+  "[&_p]:my-[0.8em] [&_p]:text-justify [&_p]:hyphens-auto",
+  "[&_ul]:my-[0.5em] [&_ul]:list-disc [&_ul]:pl-[1.3em] [&_ol]:list-decimal [&_ol]:pl-[1.3em] [&_li]:my-[0.15em]",
   "[&_strong]:font-semibold",
 ].join(" ");
 
@@ -91,8 +105,40 @@ const NO_ACTIVE_FORMATS: Record<ToolbarCommand, boolean> = {
 /** Valeur du menu « Type de liste » quand la sélection n'est pas dans une liste. */
 const NO_LIST = "aucune";
 
+/** Documents modifiables avec cet éditeur : même interface, réglages propres à chacun. */
+const EDITOR_KINDS = {
+  cv: {
+    save: saveImprovedCvAction,
+    defaultStyle: DEFAULT_CV_STYLE,
+    documentClassName: documentStyles,
+    paddingMm: 10,
+    hasLayouts: true,
+    label: "CV amélioré, modifiable",
+    inDocument: "dans le CV",
+    marksToggle: "Surligner les améliorations",
+    marksHint: "passage ajouté ou reformulé par l'assistant",
+    accentHint: "nom et titres de section",
+  },
+  lettre: {
+    save: saveCoverLetterAction,
+    defaultStyle: DEFAULT_LETTER_STYLE,
+    documentClassName: letterStyles,
+    // Marges plus larges, d'usage pour un courrier.
+    paddingMm: 20,
+    hasLayouts: false,
+    label: "Lettre de motivation, modifiable",
+    inDocument: "dans la lettre",
+    marksToggle: "Surligner la personnalisation",
+    marksHint: "passage personnalisé pour cette offre : vérifie qu'il est exact",
+    accentHint: "nom et objet",
+  },
+} as const;
+
+export type EditorKind = keyof typeof EDITOR_KINDS;
+
 /** Panneau de mise en forme : police, taille, gras/italique/liste, couleur, mise en page. */
 function StylePanel({
+  kind,
   style,
   appliedSize,
   onChange,
@@ -101,6 +147,7 @@ function StylePanel({
   listType,
   onListType,
 }: {
+  kind: EditorKind;
   style: CvStyle;
   appliedSize: number;
   onChange: (patch: Partial<CvStyle>) => void;
@@ -110,8 +157,9 @@ function StylePanel({
   onListType: (type: CvListState) => void;
 }) {
   const sectionTitle = "text-xs font-semibold tracking-wide text-slate-500 uppercase";
+  const config = EDITOR_KINDS[kind];
   return (
-    <aside aria-label="Mise en forme du CV" className="card space-y-6 p-5 print:hidden">
+    <aside aria-label="Mise en forme du document" className="card space-y-6 p-5 print:hidden">
       <h2 className="font-semibold text-slate-900">Mise en forme</h2>
 
       <div className="space-y-2">
@@ -193,7 +241,7 @@ function StylePanel({
           ))}
           <option value={NO_LIST}>Sans liste</option>
         </select>
-        <p className="text-xs text-slate-500">S&apos;applique au texte sélectionné dans le CV.</p>
+        <p className="text-xs text-slate-500">S&apos;applique au texte sélectionné {config.inDocument}.</p>
       </div>
 
       <fieldset className="space-y-2">
@@ -218,10 +266,11 @@ function StylePanel({
           })}
         </div>
         <p className="text-xs text-slate-500">
-          {CV_ACCENTS[style.accent].label} · nom et titres de section
+          {CV_ACCENTS[style.accent].label} · {config.accentHint}
         </p>
       </fieldset>
 
+      {config.hasLayouts && (
       <fieldset className="space-y-2">
         <legend className={sectionTitle}>Mise en page</legend>
         <div className="grid grid-cols-2 gap-2 pt-1">
@@ -273,10 +322,11 @@ function StylePanel({
           </p>
         )}
       </fieldset>
+      )}
 
       <button
         type="button"
-        onClick={() => onChange(DEFAULT_CV_STYLE)}
+        onClick={() => onChange(config.defaultStyle)}
         className="btn-secondary w-full px-3 py-2 text-sm"
       >
         Réinitialiser
@@ -285,13 +335,19 @@ function StylePanel({
   );
 }
 
+/**
+ * Éditeur d'un document d'une page A4 (CV amélioré ou lettre de motivation) : texte
+ * modifiable, panneau de mise en forme, enregistrement et export PDF.
+ */
 export function CvEditor({
+  kind = "cv",
   applicationId,
   initialHtml,
   initialStyle,
   savedAt: initialSavedAt,
   pdfTitle,
 }: {
+  kind?: EditorKind;
   applicationId: string;
   initialHtml: string;
   initialStyle: CvStyle;
@@ -299,6 +355,7 @@ export function CvEditor({
   /** Titre du document pendant l'impression = nom de fichier proposé pour le PDF. */
   pdfTitle: string;
 }) {
+  const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -336,10 +393,10 @@ export function CvEditor({
   // Mise en page initiale (le HTML enregistré peut précéder un changement de réglage).
   const layoutApplied = useRef(false);
   useLayoutEffect(() => {
-    if (layoutApplied.current || !editorRef.current) return;
+    if (layoutApplied.current || !editorRef.current || !config.hasLayouts) return;
     applyLayout(editorRef.current, initialStyle.layout);
     layoutApplied.current = true;
-  }, [initialStyle.layout]);
+  }, [initialStyle.layout, config.hasLayouts]);
 
   // Recalcule l'ajustement à chaque changement de style (police, taille, mise en page)
   // et une fois les polices web chargées (elles changent la hauteur du texte).
@@ -372,6 +429,7 @@ export function CvEditor({
 
   function updateStyle(patch: Partial<CvStyle>) {
     const next = { ...style, ...patch };
+    if (!config.hasLayouts) next.layout = "une_colonne";
     if (next.layout !== style.layout && editorRef.current) applyLayout(editorRef.current, next.layout);
     setStyle(next);
     setDirty(true);
@@ -381,7 +439,7 @@ export function CvEditor({
     if (!editorRef.current) return;
     setSaving(true);
     setError(null);
-    const result = await saveImprovedCvAction(applicationId, editorRef.current.innerHTML, style);
+    const result = await config.save(applicationId, editorRef.current.innerHTML, style);
     setSaving(false);
     if (result.ok) {
       setSavedAt(result.savedAt);
@@ -467,7 +525,7 @@ export function CvEditor({
               onChange={(e) => setShowMarks(e.target.checked)}
               className="accent-blue-600"
             />
-            Surligner les améliorations
+            {config.marksToggle}
           </label>
 
           <div className="ml-auto flex items-center gap-2">
@@ -502,8 +560,7 @@ export function CvEditor({
 
         <div className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between print:hidden">
           <p className="text-slate-500">
-            <mark className="rounded bg-yellow-200 px-1">Surligné</mark> = passage ajouté ou reformulé
-            par l&apos;assistant. « Générer le PDF » ouvre l&apos;impression : choisis « Enregistrer
+            <mark className="rounded bg-yellow-200 px-1">Surligné</mark> = {config.marksHint}. « Générer le PDF » ouvre l&apos;impression : choisis « Enregistrer
             au format PDF ».
           </p>
           <p
@@ -525,7 +582,7 @@ export function CvEditor({
               suppressContentEditableWarning
               role="textbox"
               aria-multiline="true"
-              aria-label="CV amélioré, modifiable"
+              aria-label={config.label}
               spellCheck
               onInput={() => {
                 setDirty(true);
@@ -535,13 +592,13 @@ export function CvEditor({
               style={
                 {
                   fontSize: `${fontPx}px`,
-                  padding: `${PAGE_PADDING_MM}mm`,
+                  padding: `${config.paddingMm}mm`,
                   fontFamily: CV_FONTS[style.font].stack,
                   "--cv-accent": CV_ACCENTS[style.accent].value,
                 } as React.CSSProperties
               }
-              className={`cv-document min-h-[297mm] leading-[1.4] text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${documentStyles} ${
-                style.layout === "deux_colonnes" ? twoColumnStyles : ""
+              className={`cv-document min-h-[297mm] leading-[1.4] text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${config.documentClassName} ${
+                config.hasLayouts && style.layout === "deux_colonnes" ? twoColumnStyles : ""
               } ${
                 showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
               } [&_mark]:text-inherit print:[&_mark]:bg-transparent`}
@@ -564,6 +621,7 @@ export function CvEditor({
 
       <div className="xl:sticky xl:top-6">
         <StylePanel
+          kind={kind}
           style={style}
           appliedSize={fontPx}
           onChange={updateStyle}

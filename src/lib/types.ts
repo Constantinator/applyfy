@@ -40,6 +40,11 @@ export type ApplicationDetail = Application & {
   cv_improved_at?: string | null;
   /** Personnalisation du CV amélioré, JSON brut : à lire avec readCvStyle() (migration 0009). */
   cv_improved_style?: unknown;
+  /** Lettre de motivation, HTML nettoyé (migration 0010). */
+  cover_letter_html?: string | null;
+  cover_letter_at?: string | null;
+  /** Personnalisation de la lettre, JSON brut : à lire avec readCvStyle() (migration 0010). */
+  cover_letter_style?: unknown;
   notes: string | null;
 };
 

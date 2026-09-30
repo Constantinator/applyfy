@@ -342,18 +342,34 @@ export async function saveCvSuggestions(id: string, suggestions: CvSuggestions) 
   if (error) throw new Error(error.message);
 }
 
-/** Enregistre le CV amélioré (HTML déjà nettoyé par sanitizeCvHtml). */
+/** Documents rédigés dans l'éditeur : CV amélioré et lettre de motivation. */
+export type EditableDocument = "cv" | "lettre";
+
+const DOCUMENT_COLUMNS = {
+  cv: { html: "cv_improved_html", at: "cv_improved_at", style: "cv_improved_style", migration: "0006/0009" },
+  lettre: { html: "cover_letter_html", at: "cover_letter_at", style: "cover_letter_style", migration: "0010" },
+} as const;
+
+/** Colonnes absentes de la base : migration pas encore appliquée. */
+export class MissingMigrationError extends Error {
+  constructor(readonly migration: string) {
+    super(`Migration ${migration} non appliquée`);
+  }
+}
+
 /**
- * Enregistre le CV amélioré (HTML déjà nettoyé par sanitizeCvHtml) et, si fourni, sa
- * personnalisation (police, taille, couleur, mise en page).
+ * Enregistre un document de l'éditeur (HTML déjà nettoyé par sanitizeCvHtml) et, si
+ * fournie, sa personnalisation (police, taille, couleur, mise en page).
  */
-export async function saveImprovedCv(id: string, html: string, style?: CvStyle) {
-  const cv_improved_at = new Date().toISOString();
-  const patch = {
-    cv_improved_html: html,
-    cv_improved_at,
-    ...(style ? { cv_improved_style: style } : {}),
-  };
+export async function saveEditedDocument(
+  kind: EditableDocument,
+  id: string,
+  html: string,
+  style?: CvStyle,
+) {
+  const columns = DOCUMENT_COLUMNS[kind];
+  const base = { [columns.html]: html, [columns.at]: new Date().toISOString() };
+  const patch = style ? { ...base, [columns.style]: style } : base;
 
   if (!isSupabaseConfigured()) {
     const app = demoStore.applications.find((a) => a.id === id);
@@ -368,15 +384,21 @@ export async function saveImprovedCv(id: string, html: string, style?: CvStyle) 
     supabase.from("applications").update(values).eq("id", id).eq("user_id", user.id).select("id");
 
   let { data, error } = await update(patch);
-  // Colonne cv_improved_style absente (migration 0009 non appliquée) : le texte du CV
-  // est tout de même enregistré, sans la personnalisation.
-  if (error && style && /cv_improved_style/.test(error.message)) {
-    console.error("[saveImprovedCv] style non enregistré (migration 0009 ?)", error.message);
-    ({ data, error } = await update({ cv_improved_html: html, cv_improved_at }));
+  // Colonne de style absente (migration non appliquée) : le texte est tout de même
+  // enregistré, sans la personnalisation.
+  if (error && style && error.message.includes(columns.style)) {
+    console.error(`[saveEditedDocument] style non enregistré (migration ${columns.migration} ?)`, error.message);
+    ({ data, error } = await update(base));
+  }
+  if (error && [columns.html, columns.at, columns.style].some((column) => error!.message.includes(column))) {
+    throw new MissingMigrationError(columns.migration);
   }
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error("Candidature introuvable.");
 }
+
+export const saveImprovedCv = (id: string, html: string, style?: CvStyle) =>
+  saveEditedDocument("cv", id, html, style);
 
 async function findForUpdate(id: string) {
   if (!isSupabaseConfigured()) {

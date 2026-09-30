@@ -1,6 +1,5 @@
 "use server";
 
-import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
@@ -10,7 +9,13 @@ import {
   saveImprovedCv,
   type ApplicationDetailResult,
 } from "@/lib/applications";
-import { generateImprovedCv, isClaudeConfigured, suggestCvAdaptations, type OfferContext } from "@/lib/claude";
+import {
+  claudeErrorMessage,
+  generateImprovedCv,
+  isClaudeConfigured,
+  suggestCvAdaptations,
+  type OfferContext,
+} from "@/lib/claude";
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
 import { readCvStyle } from "@/lib/cv-style";
@@ -69,22 +74,6 @@ async function prepare(formData: FormData): Promise<Prepared> {
       description: app.offer_description,
     },
   };
-}
-
-function claudeErrorMessage(error: unknown, context: string): string {
-  if (error instanceof Anthropic.BadRequestError) {
-    console.error(`[${context}] requête refusée`, error.message);
-    return "Impossible de lire ce PDF (protégé par mot de passe ou endommagé ?).";
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    return "Trop de demandes en ce moment. Réessaie dans une minute.";
-  }
-  if (error instanceof Anthropic.APIError) {
-    console.error(`[${context}] API ${error.status}`, error.message);
-    return "Le service d'analyse est indisponible. Réessaie plus tard.";
-  }
-  console.error(`[${context}]`, error);
-  return "L'opération a échoué. Réessaie dans un instant.";
 }
 
 // ---------------------------------------------------------------------------
