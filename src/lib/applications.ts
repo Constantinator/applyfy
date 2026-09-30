@@ -274,6 +274,33 @@ export async function recordFollowUp(id: string, message: string) {
   return { ok: true as const };
 }
 
+/** Champs modifiables directement depuis la fiche (sans événement d'historique). */
+export type ApplicationDetailsPatch =
+  | { notes: string | null }
+  | { contact_name: string | null; contact_email: string | null };
+
+export async function updateApplicationDetails(id: string, patch: ApplicationDetailsPatch) {
+  if (!isSupabaseConfigured()) {
+    const app = demoStore.applications.find((a) => a.id === id);
+    if (!app) return { ok: false as const, error: "Candidature introuvable." };
+    Object.assign(app, patch);
+    return { ok: true as const };
+  }
+
+  const user = await requireUser();
+  if (!isUuid(id)) return { ok: false as const, error: "Candidature introuvable." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("applications")
+    .update(patch)
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data?.length) return { ok: false as const, error: "Candidature introuvable." };
+  return { ok: true as const };
+}
+
 /**
  * Supprime définitivement une candidature de l'utilisateur connecté.
  * L'historique et les documents sont supprimés en cascade (clés étrangères),

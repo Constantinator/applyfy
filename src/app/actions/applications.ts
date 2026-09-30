@@ -10,7 +10,10 @@ import {
   markApplicationSent,
   recordFollowUp,
   today,
+  updateApplicationDetails,
+  type ApplicationDetailsPatch,
 } from "@/lib/applications";
+import { CONTACT_NAME_MAX_LENGTH, EMAIL_PATTERN, NOTES_MAX_LENGTH } from "@/lib/application-details";
 import { normalizeCompanyName } from "@/lib/normalize";
 import { OFFER_DESCRIPTION_MAX_LENGTH, OFFER_SUMMARY_MAX_LENGTH } from "@/lib/offer-limits";
 import { STATUS_LABELS, isApplicationStatus } from "@/lib/types";
@@ -83,6 +86,53 @@ export async function markAsSentAction(
 
   revalidateApplication(id);
   return { status: "success", message: "✓ Candidature marquée comme envoyée." };
+}
+
+export type SaveDetailsResult = { ok: true; savedAt: string } | { ok: false; error: string };
+
+async function saveDetails(id: unknown, patch: ApplicationDetailsPatch, context: string): Promise<SaveDetailsResult> {
+  if (typeof id !== "string" || !id) return { ok: false, error: "Candidature invalide." };
+  try {
+    const result = await updateApplicationDetails(id, patch);
+    if (!result.ok) return result;
+  } catch (error) {
+    unstable_rethrow(error); // laisse passer la redirection vers /login de requireUser()
+    console.error(`[${context}]`, error);
+    return { ok: false, error: "L'enregistrement a échoué. Réessaie dans un instant." };
+  }
+  return { ok: true, savedAt: new Date().toISOString() };
+}
+
+/** Notes libres de la fiche (enregistrement automatique). */
+export async function saveNotesAction(id: string, notes: string): Promise<SaveDetailsResult> {
+  if (typeof notes !== "string") return { ok: false, error: "Requête invalide." };
+  if (notes.length > NOTES_MAX_LENGTH) {
+    return { ok: false, error: "Notes trop longues (10 000 caractères max) : elles ne sont plus enregistrées." };
+  }
+  // Pas de revalidation : la zone de texte garde son propre état, inutile de recharger la fiche.
+  return saveDetails(id, { notes: notes.trim() ? notes : null }, "saveNotes");
+}
+
+/** Nom et email du contact (recruteur, RH…), modifiés directement sur la fiche. */
+export async function updateContactAction(
+  id: string,
+  contact: { name: string; email: string },
+): Promise<SaveDetailsResult> {
+  const name = typeof contact?.name === "string" ? contact.name.trim().replace(/\s+/g, " ") : "";
+  const email = typeof contact?.email === "string" ? contact.email.trim().toLowerCase() : "";
+  if (name.length > CONTACT_NAME_MAX_LENGTH) return { ok: false, error: "Nom trop long." };
+  if (email && (email.length > 254 || !EMAIL_PATTERN.test(email))) {
+    return { ok: false, error: "Adresse email invalide." };
+  }
+
+  const result = await saveDetails(
+    id,
+    { contact_name: name || null, contact_email: email || null },
+    "updateContact",
+  );
+  // Le contact sert aussi au message et à l'email de relance : la fiche est rafraîchie.
+  if (result.ok) revalidateApplication(id);
+  return result;
 }
 
 export async function deleteApplicationAction(

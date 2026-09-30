@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CoverLetterGenerator } from "@/components/application/cover-letter-generator";
+import { ContactEditor } from "@/components/application/contact-editor";
 import { CvAdapter } from "@/components/application/cv-adapter";
+import { NotesPad } from "@/components/application/notes-pad";
 import { DeleteApplicationButton } from "@/components/application/delete-application-button";
 import { DocumentsList } from "@/components/application/documents-list";
 import { FollowUpBox } from "@/components/application/follow-up-box";
@@ -121,16 +123,12 @@ export default async function ApplicationPage({
               </div>
               <div>
                 <dt className="text-slate-500">Contact</dt>
-                <dd className="mt-0.5 font-medium text-slate-900">
-                  {app.contact_name ?? "—"}
-                  {app.contact_email && (
-                    <a
-                      href={`mailto:${app.contact_email}`}
-                      className="block truncate font-normal text-blue-600 hover:text-blue-500"
-                    >
-                      {app.contact_email}
-                    </a>
-                  )}
+                <dd className="mt-0.5 min-w-0 font-medium text-slate-900">
+                  <ContactEditor
+                    applicationId={app.id}
+                    initialName={app.contact_name}
+                    initialEmail={app.contact_email}
+                  />
                 </dd>
               </div>
               {app.offer_url && (
@@ -215,6 +213,8 @@ export default async function ApplicationPage({
           <Timeline events={events} />
         </Card>
       </div>
+
+      <NotesPad applicationId={app.id} initialNotes={app.notes ?? ""} />
 
       <section
         aria-label="Supprimer la candidature"
