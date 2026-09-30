@@ -125,6 +125,23 @@ body {
 }
 
 /*
+ * Types de liste du CV (attribut data-list posé par l'éditeur, cf. lib/cv-html).
+ * Hors @layer : prime sur les utilitaires list-disc du conteneur.
+ */
+.cv-document ul[data-list="tirets"] {
+  list-style-type: "—  ";
+}
+
+.cv-document ul[data-list="coches"] {
+  list-style-type: "✓  ";
+}
+
+.cv-document ul[data-list="coches"] > li::marker {
+  color: var(--cv-accent);
+  font-weight: 700;
+}
+
+/*
  * Export PDF du CV (impression du navigateur), page A4.
  * Marge de page à 0 : les navigateurs impriment l'URL, le titre et la date DANS la
  * marge ; sans marge, ces en-têtes / pieds de page disparaissent. La marge visible

@@ -5,6 +5,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { saveImprovedCvAction } from "@/app/actions/cv";
 import { applyLayout } from "@/lib/cv-layout";
 import {
+  CV_LIST_TYPES,
+  applyListType,
+  closestList,
+  listTypeOf,
+  type CvListState,
+  type CvListType,
+} from "@/lib/cv-lists";
+import {
   CV_ACCENTS,
   CV_FONTS,
   CV_FONT_SIZE_MAX,
@@ -66,19 +74,22 @@ const twoColumnStyles = [
   "[&>div:last-child]:border-l [&>div:last-child]:border-slate-200 [&>div:last-child]:pl-[6mm]",
 ].join(" ");
 
-type ToolbarCommand = "bold" | "italic" | "insertUnorderedList";
+type ToolbarCommand = "bold" | "italic" | "underline";
 
 const TOOLBAR_BUTTONS: { command: ToolbarCommand; title: string; label: React.ReactNode }[] = [
   { command: "bold", title: "Gras", label: <strong>G</strong> },
   { command: "italic", title: "Italique", label: <em className="font-serif">I</em> },
-  { command: "insertUnorderedList", title: "Liste à puces", label: "• Liste" },
+  { command: "underline", title: "Souligné", label: <span className="underline underline-offset-2">S</span> },
 ];
 
 const NO_ACTIVE_FORMATS: Record<ToolbarCommand, boolean> = {
   bold: false,
   italic: false,
-  insertUnorderedList: false,
+  underline: false,
 };
+
+/** Valeur du menu « Type de liste » quand la sélection n'est pas dans une liste. */
+const NO_LIST = "aucune";
 
 /** Panneau de mise en forme : police, taille, gras/italique/liste, couleur, mise en page. */
 function StylePanel({
@@ -87,12 +98,16 @@ function StylePanel({
   onChange,
   activeFormats,
   onFormat,
+  listType,
+  onListType,
 }: {
   style: CvStyle;
   appliedSize: number;
   onChange: (patch: Partial<CvStyle>) => void;
   activeFormats: Record<ToolbarCommand, boolean>;
   onFormat: (command: ToolbarCommand) => void;
+  listType: CvListState;
+  onListType: (type: CvListState) => void;
 }) {
   const sectionTitle = "text-xs font-semibold tracking-wide text-slate-500 uppercase";
   return (
@@ -162,6 +177,22 @@ function StylePanel({
             );
           })}
         </div>
+        <label htmlFor="cv-list-type" className="block pt-1 text-xs font-medium text-slate-600">
+          Type de liste
+        </label>
+        <select
+          id="cv-list-type"
+          value={listType ?? NO_LIST}
+          onChange={(e) => onListType(e.target.value === NO_LIST ? null : (e.target.value as CvListType))}
+          className="input py-2 text-sm"
+        >
+          {(Object.keys(CV_LIST_TYPES) as CvListType[]).map((type) => (
+            <option key={type} value={type}>
+              {CV_LIST_TYPES[type]}
+            </option>
+          ))}
+          <option value={NO_LIST}>Sans liste</option>
+        </select>
         <p className="text-xs text-slate-500">S&apos;applique au texte sélectionné dans le CV.</p>
       </div>
 
@@ -360,20 +391,24 @@ export function CvEditor({
     }
   }
 
-  // État des boutons G / I / Liste selon la sélection courante dans le CV (comme Google Docs).
+  // État des boutons G / I / S et du type de liste selon la sélection dans le CV (comme
+  // Google Docs). Hors du CV (ex. focus sur le menu « Type de liste »), l'état et la
+  // dernière sélection sont conservés pour pouvoir y appliquer la mise en forme.
   const [activeFormats, setActiveFormats] = useState(NO_ACTIVE_FORMATS);
+  const [listType, setListType] = useState<CvListState>(null);
+  const lastRange = useRef<Range | null>(null);
   const refreshActiveFormats = useCallback(() => {
     const selection = document.getSelection();
     const editor = editorRef.current;
-    if (!editor || !selection?.anchorNode || !editor.contains(selection.anchorNode)) {
-      setActiveFormats(NO_ACTIVE_FORMATS);
-      return;
-    }
+    if (!editor || !selection?.rangeCount || !selection.anchorNode || !editor.contains(selection.anchorNode)) return;
+    lastRange.current = selection.getRangeAt(0).cloneRange();
     setActiveFormats({
       bold: document.queryCommandState("bold"),
       italic: document.queryCommandState("italic"),
-      insertUnorderedList: document.queryCommandState("insertUnorderedList"),
+      underline: document.queryCommandState("underline"),
     });
+    const list = closestList(selection.anchorNode, editor);
+    setListType(list ? listTypeOf(list) : null);
   }, []);
   useEffect(() => {
     document.addEventListener("selectionchange", refreshActiveFormats);
@@ -384,6 +419,22 @@ export function CvEditor({
     editorRef.current?.focus();
     // execCommand reste la seule API native d'édition riche des contentEditable.
     document.execCommand(command);
+    refreshActiveFormats();
+    setDirty(true);
+    scheduleFit();
+  }
+
+  function changeListType(type: CvListState) {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    // Le menu déroulant a pris le focus : on rétablit la sélection faite dans le CV.
+    const selection = document.getSelection();
+    if (lastRange.current && editor.contains(lastRange.current.commonAncestorContainer)) {
+      selection?.removeAllRanges();
+      selection?.addRange(lastRange.current);
+    }
+    if (!applyListType(editor, type)) return;
     refreshActiveFormats();
     setDirty(true);
     scheduleFit();
@@ -489,7 +540,7 @@ export function CvEditor({
                   "--cv-accent": CV_ACCENTS[style.accent].value,
                 } as React.CSSProperties
               }
-              className={`min-h-[297mm] leading-[1.4] text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${documentStyles} ${
+              className={`cv-document min-h-[297mm] leading-[1.4] text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${documentStyles} ${
                 style.layout === "deux_colonnes" ? twoColumnStyles : ""
               } ${
                 showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
@@ -518,6 +569,8 @@ export function CvEditor({
           onChange={updateStyle}
           activeFormats={activeFormats}
           onFormat={format}
+          listType={listType}
+          onListType={changeListType}
         />
       </div>
     </div>

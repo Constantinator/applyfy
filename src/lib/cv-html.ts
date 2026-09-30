@@ -50,13 +50,19 @@ export function improvedCvToHtml(cv: ImprovedCv): string {
 
 /**
  * Nettoie du HTML (issu de l'éditeur) : seules des balises de mise en forme sont
- * conservées, SANS aucun attribut (pas de style, onclick, href, src…). Tout autre
- * « < » ou « > » est échappé. Le résultat peut être affiché en toute sécurité.
+ * conservées, SANS aucun attribut (pas de style, onclick, href, src…), sauf le type
+ * de liste d'un <ul> limité à des valeurs connues. Tout autre « < » ou « > » est
+ * échappé. Le résultat peut être affiché en toute sécurité.
  */
 const ALLOWED_TAGS = new Set([
   "h1", "h2", "h3", "p", "ul", "ol", "li", "strong", "b", "em", "i", "u", "mark", "br", "div", "span",
 ]);
 const VOID_TAGS = new Set(["br"]);
+
+/** Styles de liste à puces personnalisés (attribut data-list d'un <ul>). */
+export const CV_LIST_STYLES = ["tirets", "coches"] as const;
+export type CvListStyle = (typeof CV_LIST_STYLES)[number];
+const LIST_STYLE_ATTRIBUTE = new RegExp(`\\sdata-list\\s*=\\s*"(${CV_LIST_STYLES.join("|")})"`);
 
 export function sanitizeCvHtml(html: string): string {
   const tagPattern = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]*>/g;
@@ -69,7 +75,11 @@ export function sanitizeCvHtml(html: string): string {
     const tag = match[2].toLowerCase();
     if (!ALLOWED_TAGS.has(tag)) continue; // balise supprimée (son texte est conservé)
     if (VOID_TAGS.has(tag)) out += closing ? "" : `<${tag}>`;
-    else out += closing ? `</${tag}>` : `<${tag}>`;
+    else if (closing) out += `</${tag}>`;
+    else {
+      const listStyle = tag === "ul" ? match[0].match(LIST_STYLE_ATTRIBUTE)?.[1] : undefined;
+      out += listStyle ? `<ul data-list="${listStyle}">` : `<${tag}>`;
+    }
   }
   out += escapeText(html.slice(last));
   return out;
