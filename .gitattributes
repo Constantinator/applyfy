@@ -1,0 +1,6 @@
+# Fins de ligne LF dans le dépôt (cohérent avec Vercel / Linux)
+* text=auto eol=lf
+
+*.ico binary
+*.png binary
+*.jpg binary
