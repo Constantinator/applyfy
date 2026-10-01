@@ -5,6 +5,13 @@ import { AccountDeletedNotice } from "@/components/account-deleted-notice";
 import { IconActivity, IconBell, IconDocument, IconFolder } from "@/components/icons";
 import { Logo } from "@/components/logo";
 
+// « Les chiffres qui font mal » : chiffre mis en avant, puis sa description.
+const PAIN_STATS = [
+  { value: "40", label: "candidatures en moyenne avant de décrocher un job" },
+  { value: "75 %", label: "des CV rejetés automatiquement par les algorithmes" },
+  { value: "14 jours", label: "d'attente moyenne sans réponse après une candidature" },
+];
+
 const FEATURES = [
   {
     title: "Suivi en temps réel",
@@ -157,6 +164,28 @@ export default function LandingPage() {
             </p>
 
             <DashboardPreview />
+          </div>
+        </section>
+
+        {/* Les chiffres qui font mal */}
+        <section aria-labelledby="stats-title" className="border-t border-slate-100 bg-white">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
+            <p className="text-center text-sm font-semibold tracking-wide text-blue-600 uppercase">
+              La réalité du marché
+            </p>
+            <h2 id="stats-title" className="mt-2 text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              Les chiffres qui font mal
+            </h2>
+            <ul className="mt-14 grid gap-12 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-slate-200">
+              {PAIN_STATS.map((stat) => (
+                <li key={stat.value} className="flex flex-col items-center px-6 text-center">
+                  <p className="text-brand-gradient text-6xl font-extrabold tracking-tight whitespace-nowrap sm:text-5xl lg:text-7xl">
+                    {stat.value}
+                  </p>
+                  <p className="mt-3 max-w-[16rem] text-base leading-relaxed text-slate-600">{stat.label}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
