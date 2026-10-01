@@ -10,7 +10,9 @@ import { DocumentsList } from "@/components/application/documents-list";
 import { FollowUpBox } from "@/components/application/follow-up-box";
 import { StatusChanger } from "@/components/application/status-changer";
 import { Timeline } from "@/components/application/timeline";
+import { CollapsibleBox } from "@/components/collapsible-box";
 import { FormattedText } from "@/components/formatted-text";
+import { IconSparkles } from "@/components/icons";
 import { StatusBadge } from "@/components/status-badge";
 import { MarkAsSent } from "@/components/application/mark-as-sent";
 import {
@@ -159,22 +161,46 @@ export default async function ApplicationPage({
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {/* Résumé IA : la version lisible de l'offre, mise en avant au-dessus du texte brut. */}
           {app.offer_summary && (
-            <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-              <h2 className="mb-4 font-semibold text-slate-900">
-                Résumé de l&apos;offre
-              </h2>
-              <FormattedText text={app.offer_summary} />
+            <section
+              aria-labelledby="summary-title"
+              className="bg-brand-gradient rounded-2xl p-[1.5px] shadow-md shadow-blue-500/10"
+            >
+              <div className="rounded-[calc(1rem-1.5px)] bg-white p-5 sm:p-6">
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <span className="bg-brand-gradient flex h-9 w-9 items-center justify-center rounded-xl text-white">
+                    <IconSparkles className="h-5 w-5" />
+                  </span>
+                  <h2 id="summary-title" className="text-lg font-semibold text-slate-900">
+                    Résumé de l&apos;offre
+                  </h2>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
+                    Généré par l&apos;IA
+                  </span>
+                </div>
+                <FormattedText text={app.offer_summary} />
+              </div>
             </section>
           )}
 
-          <Card title="Description de l'offre">
+          <section aria-labelledby="description-title" className="card p-5">
+            <div className="mb-4">
+              <h2 id="description-title" className="font-semibold text-slate-900">
+                {app.offer_summary ? "Description complète" : "Description de l'offre"}
+              </h2>
+              {app.offer_summary && (
+                <p className="mt-0.5 text-xs text-slate-500">Texte de l&apos;annonce, tel qu&apos;importé.</p>
+              )}
+            </div>
             {app.offer_description ? (
-              <FormattedText text={app.offer_description} className="max-h-[32rem] overflow-y-auto pr-2" />
+              <CollapsibleBox label="Description de l'offre">
+                <FormattedText text={app.offer_description} className="text-slate-600" />
+              </CollapsibleBox>
             ) : (
               <p className="text-sm text-slate-500">Aucune description enregistrée.</p>
             )}
-          </Card>
+          </section>
 
           <Card title="Documents">
             <DocumentsList documents={documents} />
