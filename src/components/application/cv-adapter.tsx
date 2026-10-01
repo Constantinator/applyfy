@@ -9,6 +9,7 @@ import {
   type AdaptCvState,
   type GenerateCvState,
 } from "@/app/actions/cv";
+import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
 
 const initialAdaptState: AdaptCvState = { status: "idle" };
@@ -255,14 +256,21 @@ export function CvAdapter({
           </p>
         </div>
         {!pickerOpen && (
-          <button
-            type="button"
-            onClick={() => setPickerOpenedAt(adaptState)}
-            disabled={!aiEnabled || busy}
-            className="btn-primary px-4 py-2 text-sm"
+          <OnboardingTip
+            id="adapter-cv"
+            text="Laisse-nous analyser ton CV pour ce poste"
+            align="end"
+            className="shrink-0 self-start"
           >
-            {suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
-          </button>
+            <button
+              type="button"
+              onClick={() => setPickerOpenedAt(adaptState)}
+              disabled={!aiEnabled || busy}
+              className="btn-primary px-4 py-2 text-sm"
+            >
+              {suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
+            </button>
+          </OnboardingTip>
         )}
       </div>
 

@@ -124,6 +124,27 @@ body {
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px -8px rgb(15 23 42 / 0.08);
 }
 
+/* Apparition des bulles d'aide (onboarding). */
+@keyframes tip-in {
+  /* transform (et non translate) : ne remplace pas le centrage -translate-x-1/2. */
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-tip-in {
+  animation: tip-in 0.25s ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 /*
  * Types de liste du CV (attribut data-list posé par l'éditeur, cf. lib/cv-html).
  * Hors @layer : prime sur les utilitaires list-disc du conteneur.

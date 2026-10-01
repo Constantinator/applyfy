@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { ApplicationsView } from "@/components/dashboard/applications-view";
+import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
+import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { IconPlus } from "@/components/icons";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { getApplications } from "@/lib/applications";
@@ -55,38 +57,51 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
           </p>
         </div>
-        <Link href="/candidatures/nouvelle" className="btn-primary px-4 py-2.5 text-sm">
-          <IconPlus className="h-4 w-4" />
-          Nouvelle candidature
-        </Link>
+        <OnboardingTip
+          id="nouvelle-candidature"
+          text="Clique ici pour ajouter une offre"
+          align="end"
+          className="self-start sm:self-auto"
+        >
+          <Link href="/candidatures/nouvelle" className="btn-primary px-4 py-2.5 text-sm">
+            <IconPlus className="h-4 w-4" />
+            Nouvelle candidature
+          </Link>
+        </OnboardingTip>
       </div>
 
-      <StatsCards
-        stats={[
-          { label: "Candidatures", value: applications.length, tone: "blue" },
-          {
-            label: "En attente de réponse",
-            value:
-              countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
-            tone: "cyan",
-          },
-          { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
-          {
-            label: "À relancer",
-            value: toFollowUp.length,
-            hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
-            tone: "amber",
-            highlight: toFollowUp.length > 0,
-          },
-        ]}
-      />
+      {applications.length === 0 ? (
+        <EmptyDashboard />
+      ) : (
+        <>
+          <StatsCards
+            stats={[
+              { label: "Candidatures", value: applications.length, tone: "blue" },
+              {
+                label: "En attente de réponse",
+                value:
+                  countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
+                tone: "cyan",
+              },
+              { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
+              {
+                label: "À relancer",
+                value: toFollowUp.length,
+                hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
+                tone: "amber",
+                highlight: toFollowUp.length > 0,
+              },
+            ]}
+          />
 
-      <ApplicationsView
-        applications={applications}
-        nowIso={now.toISOString()}
-        initialFilter={initialFilter}
-        initialSort={initialSort}
-      />
+          <ApplicationsView
+            applications={applications}
+            nowIso={now.toISOString()}
+            initialFilter={initialFilter}
+            initialSort={initialSort}
+          />
+        </>
+      )}
     </main>
   );
 }

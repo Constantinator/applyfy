@@ -284,6 +284,8 @@ type DemoStore = {
   reminderSettings?: ReminderSettings;
   /** Prénom et nom du compte (mode démo). */
   accountName?: AccountName;
+  /** Écran de bienvenue vu (mode démo). */
+  onboardingCompleted?: boolean;
 };
 
 const globalForDemo = globalThis as unknown as { applyfyDemoStore?: DemoStore };
