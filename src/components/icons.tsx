@@ -107,6 +107,20 @@ export const IconSparkles = (p: IconProps) => (
   </Icon>
 );
 
+export const IconSearch = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </Icon>
+);
+
+export const IconMapPin = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" />
+    <circle cx="12" cy="9.5" r="2.5" />
+  </Icon>
+);
+
 export const IconMenu = (p: IconProps) => (
   <Icon {...p}>
     <path d="M4 6h16M4 12h16M4 18h16" />

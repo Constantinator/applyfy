@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { logoutAction } from "@/app/actions/auth";
-import { IconGrid, IconHome, IconLogout, IconPlus, IconUser } from "@/components/icons";
+import { IconGrid, IconHome, IconLogout, IconPlus, IconSearch, IconUser } from "@/components/icons";
 import { Logo } from "@/components/logo";
 
 type NavItem = {
@@ -23,6 +23,13 @@ const NAV: NavItem[] = [
     icon: IconGrid,
     // Les fiches candidature appartiennent à cette section.
     isActive: (p) => p === "/dashboard" || (p.startsWith("/candidatures/") && p !== "/candidatures/nouvelle"),
+  },
+  {
+    href: "/offres",
+    label: "Trouver une offre",
+    shortLabel: "Offres",
+    icon: IconSearch,
+    isActive: (p) => p.startsWith("/offres"),
   },
   {
     href: "/candidatures/nouvelle",
