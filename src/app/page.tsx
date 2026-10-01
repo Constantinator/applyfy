@@ -242,21 +242,7 @@ export default function LandingPage() {
           </div>
         </section>
       </main>
-
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 text-sm text-slate-500 sm:flex-row sm:px-6">
-          <Logo size="sm" />
-          <nav className="flex gap-6">
-            <a href="#comment-ca-marche" className="hover:text-slate-900">
-              Comment ça marche
-            </a>
-            <Link href="/login" className="hover:text-slate-900">
-              Se connecter
-            </Link>
-          </nav>
-          <p>© {new Date().getFullYear()} Applyfy</p>
-        </div>
-      </footer>
+      {/* Pied de page : commun à toutes les pages (layout racine). */}
     </div>
   );
 }
