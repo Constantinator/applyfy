@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { AccountNameForm } from "@/components/profile/account-name-form";
+import { DeleteAccount } from "@/components/profile/delete-account";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
 import { getAccountName } from "@/lib/account";
 import { ReminderSettingsForm } from "@/components/profile/reminder-settings-form";
@@ -84,6 +85,22 @@ export default async function ProfilePage() {
           </p>
         </div>
         <ReminderSettingsForm initial={reminderSettings} emailEnabled={isEmailConfigured()} />
+      </section>
+
+      <section
+        aria-labelledby="danger-title"
+        className="space-y-4 rounded-2xl border border-red-200 bg-red-50/40 p-5 sm:p-6"
+      >
+        <div>
+          <h2 id="danger-title" className="font-semibold text-red-700">
+            Zone dangereuse
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Supprime définitivement ton compte Applyfy et toutes tes données : candidatures,
+            historique, CV, lettres et préférences. Cette action est irréversible.
+          </p>
+        </div>
+        <DeleteAccount />
       </section>
     </main>
   );

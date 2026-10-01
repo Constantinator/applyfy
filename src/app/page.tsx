@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
+import { AccountDeletedNotice } from "@/components/account-deleted-notice";
 import { IconActivity, IconBell, IconDocument, IconFolder } from "@/components/icons";
 import { Logo } from "@/components/logo";
 
@@ -113,6 +115,11 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-1">
+        {/* Suspense : la page d'accueil reste statique, le message est lu côté navigateur. */}
+        <Suspense fallback={null}>
+          <AccountDeletedNotice />
+        </Suspense>
+
         {/* Hero */}
         <section className="relative overflow-hidden">
           <div

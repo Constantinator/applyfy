@@ -2,8 +2,9 @@
 
 import type { AuthError } from "@supabase/supabase-js";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
+import { AccountDeletionError, deleteCurrentAccount } from "@/lib/account-deletion";
 import { safeRedirectPath } from "@/lib/auth";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/password";
 import { validateAccountName } from "@/lib/person-name";
@@ -107,6 +108,19 @@ export async function signupAction(
 
   // Sinon, l'utilisateur doit cliquer sur le lien reçu par email (→ /auth/confirm → /dashboard).
   return { status: "check-email", email };
+}
+
+/** Supprime le compte connecté et toutes ses données, puis renvoie vers la page d'accueil. */
+export async function deleteAccountAction(): Promise<{ error: string }> {
+  try {
+    await deleteCurrentAccount();
+  } catch (error) {
+    unstable_rethrow(error); // redirection vers /login si la session a expiré
+    if (error instanceof AccountDeletionError) return { error: error.message };
+    console.error("[deleteAccount]", error);
+    return { error: "La suppression a échoué. Ton compte n'a pas été supprimé : réessaie dans un instant." };
+  }
+  redirect("/?compte=supprime");
 }
 
 export async function logoutAction() {
