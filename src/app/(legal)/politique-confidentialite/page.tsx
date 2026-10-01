@@ -10,7 +10,11 @@ const PROCESSORS = [
     role: "Base de données, comptes utilisateurs et stockage des fichiers (CV, documents)",
     url: "https://supabase.com/privacy",
   },
-  { name: "Vercel", role: "Hébergement du site et exécution de l'application", url: "https://vercel.com/legal/privacy-policy" },
+  {
+    name: "Vercel",
+    role: "Hébergement du site, exécution de l'application et mesure d'audience anonyme (Web Analytics)",
+    url: "https://vercel.com/legal/privacy-policy",
+  },
   {
     name: "Anthropic",
     role: "Intelligence artificielle (Claude) : résumés d'offres, analyse et adaptation de CV, lettres de motivation",
@@ -124,11 +128,17 @@ export default function PrivacyPolicyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="Cookies et stockage local">
+      <LegalSection title="Cookies, stockage local et mesure d'audience">
         <p>
-          Applyfy n&apos;utilise ni cookie publicitaire ni outil de mesure d&apos;audience. Seuls sont
-          utilisés des cookies strictement nécessaires (maintien de ta connexion) et le stockage local
-          de ton navigateur, pour mémoriser les bulles d&apos;aide déjà vues.
+          Applyfy n&apos;utilise aucun cookie publicitaire. Seuls sont utilisés des cookies strictement
+          nécessaires (maintien de ta connexion) et le stockage local de ton navigateur, pour mémoriser
+          les bulles d&apos;aide déjà vues.
+        </p>
+        <p>
+          Pour comprendre comment le site est utilisé (pages vues, provenance des visites, type
+          d&apos;appareil), Applyfy utilise <strong>Vercel Web Analytics</strong>. Cet outil ne dépose
+          aucun cookie, ne permet pas de te suivre d&apos;un site à l&apos;autre et ne produit que des
+          statistiques agrégées et anonymes.
         </p>
       </LegalSection>
 
