@@ -50,3 +50,6 @@ export const CV_MAX_LABEL = "3,5 Mo";
 /** Résumé de profil saisi à la main (lettre de motivation sans CV). */
 export const PROFILE_SUMMARY_MIN = 40;
 export const PROFILE_SUMMARY_MAX = 4000;
+
+/** Longueur maximale d'une demande dans « Affiner avec l'IA ». */
+export const REFINE_MESSAGE_MAX_LENGTH = 1000;

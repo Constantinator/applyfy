@@ -4,7 +4,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
-import { isLimitReached, limitReachedMessage } from "@/lib/ai-usage-limits";
+import { isLimitReached, limitReachedMessage, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   getApplicationDetail,
   saveCvSuggestions,
@@ -15,13 +15,15 @@ import {
   claudeErrorMessage,
   generateImprovedCv,
   isClaudeConfigured,
+  refineCv,
   suggestCvAdaptations,
   type OfferContext,
+  type RefineChatTurn,
 } from "@/lib/claude";
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
 import { readCvStyle } from "@/lib/cv-style";
-import { readCvSuggestions, type CvSuggestions } from "@/lib/cv-types";
+import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH, type CvSuggestions } from "@/lib/cv-types";
 import { getProfileCvFile } from "@/lib/profile";
 
 export type AdaptCvState =
@@ -63,18 +65,16 @@ async function prepare(formData: FormData): Promise<Prepared> {
     bytes = upload.bytes;
   }
 
-  const app = detail.application;
+  return { ok: true, detail, pdfBase64: bytes.toString("base64"), offer: offerContext(detail) };
+}
+
+function offerContext({ application: app }: ApplicationDetailResult): OfferContext {
   return {
-    ok: true,
-    detail,
-    pdfBase64: bytes.toString("base64"),
-    offer: {
-      position: app.position,
-      company: app.company,
-      location: app.location,
-      summary: app.offer_summary ?? null,
-      description: app.offer_description,
-    },
+    position: app.position,
+    company: app.company,
+    location: app.location,
+    summary: app.offer_summary ?? null,
+    description: app.offer_description,
   };
 }
 
@@ -179,4 +179,83 @@ export async function saveImprovedCvAction(
     return { ok: false, error: "L'enregistrement a échoué. Réessaie dans un instant." };
   }
   return { ok: true, savedAt: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------------------
+// 4. Affinage du CV par chat (« Affiner avec l'IA »)
+// ---------------------------------------------------------------------------
+
+/** Nombre d'échanges précédents transmis à Claude comme contexte. */
+const REFINE_HISTORY_MAX = 6;
+
+export type RefineCvResult =
+  | { ok: true; reply: string; html: string; usage: AiUsageCount }
+  | { ok: false; error: string; limitReached?: boolean };
+
+function readHistory(raw: unknown): RefineChatTurn[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (turn): turn is RefineChatTurn =>
+        Boolean(turn) &&
+        (turn.role === "user" || turn.role === "assistant") &&
+        typeof turn.content === "string",
+    )
+    .slice(-REFINE_HISTORY_MAX)
+    .map(({ role, content }) => ({ role, content: content.slice(0, REFINE_MESSAGE_MAX_LENGTH) }));
+}
+
+/**
+ * Applique une demande du candidat au CV affiché dans l'éditeur (modifications non
+ * enregistrées comprises). Le CV n'est pas enregistré : l'éditeur affiche le résultat,
+ * que le candidat garde (Enregistrer) ou annule. Chaque demande compte comme une
+ * adaptation de CV dans le quota mensuel.
+ */
+export async function refineCvAction(
+  id: string,
+  html: string,
+  message: string,
+  history: unknown,
+): Promise<RefineCvResult> {
+  if (typeof id !== "string" || typeof html !== "string" || typeof message !== "string") {
+    return { ok: false, error: "Requête invalide." };
+  }
+  const request = message.trim();
+  if (!request) return { ok: false, error: "Écris ta demande." };
+  if (request.length > REFINE_MESSAGE_MAX_LENGTH) return { ok: false, error: "Ta demande est trop longue." };
+  if (html.length > CV_HTML_MAX_LENGTH) return { ok: false, error: "Le CV est trop long." };
+  if (!isClaudeConfigured()) {
+    return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
+  }
+
+  // Vérifie la connexion ET que la candidature appartient bien à l'utilisateur.
+  const detail = await getApplicationDetail(id);
+  if (!detail) return { ok: false, error: "Candidature introuvable." };
+
+  const usage = await getAiUsageFor("adaptation_cv");
+  if (isLimitReached(usage)) {
+    return { ok: false, error: limitReachedMessage("adaptation_cv"), limitReached: true };
+  }
+
+  // Surlignages précédents retirés : seules les modifications de cette demande le seront.
+  const current = sanitizeCvHtml(html).replace(/<\/?mark>/g, "");
+
+  let refined;
+  try {
+    refined = await refineCv(current, offerContext(detail), readHistory(history), request);
+  } catch (error) {
+    return { ok: false, error: claudeErrorMessage(error, "refineCv") };
+  }
+  const updated = refined ? sanitizeCvHtml(refined.html) : "";
+  if (!refined || updated.replace(/<[^>]+>/g, "").trim().length < 20 || updated.length > CV_HTML_MAX_LENGTH) {
+    return { ok: false, error: "La modification n'a pas pu être appliquée. Reformule ta demande." };
+  }
+
+  await recordAiUsage("adaptation_cv");
+  return {
+    ok: true,
+    reply: refined.reponse.trim() || "C'est fait : les modifications sont surlignées dans ton CV.",
+    html: updated,
+    usage: { used: usage.used + 1, limit: usage.limit },
+  };
 }

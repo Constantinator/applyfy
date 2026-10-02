@@ -1,27 +1,31 @@
 import type { Metadata } from "next";
-import { Playfair_Display } from "next/font/google";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CvEditor } from "@/components/application/cv-editor";
+import { readAiUsage } from "@/lib/ai-usage";
+import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
+import { isClaudeConfigured } from "@/lib/claude";
+import { cvFontVariables } from "@/lib/cv-fonts";
 import { firstHeadingText, sanitizeCvHtml } from "@/lib/cv-html";
 import { readCvStyle } from "@/lib/cv-style";
 
 export const metadata: Metadata = { title: "Mon CV amélioré — Applyfy" };
 
-// Police optionnelle du CV (auto-hébergée par next/font), chargée seulement sur cette page.
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", display: "swap" });
+// « Affiner avec l'IA » (Server Action de cette page) : jusqu'à une minute.
+export const maxDuration = 120;
+
 
 export default async function ImprovedCvPage({ params }: PageProps<"/candidatures/[id]/cv">) {
   const { id } = await params;
-  const detail = await getApplicationDetail(id);
+  const [detail, usage] = await Promise.all([getApplicationDetail(id), readAiUsage()]);
   if (!detail) notFound();
   const { application: app } = detail;
 
   return (
     <main
-      className={`${playfair.variable} mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
+      className={`${cvFontVariables} mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
     >
       <div className="space-y-1 print:hidden">
         <Link
@@ -46,6 +50,11 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
           pdfTitle={["CV", firstHeadingText(app.cv_improved_html), "-", app.company]
             .filter(Boolean)
             .join(" ")}
+          refine={{
+            aiEnabled: isClaudeConfigured(),
+            usage: usage.counts.adaptation_cv,
+            resetLabel: formatResetDate(usage.resetsOn),
+          }}
         />
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center print:hidden">

@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
-import { Playfair_Display } from "next/font/google";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CvEditor } from "@/components/application/cv-editor";
 import { getApplicationDetail } from "@/lib/applications";
+import { cvFontVariables } from "@/lib/cv-fonts";
 import { firstHeadingText, sanitizeCvHtml } from "@/lib/cv-html";
 import { DEFAULT_LETTER_STYLE, readCvStyle } from "@/lib/cv-style";
 
 export const metadata: Metadata = { title: "Ma lettre de motivation — Applyfy" };
 
-// Police optionnelle (auto-hébergée par next/font), chargée seulement sur cette page.
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", display: "swap" });
 
 export default async function CoverLetterPage({ params }: PageProps<"/candidatures/[id]/lettre">) {
   const { id } = await params;
@@ -21,7 +19,7 @@ export default async function CoverLetterPage({ params }: PageProps<"/candidatur
 
   return (
     <main
-      className={`${playfair.variable} mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
+      className={`${cvFontVariables} mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
     >
       <div className="space-y-1 print:hidden">
         <Link href={`/candidatures/${app.id}`} className="text-sm text-slate-500 hover:text-slate-900">

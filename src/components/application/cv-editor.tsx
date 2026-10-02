@@ -4,7 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { saveCoverLetterAction } from "@/app/actions/cover-letter";
 import { saveImprovedCvAction } from "@/app/actions/cv";
-import { applyLayout } from "@/lib/cv-layout";
+import type { AiUsageCount } from "@/lib/ai-usage-limits";
+import { applyLayout, toOneColumn } from "@/lib/cv-layout";
 import {
   CV_LIST_TYPES,
   applyListType,
@@ -27,6 +28,7 @@ import {
   type CvStyle,
 } from "@/lib/cv-style";
 
+import { CvRefineChat } from "./cv-refine-chat";
 import { FontCombobox } from "./font-combobox";
 
 const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -38,7 +40,7 @@ const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 // Géométrie identique à l'écran et à l'impression : page A4 (@page margin 0 dans
-// globals.css) avec une marge intérieure (10 mm pour le CV, 20 mm pour la lettre) →
+// globals.css) avec une marge intérieure (16 mm pour le CV, 20 mm pour la lettre) →
 // ce qui tient à l'écran tient au PDF.
 const PAGE_HEIGHT_MM = 297;
 const PX_PER_MM = 96 / 25.4;
@@ -49,28 +51,34 @@ const FIT_STEP_PX = 0.25;
 
 const px = (value: number) => `${value.toLocaleString("fr-FR")} px`;
 
-// Mise en forme du document (HTML sans classes : balises stylées par le conteneur).
-// Tailles en em : tout le CV suit la taille de police. Couleur d'accent (nom et titres
-// de section) via la variable --cv-accent. Vrais titres : structure lisible par les ATS.
+// Mise en forme du CV, format épuré « à l'américaine » (HTML sans classes : balises
+// stylées par le conteneur, cf. improvedCvToHtml). Tailles en em : tout le CV suit la
+// taille de police. Noir uniquement (couleur d'accent au choix pour le nom et les titres
+// de section, via --cv-accent). Vrais titres : structure lisible par les ATS.
 const documentStyles = [
-  // Nom
-  "[&_h1]:text-[2.3em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:text-[var(--cv-accent)]",
-  // Titre (1er paragraphe sous le nom) et coordonnées
-  "[&_h1+p]:mt-1 [&_h1+p]:text-[1.2em] [&_h1+p]:font-semibold [&_h1+p]:text-slate-700",
-  "[&_h1+p+p]:mt-0.5 [&_h1+p+p]:text-[0.95em] [&_h1+p+p]:text-slate-600",
-  // Sections : séparées par une ligne fine
-  "[&_h2]:mt-[1.1em] [&_h2]:mb-[0.45em] [&_h2]:border-b [&_h2]:border-slate-300 [&_h2]:pb-[0.2em] [&_h2]:text-[1.05em] [&_h2]:font-bold [&_h2]:tracking-[0.08em] [&_h2]:text-[var(--cv-accent)] [&_h2]:uppercase",
-  // Entrées (poste, diplôme…) et leurs métadonnées (structure · dates)
-  "[&_h3]:mt-[0.7em] [&_h3]:text-[1.02em] [&_h3]:font-semibold [&_h3]:text-slate-900",
-  "[&_em]:text-[0.95em] [&_em]:text-slate-500 [&_em]:not-italic",
+  "text-black leading-[1.45]",
+  // Nom, centré, grand et gras
+  "[&_h1]:text-center [&_h1]:text-[2.2em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:text-[var(--cv-accent)]",
+  // Coordonnées sur une ligne, centrées (CV d'avant ce format : titre puis coordonnées)
+  "[&_h1+p]:mt-[0.35em] [&_h1+p]:text-center [&_h1+p]:text-[0.95em]",
+  "[&_h1+p+p]:text-center [&_h1+p+p]:text-[0.95em]",
+  // Sections : titre en majuscules, ligne fine en dessous, espace généreux
+  "[&_h2]:mt-[1.5em] [&_h2]:mb-[0.6em] [&_h2]:border-b [&_h2]:border-[var(--cv-accent)] [&_h2]:pb-[0.15em] [&_h2]:text-[1.05em] [&_h2]:font-bold [&_h2]:tracking-[0.1em] [&_h2]:text-[var(--cv-accent)] [&_h2]:uppercase",
+  // Entrée : intitulé en gras, dates alignées à droite sur la même ligne
+  "[&_h3]:mt-[0.85em] [&_h3]:text-[1em] [&_h3]:font-bold",
+  "[&_h3:has(>span)]:flex [&_h3:has(>span)]:items-baseline [&_h3:has(>span)]:justify-between [&_h3:has(>span)]:gap-x-[1.5em]",
+  "[&_h3>span+span]:shrink-0 [&_h3>span+span]:font-normal [&_h3>span+span]:whitespace-nowrap",
+  // Structure et lieu, en italique sous l'intitulé
+  "[&_em]:italic",
   // Contenu
-  "[&_p]:my-[0.15em] [&_ul]:my-[0.25em] [&_ul]:list-disc [&_ul]:pl-[1.3em] [&_ol]:list-decimal [&_ol]:pl-[1.3em] [&_li]:my-[0.1em] [&_li]:pl-[0.1em]",
-  "[&_strong]:font-semibold",
+  "[&_p]:my-[0.15em] [&_ul]:mt-[0.3em] [&_ul]:mb-[0.2em] [&_ul]:list-disc [&_ul]:pl-[1.3em] [&_ol]:list-decimal [&_ol]:pl-[1.3em] [&_li]:my-[0.2em] [&_li]:pl-[0.15em]",
+  "[&_strong]:font-bold",
 ].join(" ");
 
 // Lettre de motivation (cf. lib/cover-letter) : <h1> nom, <p> coordonnées, destinataire et
 // date, <h2> objet, puis paragraphes aérés.
 const letterStyles = [
+  "text-slate-800 leading-[1.4]",
   "[&_h1]:text-[1.7em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:text-[var(--cv-accent)]",
   "[&_h1+p]:!mt-[0.2em] [&_h1+p]:text-[0.95em] [&_h1+p]:text-slate-600",
   "[&_h2]:mt-[1.6em] [&_h2]:mb-[1.2em] [&_h2]:text-[1em] [&_h2]:font-semibold [&_h2]:text-[var(--cv-accent)]",
@@ -111,7 +119,8 @@ const EDITOR_KINDS = {
     save: saveImprovedCvAction,
     defaultStyle: DEFAULT_CV_STYLE,
     documentClassName: documentStyles,
-    paddingMm: 10,
+    // Marges larges : CV aéré.
+    paddingMm: 16,
     hasLayouts: true,
     label: "CV amélioré, modifiable",
     inDocument: "dans le CV",
@@ -346,6 +355,7 @@ export function CvEditor({
   initialStyle,
   savedAt: initialSavedAt,
   pdfTitle,
+  refine,
 }: {
   kind?: EditorKind;
   applicationId: string;
@@ -354,6 +364,8 @@ export function CvEditor({
   savedAt: string | null;
   /** Titre du document pendant l'impression = nom de fichier proposé pour le PDF. */
   pdfTitle: string;
+  /** Chat « Affiner avec l'IA » sous le document (CV uniquement). */
+  refine?: { aiEnabled: boolean; usage: AiUsageCount; resetLabel: string };
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
@@ -498,6 +510,32 @@ export function CvEditor({
     scheduleFit();
   }
 
+  // Affinage par l'IA : le document est verrouillé pendant la demande (une saisie faite
+  // entre-temps serait écrasée par la réponse).
+  const [refining, setRefining] = useState(false);
+
+  /** CV affiché, remis en une colonne (structure attendue par l'assistant). */
+  function readCvForRefine() {
+    const editor = editorRef.current;
+    if (!editor) return "";
+    const copy = editor.cloneNode(true) as HTMLElement;
+    toOneColumn(copy);
+    return copy.innerHTML;
+  }
+
+  /** Remplace le contenu du document (réponse de l'assistant ou annulation). */
+  function replaceDocument(html: string) {
+    const editor = editorRef.current;
+    if (!editor) return "";
+    const previous = editor.innerHTML;
+    editor.innerHTML = html;
+    if (config.hasLayouts) applyLayout(editor, style.layout);
+    setShowMarks(true);
+    setDirty(true);
+    fitToPage(style.fontSize);
+    return previous;
+  }
+
   function exportPdf() {
     fitToPage(style.fontSize);
     // Le titre du document devient le nom de fichier proposé par « Enregistrer au format PDF ».
@@ -541,7 +579,7 @@ export function CvEditor({
             <button
               type="button"
               onClick={save}
-              disabled={saving || !dirty}
+              disabled={saving || !dirty || refining}
               className="btn-secondary px-3 py-1.5 text-sm"
             >
               Enregistrer
@@ -578,7 +616,7 @@ export function CvEditor({
           <div className="relative mx-auto w-[210mm] bg-white shadow-lg ring-1 ring-slate-200 print:shadow-none print:ring-0">
             <div
               ref={editorRef}
-              contentEditable
+              contentEditable={!refining}
               suppressContentEditableWarning
               role="textbox"
               aria-multiline="true"
@@ -597,7 +635,7 @@ export function CvEditor({
                   "--cv-accent": CV_ACCENTS[style.accent].value,
                 } as React.CSSProperties
               }
-              className={`cv-document min-h-[297mm] leading-[1.4] text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${config.documentClassName} ${
+              className={`cv-document min-h-[297mm] outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${config.documentClassName} ${
                 config.hasLayouts && style.layout === "deux_colonnes" ? twoColumnStyles : ""
               } ${
                 showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
@@ -617,6 +655,18 @@ export function CvEditor({
             )}
           </div>
         </div>
+
+        {refine && (
+          <CvRefineChat
+            applicationId={applicationId}
+            aiEnabled={refine.aiEnabled}
+            usage={refine.usage}
+            resetLabel={refine.resetLabel}
+            readCv={readCvForRefine}
+            replaceCv={replaceDocument}
+            onPendingChange={setRefining}
+          />
+        )}
       </div>
 
       <div className="xl:sticky xl:top-6">

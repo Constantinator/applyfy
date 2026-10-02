@@ -1,17 +1,20 @@
 // Personnalisation du CV amélioré (police, taille, couleur d'accent, mise en page).
 // Partagé entre l'éditeur (client) et l'enregistrement (serveur).
 
+// Ordre d'affichage dans le sélecteur de police. Les polices web (var(--font-…)) sont
+// chargées par lib/cv-fonts sur les pages de l'éditeur.
 export const CV_FONTS = {
+  georgia: { label: "Georgia", stack: "Georgia, 'Times New Roman', serif" },
+  garamond: { label: "Garamond", stack: "var(--font-garamond), Garamond, 'Times New Roman', serif" },
   inter: { label: "Inter", stack: "var(--font-inter), Arial, Helvetica, sans-serif" },
   calibri: { label: "Calibri", stack: "Calibri, Carlito, 'Segoe UI', Arial, sans-serif" },
-  georgia: { label: "Georgia", stack: "Georgia, 'Times New Roman', serif" },
   playfair: { label: "Playfair Display", stack: "var(--font-playfair), Georgia, serif" },
   times: { label: "Times New Roman", stack: "'Times New Roman', Times, serif" },
   arial: { label: "Arial", stack: "Arial, Helvetica, sans-serif" },
 } as const;
 
 export const CV_ACCENTS = {
-  noir: { label: "Noir", value: "#0F172A" },
+  noir: { label: "Noir", value: "#000000" },
   bleu: { label: "Bleu", value: "#2563EB" },
   cyan: { label: "Cyan", value: "#06B6D4" },
   bordeaux: { label: "Bordeaux", value: "#9B1C1C" },
@@ -41,7 +44,7 @@ export type CvStyle = {
 };
 
 export const DEFAULT_CV_STYLE: CvStyle = {
-  font: "inter",
+  font: "georgia",
   fontSize: 11.5,
   accent: "noir",
   layout: "une_colonne",
