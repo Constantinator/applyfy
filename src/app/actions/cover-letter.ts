@@ -69,6 +69,12 @@ export async function generateCoverLetterAction(
   if (!detail) return { status: "error", message: "Candidature introuvable." };
   const app = detail.application;
 
+  // Une lettre existe déjà : la regénération écrase les modifications, elle doit avoir
+  // été confirmée.
+  if (app.cover_letter_html && formData.get("confirm") !== "1") {
+    return { status: "error", message: "Confirme la regénération : ta lettre actuelle sera remplacée." };
+  }
+
   if (isLimitReached(await getAiUsageFor("lettre"))) {
     return { status: "error", message: limitReachedMessage("lettre"), limitReached: true };
   }

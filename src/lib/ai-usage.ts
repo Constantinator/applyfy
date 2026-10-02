@@ -3,6 +3,7 @@ import "server-only";
 import { requireUser } from "./auth";
 import {
   AI_USAGE_KINDS,
+  CV_REFINE_LIMIT,
   FREE_MONTHLY_LIMIT,
   type AiUsage,
   type AiUsageCount,
@@ -110,4 +111,48 @@ export async function recordAiUsage(kind: AiUsageKind): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("record_ai_usage", { p_kind: kind });
   if (error) console.error(`[aiUsage] enregistrement (${kind})`, error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Chat « Affiner avec l'IA » : limite par candidature (migration 0012)
+// ---------------------------------------------------------------------------
+
+/**
+ * Messages du chat déjà utilisés pour une candidature de l'utilisateur connecté.
+ * Si le compteur est illisible (migration 0012 non appliquée…), il vaut 0.
+ */
+export async function getCvRefineUsage(applicationId: string): Promise<AiUsageCount> {
+  if (!isSupabaseConfigured()) {
+    return { used: demoStore.cvRefinements?.[applicationId] ?? 0, limit: CV_REFINE_LIMIT };
+  }
+
+  await requireUser();
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("usage")
+    .select("id", { count: "exact", head: true })
+    .eq("application_id", applicationId)
+    .eq("kind", "affinage_cv");
+  if (error) {
+    console.error("[aiUsage] lecture (affinage_cv)", error.message);
+    return { used: 0, limit: CV_REFINE_LIMIT };
+  }
+  return { used: count ?? 0, limit: CV_REFINE_LIMIT };
+}
+
+/**
+ * Enregistre un message du chat pour une candidature (après une réponse réussie). La
+ * base refuse au-delà de la limite (requêtes simultanées) : on journalise seulement.
+ */
+export async function recordCvRefinement(applicationId: string): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    demoStore.cvRefinements ??= {};
+    demoStore.cvRefinements[applicationId] = (demoStore.cvRefinements[applicationId] ?? 0) + 1;
+    return;
+  }
+
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("record_cv_refinement", { p_application: applicationId });
+  if (error) console.error("[aiUsage] enregistrement (affinage_cv)", error.message);
 }

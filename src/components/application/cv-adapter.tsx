@@ -14,6 +14,8 @@ import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
 
+import { RegenerateWarning } from "./regenerate-warning";
+
 const initialAdaptState: AdaptCvState = { status: "idle" };
 const initialGenerateState: GenerateCvState = { status: "idle" };
 
@@ -137,6 +139,8 @@ export function CvAdapter({
   // Le choix du CV s'affiche à la demande ; il se referme dès qu'une analyse réussit
   // (l'état de l'action change par rapport à celui de l'ouverture).
   const [pickerOpenedAt, setPickerOpenedAt] = useState<AdaptCvState | null>(null);
+  // Avertissement affiché avant de regénérer un CV amélioré existant.
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
 
   const result = adaptState.status === "success" ? adaptState : null;
   const suggestions = result?.suggestions ?? saved;
@@ -174,7 +178,13 @@ export function CvAdapter({
       setPickerOpenedAt(adaptState); // il faut d'abord choisir un CV
       return;
     }
+    if (hasImprovedCv && !confirmingRegenerate) {
+      setConfirmingRegenerate(true);
+      return;
+    }
+    setConfirmingRegenerate(false);
     const formData = buildFormData();
+    if (hasImprovedCv) formData.set("confirm", "1");
     startTransition(() => generateAction(formData));
   }
 
@@ -353,13 +363,13 @@ export function CvAdapter({
               <button
                 type="button"
                 onClick={runGeneration}
-                disabled={busy || !aiEnabled}
+                disabled={busy || !aiEnabled || confirmingRegenerate}
                 className="btn-primary px-4 py-2 text-sm"
               >
                 {generating
                   ? "Rédaction en cours…"
                   : hasImprovedCv
-                    ? "Regénérer le CV amélioré"
+                    ? "Regénérer mon CV"
                     : "Générer mon CV amélioré"}
               </button>
               {hasImprovedCv && !generating && (
@@ -371,6 +381,16 @@ export function CvAdapter({
                 </Link>
               )}
             </div>
+            {confirmingRegenerate && !generating && (
+              <div className="mt-3">
+                <RegenerateWarning
+                  document="un CV"
+                  confirmLabel="Oui, regénérer mon CV"
+                  onConfirm={runGeneration}
+                  onCancel={() => setConfirmingRegenerate(false)}
+                />
+              </div>
+            )}
             {!sourceReady && !generating && (
               <p className="mt-2 text-xs text-slate-500">
                 {limitReached

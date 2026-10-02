@@ -289,6 +289,8 @@ type DemoStore = {
   onboardingCompleted?: boolean;
   /** Compteurs d'utilisation de l'IA du mois `period` (mode démo). */
   aiUsage?: { period: string; counts: Record<AiUsageKind, number> };
+  /** Messages du chat « Affiner avec l'IA » par candidature (mode démo). */
+  cvRefinements?: Record<string, number>;
 };
 
 const globalForDemo = globalThis as unknown as { applyfyDemoStore?: DemoStore };

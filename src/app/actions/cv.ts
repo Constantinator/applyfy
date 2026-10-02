@@ -3,8 +3,13 @@
 import { refresh, revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
-import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
-import { isLimitReached, limitReachedMessage, type AiUsageCount } from "@/lib/ai-usage-limits";
+import { getAiUsageFor, getCvRefineUsage, recordAiUsage, recordCvRefinement } from "@/lib/ai-usage";
+import {
+  CV_REFINE_LIMIT_MESSAGE,
+  isLimitReached,
+  limitReachedMessage,
+  type AiUsageCount,
+} from "@/lib/ai-usage-limits";
 import {
   getApplicationDetail,
   saveCvSuggestions,
@@ -126,6 +131,11 @@ export async function generateImprovedCvAction(
   if (!prepared.ok) return { status: "error", message: prepared.message };
 
   const app = prepared.detail.application;
+  // Un CV amélioré existe déjà : la regénération écrase les modifications, elle doit
+  // avoir été confirmée.
+  if (app.cv_improved_html && formData.get("confirm") !== "1") {
+    return { status: "error", message: "Confirme la regénération : ton CV actuel sera remplacé." };
+  }
   const suggestions = readCvSuggestions(app.cv_suggestions);
   if (!suggestions) {
     return { status: "error", message: "Lance d'abord l'analyse de ton CV pour cette offre." };
@@ -208,8 +218,8 @@ function readHistory(raw: unknown): RefineChatTurn[] {
 /**
  * Applique une demande du candidat au CV affiché dans l'éditeur (modifications non
  * enregistrées comprises). Le CV n'est pas enregistré : l'éditeur affiche le résultat,
- * que le candidat garde (Enregistrer) ou annule. Chaque demande compte comme une
- * adaptation de CV dans le quota mensuel.
+ * que le candidat garde (Enregistrer) ou annule. Limite : 5 messages par candidature
+ * (hors limites mensuelles).
  */
 export async function refineCvAction(
   id: string,
@@ -232,10 +242,8 @@ export async function refineCvAction(
   const detail = await getApplicationDetail(id);
   if (!detail) return { ok: false, error: "Candidature introuvable." };
 
-  const usage = await getAiUsageFor("adaptation_cv");
-  if (isLimitReached(usage)) {
-    return { ok: false, error: limitReachedMessage("adaptation_cv"), limitReached: true };
-  }
+  const usage = await getCvRefineUsage(detail.application.id);
+  if (isLimitReached(usage)) return { ok: false, error: CV_REFINE_LIMIT_MESSAGE, limitReached: true };
 
   // Surlignages précédents retirés : seules les modifications de cette demande le seront.
   const current = sanitizeCvHtml(html).replace(/<\/?mark>/g, "");
@@ -251,7 +259,7 @@ export async function refineCvAction(
     return { ok: false, error: "La modification n'a pas pu être appliquée. Reformule ta demande." };
   }
 
-  await recordAiUsage("adaptation_cv");
+  await recordCvRefinement(detail.application.id);
   return {
     ok: true,
     reply: refined.reponse.trim() || "C'est fait : les modifications sont surlignées dans ton CV.",

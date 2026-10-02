@@ -25,6 +25,10 @@ export type AiUsage = {
 
 export const LIMIT_REACHED_LABEL = "Limite mensuelle atteinte";
 
+/** Chat « Affiner avec l'IA » : messages par candidature (hors limites mensuelles). */
+export const CV_REFINE_LIMIT = 5;
+export const CV_REFINE_LIMIT_MESSAGE = `Tu as atteint la limite de ${CV_REFINE_LIMIT} messages pour cette candidature.`;
+
 export function isLimitReached({ used, limit }: AiUsageCount) {
   return used >= limit;
 }

@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { refineCvAction } from "@/app/actions/cv";
-import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
-import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
+import { CV_REFINE_LIMIT_MESSAGE, isLimitReached, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 
 const SUGGESTIONS = [
@@ -27,23 +26,20 @@ type Message = {
 
 /**
  * Chat « Affiner avec l'IA » sous l'éditeur du CV : chaque demande est appliquée par
- * Claude au CV affiché (modifications surlignées), et compte dans le quota mensuel
- * d'adaptations de CV.
+ * Claude au CV affiché (modifications surlignées). Limite : 5 messages par candidature.
  */
 export function CvRefineChat({
   applicationId,
   aiEnabled,
   usage,
-  resetLabel,
   readCv,
   replaceCv,
   onPendingChange,
 }: {
   applicationId: string;
   aiEnabled: boolean;
-  /** Adaptations de CV utilisées ce mois-ci (à l'ouverture de la page). */
+  /** Messages déjà utilisés pour cette candidature (à l'ouverture de la page). */
   usage: AiUsageCount;
-  resetLabel: string;
   /** HTML du CV tel qu'affiché dans l'éditeur. */
   readCv: () => string;
   /** Remplace le CV de l'éditeur et retourne le HTML précédent. */
@@ -120,7 +116,7 @@ export function CvRefineChat({
         </div>
         {aiEnabled && (
           <p className="shrink-0 text-xs text-slate-500">
-            {Math.min(used, usage.limit)}/{usage.limit} adaptations utilisées ce mois-ci
+            {Math.min(used, usage.limit)}/{usage.limit} messages utilisés
           </p>
         )}
       </div>
@@ -184,7 +180,9 @@ export function CvRefineChat({
       {!aiEnabled ? (
         <p className="text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached ? (
-        <UsageLimitBanner kind="adaptation_cv" resetLabel={resetLabel} />
+        <p role="alert" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200">
+          {CV_REFINE_LIMIT_MESSAGE}
+        </p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {SUGGESTIONS.map((suggestion) => (
@@ -229,7 +227,11 @@ export function CvRefineChat({
           rows={2}
           maxLength={REFINE_MESSAGE_MAX_LENGTH}
           disabled={disabled}
-          placeholder="Ex: Rends les bullet points plus percutants, ajoute plus de chiffres..."
+          placeholder={
+            limitReached
+              ? CV_REFINE_LIMIT_MESSAGE
+              : "Ex: Rends les bullet points plus percutants, ajoute plus de chiffres..."
+          }
           className="input min-w-0 flex-1 resize-none py-2 text-sm"
         />
         <button
@@ -237,12 +239,12 @@ export function CvRefineChat({
           disabled={disabled || pending || !input.trim()}
           className="btn-primary px-4 py-2.5 text-sm"
         >
-          {limitReached ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
+          {pending ? "Envoi…" : "Envoyer"}
         </button>
       </form>
       <p className="text-xs text-slate-500">
-        Ton CV et l&apos;offre sont transmis à Claude (Anthropic). Chaque message compte comme une
-        adaptation de CV. Pense à enregistrer le CV pour garder les modifications.
+        Ton CV et l&apos;offre sont transmis à Claude (Anthropic). {usage.limit} messages maximum
+        par candidature. Pense à enregistrer le CV pour garder les modifications.
       </p>
     </section>
   );

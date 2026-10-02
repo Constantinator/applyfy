@@ -365,7 +365,7 @@ export function CvEditor({
   /** Titre du document pendant l'impression = nom de fichier proposé pour le PDF. */
   pdfTitle: string;
   /** Chat « Affiner avec l'IA » sous le document (CV uniquement). */
-  refine?: { aiEnabled: boolean; usage: AiUsageCount; resetLabel: string };
+  refine?: { aiEnabled: boolean; usage: AiUsageCount };
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
@@ -661,7 +661,6 @@ export function CvEditor({
             applicationId={applicationId}
             aiEnabled={refine.aiEnabled}
             usage={refine.usage}
-            resetLabel={refine.resetLabel}
             readCv={readCvForRefine}
             replaceCv={replaceDocument}
             onPendingChange={setRefining}
