@@ -10,6 +10,8 @@ import {
   type GenerateCvState,
 } from "@/app/actions/cv";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
+import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
 
 const initialAdaptState: AdaptCvState = { status: "idle" };
@@ -106,6 +108,8 @@ export function CvAdapter({
   savedAt,
   profileCvs,
   hasImprovedCv,
+  usage,
+  resetLabel,
 }: {
   applicationId: string;
   hasOfferDescription: boolean;
@@ -114,6 +118,10 @@ export function CvAdapter({
   savedAt: string | null;
   profileCvs: ProfileCv[];
   hasImprovedCv: boolean;
+  /** Adaptations utilisées ce mois-ci. */
+  usage: AiUsageCount;
+  /** Date de remise à zéro du compteur (ex. « 1er novembre 2026 »). */
+  resetLabel: string;
 }) {
   const [adaptState, adaptAction, analyzing] = useActionState(adaptCvAction, initialAdaptState);
   const [generateState, generateAction, generating] = useActionState(
@@ -134,6 +142,8 @@ export function CvAdapter({
   const suggestions = result?.suggestions ?? saved;
   const generatedAt = result?.generatedAt ?? savedAt;
   const busy = analyzing || generating;
+  const limitReached =
+    isLimitReached(usage) || (adaptState.status === "error" && adaptState.limitReached === true);
   const selectedProfileCv = profileCvs.find((cv) => cv.id === source) ?? null;
   const sourceReady = source === UPLOAD ? Boolean(file) && !fileError : Boolean(selectedProfileCv);
   const pickerOpen =
@@ -265,10 +275,10 @@ export function CvAdapter({
             <button
               type="button"
               onClick={() => setPickerOpenedAt(adaptState)}
-              disabled={!aiEnabled || busy}
+              disabled={!aiEnabled || busy || limitReached}
               className="btn-primary px-4 py-2 text-sm"
             >
-              {suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
+              {limitReached ? LIMIT_REACHED_LABEL : suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
             </button>
           </OnboardingTip>
         )}
@@ -276,6 +286,12 @@ export function CvAdapter({
 
       {!aiEnabled && (
         <p className="mt-3 text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
+      )}
+
+      {aiEnabled && limitReached && !analyzing && (
+        <div className="mt-4">
+          <UsageLimitBanner kind="adaptation_cv" resetLabel={resetLabel} />
+        </div>
       )}
 
       {pickerOpen && (
@@ -294,10 +310,10 @@ export function CvAdapter({
             <button
               type="button"
               onClick={runAnalysis}
-              disabled={busy || !sourceReady}
+              disabled={busy || !sourceReady || limitReached}
               className="btn-primary px-4 py-2 text-sm"
             >
-              {analyzing ? "Analyse en cours…" : "Analyser mon CV"}
+              {analyzing ? "Analyse en cours…" : limitReached ? LIMIT_REACHED_LABEL : "Analyser mon CV"}
             </button>
             {!busy && (
               <button
@@ -315,7 +331,7 @@ export function CvAdapter({
               L&apos;assistant lit ton CV et l&apos;offre… cela prend généralement 30 à 60 secondes.
             </p>
           )}
-          {adaptState.status === "error" && !analyzing && (
+          {adaptState.status === "error" && !adaptState.limitReached && !analyzing && (
             <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
               {adaptState.message}
             </p>
@@ -357,8 +373,9 @@ export function CvAdapter({
             </div>
             {!sourceReady && !generating && (
               <p className="mt-2 text-xs text-slate-500">
-                Le CV d&apos;origine est nécessaire : choisis-le via « Refaire l&apos;analyse » ou
-                enregistre-le dans ton profil.
+                {limitReached
+                  ? "Le CV d'origine est nécessaire : clique sur « Générer » pour le choisir."
+                  : "Le CV d'origine est nécessaire : choisis-le via « Refaire l'analyse » ou enregistre-le dans ton profil."}
               </p>
             )}
             {generating && (

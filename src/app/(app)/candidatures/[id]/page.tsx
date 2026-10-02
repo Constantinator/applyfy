@@ -22,6 +22,8 @@ import {
   today,
 } from "@/lib/applications";
 import { getAccountName } from "@/lib/account";
+import { readAiUsage } from "@/lib/ai-usage";
+import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { fullName } from "@/lib/person-name";
 import { readCvSuggestions } from "@/lib/cv-types";
@@ -65,7 +67,7 @@ export default async function ApplicationPage({
 }: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
   const { creee } = await searchParams;
-  const [detail, profileCvs, accountName] = await Promise.all([
+  const [detail, profileCvs, accountName, usage] = await Promise.all([
     getApplicationDetail(id),
     // Non bloquant : la fiche reste affichée même si le profil est indisponible
     // (ex. migration 0007 pas encore appliquée).
@@ -78,6 +80,7 @@ export default async function ApplicationPage({
       console.error("[fiche] nom du compte", error);
       return null;
     }),
+    readAiUsage(),
   ]);
   if (!detail) notFound();
 
@@ -214,6 +217,8 @@ export default async function ApplicationPage({
             savedAt={app.cv_suggestions_at ?? null}
             profileCvs={profileCvs}
             hasImprovedCv={Boolean(app.cv_improved_html)}
+            usage={usage.counts.adaptation_cv}
+            resetLabel={formatResetDate(usage.resetsOn)}
           />
 
           <CoverLetterGenerator
@@ -224,6 +229,8 @@ export default async function ApplicationPage({
             hasLetter={Boolean(app.cover_letter_html)}
             letterSavedAt={app.cover_letter_at ?? null}
             signerName={accountName ? fullName(accountName) : null}
+            usage={usage.counts.lettre}
+            resetLabel={formatResetDate(usage.resetsOn)}
           />
 
           <FollowUpBox

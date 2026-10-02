@@ -1,8 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
+import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
+import { isLimitReached, limitReachedMessage } from "@/lib/ai-usage-limits";
 import {
   getApplicationDetail,
   saveCvSuggestions,
@@ -24,7 +26,7 @@ import { getProfileCvFile } from "@/lib/profile";
 
 export type AdaptCvState =
   | { status: "idle" }
-  | { status: "error"; message: string }
+  | { status: "error"; message: string; limitReached?: boolean }
   | { status: "success"; suggestions: CvSuggestions; generatedAt: string };
 
 export type GenerateCvState = { status: "idle" } | { status: "error"; message: string };
@@ -87,6 +89,11 @@ export async function adaptCvAction(
   const prepared = await prepare(formData);
   if (!prepared.ok) return { status: "error", message: prepared.message };
 
+  // Seule l'analyse compte comme une adaptation : le CV amélioré en découle.
+  if (isLimitReached(await getAiUsageFor("adaptation_cv"))) {
+    return { status: "error", message: limitReachedMessage("adaptation_cv"), limitReached: true };
+  }
+
   let suggestions: CvSuggestions | null;
   try {
     suggestions = await suggestCvAdaptations(prepared.pdfBase64, prepared.offer);
@@ -94,6 +101,7 @@ export async function adaptCvAction(
     return { status: "error", message: claudeErrorMessage(error, "adaptCv") };
   }
   if (!suggestions) return { status: "error", message: "L'analyse n'a pas pu aboutir pour ce CV." };
+  await recordAiUsage("adaptation_cv");
 
   const generatedAt = new Date().toISOString();
   try {
@@ -102,6 +110,7 @@ export async function adaptCvAction(
     // Non bloquant : l'utilisateur voit quand même ses suggestions.
     console.error("[adaptCv] enregistrement des suggestions", error);
   }
+  refresh(); // compteur d'adaptations à jour dans la page
   return { status: "success", suggestions, generatedAt };
 }
 

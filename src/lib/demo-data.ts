@@ -1,3 +1,4 @@
+import type { AiUsageKind } from "./ai-usage-limits";
 import type { AccountName } from "./person-name";
 import type { ReminderSettings } from "./reminders";
 import type {
@@ -286,6 +287,8 @@ type DemoStore = {
   accountName?: AccountName;
   /** Écran de bienvenue vu (mode démo). */
   onboardingCompleted?: boolean;
+  /** Compteurs d'utilisation de l'IA du mois `period` (mode démo). */
+  aiUsage?: { period: string; counts: Record<AiUsageKind, number> };
 };
 
 const globalForDemo = globalThis as unknown as { applyfyDemoStore?: DemoStore };

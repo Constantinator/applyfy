@@ -4,6 +4,8 @@ import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 
 import { generateCoverLetterAction, type GenerateCoverLetterState } from "@/app/actions/cover-letter";
+import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   CV_MAX_BYTES,
   CV_MAX_LABEL,
@@ -34,6 +36,8 @@ export function CoverLetterGenerator({
   letterSavedAt,
   hasLetter,
   signerName,
+  usage,
+  resetLabel,
 }: {
   applicationId: string;
   hasOfferDescription: boolean;
@@ -43,6 +47,10 @@ export function CoverLetterGenerator({
   hasLetter: boolean;
   /** Prénom et nom du compte (signature de la lettre), null s'ils ne sont pas renseignés. */
   signerName: string | null;
+  /** Lettres générées ce mois-ci. */
+  usage: AiUsageCount;
+  /** Date de remise à zéro du compteur (ex. « 1er novembre 2026 »). */
+  resetLabel: string;
 }) {
   const [state, generate, generating] = useActionState(generateCoverLetterAction, initialState);
   const [source, setSource] = useState<string>(profileCvs[0]?.id ?? RESUME);
@@ -51,6 +59,8 @@ export function CoverLetterGenerator({
   const [summary, setSummary] = useState("");
   // Avec une lettre existante, le choix du profil s'affiche à la demande (regénération).
   const [pickerOpen, setPickerOpen] = useState(!hasLetter);
+  const limitReached =
+    isLimitReached(usage) || (state.status === "error" && state.limitReached === true);
 
   const selectedProfileCv = profileCvs.find((cv) => cv.id === source) ?? null;
   const sourceReady =
@@ -104,19 +114,24 @@ export function CoverLetterGenerator({
               : "L'assistant rédige une lettre personnalisée à partir de ton profil et de l'offre."}
           </p>
         </div>
+        {!hasLetter && limitReached && aiEnabled && (
+          <button type="button" disabled className="btn-primary shrink-0 self-start px-4 py-2 text-sm">
+            {LIMIT_REACHED_LABEL}
+          </button>
+        )}
         {hasLetter && (
           <div className="flex shrink-0 flex-wrap gap-2">
             <Link href={`/candidatures/${applicationId}/lettre`} className="btn-primary px-4 py-2 text-sm">
               Ouvrir ma lettre →
             </Link>
-            {!pickerOpen && (
+            {(!pickerOpen || limitReached) && (
               <button
                 type="button"
                 onClick={() => setPickerOpen(true)}
-                disabled={!aiEnabled}
+                disabled={!aiEnabled || limitReached}
                 className="btn-secondary px-4 py-2 text-sm"
               >
-                Regénérer
+                {limitReached ? LIMIT_REACHED_LABEL : "Regénérer"}
               </button>
             )}
           </div>
@@ -127,7 +142,13 @@ export function CoverLetterGenerator({
         <p className="mt-3 text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       )}
 
-      {pickerOpen && aiEnabled && (
+      {aiEnabled && limitReached && !generating && (
+        <div className="mt-4">
+          <UsageLimitBanner kind="lettre" resetLabel={resetLabel} />
+        </div>
+      )}
+
+      {pickerOpen && aiEnabled && !limitReached && (
         <div className="mt-4 space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
           <fieldset className="space-y-2" disabled={generating}>
             <legend className="mb-1 text-sm font-medium text-slate-700">Sur quel profil s&apos;appuyer ?</legend>

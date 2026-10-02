@@ -9,6 +9,8 @@ import {
   type NewApplicationState,
 } from "@/app/actions/applications";
 import { importOfferAction, summarizeOfferAction } from "@/app/actions/offer";
+import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { normalizeCompanyName } from "@/lib/normalize";
 import {
   OFFER_DESCRIPTION_MAX_LENGTH,
@@ -96,7 +98,17 @@ function Field({
   );
 }
 
-export function NewApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
+export function NewApplicationForm({
+  aiEnabled,
+  summaryUsage,
+  resetLabel,
+}: {
+  aiEnabled: boolean;
+  /** Résumés générés ce mois-ci. */
+  summaryUsage: AiUsageCount;
+  /** Date de remise à zéro du compteur (ex. « 1er novembre 2026 »). */
+  resetLabel: string;
+}) {
   const [state, formAction, pending] = useActionState(createApplicationAction, initialState);
 
   // Champs contrôlés : pré-remplis par l'import d'offre et par le résumé.
@@ -109,6 +121,8 @@ export function NewApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
 
   const [importStatus, setImportStatus] = useState<AsyncStatus>({ state: "idle" });
   const [summaryStatus, setSummaryStatus] = useState<AsyncStatus>({ state: "idle" });
+  // Limite signalée par le serveur (compteur de la page éventuellement périmé).
+  const [summaryLimitHit, setSummaryLimitHit] = useState(false);
   // Résultat incomplet de l'import depuis un lien : échec total (site bloqué, LinkedIn,
   // Indeed…) ou partiel. `missing` = champs que l'import n'a pas pu remplir.
   const [importAlert, setImportAlert] = useState<{
@@ -194,15 +208,23 @@ export function NewApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
     setSummaryStatus({ state: "loading" });
     const result = await summarizeOfferAction(description);
     if (!result.ok) {
-      setSummaryStatus({ state: "error", message: result.error });
+      if (result.limitReached) {
+        setSummaryLimitHit(true);
+        setSummaryStatus({ state: "idle" }); // le bandeau prend le relais
+      } else {
+        setSummaryStatus({ state: "error", message: result.error });
+      }
       return;
     }
     setSummary(result.summary.slice(0, OFFER_SUMMARY_MAX_LENGTH));
     setSummaryStatus({ state: "success", message: "✓ Résumé généré. Tu peux le modifier." });
   }
 
+  const summaryLimitReached = summaryLimitHit || isLimitReached(summaryUsage);
   const canSummarize =
-    aiEnabled && description.trim().length >= SUMMARY_MIN_LENGTH && summaryStatus.state !== "loading";
+    aiEnabled &&
+    !summaryLimitReached &&
+    description.trim().length >= SUMMARY_MIN_LENGTH && summaryStatus.state !== "loading";
   // Le bandeau disparaît quand tous les champs signalés ont été complétés.
   const fieldValues: Record<ImportedField, string> = { company, position, location, description };
   const missingNow = importAlert?.missing.filter((f) => !fieldValues[f].trim()) ?? [];
@@ -350,11 +372,16 @@ export function NewApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
               disabled={!canSummarize}
               className="btn-primary px-4 py-2 text-sm"
             >
-              {summary ? "Régénérer le résumé" : "Générer un résumé"}
+              {summaryLimitReached
+                ? LIMIT_REACHED_LABEL
+                : summary
+                  ? "Régénérer le résumé"
+                  : "Générer un résumé"}
             </button>
             {!aiEnabled ? (
               <span className="text-xs text-slate-500">Résumé automatique non activé.</span>
             ) : (
+              !summaryLimitReached &&
               description.trim().length < SUMMARY_MIN_LENGTH && (
                 <span className="text-xs text-slate-500">
                   Colle la description complète pour pouvoir la résumer.
@@ -363,6 +390,9 @@ export function NewApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
             )}
           </div>
           <StatusLine status={summaryStatus} loadingText="Génération du résumé…" />
+          {aiEnabled && summaryLimitReached && summaryStatus.state !== "loading" && (
+            <UsageLimitBanner kind="resume_offre" resetLabel={resetLabel} />
+          )}
         </div>
 
         {(summary || errors.offer_summary) && (

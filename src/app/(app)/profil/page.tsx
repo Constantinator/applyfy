@@ -5,7 +5,10 @@ import { connection } from "next/server";
 import { AccountNameForm } from "@/components/profile/account-name-form";
 import { DeleteAccount } from "@/components/profile/delete-account";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
+import { UsageOverview } from "@/components/profile/usage-overview";
 import { getAccountName } from "@/lib/account";
+import { readAiUsage } from "@/lib/ai-usage";
+import { FREE_MONTHLY_LIMIT } from "@/lib/ai-usage-limits";
 import { ReminderSettingsForm } from "@/components/profile/reminder-settings-form";
 import { getCurrentUser } from "@/lib/auth";
 import { PROFILE_CV_LIMIT } from "@/lib/cv-types";
@@ -17,7 +20,7 @@ export const metadata: Metadata = { title: "Mon profil — Applyfy" };
 
 export default async function ProfilePage() {
   await connection(); // toujours rendu à la requête : la liste des CV change
-  const [user, accountName, cvs, reminderSettings] = await Promise.all([
+  const [user, accountName, cvs, reminderSettings, usage] = await Promise.all([
     getCurrentUser(),
     getAccountName(),
     listProfileCvs(),
@@ -26,6 +29,7 @@ export default async function ProfilePage() {
       console.error("[profil] préférences de rappel", error);
       return DEFAULT_REMINDER_SETTINGS;
     }),
+    readAiUsage(),
   ]);
 
   return (
@@ -69,6 +73,19 @@ export default async function ProfilePage() {
           Tes CV sont stockés de façon privée : toi seul·e y as accès. Lors d&apos;une analyse, le CV
           choisi est transmis à Claude (Anthropic).
         </p>
+      </section>
+
+      <section aria-labelledby="utilisation-title" className="space-y-4 card p-5 sm:p-6">
+        <div>
+          <h2 id="utilisation-title" className="font-semibold text-slate-900">
+            Mon utilisation
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Plan gratuit : {FREE_MONTHLY_LIMIT} résumés d&apos;offre, {FREE_MONTHLY_LIMIT} adaptations
+            de CV et {FREE_MONTHLY_LIMIT} lettres de motivation par mois.
+          </p>
+        </div>
+        <UsageOverview usage={usage} />
       </section>
 
       <section

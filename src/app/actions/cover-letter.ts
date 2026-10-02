@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
+import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
+import { isLimitReached, limitReachedMessage } from "@/lib/ai-usage-limits";
 import { getApplicationDetail, MissingMigrationError, saveEditedDocument } from "@/lib/applications";
 import {
   claudeErrorMessage,
@@ -21,7 +23,9 @@ import { getProfileCvFile } from "@/lib/profile";
 
 import type { SaveCvResult } from "./cv";
 
-export type GenerateCoverLetterState = { status: "idle" } | { status: "error"; message: string };
+export type GenerateCoverLetterState =
+  | { status: "idle" }
+  | { status: "error"; message: string; limitReached?: boolean };
 
 const MIGRATION_MESSAGE =
   "La lettre ne peut pas être enregistrée : la migration 0010 n'est pas encore appliquée dans Supabase.";
@@ -65,6 +69,10 @@ export async function generateCoverLetterAction(
   if (!detail) return { status: "error", message: "Candidature introuvable." };
   const app = detail.application;
 
+  if (isLimitReached(await getAiUsageFor("lettre"))) {
+    return { status: "error", message: limitReachedMessage("lettre"), limitReached: true };
+  }
+
   // Prénom et nom du compte : signature et objet de la lettre.
   const accountName = await getAccountName();
   const signer = accountName ? fullName(accountName) : null;
@@ -89,6 +97,7 @@ export async function generateCoverLetterAction(
       signer,
     );
     if (!letter) return { status: "error", message: "La lettre n'a pas pu être rédigée. Réessaie." };
+    await recordAiUsage("lettre");
     // Le nom du compte fait foi (en-tête, objet et signature), même si le CV en indique un autre.
     if (signer) letter.nom = signer;
     html = sanitizeCvHtml(coverLetterToHtml(letter, app.position));

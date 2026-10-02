@@ -1,7 +1,10 @@
 "use server";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { refresh } from "next/cache";
 
+import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
+import { isLimitReached, limitReachedMessage } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
 import { isClaudeConfigured, summarizeOffer, type OfferSummary } from "@/lib/claude";
 import { OfferImportError, importOfferFromUrl, type ImportedOffer } from "@/lib/offer-import";
@@ -33,7 +36,9 @@ export async function importOfferAction(url: string): Promise<ImportOfferResult>
   }
 }
 
-export type SummarizeResult = { ok: true; summary: string } | { ok: false; error: string };
+export type SummarizeResult =
+  | { ok: true; summary: string }
+  | { ok: false; error: string; limitReached?: boolean };
 
 function formatSummary({ missions, profil, avantages }: OfferSummary) {
   const section = (title: string, items: string[]) =>
@@ -61,9 +66,15 @@ export async function summarizeOfferAction(description: string): Promise<Summari
     return { ok: false, error: "Description trop longue (20 000 caractères max)." };
   }
 
+  if (isLimitReached(await getAiUsageFor("resume_offre"))) {
+    return { ok: false, error: limitReachedMessage("resume_offre"), limitReached: true };
+  }
+
   try {
     const summary = await summarizeOffer(text);
     if (!summary) return { ok: false, error: "Le résumé n'a pas pu être généré pour cette offre." };
+    await recordAiUsage("resume_offre");
+    refresh(); // compteur à jour dans la page
     return { ok: true, summary: formatSummary(summary) };
   } catch (error) {
     if (error instanceof Anthropic.RateLimitError) {
