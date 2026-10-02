@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { saveCoverLetterAction } from "@/app/actions/cover-letter";
-import { saveImprovedCvAction } from "@/app/actions/cv";
+import { refineCoverLetterAction, saveCoverLetterAction } from "@/app/actions/cover-letter";
+import { refineCvAction, saveImprovedCvAction } from "@/app/actions/cv";
 import type { AiUsageCount } from "@/lib/ai-usage-limits";
 import { applyLayout, toOneColumn } from "@/lib/cv-layout";
 import {
@@ -28,8 +28,8 @@ import {
   type CvStyle,
 } from "@/lib/cv-style";
 
-import { CvRefineChat } from "./cv-refine-chat";
 import { FontCombobox } from "./font-combobox";
+import { RefineChat } from "./refine-chat";
 
 const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -117,6 +117,7 @@ const NO_LIST = "aucune";
 const EDITOR_KINDS = {
   cv: {
     save: saveImprovedCvAction,
+    refine: refineCvAction,
     defaultStyle: DEFAULT_CV_STYLE,
     documentClassName: documentStyles,
     // Marges larges : CV aéré.
@@ -130,6 +131,7 @@ const EDITOR_KINDS = {
   },
   lettre: {
     save: saveCoverLetterAction,
+    refine: refineCoverLetterAction,
     defaultStyle: DEFAULT_LETTER_STYLE,
     documentClassName: letterStyles,
     // Marges plus larges, d'usage pour un courrier.
@@ -364,8 +366,8 @@ export function CvEditor({
   savedAt: string | null;
   /** Titre du document pendant l'impression = nom de fichier proposé pour le PDF. */
   pdfTitle: string;
-  /** Chat « Affiner avec l'IA » sous le document (CV uniquement). */
-  refine?: { aiEnabled: boolean; usage: AiUsageCount };
+  /** Chat « Affiner avec l'IA » sous le document. */
+  refine?: { aiEnabled: boolean; usage: AiUsageCount; resetLabel: string };
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
@@ -514,8 +516,8 @@ export function CvEditor({
   // entre-temps serait écrasée par la réponse).
   const [refining, setRefining] = useState(false);
 
-  /** CV affiché, remis en une colonne (structure attendue par l'assistant). */
-  function readCvForRefine() {
+  /** Document affiché, remis en une colonne (structure attendue par l'assistant). */
+  function readDocumentForRefine() {
     const editor = editorRef.current;
     if (!editor) return "";
     const copy = editor.cloneNode(true) as HTMLElement;
@@ -657,12 +659,15 @@ export function CvEditor({
         </div>
 
         {refine && (
-          <CvRefineChat
+          <RefineChat
+            document={kind}
             applicationId={applicationId}
             aiEnabled={refine.aiEnabled}
             usage={refine.usage}
-            readCv={readCvForRefine}
-            replaceCv={replaceDocument}
+            resetLabel={refine.resetLabel}
+            refine={config.refine}
+            readDocument={readDocumentForRefine}
+            replaceDocument={replaceDocument}
             onPendingChange={setRefining}
           />
         )}

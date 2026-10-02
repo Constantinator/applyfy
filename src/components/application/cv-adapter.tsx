@@ -14,8 +14,6 @@ import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
 
-import { RegenerateWarning } from "./regenerate-warning";
-
 const initialAdaptState: AdaptCvState = { status: "idle" };
 const initialGenerateState: GenerateCvState = { status: "idle" };
 
@@ -111,6 +109,7 @@ export function CvAdapter({
   profileCvs,
   hasImprovedCv,
   usage,
+  improveUsage,
   resetLabel,
 }: {
   applicationId: string;
@@ -120,8 +119,10 @@ export function CvAdapter({
   savedAt: string | null;
   profileCvs: ProfileCv[];
   hasImprovedCv: boolean;
-  /** Adaptations utilisées ce mois-ci. */
+  /** Analyses de CV utilisées ce mois-ci. */
   usage: AiUsageCount;
+  /** Générations du CV amélioré ce mois-ci. */
+  improveUsage: AiUsageCount;
   /** Date de remise à zéro du compteur (ex. « 1er novembre 2026 »). */
   resetLabel: string;
 }) {
@@ -139,8 +140,6 @@ export function CvAdapter({
   // Le choix du CV s'affiche à la demande ; il se referme dès qu'une analyse réussit
   // (l'état de l'action change par rapport à celui de l'ouverture).
   const [pickerOpenedAt, setPickerOpenedAt] = useState<AdaptCvState | null>(null);
-  // Avertissement affiché avant de regénérer un CV amélioré existant.
-  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
 
   const result = adaptState.status === "success" ? adaptState : null;
   const suggestions = result?.suggestions ?? saved;
@@ -148,6 +147,9 @@ export function CvAdapter({
   const busy = analyzing || generating;
   const limitReached =
     isLimitReached(usage) || (adaptState.status === "error" && adaptState.limitReached === true);
+  const improveLimitReached =
+    isLimitReached(improveUsage) ||
+    (generateState.status === "error" && generateState.limitReached === true);
   const selectedProfileCv = profileCvs.find((cv) => cv.id === source) ?? null;
   const sourceReady = source === UPLOAD ? Boolean(file) && !fileError : Boolean(selectedProfileCv);
   const pickerOpen =
@@ -178,13 +180,7 @@ export function CvAdapter({
       setPickerOpenedAt(adaptState); // il faut d'abord choisir un CV
       return;
     }
-    if (hasImprovedCv && !confirmingRegenerate) {
-      setConfirmingRegenerate(true);
-      return;
-    }
-    setConfirmingRegenerate(false);
     const formData = buildFormData();
-    if (hasImprovedCv) formData.set("confirm", "1");
     startTransition(() => generateAction(formData));
   }
 
@@ -300,7 +296,7 @@ export function CvAdapter({
 
       {aiEnabled && limitReached && !analyzing && (
         <div className="mt-4">
-          <UsageLimitBanner kind="adaptation_cv" resetLabel={resetLabel} />
+          <UsageLimitBanner resetLabel={resetLabel} />
         </div>
       )}
 
@@ -363,12 +359,14 @@ export function CvAdapter({
               <button
                 type="button"
                 onClick={runGeneration}
-                disabled={busy || !aiEnabled || confirmingRegenerate}
+                disabled={busy || !aiEnabled || improveLimitReached}
                 className="btn-primary px-4 py-2 text-sm"
               >
                 {generating
                   ? "Rédaction en cours…"
-                  : hasImprovedCv
+                  : improveLimitReached
+                    ? LIMIT_REACHED_LABEL
+                    : hasImprovedCv
                     ? "Regénérer mon CV"
                     : "Générer mon CV amélioré"}
               </button>
@@ -381,14 +379,9 @@ export function CvAdapter({
                 </Link>
               )}
             </div>
-            {confirmingRegenerate && !generating && (
+            {aiEnabled && improveLimitReached && !generating && (
               <div className="mt-3">
-                <RegenerateWarning
-                  document="un CV"
-                  confirmLabel="Oui, regénérer mon CV"
-                  onConfirm={runGeneration}
-                  onCancel={() => setConfirmingRegenerate(false)}
-                />
+                <UsageLimitBanner resetLabel={resetLabel} />
               </div>
             )}
             {!sourceReady && !generating && (
@@ -404,7 +397,7 @@ export function CvAdapter({
                 Rédaction de ton CV amélioré… cela peut prendre jusqu&apos;à une minute.
               </p>
             )}
-            {generateState.status === "error" && !generating && (
+            {generateState.status === "error" && !generateState.limitReached && !generating && (
               <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
                 {generateState.message}
               </p>

@@ -5,7 +5,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
 import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
-import { isLimitReached, limitReachedMessage } from "@/lib/ai-usage-limits";
+import { isLimitReached, LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
 import { getApplicationDetail, MissingMigrationError, saveEditedDocument } from "@/lib/applications";
 import {
   claudeErrorMessage,
@@ -20,6 +20,7 @@ import { DEFAULT_LETTER_STYLE, readCvStyle } from "@/lib/cv-style";
 import { PROFILE_SUMMARY_MAX, PROFILE_SUMMARY_MIN } from "@/lib/cv-types";
 import { fullName } from "@/lib/person-name";
 import { getProfileCvFile } from "@/lib/profile";
+import { refineApplicationDocument, type RefineResult } from "@/lib/refine";
 
 import type { SaveCvResult } from "./cv";
 
@@ -69,14 +70,9 @@ export async function generateCoverLetterAction(
   if (!detail) return { status: "error", message: "Candidature introuvable." };
   const app = detail.application;
 
-  // Une lettre existe déjà : la regénération écrase les modifications, elle doit avoir
-  // été confirmée.
-  if (app.cover_letter_html && formData.get("confirm") !== "1") {
-    return { status: "error", message: "Confirme la regénération : ta lettre actuelle sera remplacée." };
-  }
-
+  // Génération et regénération comptent toutes deux dans la limite mensuelle.
   if (isLimitReached(await getAiUsageFor("lettre"))) {
-    return { status: "error", message: limitReachedMessage("lettre"), limitReached: true };
+    return { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true };
   }
 
   // Prénom et nom du compte : signature et objet de la lettre.
@@ -151,4 +147,14 @@ export async function saveCoverLetterAction(
     return { ok: false, error: "L'enregistrement a échoué. Réessaie dans un instant." };
   }
   return { ok: true, savedAt: new Date().toISOString() };
+}
+
+/** Chat « Affiner avec l'IA » de la lettre (cf. lib/refine). */
+export async function refineCoverLetterAction(
+  id: string,
+  html: string,
+  message: string,
+  history: unknown,
+): Promise<RefineResult> {
+  return refineApplicationDocument("lettre", id, html, message, history);
 }

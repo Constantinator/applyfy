@@ -3,17 +3,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CvEditor } from "@/components/application/cv-editor";
+import { readAiUsage } from "@/lib/ai-usage";
+import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
+import { isClaudeConfigured } from "@/lib/claude";
 import { cvFontVariables } from "@/lib/cv-fonts";
 import { firstHeadingText, sanitizeCvHtml } from "@/lib/cv-html";
 import { DEFAULT_LETTER_STYLE, readCvStyle } from "@/lib/cv-style";
 
 export const metadata: Metadata = { title: "Ma lettre de motivation — Applyfy" };
 
+// « Affiner avec l'IA » (Server Action de cette page) : jusqu'à une minute.
+export const maxDuration = 120;
 
 export default async function CoverLetterPage({ params }: PageProps<"/candidatures/[id]/lettre">) {
   const { id } = await params;
-  const detail = await getApplicationDetail(id);
+  const [detail, usage] = await Promise.all([getApplicationDetail(id), readAiUsage()]);
   if (!detail) notFound();
   const { application: app } = detail;
 
@@ -42,6 +47,11 @@ export default async function CoverLetterPage({ params }: PageProps<"/candidatur
           pdfTitle={["Lettre de motivation", firstHeadingText(app.cover_letter_html), "-", app.company]
             .filter(Boolean)
             .join(" ")}
+          refine={{
+            aiEnabled: isClaudeConfigured(),
+            usage: usage.counts.affinage_lettre,
+            resetLabel: formatResetDate(usage.resetsOn),
+          }}
         />
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center print:hidden">

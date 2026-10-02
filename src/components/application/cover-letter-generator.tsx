@@ -14,8 +14,6 @@ import {
   type ProfileCv,
 } from "@/lib/cv-types";
 
-import { RegenerateWarning } from "./regenerate-warning";
-
 const initialState: GenerateCoverLetterState = { status: "idle" };
 
 const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -60,9 +58,7 @@ export function CoverLetterGenerator({
   const [fileError, setFileError] = useState<string | null>(null);
   const [summary, setSummary] = useState("");
   // Avec une lettre existante, le choix du profil s'affiche à la demande (regénération).
-  // Avec une lettre existante, il ne s'ouvre qu'après confirmation de l'avertissement.
   const [pickerOpen, setPickerOpen] = useState(!hasLetter);
-  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
   const limitReached =
     isLimitReached(usage) || (state.status === "error" && state.limitReached === true);
 
@@ -78,8 +74,6 @@ export function CoverLetterGenerator({
     if (!sourceReady || generating) return;
     const formData = new FormData();
     formData.set("id", applicationId);
-    // Le sélecteur ne s'ouvre sur une lettre existante qu'une fois la regénération confirmée.
-    if (hasLetter) formData.set("confirm", "1");
     if (source === UPLOAD) {
       formData.set("source", "upload");
       if (file) formData.set("cv", file);
@@ -133,8 +127,8 @@ export function CoverLetterGenerator({
             {(!pickerOpen || limitReached) && (
               <button
                 type="button"
-                onClick={() => setConfirmingRegenerate(true)}
-                disabled={!aiEnabled || limitReached || confirmingRegenerate}
+                onClick={() => setPickerOpen(true)}
+                disabled={!aiEnabled || limitReached}
                 className="btn-secondary px-4 py-2 text-sm"
               >
                 {limitReached ? LIMIT_REACHED_LABEL : "Regénérer ma lettre"}
@@ -150,21 +144,7 @@ export function CoverLetterGenerator({
 
       {aiEnabled && limitReached && !generating && (
         <div className="mt-4">
-          <UsageLimitBanner kind="lettre" resetLabel={resetLabel} />
-        </div>
-      )}
-
-      {confirmingRegenerate && !pickerOpen && aiEnabled && !limitReached && (
-        <div className="mt-4">
-          <RegenerateWarning
-            document="une lettre"
-            confirmLabel="Oui, regénérer ma lettre"
-            onConfirm={() => {
-              setConfirmingRegenerate(false);
-              setPickerOpen(true);
-            }}
-            onCancel={() => setConfirmingRegenerate(false)}
-          />
+          <UsageLimitBanner resetLabel={resetLabel} />
         </div>
       )}
 
@@ -257,11 +237,6 @@ export function CoverLetterGenerator({
             <p className="text-xs text-amber-700">
               Cette candidature n&apos;a pas de description d&apos;offre : la lettre sera moins
               personnalisée. Ajoute la description pour un meilleur résultat.
-            </p>
-          )}
-          {hasLetter && (
-            <p className="text-xs text-amber-700">
-              Ta lettre actuelle et tes modifications seront remplacées par la nouvelle lettre.
             </p>
           )}
           <p className="text-xs text-slate-500">

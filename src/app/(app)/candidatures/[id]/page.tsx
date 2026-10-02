@@ -218,6 +218,7 @@ export default async function ApplicationPage({
             profileCvs={profileCvs}
             hasImprovedCv={Boolean(app.cv_improved_html)}
             usage={usage.counts.adaptation_cv}
+            improveUsage={usage.counts.cv_ameliore}
             resetLabel={formatResetDate(usage.resetsOn)}
           />
 

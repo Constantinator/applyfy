@@ -2,9 +2,8 @@ import "server-only";
 
 import { requireUser } from "./auth";
 import {
+  AI_MONTHLY_LIMITS,
   AI_USAGE_KINDS,
-  CV_REFINE_LIMIT,
-  FREE_MONTHLY_LIMIT,
   type AiUsage,
   type AiUsageCount,
   type AiUsageKind,
@@ -12,9 +11,9 @@ import {
 import { demoStore } from "./demo-data";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
-// Compteurs d'utilisation de l'IA (table "usage", migration 0011). Une ligne par action
-// réussie, rattachée au mois en cours (heure de Paris) : le changement de mois remet
-// les compteurs à zéro sans traitement planifié.
+// Compteurs d'utilisation de l'IA (table "usage", migrations 0011 et 0013). Une ligne par
+// action réussie, rattachée au mois en cours (heure de Paris) : le changement de mois
+// remet les compteurs à zéro sans traitement planifié.
 
 const periodFormatter = new Intl.DateTimeFormat("en-CA", {
   year: "numeric",
@@ -35,24 +34,28 @@ function currentPeriod(now = new Date()) {
   };
 }
 
-/** Le plan gratuit est pour l'instant le seul : tout le monde a les mêmes limites. */
-function monthlyLimit(): number {
-  return FREE_MONTHLY_LIMIT;
+function zeroCounts(): Record<AiUsageKind, number> {
+  return Object.fromEntries(AI_USAGE_KINDS.map((kind) => [kind, 0])) as Record<AiUsageKind, number>;
+}
+
+/** Compteurs + limites (le plan gratuit est pour l'instant le seul). */
+function toUsage(counts: Record<AiUsageKind, number>, resetsOn: string): AiUsage {
+  const entries = AI_USAGE_KINDS.map(
+    (kind) => [kind, { used: counts[kind] ?? 0, limit: AI_MONTHLY_LIMITS[kind] }] as const,
+  );
+  return { counts: Object.fromEntries(entries) as Record<AiUsageKind, AiUsageCount>, resetsOn };
 }
 
 /** Compteurs du mode démo (en mémoire), remis à zéro quand le mois change. */
 function demoCounts(period: string) {
-  if (demoStore.aiUsage?.period !== period) {
-    demoStore.aiUsage = { period, counts: { resume_offre: 0, adaptation_cv: 0, lettre: 0 } };
-  }
+  if (demoStore.aiUsage?.period !== period) demoStore.aiUsage = { period, counts: zeroCounts() };
   return demoStore.aiUsage.counts;
 }
 
 /** Utilisation du mois en cours de l'utilisateur connecté, pour chaque type d'action. */
 export async function getAiUsage(): Promise<AiUsage> {
   const { period, resetsOn } = currentPeriod();
-  const limit = monthlyLimit();
-  const counts = { resume_offre: 0, adaptation_cv: 0, lettre: 0 } satisfies Record<AiUsageKind, number>;
+  const counts = zeroCounts();
 
   if (!isSupabaseConfigured()) {
     Object.assign(counts, demoCounts(period));
@@ -70,12 +73,11 @@ export async function getAiUsage(): Promise<AiUsage> {
     }
   }
 
-  const entries = AI_USAGE_KINDS.map((kind) => [kind, { used: counts[kind], limit }] as const);
-  return { counts: Object.fromEntries(entries) as Record<AiUsageKind, AiUsageCount>, resetsOn };
+  return toUsage(counts, resetsOn);
 }
 
 /**
- * Comme getAiUsage, sans échec : si les compteurs sont illisibles (migration 0011 non
+ * Comme getAiUsage, sans échec : si les compteurs sont illisibles (migration non
  * appliquée…), ils valent 0 et les actions restent autorisées. L'erreur est journalisée.
  */
 export async function readAiUsage(): Promise<AiUsage> {
@@ -83,12 +85,7 @@ export async function readAiUsage(): Promise<AiUsage> {
     return await getAiUsage();
   } catch (error) {
     console.error("[aiUsage] lecture", error);
-    const limit = monthlyLimit();
-    const entries = AI_USAGE_KINDS.map((kind) => [kind, { used: 0, limit }] as const);
-    return {
-      counts: Object.fromEntries(entries) as Record<AiUsageKind, AiUsageCount>,
-      resetsOn: currentPeriod().resetsOn,
-    };
+    return toUsage(zeroCounts(), currentPeriod().resetsOn);
   }
 }
 
@@ -103,7 +100,8 @@ export async function getAiUsageFor(kind: AiUsageKind): Promise<AiUsageCount> {
  */
 export async function recordAiUsage(kind: AiUsageKind): Promise<void> {
   if (!isSupabaseConfigured()) {
-    demoCounts(currentPeriod().period)[kind] += 1;
+    const counts = demoCounts(currentPeriod().period);
+    counts[kind] = (counts[kind] ?? 0) + 1;
     return;
   }
 
@@ -111,48 +109,4 @@ export async function recordAiUsage(kind: AiUsageKind): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("record_ai_usage", { p_kind: kind });
   if (error) console.error(`[aiUsage] enregistrement (${kind})`, error.message);
-}
-
-// ---------------------------------------------------------------------------
-// Chat « Affiner avec l'IA » : limite par candidature (migration 0012)
-// ---------------------------------------------------------------------------
-
-/**
- * Messages du chat déjà utilisés pour une candidature de l'utilisateur connecté.
- * Si le compteur est illisible (migration 0012 non appliquée…), il vaut 0.
- */
-export async function getCvRefineUsage(applicationId: string): Promise<AiUsageCount> {
-  if (!isSupabaseConfigured()) {
-    return { used: demoStore.cvRefinements?.[applicationId] ?? 0, limit: CV_REFINE_LIMIT };
-  }
-
-  await requireUser();
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from("usage")
-    .select("id", { count: "exact", head: true })
-    .eq("application_id", applicationId)
-    .eq("kind", "affinage_cv");
-  if (error) {
-    console.error("[aiUsage] lecture (affinage_cv)", error.message);
-    return { used: 0, limit: CV_REFINE_LIMIT };
-  }
-  return { used: count ?? 0, limit: CV_REFINE_LIMIT };
-}
-
-/**
- * Enregistre un message du chat pour une candidature (après une réponse réussie). La
- * base refuse au-delà de la limite (requêtes simultanées) : on journalise seulement.
- */
-export async function recordCvRefinement(applicationId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    demoStore.cvRefinements ??= {};
-    demoStore.cvRefinements[applicationId] = (demoStore.cvRefinements[applicationId] ?? 0) + 1;
-    return;
-  }
-
-  await requireUser();
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("record_cv_refinement", { p_application: applicationId });
-  if (error) console.error("[aiUsage] enregistrement (affinage_cv)", error.message);
 }

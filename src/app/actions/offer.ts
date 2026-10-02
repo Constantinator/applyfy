@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { refresh } from "next/cache";
 
 import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
-import { isLimitReached, limitReachedMessage } from "@/lib/ai-usage-limits";
+import { isLimitReached, LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
 import { isClaudeConfigured, summarizeOffer, type OfferSummary } from "@/lib/claude";
 import { OfferImportError, importOfferFromUrl, type ImportedOffer } from "@/lib/offer-import";
@@ -67,7 +67,7 @@ export async function summarizeOfferAction(description: string): Promise<Summari
   }
 
   if (isLimitReached(await getAiUsageFor("resume_offre"))) {
-    return { ok: false, error: limitReachedMessage("resume_offre"), limitReached: true };
+    return { ok: false, error: LIMIT_REACHED_MESSAGE, limitReached: true };
   }
 
   try {

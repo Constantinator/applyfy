@@ -391,7 +391,7 @@ export function NewApplicationForm({
           </div>
           <StatusLine status={summaryStatus} loadingText="Génération du résumé…" />
           {aiEnabled && summaryLimitReached && summaryStatus.state !== "loading" && (
-            <UsageLimitBanner kind="resume_offre" resetLabel={resetLabel} />
+            <UsageLimitBanner resetLabel={resetLabel} />
           )}
         </div>
 

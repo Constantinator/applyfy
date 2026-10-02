@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CvEditor } from "@/components/application/cv-editor";
-import { getCvRefineUsage } from "@/lib/ai-usage";
+import { readAiUsage } from "@/lib/ai-usage";
+import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { cvFontVariables } from "@/lib/cv-fonts";
@@ -18,7 +19,7 @@ export const maxDuration = 120;
 
 export default async function ImprovedCvPage({ params }: PageProps<"/candidatures/[id]/cv">) {
   const { id } = await params;
-  const detail = await getApplicationDetail(id);
+  const [detail, usage] = await Promise.all([getApplicationDetail(id), readAiUsage()]);
   if (!detail) notFound();
   const { application: app } = detail;
 
@@ -49,7 +50,11 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
           pdfTitle={["CV", firstHeadingText(app.cv_improved_html), "-", app.company]
             .filter(Boolean)
             .join(" ")}
-          refine={{ aiEnabled: isClaudeConfigured(), usage: await getCvRefineUsage(app.id) }}
+          refine={{
+            aiEnabled: isClaudeConfigured(),
+            usage: usage.counts.affinage_cv,
+            resetLabel: formatResetDate(usage.resetsOn),
+          }}
         />
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center print:hidden">

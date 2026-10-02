@@ -2,16 +2,42 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { refineCvAction } from "@/app/actions/cv";
-import { CV_REFINE_LIMIT_MESSAGE, isLimitReached, type AiUsageCount } from "@/lib/ai-usage-limits";
+import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
+import type { RefineResult } from "@/lib/refine";
 
-const SUGGESTIONS = [
-  "Rends les bullet points plus percutants",
-  "Ajoute plus de chiffres et résultats",
-  "Adapte mieux à l'offre",
-  "Raccourcis pour tenir en 1 page",
-];
+/** Textes propres à chaque document (CV amélioré, lettre de motivation). */
+const DOCUMENTS = {
+  cv: {
+    intro: "Demande une modification : elle est appliquée directement au CV, surlignée en jaune.",
+    empty: "Dis à l'assistant ce que tu veux améliorer dans ton CV.",
+    pending: "L'assistant modifie ton CV… cela peut prendre jusqu'à une minute.",
+    placeholder: "Ex: Rends les bullet points plus percutants, ajoute plus de chiffres...",
+    privacy: "Ton CV et l'offre sont transmis à Claude (Anthropic).",
+    save: "Pense à enregistrer le CV pour garder les modifications.",
+    suggestions: [
+      "Rends les bullet points plus percutants",
+      "Ajoute plus de chiffres et résultats",
+      "Adapte mieux à l'offre",
+      "Raccourcis pour tenir en 1 page",
+    ],
+  },
+  lettre: {
+    intro: "Demande une modification : elle est appliquée directement à la lettre, surlignée en jaune.",
+    empty: "Dis à l'assistant ce que tu veux améliorer dans ta lettre.",
+    pending: "L'assistant modifie ta lettre… cela peut prendre jusqu'à une minute.",
+    placeholder: "Ex: Rends l'accroche plus percutante, adopte un ton plus direct...",
+    privacy: "Ta lettre et l'offre sont transmises à Claude (Anthropic).",
+    save: "Pense à enregistrer la lettre pour garder les modifications.",
+    suggestions: [
+      "Rends l'accroche plus percutante",
+      "Ajoute des exemples concrets",
+      "Adapte mieux à l'offre",
+      "Raccourcis la lettre",
+    ],
+  },
+} as const;
 
 type Message = {
   id: number;
@@ -19,33 +45,43 @@ type Message = {
   content: string;
   /** Réponse en erreur : affichée, mais pas transmise à Claude comme contexte. */
   error?: boolean;
-  /** CV avant la modification apportée par cette réponse (pour l'annuler). */
+  /** Document avant la modification apportée par cette réponse (pour l'annuler). */
   previousHtml?: string;
   undone?: boolean;
 };
 
 /**
- * Chat « Affiner avec l'IA » sous l'éditeur du CV : chaque demande est appliquée par
- * Claude au CV affiché (modifications surlignées). Limite : 5 messages par candidature.
+ * Chat « Affiner avec l'IA » sous l'éditeur (CV amélioré ou lettre) : chaque demande est
+ * appliquée par Claude au document affiché (modifications surlignées). Chaque message
+ * compte dans la limite mensuelle du chat de ce document.
  */
-export function CvRefineChat({
+export function RefineChat({
+  document,
   applicationId,
   aiEnabled,
   usage,
-  readCv,
-  replaceCv,
+  resetLabel,
+  refine,
+  readDocument,
+  replaceDocument,
   onPendingChange,
 }: {
+  document: keyof typeof DOCUMENTS;
   applicationId: string;
   aiEnabled: boolean;
-  /** Messages déjà utilisés pour cette candidature (à l'ouverture de la page). */
+  /** Messages utilisés ce mois-ci (à l'ouverture de la page). */
   usage: AiUsageCount;
-  /** HTML du CV tel qu'affiché dans l'éditeur. */
-  readCv: () => string;
-  /** Remplace le CV de l'éditeur et retourne le HTML précédent. */
-  replaceCv: (html: string) => string;
+  /** Date de remise à zéro du compteur (ex. « 1er novembre 2026 »). */
+  resetLabel: string;
+  /** Server Action d'affinage du document. */
+  refine: (id: string, html: string, message: string, history: unknown) => Promise<RefineResult>;
+  /** HTML du document tel qu'affiché dans l'éditeur. */
+  readDocument: () => string;
+  /** Remplace le document de l'éditeur et retourne le HTML précédent. */
+  replaceDocument: (html: string) => string;
   onPendingChange: (pending: boolean) => void;
 }) {
+  const texts = DOCUMENTS[document];
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -80,9 +116,9 @@ export function CvRefineChat({
     setPending(true);
     onPendingChange(true);
     try {
-      const result = await refineCvAction(applicationId, readCv(), request, history);
+      const result = await refine(applicationId, readDocument(), request, history);
       if (result.ok) {
-        const previousHtml = replaceCv(result.html);
+        const previousHtml = replaceDocument(result.html);
         setUsed(result.usage.used);
         add({ role: "assistant", content: result.reply, previousHtml });
       } else {
@@ -99,7 +135,7 @@ export function CvRefineChat({
 
   function undo(message: Message) {
     if (message.previousHtml === undefined) return;
-    replaceCv(message.previousHtml);
+    replaceDocument(message.previousHtml);
     setMessages((list) => list.map((m) => (m.id === message.id ? { ...m, undone: true } : m)));
   }
 
@@ -110,13 +146,11 @@ export function CvRefineChat({
           <h2 id="refine-title" className="font-semibold text-slate-900">
             Affiner avec l&apos;IA
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Demande une modification : elle est appliquée directement au CV, surlignée en jaune.
-          </p>
+          <p className="mt-1 text-sm text-slate-500">{texts.intro}</p>
         </div>
         {aiEnabled && (
           <p className="shrink-0 text-xs text-slate-500">
-            {Math.min(used, usage.limit)}/{usage.limit} messages utilisés
+            {Math.min(used, usage.limit)}/{usage.limit} messages utilisés ce mois-ci
           </p>
         )}
       </div>
@@ -129,9 +163,7 @@ export function CvRefineChat({
         className="max-h-96 min-h-28 space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200"
       >
         {messages.length === 0 && !pending && (
-          <p className="py-6 text-center text-sm text-slate-500">
-            Dis à l&apos;assistant ce que tu veux améliorer dans ton CV.
-          </p>
+          <p className="py-6 text-center text-sm text-slate-500">{texts.empty}</p>
         )}
         {messages.map((message) =>
           message.role === "user" ? (
@@ -172,7 +204,7 @@ export function CvRefineChat({
               aria-hidden="true"
               className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
             />
-            L&apos;assistant modifie ton CV… cela peut prendre jusqu&apos;à une minute.
+            {texts.pending}
           </p>
         )}
       </div>
@@ -180,12 +212,10 @@ export function CvRefineChat({
       {!aiEnabled ? (
         <p className="text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached ? (
-        <p role="alert" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200">
-          {CV_REFINE_LIMIT_MESSAGE}
-        </p>
+        <UsageLimitBanner resetLabel={resetLabel} />
       ) : (
         <div className="flex flex-wrap gap-2">
-          {SUGGESTIONS.map((suggestion) => (
+          {texts.suggestions.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
@@ -227,11 +257,7 @@ export function CvRefineChat({
           rows={2}
           maxLength={REFINE_MESSAGE_MAX_LENGTH}
           disabled={disabled}
-          placeholder={
-            limitReached
-              ? CV_REFINE_LIMIT_MESSAGE
-              : "Ex: Rends les bullet points plus percutants, ajoute plus de chiffres..."
-          }
+          placeholder={texts.placeholder}
           className="input min-w-0 flex-1 resize-none py-2 text-sm"
         />
         <button
@@ -239,12 +265,11 @@ export function CvRefineChat({
           disabled={disabled || pending || !input.trim()}
           className="btn-primary px-4 py-2.5 text-sm"
         >
-          {pending ? "Envoi…" : "Envoyer"}
+          {limitReached ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
         </button>
       </form>
       <p className="text-xs text-slate-500">
-        Ton CV et l&apos;offre sont transmis à Claude (Anthropic). {usage.limit} messages maximum
-        par candidature. Pense à enregistrer le CV pour garder les modifications.
+        {texts.privacy} {usage.limit} messages par mois avec le plan gratuit. {texts.save}
       </p>
     </section>
   );

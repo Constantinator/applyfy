@@ -8,7 +8,7 @@ import { ProfileCvs } from "@/components/profile/profile-cvs";
 import { UsageOverview } from "@/components/profile/usage-overview";
 import { getAccountName } from "@/lib/account";
 import { readAiUsage } from "@/lib/ai-usage";
-import { FREE_MONTHLY_LIMIT } from "@/lib/ai-usage-limits";
+import { PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
 import { ReminderSettingsForm } from "@/components/profile/reminder-settings-form";
 import { getCurrentUser } from "@/lib/auth";
 import { PROFILE_CV_LIMIT } from "@/lib/cv-types";
@@ -81,8 +81,8 @@ export default async function ProfilePage() {
             Mon utilisation
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Plan gratuit : {FREE_MONTHLY_LIMIT} résumés d&apos;offre, {FREE_MONTHLY_LIMIT} adaptations
-            de CV et {FREE_MONTHLY_LIMIT} lettres de motivation par mois.
+            Plan gratuit : limites mensuelles par fonctionnalité IA (regénérations comprises).
+            Premium à {PREMIUM_PRICE_LABEL} : accès illimité.
           </p>
         </div>
         <UsageOverview usage={usage} />
