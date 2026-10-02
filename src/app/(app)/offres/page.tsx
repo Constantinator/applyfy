@@ -37,11 +37,6 @@ const MAX_RESULTS = 1150;
 const text = (value: string | string[] | undefined, max = 120) =>
   (typeof value === "string" ? value : "").trim().slice(0, max);
 
-/** Aperçu de la description dans la liste (2-3 lignes, coupé en CSS). */
-function preview(description: string) {
-  return description.replace(/\s+/g, " ").trim().slice(0, 320);
-}
-
 function publishedLabel(iso: string | null) {
   if (!iso) return null;
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
@@ -126,11 +121,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Trouver une offre</h1>
         <p className="mt-1.5 text-slate-500">
-          Les offres d&apos;emploi publiées sur France Travail, à ajouter en un clic à tes candidatures.
-        </p>
-        <p className="mt-3 flex items-center gap-2.5 text-sm text-slate-500">
-          Offres proposées par
-          <Image {...FRANCE_TRAVAIL_LOGO} alt="France Travail" priority className="h-8 w-auto" />
+          Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
         </p>
       </div>
 
@@ -291,10 +282,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                               </li>
                             )}
                           </ul>
-                          {offer.description && (
-                            <p className="line-clamp-3 pt-0.5 text-sm text-slate-600">{preview(offer.description)}</p>
-                          )}
-                          {/* Source de l'offre (déjà annoncée en haut de page) : décoratif. */}
+                          {/* Source de l'offre (aussi indiquée en pied de page) : décoratif. */}
                           <Image
                             {...FRANCE_TRAVAIL_LOGO}
                             alt=""
