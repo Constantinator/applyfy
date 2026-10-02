@@ -123,7 +123,31 @@ export type OfferSummary = {
   contract: string | null;
 };
 
-export type OfferSearchResult = { offers: OfferSummary[]; total: number };
+/** Profil recherché, tel que décrit par les champs structurés de l'offre. */
+export type OfferProfile = {
+  experience: string | null;
+  formations: string[];
+  /** Compétences ; `required` : exigée (sinon souhaitée). */
+  skills: { label: string; required: boolean }[];
+  qualities: string[];
+  languages: string[];
+  licences: string[];
+};
+
+/** Offre complète, pour la liste des résultats et le panneau de détails. */
+export type OfferListing = OfferSummary & {
+  /** Page publique de l'offre sur France Travail. */
+  url: string;
+  description: string;
+  salary: string | null;
+  workingHours: string | null;
+  experience: string | null;
+  sector: string | null;
+  companyDescription: string | null;
+  profile: OfferProfile;
+};
+
+export type OfferSearchResult = { offers: OfferListing[]; total: number };
 
 type RawOffer = {
   id: string;
@@ -138,8 +162,13 @@ type RawOffer = {
   natureContrat?: string;
   experienceLibelle?: string;
   dureeTravailLibelle?: string;
-  salaire?: { libelle?: string; commentaire?: string };
+  salaire?: { libelle?: string; commentaire?: string; complement1?: string; complement2?: string };
   secteurActiviteLibelle?: string;
+  competences?: { libelle?: string; exigence?: string }[];
+  formations?: { niveauLibelle?: string; domaineLibelle?: string; commentaire?: string; exigence?: string }[];
+  qualitesProfessionnelles?: { libelle?: string }[];
+  langues?: { libelle?: string; exigence?: string }[];
+  permis?: { libelle?: string; exigence?: string }[];
   alternance?: boolean;
   origineOffre?: { urlOrigine?: string };
 };
@@ -152,6 +181,41 @@ const toSummary = (offer: RawOffer): OfferSummary => ({
   publishedAt: offer.dateCreation ?? null,
   contract: offer.alternance ? "Alternance" : (offer.typeContratLibelle?.trim() || offer.typeContrat || null),
 });
+
+const clean = (value: string | undefined) => value?.trim() || null;
+const labels = (items: { libelle?: string }[] | undefined) =>
+  (items ?? []).map((item) => clean(item.libelle)).filter((label): label is string => Boolean(label));
+
+function toListing(offer: RawOffer): OfferListing {
+  const salary = [offer.salaire?.libelle, offer.salaire?.commentaire, offer.salaire?.complement1, offer.salaire?.complement2]
+    .map(clean)
+    .filter(Boolean)
+    .join(" · ");
+  return {
+    ...toSummary(offer),
+    url:
+      offer.origineOffre?.urlOrigine ||
+      `https://candidat.francetravail.fr/offres/recherche/detail/${encodeURIComponent(offer.id)}`,
+    description: offer.description?.trim() ?? "",
+    salary: salary || null,
+    workingHours: clean(offer.dureeTravailLibelle),
+    experience: clean(offer.experienceLibelle),
+    sector: clean(offer.secteurActiviteLibelle),
+    companyDescription: clean(offer.entreprise?.description),
+    profile: {
+      experience: clean(offer.experienceLibelle),
+      formations: (offer.formations ?? [])
+        .map((f) => [f.niveauLibelle, f.domaineLibelle, f.commentaire].map(clean).filter(Boolean).join(" — "))
+        .filter(Boolean),
+      skills: (offer.competences ?? [])
+        .filter((c) => clean(c.libelle))
+        .map((c) => ({ label: c.libelle!.trim(), required: c.exigence === "E" })),
+      qualities: labels(offer.qualitesProfessionnelles),
+      languages: labels(offer.langues),
+      licences: labels(offer.permis),
+    },
+  };
+}
 
 /** Codes « nature de contrat » correspondant à un filtre (lus dans le référentiel officiel). */
 async function natureCodes(pattern: RegExp): Promise<string[]> {
@@ -196,51 +260,53 @@ export async function searchOffers(search: OfferSearch): Promise<OfferSearchResu
   }
 
   const data = (await response.json()) as { resultats?: RawOffer[] };
-  const offers = (data.resultats ?? []).map(toSummary);
+  const offers = (data.resultats ?? []).map(toListing);
   // En-tête « Content-Range: offres 0-19/1234 » : nombre total d'offres trouvées.
   const total = Number(response.headers.get("content-range")?.match(/\/(\d+)/)?.[1] ?? offers.length);
   return { offers, total };
 }
 
 // ---------------------------------------------------------------------------
-// Détail d'une offre (pour créer la candidature)
+// Détail d'une offre (panneau de détails, création de la candidature)
 // ---------------------------------------------------------------------------
 
-export type OfferDetail = OfferSummary & { url: string; description: string };
+export function isOfferId(id: unknown): id is string {
+  return typeof id === "string" && /^[A-Za-z0-9]{1,20}$/.test(id);
+}
 
-export async function getOffer(id: string): Promise<OfferDetail | null> {
-  if (!/^[A-Za-z0-9]{1,20}$/.test(id)) return null;
+/** Une offre par son identifiant ; null si elle n'existe plus. */
+export async function getOfferListing(id: string): Promise<OfferListing | null> {
+  if (!isOfferId(id)) return null;
   const response = await apiGet(`/offres/${encodeURIComponent(id)}`);
   if (response.status === 404 || response.status === 204) return null;
   if (!response.ok) {
     console.error("[france-travail] offre", response.status);
     throw new FranceTravailError("Impossible de récupérer cette offre. Réessaie dans un instant.");
   }
-  const offer = (await response.json()) as RawOffer;
+  return toListing((await response.json()) as RawOffer);
+}
 
-  // Description : texte de l'offre + informations clés au format de lib/format-offer.
+export type OfferDetail = OfferSummary & { url: string; description: string };
+
+/** Offre au format d'une candidature : description + informations clés (lib/format-offer). */
+export async function getOffer(id: string): Promise<OfferDetail | null> {
+  const offer = await getOfferListing(id);
+  if (!offer) return null;
+
   const details = [
-    offer.typeContratLibelle && `• Contrat : ${offer.typeContratLibelle}`,
-    offer.dureeTravailLibelle && `• Durée du travail : ${offer.dureeTravailLibelle}`,
-    (offer.salaire?.libelle || offer.salaire?.commentaire) &&
-      `• Salaire : ${offer.salaire.libelle ?? offer.salaire.commentaire}`,
-    offer.experienceLibelle && `• Expérience : ${offer.experienceLibelle}`,
-    offer.secteurActiviteLibelle && `• Secteur : ${offer.secteurActiviteLibelle}`,
+    offer.contract && `• Contrat : ${offer.contract}`,
+    offer.workingHours && `• Durée du travail : ${offer.workingHours}`,
+    offer.salary && `• Salaire : ${offer.salary}`,
+    offer.experience && `• Expérience : ${offer.experience}`,
+    offer.sector && `• Secteur : ${offer.sector}`,
   ].filter(Boolean);
   const description = [
-    offer.description?.trim(),
+    offer.description,
     details.length ? `## Informations clés\n${details.join("\n")}` : null,
-    offer.entreprise?.description?.trim() ? `## L'entreprise\n${offer.entreprise.description.trim()}` : null,
+    offer.companyDescription ? `## L'entreprise\n${offer.companyDescription}` : null,
   ]
     .filter(Boolean)
     .join("\n\n");
 
-  return {
-    ...toSummary(offer),
-    // Page publique de l'offre sur France Travail (le lien d'origine peut être absent).
-    url:
-      offer.origineOffre?.urlOrigine ||
-      `https://candidat.francetravail.fr/offres/recherche/detail/${encodeURIComponent(offer.id)}`,
-    description,
-  };
+  return { ...offer, description };
 }

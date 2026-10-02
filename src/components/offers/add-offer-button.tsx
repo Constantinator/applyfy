@@ -8,11 +8,20 @@ import { IconPlus } from "@/components/icons";
 const initialState: AddOfferState = { status: "idle" };
 
 /** « Ajouter à mes candidatures » : crée la candidature puis ouvre sa fiche. */
-export function AddOfferButton({ offerId, title }: { offerId: string; title: string }) {
+export function AddOfferButton({
+  offerId,
+  title,
+  className = "items-start sm:items-end",
+}: {
+  offerId: string;
+  title: string;
+  /** Alignement du bouton et du message d'erreur. */
+  className?: string;
+}) {
   const [state, formAction, pending] = useActionState(addOfferToApplicationsAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col items-start gap-2 sm:items-end">
+    <form action={formAction} className={`flex flex-col gap-2 ${className}`}>
       <input type="hidden" name="offerId" value={offerId} />
       <button
         type="submit"
