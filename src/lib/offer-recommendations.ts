@@ -9,7 +9,7 @@ import type { ContractFilter } from "./offer-types";
 // fréquent, localisation la plus fréquente, stage ou alternance si c'est ce qui domine).
 
 export type RecommendationBasis = {
-  /** Mots-clés de la recherche : l'intitulé de poste retenu. */
+  /** Mots-clés de la recherche (3 au plus), tirés de l'intitulé de poste le plus fréquent. */
   keywords: string;
   /** Localisation retenue (reconnue par la recherche), ou "" si aucune. */
   place: string;
@@ -41,6 +41,72 @@ function cleanTitle(title: string) {
   return (parts[0] ?? "").split(" ").slice(0, 5).join(" ");
 }
 
+/**
+ * Métiers dont le nom n'a de sens qu'en entier (« community manager » ≠ « community ») :
+ * gardés tels quels avant le retrait des mots génériques.
+ */
+const COMPOUND_JOBS =
+  /\b(community|product|project|account|office|key account|traffic|brand|category) manager\b|\bproduct owner\b|\bchef de (projet|produit|rayon|chantier|cuisine|partie)\b|\bbusiness developer\b/i;
+
+/** Mots qui ne disent rien du métier : niveau, fonction d'encadrement, mots outils. */
+const GENERIC_WORDS = new Set([
+  "manager",
+  "responsable",
+  "chef",
+  "charge",
+  "chargee",
+  "junior",
+  "senior",
+  "confirme",
+  "confirmee",
+  "experimente",
+  "experimentee",
+  "lead",
+  "head",
+  "principal",
+  "h",
+  "f",
+  "de",
+  "du",
+  "des",
+  "d",
+  "la",
+  "le",
+  "les",
+  "l",
+  "en",
+  "et",
+  "a",
+  "au",
+  "aux",
+  "pour",
+  "sur",
+  "of",
+  "the",
+  "and",
+]);
+
+/** Nombre maximum de mots-clés de la recherche recommandée. */
+const MAX_KEYWORDS = 3;
+
+const withoutAccents = (word: string) => word.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+/**
+ * Mots-clés pertinents d'un intitulé, 3 au plus, en minuscules : « Marketing Manager » →
+ * « marketing », « Data Analyst » → « data analyst », « Chargé de marketing digital » →
+ * « marketing digital », « Community Manager » → « community manager ».
+ */
+function titleKeywords(title: string): string {
+  const cleaned = cleanTitle(title).toLowerCase();
+  const compound = cleaned.match(COMPOUND_JOBS)?.[0];
+  if (compound) return compound;
+
+  const words = cleaned.split(" ").map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}+#]+$/gu, ""));
+  const relevant = words.filter((word) => word.length > 0 && !GENERIC_WORDS.has(withoutAccents(word)));
+  // Intitulé fait uniquement de mots génériques (« Responsable ») : on le garde tel quel.
+  return (relevant.length > 0 ? relevant : words.filter(Boolean)).slice(0, MAX_KEYWORDS).join(" ");
+}
+
 /** Localisation exploitable : code de département ou nom de ville. */
 function cleanLocation(location: string) {
   const text = location.trim();
@@ -67,11 +133,17 @@ function byFrequency(values: string[]): string[] {
     .map((entry) => entry.value);
 }
 
-/** Base de la recherche recommandée ; null si l'utilisateur n'a aucune candidature exploitable. */
+/**
+ * Base de la recherche recommandée ; null si l'utilisateur n'a aucune candidature
+ * exploitable. Les brouillons sont ignorés : seules comptent les candidatures envoyées.
+ */
 export async function getRecommendationBasis(): Promise<RecommendationBasis | null> {
-  const { applications } = await getApplications(); // de la plus récente à la plus ancienne
+  const { applications: all } = await getApplications(); // de la plus récente à la plus ancienne
+  const applications = all.filter((app) => app.status !== "brouillon");
 
-  const titles = byFrequency(applications.map((app) => cleanTitle(app.position)).filter((t) => t.length >= 2));
+  // Fréquence des mots-clés (et non des intitulés) : « Marketing Manager » et « Responsable
+  // marketing » comptent tous deux pour « marketing ».
+  const titles = byFrequency(applications.map((app) => titleKeywords(app.position)).filter((t) => t.length >= 2));
   if (titles.length === 0) return null;
 
   // Première localisation fréquente reconnue (3 essais au plus) ; sinon, toute la France.

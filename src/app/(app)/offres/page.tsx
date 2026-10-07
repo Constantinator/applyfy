@@ -267,7 +267,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
             Ajoute des candidatures pour recevoir des recommandations personnalisées
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            Les offres recommandées s&apos;appuient sur les postes et les villes de tes candidatures.
+            Les offres recommandées s&apos;appuient sur les postes et les villes de tes candidatures
+            envoyées (les brouillons ne sont pas pris en compte).
           </p>
           <Link href="/candidatures/nouvelle" className="btn-primary mt-4 inline-flex px-4 py-2 text-sm">
             Ajouter une candidature
@@ -298,8 +299,23 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
 
               {result.offers.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-                  <p className="font-medium text-slate-900">Aucune offre ne correspond</p>
-                  <p className="mt-1 text-sm text-slate-500">Essaie d&apos;autres mots-clés ou retire un filtre.</p>
+                  {recommending ? (
+                    <>
+                      <p className="font-medium text-slate-900">
+                        Aucune recommandation trouvée — essaie une recherche manuelle
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Utilise le formulaire ci-dessus avec d&apos;autres mots-clés ou une autre ville.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-slate-900">Aucune offre ne correspond</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Essaie d&apos;autres mots-clés ou retire un filtre.
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <ul className="space-y-3">
