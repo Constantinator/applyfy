@@ -31,6 +31,8 @@ export type ApplicationDetail = Application & {
   offer_description: string | null;
   /** Résumé généré par l'assistant (migration 0004). */
   offer_summary?: string | null;
+  /** Description d'offre incomplète, l'originale n'ayant pas pu être lue (migration 0015). */
+  offer_description_partial?: boolean;
   /** Suggestions d'adaptation du CV (migration 0005). */
   /** JSON brut (ancien ou nouveau format) : à lire avec readCvSuggestions(). */
   cv_suggestions?: unknown;

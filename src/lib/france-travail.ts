@@ -138,18 +138,27 @@ const clean = (value: string | undefined) => value?.trim() || null;
 const labels = (items: { libelle?: string }[] | undefined) =>
   (items ?? []).map((item) => clean(item.libelle)).filter((label): label is string => Boolean(label));
 
+/**
+ * Description visiblement coupée : terminée par « ... » / « … », ou très courte pour une
+ * offre reprise d'un site partenaire (le texte complet est sur l'offre d'origine).
+ */
+function isTruncated(description: string, fromPartner: boolean) {
+  return /(\.\.\.|…)$/.test(description) || (fromPartner && description.length < 200);
+}
+
 function toListing(offer: RawOffer): OfferListing {
   const salary = [offer.salaire?.libelle, offer.salaire?.commentaire, offer.salaire?.complement1, offer.salaire?.complement2]
     .map(clean)
     .filter(Boolean)
     .join(" · ");
+  const description = offer.description?.trim() ?? "";
   return {
     ...toSummary(offer),
     url:
       offer.origineOffre?.urlOrigine ||
       `https://candidat.francetravail.fr/offres/recherche/detail/${encodeURIComponent(offer.id)}`,
-    description: offer.description?.trim() ?? "",
-    descriptionTruncated: false,
+    description,
+    descriptionTruncated: isTruncated(description, Boolean(offer.origineOffre?.urlOrigine)),
     salary: salary || null,
     workingHours: clean(offer.dureeTravailLibelle),
     experience: clean(offer.experienceLibelle),

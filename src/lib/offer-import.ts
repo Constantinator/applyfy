@@ -247,6 +247,33 @@ function meta(html: string, property: string) {
 // Point d'entrée
 // ---------------------------------------------------------------------------
 
+/** Durée maximale de la récupération d'une description complète (redirections comprises). */
+const DESCRIPTION_TIMEOUT_MS = 10_000;
+
+/**
+ * Description complète d'une offre lue sur sa page d'origine (données structurées
+ * JobPosting), ou null si la page est inaccessible, bloque la lecture ou n'en publie pas.
+ * Ne lève jamais d'erreur : sert à compléter un extrait (Adzuna, France Travail).
+ */
+export async function fetchOfferDescription(rawUrl: string): Promise<string | null> {
+  const read = async () => {
+    const { html } = await fetchHtml(rawUrl);
+    return findJobPosting(html)?.description.trim() || null;
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), DESCRIPTION_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([read(), timeout]);
+  } catch (error) {
+    if (!(error instanceof OfferImportError)) console.error("[offer-import] description", error);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Longueur de texte de page envoyée à Claude : largement suffisante pour l'en-tête d'une offre. */
 const AI_PAGE_TEXT_LIMIT = 40_000;
 

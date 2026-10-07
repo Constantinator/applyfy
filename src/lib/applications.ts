@@ -167,6 +167,8 @@ export type NewApplicationInput = {
   offer_url: string | null;
   offer_description: string | null;
   offer_summary: string | null;
+  /** Description incomplète (offre dont l'originale n'a pas pu être lue). */
+  offer_description_partial?: boolean;
 };
 
 /**
@@ -174,7 +176,7 @@ export type NewApplicationInput = {
  * avec son premier événement d'historique. Retourne son id.
  */
 export async function createApplication(input: NewApplicationInput): Promise<string> {
-  const { offer_summary, ...fields } = input;
+  const { offer_summary, offer_description_partial, ...fields } = input;
   const row = {
     ...fields,
     // Colonne ajoutée par la migration 0004 : envoyée seulement si un résumé existe.
@@ -183,6 +185,8 @@ export async function createApplication(input: NewApplicationInput): Promise<str
     applied_at: null,
     last_contact_at: null,
   };
+  // Colonne ajoutée par la migration 0015 : envoyée seulement si la description est partielle.
+  const partialFlag = offer_description_partial ? { offer_description_partial: true } : {};
 
   const events: { type: ApplicationEventType; content: string | null; created_at: string }[] = [
     { type: "creation", content: "Ajoutée dans Applyfy (brouillon)", created_at: new Date().toISOString() },
@@ -193,6 +197,7 @@ export async function createApplication(input: NewApplicationInput): Promise<str
     demoStore.applications.push({
       id,
       ...row,
+      ...partialFlag,
       contact_name: null,
       contact_email: null,
       notes: null,
@@ -207,12 +212,16 @@ export async function createApplication(input: NewApplicationInput): Promise<str
   const user = await requireUser();
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("applications")
-    .insert({ ...row, user_id: user.id })
-    .select("id")
-    .single();
-  if (error) throw new Error(`Création de la candidature impossible : ${error.message}`);
+  const insert = (values: Record<string, unknown>) =>
+    supabase.from("applications").insert(values).select("id").single();
+  let { data, error } = await insert({ ...row, ...partialFlag, user_id: user.id });
+  // Migration 0015 pas encore appliquée (colonne inconnue, code PGRST204) : la mention
+  // « description partielle » est perdue, mais la candidature est créée.
+  if (error?.code === "PGRST204" && offer_description_partial) {
+    console.error("[createApplication] colonne offer_description_partial absente (migration 0015)");
+    ({ data, error } = await insert({ ...row, user_id: user.id }));
+  }
+  if (error || !data) throw new Error(`Création de la candidature impossible : ${error?.message}`);
 
   const { error: eventsError } = await supabase
     .from("application_events")

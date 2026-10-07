@@ -40,6 +40,7 @@ export async function addOfferToApplicationsAction(
       offer_url: offer.url.length <= 2000 ? offer.url : null,
       offer_description: offer.description ? clip(offer.description, OFFER_DESCRIPTION_MAX_LENGTH) : null,
       offer_summary: null,
+      offer_description_partial: offer.descriptionPartial,
     });
   } catch (error) {
     unstable_rethrow(error); // redirection vers /login si la session a expiré

@@ -8,6 +8,7 @@ import {
   searchFranceTravail,
 } from "@/lib/france-travail";
 import { resolveDepartment, type Department } from "@/lib/geo";
+import { fetchOfferDescription } from "@/lib/offer-import";
 import {
   MAX_PAGES,
   MAX_RESULTS_PER_SOURCE,
@@ -170,10 +171,28 @@ export async function findOffer(id: string, search: OfferSearch | null): Promise
   return null;
 }
 
-/** Offre au format d'une candidature : description + informations clés (lib/format-offer). */
+/**
+ * Description complète d'une offre dont on n'a qu'un extrait, lue sur l'offre d'origine ;
+ * null si elle n'est pas plus longue que l'extrait (page bloquée, sans données…).
+ */
+async function fullDescription(offer: OfferListing): Promise<string | null> {
+  const full = await fetchOfferDescription(offer.url);
+  const excerpt = offer.description.replace(/(\.\.\.|…)$/, "").trim();
+  return full && full.length > excerpt.length + 50 ? full : null;
+}
+
+/**
+ * Offre au format d'une candidature : description + informations clés (lib/format-offer).
+ * Un extrait (Adzuna, France Travail incomplet) est remplacé si possible par la description
+ * de l'offre d'origine ; sinon il est gardé et `descriptionPartial` vaut true.
+ */
 export async function getOfferForApplication(id: string, search: OfferSearch | null) {
-  const offer = await findOffer(id, search);
-  if (!offer) return null;
+  const found = await findOffer(id, search);
+  if (!found) return null;
+
+  const full = found.descriptionTruncated ? await fullDescription(found) : null;
+  const offer = full ? { ...found, description: full } : found;
+  const descriptionPartial = found.descriptionTruncated && !full;
 
   const details = [
     offer.contract && `• Contrat : ${offer.contract}`,
@@ -190,5 +209,5 @@ export async function getOfferForApplication(id: string, search: OfferSearch | n
     .filter(Boolean)
     .join("\n\n");
 
-  return { ...offer, description };
+  return { ...offer, description, descriptionPartial };
 }

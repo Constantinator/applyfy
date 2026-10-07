@@ -202,6 +202,19 @@ export default async function ApplicationPage({
             ) : (
               <p className="text-sm text-slate-500">Aucune description enregistrée.</p>
             )}
+            {app.offer_description_partial && app.offer_url && (
+              <p className="mt-3 text-xs text-slate-500">
+                Description partielle —{" "}
+                <a
+                  href={app.offer_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  voir l&apos;offre complète ↗
+                </a>
+              </p>
+            )}
           </section>
 
           <CvAdapter
