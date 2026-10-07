@@ -295,7 +295,7 @@ export function CvAdapter({
               type="button"
               onClick={() => setPickerOpenedAt(adaptState)}
               disabled={!aiEnabled || busy || limitReached}
-              className="btn-primary px-4 py-2 text-sm"
+              className={`${suggestions ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`}
             >
               {limitReached ? LIMIT_REACHED_LABEL : suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
             </button>
@@ -338,7 +338,7 @@ export function CvAdapter({
               <button
                 type="button"
                 onClick={() => setPickerOpenedAt(null)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+                className="btn-secondary px-4 py-2 text-sm"
               >
                 Annuler
               </button>
@@ -368,29 +368,27 @@ export function CvAdapter({
               Génère un CV complet qui applique ces suggestions, avec les améliorations surlignées.
               Tu pourras le modifier puis l&apos;exporter en PDF.
             </p>
+            {/* Comme pour la lettre : ouvrir = action principale, regénérer = secondaire. */}
             <div className="mt-3 flex flex-wrap items-center gap-2">
+              {hasImprovedCv && !generating && (
+                <Link href={`/candidatures/${applicationId}/cv`} className="btn-primary px-4 py-2 text-sm">
+                  Ouvrir mon CV amélioré →
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={runGeneration}
                 disabled={busy || !aiEnabled || improveLimitReached}
-                className="btn-primary px-4 py-2 text-sm"
+                className={`${hasImprovedCv ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`}
               >
                 {generating
                   ? "Rédaction en cours…"
                   : improveLimitReached
                     ? LIMIT_REACHED_LABEL
                     : hasImprovedCv
-                    ? "Regénérer mon CV"
-                    : "Générer mon CV amélioré"}
+                      ? "Regénérer mon CV"
+                      : "Générer mon CV amélioré"}
               </button>
-              {hasImprovedCv && !generating && (
-                <Link
-                  href={`/candidatures/${applicationId}/cv`}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-blue-700 ring-1 ring-blue-300 hover:bg-white"
-                >
-                  Ouvrir mon CV amélioré →
-                </Link>
-              )}
             </div>
             {aiEnabled && improveLimitReached && !generating && (
               <div className="mt-3">

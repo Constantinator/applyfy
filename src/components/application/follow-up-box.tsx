@@ -85,14 +85,14 @@ export function FollowUpBox({
           <button
             type="button"
             onClick={copy}
-            className="btn-secondary px-3 py-2 text-sm"
+            className="btn-secondary px-4 py-2 text-sm"
           >
             {copied ? "Copié ✓" : "Copier le message"}
           </button>
           {mailto && (
             <a
               href={mailto}
-              className="btn-secondary px-3 py-2 text-sm"
+              className="btn-secondary px-4 py-2 text-sm"
             >
               Ouvrir dans ma messagerie
             </a>

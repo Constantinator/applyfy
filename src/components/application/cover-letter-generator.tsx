@@ -260,7 +260,7 @@ export function CoverLetterGenerator({
               <button
                 type="button"
                 onClick={() => setPickerOpen(false)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+                className="btn-secondary px-4 py-2 text-sm"
               >
                 Annuler
               </button>
