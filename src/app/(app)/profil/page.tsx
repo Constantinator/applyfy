@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { openBillingPortalAction } from "@/app/actions/premium";
 import { AccountNameForm } from "@/components/profile/account-name-form";
 import { DeleteAccount } from "@/components/profile/delete-account";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
@@ -15,12 +16,21 @@ import { PROFILE_CV_LIMIT } from "@/lib/cv-types";
 import { isEmailConfigured } from "@/lib/email/brevo";
 import { getReminderSettings, listProfileCvs } from "@/lib/profile";
 import { DEFAULT_REMINDER_SETTINGS } from "@/lib/reminders";
+import { getSubscription } from "@/lib/subscription";
 
 export const metadata: Metadata = { title: "Mon profil — Applyfy" };
 
-export default async function ProfilePage() {
+const longDate = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Europe/Paris",
+});
+
+export default async function ProfilePage({ searchParams }: PageProps<"/profil">) {
   await connection(); // toujours rendu à la requête : la liste des CV change
-  const [user, accountName, cvs, reminderSettings, usage] = await Promise.all([
+  const { abonnement } = await searchParams;
+  const [user, accountName, cvs, reminderSettings, usage, subscription] = await Promise.all([
     getCurrentUser(),
     getAccountName(),
     listProfileCvs(),
@@ -30,7 +40,21 @@ export default async function ProfilePage() {
       return DEFAULT_REMINDER_SETTINGS;
     }),
     readAiUsage(),
+    getSubscription(),
   ]);
+  const premium = subscription?.premium ?? false;
+  const periodEnd = subscription?.currentPeriodEnd
+    ? longDate.format(new Date(subscription.currentPeriodEnd))
+    : null;
+  let planDescription = `Limites mensuelles par fonctionnalité IA. Premium à ${PREMIUM_PRICE_LABEL} : accès illimité.`;
+  if (premium) {
+    planDescription =
+      subscription?.cancelAtPeriodEnd && periodEnd
+        ? `Résiliation programmée : ton Premium reste actif jusqu'au ${periodEnd}.`
+        : subscription?.status === "past_due"
+          ? "Le dernier paiement a échoué : mets à jour ton moyen de paiement pour garder le Premium."
+          : `Fonctionnalités IA illimitées${periodEnd ? `, renouvellement le ${periodEnd}` : ""}.`;
+  }
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -42,6 +66,40 @@ export default async function ProfilePage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon profil</h1>
         {user?.email && <p className="mt-1 text-sm text-slate-500">{user.email}</p>}
       </div>
+
+      <section aria-labelledby="abonnement-title" className="space-y-4 card p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="abonnement-title" className="font-semibold text-slate-900">
+              Mon abonnement
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{planDescription}</p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-sm font-semibold ring-1 ${
+              premium ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-slate-100 text-slate-700 ring-slate-200"
+            }`}
+          >
+            {premium ? "Premium" : "Gratuit"}
+          </span>
+        </div>
+        {abonnement === "indisponible" && (
+          <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+            La gestion de l&apos;abonnement n&apos;a pas pu s&apos;ouvrir. Réessaie dans un instant.
+          </p>
+        )}
+        {premium ? (
+          <form action={openBillingPortalAction}>
+            <button type="submit" className="btn-secondary px-4 py-2 text-sm">
+              Gérer mon abonnement
+            </button>
+          </form>
+        ) : (
+          <Link href="/premium" className="btn-primary inline-flex px-4 py-2 text-sm">
+            Passer au Premium
+          </Link>
+        )}
+      </section>
 
       <section aria-labelledby="identite-title" className="space-y-4 card p-5 sm:p-6">
         <div>
@@ -81,8 +139,14 @@ export default async function ProfilePage() {
             Mon utilisation
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Plan gratuit : limites mensuelles par fonctionnalité IA (regénérations comprises).
-            Premium à {PREMIUM_PRICE_LABEL} : accès illimité.
+            {premium ? (
+              "Premium : toutes les fonctionnalités IA sont illimitées."
+            ) : (
+              <>
+                Plan gratuit : limites mensuelles par fonctionnalité IA (regénérations comprises).
+                Premium à {PREMIUM_PRICE_LABEL} : accès illimité.
+              </>
+            )}
           </p>
         </div>
         <UsageOverview usage={usage} />

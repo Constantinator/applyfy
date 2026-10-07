@@ -1,23 +1,13 @@
-"use client";
-
-import { useState } from "react";
+import Link from "next/link";
 
 import { LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
 
-/** Bouton « Passer au Premium » : le paiement n'existe pas encore. */
+/** Bouton « Passer au Premium » : page de présentation et de paiement du Premium. */
 export function PremiumButton() {
-  const [clicked, setClicked] = useState(false);
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button type="button" onClick={() => setClicked(true)} className="btn-primary px-4 py-2 text-sm">
-        Passer au Premium
-      </button>
-      {clicked && (
-        <span role="status" className="text-sm font-medium text-slate-600">
-          Bientôt disponible
-        </span>
-      )}
-    </div>
+    <Link href="/premium" className="btn-primary inline-flex px-4 py-2 text-sm">
+      Passer au Premium
+    </Link>
   );
 }
 

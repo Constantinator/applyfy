@@ -3,6 +3,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireUser } from "./auth";
+import { cancelSubscriptionNow } from "./stripe";
+import { getSubscription } from "./subscription";
 import { createAdminClient, isAdminConfigured } from "./supabase/admin";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
@@ -29,9 +31,10 @@ async function listFiles(supabase: SupabaseClient, folder: string): Promise<stri
 /**
  * Supprime définitivement le compte de l'utilisateur connecté et toutes ses données :
  * 1. ses fichiers (CV du profil, documents), avec sa propre session (RLS) ;
- * 2. son compte Supabase Auth, ce qui supprime en cascade candidatures, historique,
- *    documents, CV du profil et profil (clés étrangères « on delete cascade »).
- * Les fichiers passent en premier : en cas d'échec, le compte reste intact et utilisable.
+ * 2. son abonnement Premium, résilié immédiatement chez Stripe (plus aucun prélèvement) ;
+ * 3. son compte Supabase Auth, ce qui supprime en cascade candidatures, historique,
+ *    documents, CV du profil, profil et abonnement (clés étrangères « on delete cascade »).
+ * Fichiers et abonnement passent en premier : en cas d'échec, le compte reste intact.
  */
 export async function deleteCurrentAccount() {
   if (!isSupabaseConfigured()) {
@@ -49,6 +52,11 @@ export async function deleteCurrentAccount() {
   for (let i = 0; i < files.length; i += 100) {
     const { error } = await supabase.storage.from(BUCKET).remove(files.slice(i, i + 100));
     if (error) throw new Error(`Suppression des fichiers impossible : ${error.message}`);
+  }
+
+  const subscription = await getSubscription();
+  if (subscription?.premium && subscription.stripeSubscriptionId) {
+    await cancelSubscriptionNow(subscription.stripeSubscriptionId);
   }
 
   const { error } = await createAdminClient().auth.admin.deleteUser(user.id);

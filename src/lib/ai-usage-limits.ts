@@ -1,6 +1,7 @@
 // Limites mensuelles d'utilisation de l'IA (plan gratuit), partagées entre les pages
 // (serveur) et les composants (client). Elles sont aussi appliquées par la base
-// (record_ai_usage, migration 0013) : garder les deux définitions alignées.
+// (record_ai_usage, migrations 0013 et 0014) : garder les deux définitions alignées.
+// Les utilisateurs Premium n'ont aucune limite.
 
 /** Types d'action IA, dans l'ordre d'affichage de « Mon utilisation ». */
 export const AI_USAGE_KINDS = [
@@ -32,10 +33,11 @@ export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string;
   affinage_lettre: { title: "Chat « Affiner avec l'IA » — lettre", unit: "messages", feminine: false },
 };
 
-/** Utilisation d'un type d'action pour le mois en cours. */
-export type AiUsageCount = { used: number; limit: number };
+/** Utilisation d'un type d'action pour le mois en cours ; `limit` null : illimité (Premium). */
+export type AiUsageCount = { used: number; limit: number | null };
 
 export type AiUsage = {
+  premium: boolean;
   counts: Record<AiUsageKind, AiUsageCount>;
   /** Date de remise à zéro (YYYY-MM-DD) : le 1er du mois prochain. */
   resetsOn: string;
@@ -49,13 +51,14 @@ export const LIMIT_REACHED_LABEL = "Limite mensuelle atteinte";
 export const LIMIT_REACHED_MESSAGE = `Tu as atteint ta limite mensuelle gratuite. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour un accès illimité.`;
 
 export function isLimitReached({ used, limit }: AiUsageCount) {
-  return used >= limit;
+  return limit !== null && used >= limit;
 }
 
-/** Ex. « 2/3 messages utilisés ». */
+/** Ex. « 2/3 messages utilisés », ou « 5 messages utilisés » en illimité. */
 export function usageLabel(kind: AiUsageKind, { used, limit }: AiUsageCount) {
   const { unit, feminine } = AI_USAGE_LABELS[kind];
-  return `${Math.min(used, limit)}/${limit} ${unit} ${feminine ? "utilisées" : "utilisés"}`;
+  const count = limit === null ? `${used}` : `${Math.min(used, limit)}/${limit}`;
+  return `${count} ${unit} ${feminine ? "utilisées" : "utilisés"}`;
 }
 
 const monthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });

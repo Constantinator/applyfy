@@ -9,6 +9,7 @@ import {
   type AiUsageKind,
 } from "./ai-usage-limits";
 import { demoStore } from "./demo-data";
+import { isPremium } from "./subscription";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 // Compteurs d'utilisation de l'IA (table "usage", migrations 0011 et 0013). Une ligne par
@@ -38,12 +39,12 @@ function zeroCounts(): Record<AiUsageKind, number> {
   return Object.fromEntries(AI_USAGE_KINDS.map((kind) => [kind, 0])) as Record<AiUsageKind, number>;
 }
 
-/** Compteurs + limites (le plan gratuit est pour l'instant le seul). */
-function toUsage(counts: Record<AiUsageKind, number>, resetsOn: string): AiUsage {
+/** Compteurs + limites du plan (aucune limite en Premium). */
+function toUsage(counts: Record<AiUsageKind, number>, resetsOn: string, premium: boolean): AiUsage {
   const entries = AI_USAGE_KINDS.map(
-    (kind) => [kind, { used: counts[kind] ?? 0, limit: AI_MONTHLY_LIMITS[kind] }] as const,
+    (kind) => [kind, { used: counts[kind] ?? 0, limit: premium ? null : AI_MONTHLY_LIMITS[kind] }] as const,
   );
-  return { counts: Object.fromEntries(entries) as Record<AiUsageKind, AiUsageCount>, resetsOn };
+  return { premium, counts: Object.fromEntries(entries) as Record<AiUsageKind, AiUsageCount>, resetsOn };
 }
 
 /** Compteurs du mode démo (en mémoire), remis à zéro quand le mois change. */
@@ -56,24 +57,25 @@ function demoCounts(period: string) {
 export async function getAiUsage(): Promise<AiUsage> {
   const { period, resetsOn } = currentPeriod();
   const counts = zeroCounts();
+  let premium = false;
 
   if (!isSupabaseConfigured()) {
     Object.assign(counts, demoCounts(period));
   } else {
     const user = await requireUser();
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("usage")
-      .select("kind")
-      .eq("user_id", user.id)
-      .eq("period", period);
+    const [{ data, error }, userIsPremium] = await Promise.all([
+      supabase.from("usage").select("kind").eq("user_id", user.id).eq("period", period),
+      isPremium(),
+    ]);
+    premium = userIsPremium;
     if (error) throw new Error(`Lecture de l'utilisation impossible : ${error.message}`);
     for (const row of data as { kind: AiUsageKind }[]) {
       if (row.kind in counts) counts[row.kind] += 1;
     }
   }
 
-  return toUsage(counts, resetsOn);
+  return toUsage(counts, resetsOn, premium);
 }
 
 /**
@@ -85,7 +87,7 @@ export async function readAiUsage(): Promise<AiUsage> {
     return await getAiUsage();
   } catch (error) {
     console.error("[aiUsage] lecture", error);
-    return toUsage(zeroCounts(), currentPeriod().resetsOn);
+    return toUsage(zeroCounts(), currentPeriod().resetsOn, await isPremium());
   }
 }
 

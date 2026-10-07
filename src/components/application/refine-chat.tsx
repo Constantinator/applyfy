@@ -150,7 +150,9 @@ export function RefineChat({
         </div>
         {aiEnabled && (
           <p className="shrink-0 text-xs text-slate-500">
-            {Math.min(used, usage.limit)}/{usage.limit} messages utilisés ce mois-ci
+            {usage.limit === null
+              ? `${used} message${used > 1 ? "s" : ""} ce mois-ci · illimité`
+              : `${Math.min(used, usage.limit)}/${usage.limit} messages utilisés ce mois-ci`}
           </p>
         )}
       </div>
@@ -269,7 +271,9 @@ export function RefineChat({
         </button>
       </form>
       <p className="text-xs text-slate-500">
-        {texts.privacy} {usage.limit} messages par mois avec le plan gratuit. {texts.save}
+        {texts.privacy}{" "}
+        {usage.limit !== null && <>{usage.limit} messages par mois avec le plan gratuit. </>}
+        {texts.save}
       </p>
     </section>
   );

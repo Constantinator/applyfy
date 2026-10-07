@@ -9,15 +9,31 @@ import {
   type AiUsage,
 } from "@/lib/ai-usage-limits";
 
-/** Section « Mon utilisation » : compteurs mensuels des actions IA du plan gratuit. */
+/** Section « Mon utilisation » : compteurs mensuels des actions IA (limites du plan gratuit). */
 export function UsageOverview({ usage }: { usage: AiUsage }) {
+  if (usage.premium) {
+    return (
+      <ul className="divide-y divide-slate-100 text-sm">
+        {AI_USAGE_KINDS.map((kind) => (
+          <li key={kind} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
+            <span className="font-medium text-slate-700">{AI_USAGE_LABELS[kind].title}</span>
+            <span className="text-slate-500">
+              {usageLabel(kind, usage.counts[kind])} · <span className="text-emerald-700">illimité</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   const anyReached = AI_USAGE_KINDS.some((kind) => isLimitReached(usage.counts[kind]));
 
   return (
     <div className="space-y-4">
       <ul className="space-y-4">
         {AI_USAGE_KINDS.map((kind) => {
-          const { used, limit } = usage.counts[kind];
+          const { used } = usage.counts[kind];
+          const limit = usage.counts[kind].limit ?? 0;
           const { title } = AI_USAGE_LABELS[kind];
           const reached = isLimitReached({ used, limit });
           const shown = Math.min(used, limit);
