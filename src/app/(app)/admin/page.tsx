@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { DailyChart } from "@/components/admin/daily-chart";
+import { MonthPicker } from "@/components/admin/month-picker";
 import {
   AI_ACTION_COSTS,
   PREMIUM_MONTHLY_PRICE,
@@ -28,6 +29,7 @@ const dateTime = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Europe/Paris",
 });
 const monthName = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
+const dayName = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "good" | "bad" }) {
   return (
@@ -76,11 +78,13 @@ const num = "text-right tabular-nums";
 const signed = (value: number) =>
   Math.abs(value) < 0.005 ? euros.format(0) : `${value > 0 ? "+" : ""}${euros.format(value)}`;
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   await connection();
   await requireAdmin();
-  const m = await getAdminMetrics();
-  const month = monthName.format(new Date(`${m.period}T00:00:00Z`));
+  const { mois } = await searchParams;
+  const m = await getAdminMetrics(typeof mois === "string" ? mois : undefined);
+  const month = monthName.format(new Date(`${m.month}-01T00:00:00Z`));
+  const asOf = dayName.format(new Date(`${m.asOf}T00:00:00Z`));
   // « d'octobre », « de mars ».
   const ofMonth = `${/^[aeiou]/i.test(month) ? "d'" : "de "}${month}`;
   const p = m.profitability;
@@ -90,11 +94,16 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Admin</h1>
-        <p className="mt-1.5 text-sm text-slate-500">
-          Données {ofMonth} · mises à jour le {dateTime.format(new Date(m.generatedAt))}
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Admin</h1>
+          <p className="mt-1.5 text-sm text-slate-500">
+            {m.isCurrentMonth
+              ? `Mois en cours · mis à jour le ${dateTime.format(new Date(m.generatedAt))}`
+              : `Mois terminé · inscrits et abonnés au ${asOf}`}
+          </p>
+        </div>
+        <MonthPicker month={m.month} months={m.months} />
       </div>
 
       {/* 1. Utilisateurs */}
@@ -103,12 +112,12 @@ export default async function AdminPage() {
           <Stat
             label="Inscrits"
             value={integer.format(m.users.total)}
-            hint={`+${integer.format(m.users.newLast30Days)} sur 30 jours`}
+            hint={`+${integer.format(m.users.newInMonth)} en ${month}`}
           />
           <Stat
-            label="Actifs ce mois-ci"
-            value={integer.format(m.users.activeThisMonth)}
-            hint="Au moins une action IA"
+            label={`Actifs en ${month}`}
+            value={integer.format(m.users.activeInMonth)}
+            hint="Au moins une action IA dans le mois"
           />
           <Stat label="Gratuit" value={integer.format(m.users.free)} />
           <Stat
@@ -118,9 +127,11 @@ export default async function AdminPage() {
           />
         </div>
         <div className="card space-y-3 p-5">
-          <h3 className="font-medium text-slate-900">Nouveaux inscrits par jour (30 jours)</h3>
+          <h3 className="font-medium text-slate-900">
+            Nouveaux inscrits par jour <span className="font-normal text-slate-500">· 30 derniers jours</span>
+          </h3>
           <DailyChart
-            points={m.users.signupsPerDay}
+            points={m.charts.signupsPerDay}
             type="bar"
             unit="inscrits"
             label="Nouveaux inscrits par jour sur les 30 derniers jours"
@@ -143,14 +154,16 @@ export default async function AdminPage() {
           />
           <Stat
             label="Abonnés gagnés (nets)"
-            value={`${m.revenue.netNewSubscribers30Days > 0 ? "+" : ""}${m.revenue.netNewSubscribers30Days}`}
-            hint="Sur 30 jours"
+            value={`${m.revenue.netNewSubscribersInMonth > 0 ? "+" : ""}${m.revenue.netNewSubscribersInMonth}`}
+            hint={`En ${month}`}
           />
         </div>
         <div className="card space-y-3 p-5">
-          <h3 className="font-medium text-slate-900">Abonnés Premium (30 jours)</h3>
+          <h3 className="font-medium text-slate-900">
+            Abonnés Premium <span className="font-normal text-slate-500">· 30 derniers jours</span>
+          </h3>
           <DailyChart
-            points={m.revenue.subscribersPerDay}
+            points={m.charts.subscribersPerDay}
             type="line"
             unit="abonnés"
             label="Nombre d'abonnés Premium par jour sur les 30 derniers jours"
@@ -327,10 +340,11 @@ export default async function AdminPage() {
             <caption className="px-3 pt-3 text-left">
               <span className="block text-sm font-medium text-slate-900">Projection sur 12 mois</span>
               <span className="block text-xs text-slate-500">
-                Même croissance que sur les 30 derniers jours : +{integer.format(m.users.newLast30Days)} inscrits et{" "}
-                {m.revenue.netNewSubscribers30Days >= 0 ? "+" : ""}
-                {m.revenue.netNewSubscribers30Days} abonnés par mois, coût IA moyen par utilisateur et taux
-                (Stripe, URSSAF) inchangés.
+                À partir {ofMonth}, même croissance que{" "}
+                {p.growth.basis === "30 jours" ? "sur les 30 derniers jours" : `en ${month}`} : +
+                {integer.format(p.growth.users)} inscrits et {p.growth.subscribers >= 0 ? "+" : ""}
+                {p.growth.subscribers} abonnés par mois, coût IA moyen par utilisateur et taux (Stripe, URSSAF)
+                inchangés.
               </span>
             </caption>
             <thead className="border-b border-slate-200">
@@ -380,7 +394,7 @@ export default async function AdminPage() {
       </Section>
 
       {/* 5. Derniers inscrits */}
-      <Section id="admin-inscrits" title="Derniers inscrits">
+      <Section id="admin-inscrits" title={m.isCurrentMonth ? "Derniers inscrits" : `Derniers inscrits au ${asOf}`}>
         <div className="card overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-slate-200">
@@ -388,7 +402,7 @@ export default async function AdminPage() {
                 <th className={th}>Email</th>
                 <th className={th}>Inscription</th>
                 <th className={th}>Plan</th>
-                <th className={`${th} ${num}`}>Actions IA ce mois</th>
+                <th className={`${th} ${num}`}>Actions IA en {month}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -399,7 +413,7 @@ export default async function AdminPage() {
                   <td className={td}>
                     <PlanBadge premium={u.premium} />
                   </td>
-                  <td className={`${td} ${num}`}>{integer.format(u.actionsThisMonth)}</td>
+                  <td className={`${td} ${num}`}>{integer.format(u.actionsInMonth)}</td>
                 </tr>
               ))}
             </tbody>

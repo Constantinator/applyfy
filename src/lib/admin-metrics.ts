@@ -134,26 +134,70 @@ function profit(subscribers: number, aiCost: number): ProfitBreakdown {
   return { revenue, stripeFees, aiCost, urssaf, net: revenue - stripeFees - aiCost - urssaf };
 }
 
+// ---------------------------------------------------------------------------
+// Mois sélectionné
+// ---------------------------------------------------------------------------
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** Le mois décalé de `delta` mois (« YYYY-MM »). */
+function shiftMonth(month: string, delta: number) {
+  const [y, m] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}`;
+}
+
+/** Dernier jour du mois (« YYYY-MM-DD »). */
+function lastDayOf(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  return `${month}-${pad(new Date(Date.UTC(y, m, 0)).getUTCDate())}`;
+}
+
+/** Mois consultables (« YYYY-MM »), du plus récent au plus ancien : depuis le 1er inscrit. */
+function availableMonths(users: AuthUser[], currentMonth: string): string[] {
+  const first = users.reduce((min, u) => {
+    const month = parisDay(u.createdAt).slice(0, 7);
+    return month < min ? month : min;
+  }, currentMonth);
+  const months: string[] = [];
+  for (let month = currentMonth; month >= first; month = shiftMonth(month, -1)) months.push(month);
+  return months;
+}
+
+// ---------------------------------------------------------------------------
+// Métriques
+// ---------------------------------------------------------------------------
+
 export type AdminMetrics = {
   generatedAt: string;
-  /** 1er du mois en cours (YYYY-MM-DD). */
-  period: string;
+  /** Mois sélectionné (« YYYY-MM ») et mois consultables, du plus récent au plus ancien. */
+  month: string;
+  months: string[];
+  isCurrentMonth: boolean;
+  /**
+   * Jour de l'état affiché (inscrits, abonnés) : aujourd'hui pour le mois en cours, sinon
+   * le dernier jour du mois sélectionné.
+   */
+  asOf: string;
+  /** Graphiques des 30 derniers jours : toujours calculés à partir d'aujourd'hui. */
+  charts: {
+    signupsPerDay: DailyPoint[];
+    subscribersPerDay: DailyPoint[];
+  };
   users: {
     total: number;
-    newLast30Days: number;
-    signupsPerDay: DailyPoint[];
-    /** Au moins une action IA ce mois-ci. */
-    activeThisMonth: number;
+    newInMonth: number;
+    /** Au moins une action IA dans le mois. */
+    activeInMonth: number;
     free: number;
     premium: number;
   };
   revenue: {
     mrr: number;
-    subscribersPerDay: DailyPoint[];
     /** Part des inscrits abonnés au Premium (0–1). */
     conversionRate: number;
-    /** Abonnés gagnés (nets) sur 30 jours. */
-    netNewSubscribers30Days: number;
+    /** Abonnés gagnés (nets) dans le mois. */
+    netNewSubscribersInMonth: number;
   };
   costs: {
     byKind: { kind: AiUsageKind; count: number; unitCost: number; cost: number }[];
@@ -163,21 +207,21 @@ export type AdminMetrics = {
     topUsers: { email: string; premium: boolean; actions: number; cost: number }[];
   };
   profitability: ProfitBreakdown & {
+    /** Croissance mensuelle retenue pour la projection, et sa période de référence. */
+    growth: { users: number; subscribers: number; basis: "30 jours" | "mois" };
     projection: (ProfitBreakdown & { month: number; subscribers: number; users: number })[];
   };
-  latestSignups: { email: string; createdAt: string; premium: boolean; actionsThisMonth: number }[];
+  latestSignups: { email: string; createdAt: string; premium: boolean; actionsInMonth: number }[];
 };
 
-export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
+/** `requestedMonth` (« YYYY-MM ») : mois à afficher ; par défaut (ou si invalide), le mois en cours. */
+export async function getAdminMetrics(requestedMonth?: string, now = new Date()): Promise<AdminMetrics> {
   const supabase = createAdminClient();
   const today = parisDay(now);
-  const period = `${today.slice(0, 7)}-01`;
+  const currentMonth = today.slice(0, 7);
 
-  const [users, usage, subscriptions] = await Promise.all([
+  const [users, subscriptions] = await Promise.all([
     listAllUsers(supabase),
-    selectAll<UsageRow>((from, to) =>
-      supabase.from("usage").select("user_id, kind").eq("period", period).order("id").range(from, to),
-    ),
     selectAll<SubscriptionRow>((from, to) =>
       supabase
         .from("subscriptions")
@@ -187,8 +231,32 @@ export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
     ),
   ]);
 
-  // --- Utilisateurs --------------------------------------------------------
-  const premiumIds = new Set(subscriptions.filter((s) => isPremiumStatus(s.status)).map((s) => s.user_id));
+  const months = availableMonths(users, currentMonth);
+  const month = requestedMonth && months.includes(requestedMonth) ? requestedMonth : currentMonth;
+  const isCurrentMonth = month === currentMonth;
+  const monthStart = `${month}-01`;
+  const asOf = isCurrentMonth ? today : lastDayOf(month);
+  const dayBeforeMonth = lastDayOf(shiftMonth(month, -1));
+
+  const usage = await selectAll<UsageRow>((from, to) =>
+    supabase.from("usage").select("user_id, kind").eq("period", monthStart).order("id").range(from, to),
+  );
+
+  // --- Abonnés à une date ----------------------------------------------------
+  // Un abonnement compte du jour de sa création jusqu'à sa fin. Pour un abonnement
+  // terminé, la date de fin est sa dernière mise à jour (événement de résiliation).
+  const subscribersOn = (day: string) =>
+    new Set(
+      subscriptions
+        .filter((s) => {
+          if (parisDay(s.created_at) > day) return false;
+          if (isPremiumStatus(s.status)) return true;
+          return ["canceled", "unpaid", "incomplete_expired"].includes(s.status) && parisDay(s.updated_at) > day;
+        })
+        .map((s) => s.user_id),
+    );
+
+  // --- Graphiques : 30 derniers jours, quel que soit le mois sélectionné ----
   const days = lastDays(30, now);
   const signupsByDay = new Map(days.map((d) => [d, 0]));
   for (const user of users) {
@@ -196,7 +264,15 @@ export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
     if (signupsByDay.has(day)) signupsByDay.set(day, signupsByDay.get(day)! + 1);
   }
   const signupsPerDay = days.map((day) => ({ day, value: signupsByDay.get(day) ?? 0 }));
-  const newLast30Days = signupsPerDay.reduce((sum, p) => sum + p.value, 0);
+  const subscribersPerDay = days.map((day) => ({ day, value: subscribersOn(day).size }));
+
+  // --- Utilisateurs à la date de l'état affiché -------------------------------
+  const usersAsOf = users.filter((u) => parisDay(u.createdAt) <= asOf);
+  const premiumIds = subscribersOn(asOf);
+  const premiumCount = usersAsOf.filter((u) => premiumIds.has(u.id)).length;
+  const freeCount = usersAsOf.length - premiumCount;
+  const newInMonth = usersAsOf.filter((u) => parisDay(u.createdAt) >= monthStart).length;
+  const netNewSubscribersInMonth = premiumIds.size - subscribersOn(dayBeforeMonth).size;
 
   // --- Coûts IA du mois ------------------------------------------------------
   const countByKind = Object.fromEntries(AI_USAGE_KINDS.map((k) => [k, 0])) as Record<AiUsageKind, number>;
@@ -217,8 +293,6 @@ export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
   }));
   const totalCost = byKind.reduce((sum, k) => sum + k.cost, 0);
 
-  const premiumCount = users.filter((u) => premiumIds.has(u.id)).length;
-  const freeCount = users.length - premiumCount;
   let freeCost = 0;
   let premiumCost = 0;
   for (const [userId, { cost }] of perUser) {
@@ -239,62 +313,58 @@ export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
       cost,
     }));
 
-  // --- Abonnés dans le temps ----------------------------------------------
-  // Un abonnement compte du jour de sa création jusqu'à sa fin. Pour un abonnement
-  // terminé, la date de fin est sa dernière mise à jour (événement de résiliation).
-  const subscriberCountOn = (day: string) =>
-    subscriptions.filter((s) => {
-      if (parisDay(s.created_at) > day) return false;
-      if (isPremiumStatus(s.status)) return true;
-      return ["canceled", "unpaid", "incomplete_expired"].includes(s.status) && parisDay(s.updated_at) > day;
-    }).length;
-  const subscribersPerDay = days.map((day) => ({ day, value: subscriberCountOn(day) }));
-  const netNewSubscribers30Days = premiumIds.size - subscriberCountOn(parisDay(new Date(now.getTime() - 30 * 86_400_000)));
-
-  const mrr = premiumCount * PREMIUM_MONTHLY_PRICE;
-
   // --- Projection sur 12 mois ----------------------------------------------
   // Hypothèse « même croissance » : chaque mois, autant de nouveaux inscrits et d'abonnés
-  // nets qu'au cours des 30 derniers jours ; coût IA moyen par utilisateur inchangé ; mêmes
-  // taux de frais Stripe et d'URSSAF.
+  // nets que sur la période de référence (30 derniers jours pour le mois en cours, encore
+  // incomplet ; le mois lui-même sinon) ; coût IA moyen par utilisateur et taux inchangés.
+  const growth = isCurrentMonth
+    ? {
+        users: signupsPerDay.reduce((sum, p) => sum + p.value, 0),
+        subscribers: premiumIds.size - subscribersOn(parisDay(new Date(now.getTime() - 30 * 86_400_000))).size,
+        basis: "30 jours" as const,
+      }
+    : { users: newInMonth, subscribers: netNewSubscribersInMonth, basis: "mois" as const };
   const projection = Array.from({ length: 12 }, (_, i) => {
-    const month = i + 1;
-    const subscribers = Math.max(0, premiumCount + netNewSubscribers30Days * month);
-    const totalUsers = Math.max(subscribers, users.length + newLast30Days * month);
+    const step = i + 1;
+    const subscribers = Math.max(0, premiumCount + growth.subscribers * step);
+    const totalUsers = Math.max(subscribers, usersAsOf.length + growth.users * step);
     const aiCost = (totalUsers - subscribers) * avgPerFreeUser + subscribers * avgPerPremiumUser;
-    return { month, subscribers, users: totalUsers, ...profit(subscribers, aiCost) };
+    return { month: step, subscribers, users: totalUsers, ...profit(subscribers, aiCost) };
   });
 
-  // --- Derniers inscrits ---------------------------------------------------
-  const latestSignups = [...users]
+  // --- Derniers inscrits (à la date de l'état affiché) -----------------------
+  const latestSignups = [...usersAsOf]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 20)
     .map((u) => ({
       email: u.email ?? "(sans email)",
       createdAt: u.createdAt,
       premium: premiumIds.has(u.id),
-      actionsThisMonth: perUser.get(u.id)?.actions ?? 0,
+      actionsInMonth: perUser.get(u.id)?.actions ?? 0,
     }));
 
   return {
     generatedAt: now.toISOString(),
-    period,
+    month,
+    months,
+    isCurrentMonth,
+    asOf,
+    charts: { signupsPerDay, subscribersPerDay },
     users: {
-      total: users.length,
-      newLast30Days,
-      signupsPerDay,
-      activeThisMonth: perUser.size,
+      total: usersAsOf.length,
+      newInMonth,
+      activeInMonth: perUser.size,
       free: freeCount,
       premium: premiumCount,
     },
     revenue: {
-      mrr,
-      subscribersPerDay,
-      conversionRate: users.length ? premiumCount / users.length : 0,
-      netNewSubscribers30Days,
+      mrr: premiumCount * PREMIUM_MONTHLY_PRICE,
+      conversionRate: usersAsOf.length ? premiumCount / usersAsOf.length : 0,
+      netNewSubscribersInMonth,
     },
     costs: { byKind, total: totalCost, avgPerFreeUser, avgPerPremiumUser, topUsers },
-    profitability: { ...profit(premiumCount, totalCost), projection },
+    profitability: { ...profit(premiumCount, totalCost), growth, projection },
     latestSignups,
   };
 }
+
