@@ -16,6 +16,7 @@ export default function LegalNoticePage() {
           Le site Applyfy est édité à titre personnel par <strong>Constantin Varin</strong>, étudiant.
         </p>
         <ul>
+          <li>SIRET : en cours d&apos;enregistrement</li>
           <li>Directeur de la publication : Constantin Varin</li>
           <li>
             Contact : <ContactLink />

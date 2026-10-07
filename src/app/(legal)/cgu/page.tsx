@@ -33,16 +33,52 @@ export default function TermsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="3. Gratuité pendant la phase bêta">
+      <LegalSection title="3. Plan gratuit">
         <p>
-          Applyfy est actuellement en <strong>phase bêta</strong> et <strong>gratuit</strong>. Des
-          fonctionnalités peuvent évoluer, être ajoutées ou retirées. Si une offre payante devait être
-          proposée à l&apos;avenir, tu en serais informé·e à l&apos;avance et rien ne te serait facturé
-          sans ton accord explicite.
+          L&apos;inscription et l&apos;utilisation d&apos;Applyfy sont <strong>gratuites</strong>. Les
+          fonctionnalités d&apos;intelligence artificielle sont limitées à un nombre d&apos;utilisations
+          par mois, indiqué dans <strong>Mon profil</strong> et remis à zéro le 1er de chaque mois. Des
+          fonctionnalités peuvent évoluer, être ajoutées ou retirées.
         </p>
       </LegalSection>
 
-      <LegalSection title="4. Utilisation acceptable">
+      <LegalSection title="4. Abonnement Premium">
+        <p>
+          L&apos;abonnement Premium donne un accès illimité aux fonctionnalités d&apos;intelligence
+          artificielle d&apos;Applyfy.
+        </p>
+        <ul>
+          <li>
+            <strong>Prix :</strong> 8 € par mois TTC. TVA non applicable, article 293 B du CGI.
+          </li>
+          <li>
+            <strong>Paiement :</strong> par carte bancaire, via le prestataire de paiement Stripe.
+            Applyfy n&apos;a jamais accès à tes numéros de carte.
+          </li>
+          <li>
+            <strong>Renouvellement automatique :</strong> l&apos;abonnement est reconduit chaque mois, à
+            la date anniversaire de ta souscription, et le montant est prélevé automatiquement sur le
+            moyen de paiement enregistré.
+          </li>
+          <li>
+            <strong>Résiliation :</strong> tu peux résilier à tout moment depuis{" "}
+            <strong>Mon profil → Gérer mon abonnement</strong>. Aucun nouveau prélèvement n&apos;a lieu
+            après la résiliation.
+          </li>
+          <li>
+            <strong>Fin de l&apos;accès :</strong> après une résiliation, tu conserves l&apos;accès
+            Premium jusqu&apos;à la fin de la période déjà payée, puis ton compte repasse au plan
+            gratuit.
+          </li>
+          <li>
+            <strong>Remboursement :</strong> la période en cours n&apos;est pas remboursée, que tu
+            résilies en cours de mois ou que tu supprimes ton compte (la suppression du compte résilie
+            immédiatement l&apos;abonnement).
+          </li>
+        </ul>
+      </LegalSection>
+
+      <LegalSection title="5. Utilisation acceptable">
         <p>Tu t&apos;engages à utiliser Applyfy de manière loyale. Il est notamment interdit :</p>
         <ul>
           <li>d&apos;utiliser le service à des fins illégales, frauduleuses ou contraires à l&apos;ordre public ;</li>
@@ -62,7 +98,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="5. Contenus générés par l'intelligence artificielle">
+      <LegalSection title="6. Contenus générés par l'intelligence artificielle">
         <p>
           Les résumés, suggestions, CV adaptés et lettres de motivation sont générés automatiquement
           par une intelligence artificielle, à partir des informations que tu fournis. Ils peuvent
@@ -83,7 +119,7 @@ export default function TermsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="6. Tes contenus">
+      <LegalSection title="7. Tes contenus">
         <p>
           Tu restes propriétaire des contenus que tu ajoutes (CV, candidatures, notes) et des documents
           générés pour toi. Tu accordes à Applyfy le seul droit de les traiter pour te fournir le
@@ -92,7 +128,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="7. Disponibilité et limitation de responsabilité">
+      <LegalSection title="8. Disponibilité et limitation de responsabilité">
         <p>
           Le service est fourni « en l&apos;état ». L&apos;éditeur s&apos;efforce d&apos;en assurer
           l&apos;accès et le bon fonctionnement, sans garantie de disponibilité continue : des
@@ -106,7 +142,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Modification des CGU">
+      <LegalSection title="9. Modification des CGU">
         <p>
           Ces conditions peuvent être modifiées pour suivre l&apos;évolution du service. La date de
           dernière mise à jour figure en haut de cette page ; en cas de changement important, tu en
@@ -114,7 +150,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Droit applicable et contact">
+      <LegalSection title="10. Droit applicable et contact">
         <p>
           Les présentes CGU sont soumises au droit français. En cas de litige, une solution amiable sera
           recherchée avant toute action ; à défaut, les tribunaux français seront compétents.

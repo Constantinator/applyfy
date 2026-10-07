@@ -1,6 +1,6 @@
 // Mise en forme commune des pages légales.
 
-export const LEGAL_UPDATED_ON = "1er octobre 2026";
+export const LEGAL_UPDATED_ON = "7 octobre 2026";
 export const CONTACT_EMAIL = "constantinvarin@gmail.com";
 
 export function LegalDocument({ title, intro, children }: { title: string; intro?: string; children: React.ReactNode }) {

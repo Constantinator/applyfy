@@ -21,6 +21,11 @@ const PROCESSORS = [
     url: "https://www.anthropic.com/legal/privacy",
   },
   { name: "Brevo", role: "Envoi des emails (rappels de relance)", url: "https://www.brevo.com/fr/legal/privacypolicy/" },
+  {
+    name: "Stripe",
+    role: "Traitement des paiements de l'abonnement Premium (carte bancaire, facturation, gestion de l'abonnement)",
+    url: "https://stripe.com/fr/privacy",
+  },
 ];
 
 export default function PrivacyPolicyPage() {
@@ -52,6 +57,11 @@ export default function PrivacyPolicyPage() {
           <li>
             <strong>Préférences :</strong> réglages des rappels de relance.
           </li>
+          <li>
+            <strong>Abonnement Premium :</strong> statut de ton abonnement, dates de la période en cours
+            et identifiants client et abonnement Stripe. Tes données de carte bancaire sont saisies et
+            traitées directement par Stripe : Applyfy n&apos;y a jamais accès et ne les stocke pas.
+          </li>
         </ul>
         <p>
           Aucune donnée n&apos;est collectée à des fins publicitaires et aucune n&apos;est vendue ni
@@ -64,8 +74,9 @@ export default function PrivacyPolicyPage() {
           <li>Suivi de tes candidatures et rappels de relance par email ;</li>
           <li>
             Génération de documents par intelligence artificielle (résumé d&apos;offre, analyse et
-            adaptation de CV, lettre de motivation), uniquement à ta demande.
+            adaptation de CV, lettre de motivation), uniquement à ta demande ;
           </li>
+          <li>Gestion de l&apos;abonnement Premium et de son paiement, si tu y souscris.</li>
         </ul>
         <p>
           Ces traitements sont nécessaires à la fourniture du service que tu utilises (exécution des
