@@ -1,0 +1,277 @@
+import "server-only";
+
+import { redirect } from "next/navigation";
+
+import { AI_USAGE_KINDS, type AiUsageKind } from "./ai-usage-limits";
+import { requireUser } from "./auth";
+import { isPremiumStatus } from "./subscription";
+import { createAdminClient, isAdminConfigured } from "./supabase/admin";
+
+// Tableau de bord admin (/admin) : métriques d'utilisateurs, de revenus et de coûts IA.
+// Lecture de toutes les données avec le client service_role, après vérification que
+// l'utilisateur connecté est l'administrateur.
+
+export const ADMIN_EMAIL = "constantinvarin@gmail.com";
+
+/** Prix mensuel du Premium, en euros (MRR = abonnés × prix). */
+export const PREMIUM_MONTHLY_PRICE = 8;
+
+/** Coût réel estimé d'une action IA (appel à l'API Claude), en euros. */
+export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
+  resume_offre: 0.02,
+  adaptation_cv: 0.05,
+  cv_ameliore: 0.08,
+  lettre: 0.05,
+  affinage_cv: 0.05,
+  affinage_lettre: 0.05,
+};
+
+/**
+ * Réservé à l'administrateur : email du compte connecté ET adresse confirmée (relue dans
+ * Supabase Auth). Tout autre utilisateur est renvoyé vers le dashboard.
+ */
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.email?.toLowerCase() !== ADMIN_EMAIL || !isAdminConfigured()) redirect("/dashboard");
+
+  const { data, error } = await createAdminClient().auth.admin.getUserById(user.id);
+  if (error || data.user.email?.toLowerCase() !== ADMIN_EMAIL || !data.user.email_confirmed_at) {
+    redirect("/dashboard");
+  }
+  return user;
+}
+
+/** L'utilisateur connecté est-il l'administrateur ? (affichage du lien, sans vérification forte) */
+export function isAdminEmail(email: string | null | undefined) {
+  return email?.toLowerCase() === ADMIN_EMAIL;
+}
+
+// ---------------------------------------------------------------------------
+// Lecture des données
+// ---------------------------------------------------------------------------
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+type AuthUser = { id: string; email: string | null; createdAt: string };
+type UsageRow = { user_id: string; kind: AiUsageKind };
+type SubscriptionRow = { user_id: string; status: string; created_at: string; updated_at: string };
+
+const PAGE = 1000;
+
+async function listAllUsers(supabase: AdminClient): Promise<AuthUser[]> {
+  const users: AuthUser[] = [];
+  for (let page = 1; ; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: PAGE });
+    if (error) throw new Error(`Lecture des utilisateurs impossible : ${error.message}`);
+    users.push(...data.users.map((u) => ({ id: u.id, email: u.email ?? null, createdAt: u.created_at })));
+    if (data.users.length < PAGE) return users;
+  }
+}
+
+/** Toutes les lignes d'une requête (l'API Supabase en renvoie 1 000 au plus par appel). */
+async function selectAll<T>(
+  query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await query(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE) return rows;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dates (jours et mois, heure de Paris)
+// ---------------------------------------------------------------------------
+
+const dayFormatter = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "Europe/Paris",
+});
+
+/** « 2026-10-06 » (jour à Paris). */
+const parisDay = (date: Date | string) => dayFormatter.format(new Date(date));
+
+/** Les `count` derniers jours (YYYY-MM-DD), aujourd'hui compris, du plus ancien au plus récent. */
+function lastDays(count: number, now: Date): string[] {
+  const days: string[] = [];
+  for (let i = count - 1; i >= 0; i--) days.push(parisDay(new Date(now.getTime() - i * 86_400_000)));
+  return [...new Set(days)];
+}
+
+// ---------------------------------------------------------------------------
+// Métriques
+// ---------------------------------------------------------------------------
+
+export type DailyPoint = { day: string; value: number };
+
+export type AdminMetrics = {
+  generatedAt: string;
+  /** 1er du mois en cours (YYYY-MM-DD). */
+  period: string;
+  users: {
+    total: number;
+    newLast30Days: number;
+    signupsPerDay: DailyPoint[];
+    /** Au moins une action IA ce mois-ci. */
+    activeThisMonth: number;
+    free: number;
+    premium: number;
+  };
+  revenue: {
+    mrr: number;
+    subscribersPerDay: DailyPoint[];
+    /** Part des inscrits abonnés au Premium (0–1). */
+    conversionRate: number;
+    /** Abonnés gagnés (nets) sur 30 jours. */
+    netNewSubscribers30Days: number;
+  };
+  costs: {
+    byKind: { kind: AiUsageKind; count: number; unitCost: number; cost: number }[];
+    total: number;
+    avgPerFreeUser: number;
+    avgPerPremiumUser: number;
+    topUsers: { email: string; premium: boolean; actions: number; cost: number }[];
+  };
+  profitability: {
+    revenue: number;
+    cost: number;
+    result: number;
+    projection: { month: number; subscribers: number; users: number; revenue: number; cost: number; result: number }[];
+  };
+  latestSignups: { email: string; createdAt: string; premium: boolean; actionsThisMonth: number }[];
+};
+
+export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
+  const supabase = createAdminClient();
+  const today = parisDay(now);
+  const period = `${today.slice(0, 7)}-01`;
+
+  const [users, usage, subscriptions] = await Promise.all([
+    listAllUsers(supabase),
+    selectAll<UsageRow>((from, to) =>
+      supabase.from("usage").select("user_id, kind").eq("period", period).order("id").range(from, to),
+    ),
+    selectAll<SubscriptionRow>((from, to) =>
+      supabase
+        .from("subscriptions")
+        .select("user_id, status, created_at, updated_at")
+        .order("user_id")
+        .range(from, to),
+    ),
+  ]);
+
+  // --- Utilisateurs --------------------------------------------------------
+  const premiumIds = new Set(subscriptions.filter((s) => isPremiumStatus(s.status)).map((s) => s.user_id));
+  const days = lastDays(30, now);
+  const signupsByDay = new Map(days.map((d) => [d, 0]));
+  for (const user of users) {
+    const day = parisDay(user.createdAt);
+    if (signupsByDay.has(day)) signupsByDay.set(day, signupsByDay.get(day)! + 1);
+  }
+  const signupsPerDay = days.map((day) => ({ day, value: signupsByDay.get(day) ?? 0 }));
+  const newLast30Days = signupsPerDay.reduce((sum, p) => sum + p.value, 0);
+
+  // --- Coûts IA du mois ------------------------------------------------------
+  const countByKind = Object.fromEntries(AI_USAGE_KINDS.map((k) => [k, 0])) as Record<AiUsageKind, number>;
+  const perUser = new Map<string, { actions: number; cost: number }>();
+  for (const row of usage) {
+    if (!(row.kind in AI_ACTION_COSTS)) continue;
+    countByKind[row.kind] += 1;
+    const entry = perUser.get(row.user_id) ?? { actions: 0, cost: 0 };
+    entry.actions += 1;
+    entry.cost += AI_ACTION_COSTS[row.kind];
+    perUser.set(row.user_id, entry);
+  }
+  const byKind = AI_USAGE_KINDS.map((kind) => ({
+    kind,
+    count: countByKind[kind],
+    unitCost: AI_ACTION_COSTS[kind],
+    cost: countByKind[kind] * AI_ACTION_COSTS[kind],
+  }));
+  const totalCost = byKind.reduce((sum, k) => sum + k.cost, 0);
+
+  const premiumCount = users.filter((u) => premiumIds.has(u.id)).length;
+  const freeCount = users.length - premiumCount;
+  let freeCost = 0;
+  let premiumCost = 0;
+  for (const [userId, { cost }] of perUser) {
+    if (premiumIds.has(userId)) premiumCost += cost;
+    else freeCost += cost;
+  }
+  const avgPerFreeUser = freeCount ? freeCost / freeCount : 0;
+  const avgPerPremiumUser = premiumCount ? premiumCost / premiumCount : 0;
+
+  const emailById = new Map(users.map((u) => [u.id, u.email ?? "(sans email)"]));
+  const topUsers = [...perUser.entries()]
+    .sort((a, b) => b[1].cost - a[1].cost || b[1].actions - a[1].actions)
+    .slice(0, 10)
+    .map(([userId, { actions, cost }]) => ({
+      email: emailById.get(userId) ?? "(compte supprimé)",
+      premium: premiumIds.has(userId),
+      actions,
+      cost,
+    }));
+
+  // --- Abonnés dans le temps ----------------------------------------------
+  // Un abonnement compte du jour de sa création jusqu'à sa fin. Pour un abonnement
+  // terminé, la date de fin est sa dernière mise à jour (événement de résiliation).
+  const subscriberCountOn = (day: string) =>
+    subscriptions.filter((s) => {
+      if (parisDay(s.created_at) > day) return false;
+      if (isPremiumStatus(s.status)) return true;
+      return ["canceled", "unpaid", "incomplete_expired"].includes(s.status) && parisDay(s.updated_at) > day;
+    }).length;
+  const subscribersPerDay = days.map((day) => ({ day, value: subscriberCountOn(day) }));
+  const netNewSubscribers30Days = premiumIds.size - subscriberCountOn(parisDay(new Date(now.getTime() - 30 * 86_400_000)));
+
+  const mrr = premiumCount * PREMIUM_MONTHLY_PRICE;
+
+  // --- Projection sur 12 mois ----------------------------------------------
+  // Hypothèse « même croissance » : chaque mois, autant de nouveaux inscrits et d'abonnés
+  // nets qu'au cours des 30 derniers jours ; coût moyen par utilisateur inchangé.
+  const projection = Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1;
+    const subscribers = Math.max(0, premiumCount + netNewSubscribers30Days * month);
+    const totalUsers = Math.max(subscribers, users.length + newLast30Days * month);
+    const revenue = subscribers * PREMIUM_MONTHLY_PRICE;
+    const cost = (totalUsers - subscribers) * avgPerFreeUser + subscribers * avgPerPremiumUser;
+    return { month, subscribers, users: totalUsers, revenue, cost, result: revenue - cost };
+  });
+
+  // --- Derniers inscrits ---------------------------------------------------
+  const latestSignups = [...users]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 20)
+    .map((u) => ({
+      email: u.email ?? "(sans email)",
+      createdAt: u.createdAt,
+      premium: premiumIds.has(u.id),
+      actionsThisMonth: perUser.get(u.id)?.actions ?? 0,
+    }));
+
+  return {
+    generatedAt: now.toISOString(),
+    period,
+    users: {
+      total: users.length,
+      newLast30Days,
+      signupsPerDay,
+      activeThisMonth: perUser.size,
+      free: freeCount,
+      premium: premiumCount,
+    },
+    revenue: {
+      mrr,
+      subscribersPerDay,
+      conversionRate: users.length ? premiumCount / users.length : 0,
+      netNewSubscribers30Days,
+    },
+    costs: { byKind, total: totalCost, avgPerFreeUser, avgPerPremiumUser, topUsers },
+    profitability: { revenue: mrr, cost: totalCost, result: mrr - totalCost, projection },
+    latestSignups,
+  };
+}

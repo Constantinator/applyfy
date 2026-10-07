@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { logoutAction } from "@/app/actions/auth";
-import { IconGrid, IconHome, IconLogout, IconPlus, IconSearch, IconUser } from "@/components/icons";
+import { IconActivity, IconGrid, IconHome, IconLogout, IconPlus, IconSearch, IconUser } from "@/components/icons";
 import { Logo } from "@/components/logo";
 
 type NavItem = {
@@ -47,9 +47,19 @@ const NAV: NavItem[] = [
   },
 ];
 
-export function AppSidebar({ email }: { email: string | null }) {
+/** Lien du tableau de bord admin (l'accès est vérifié par la page elle-même). */
+const ADMIN_ITEM: NavItem = {
+  href: "/admin",
+  label: "Admin",
+  shortLabel: "Admin",
+  icon: IconActivity,
+  isActive: (p) => p.startsWith("/admin"),
+};
+
+export function AppSidebar({ email, isAdmin = false }: { email: string | null; isAdmin?: boolean }) {
   const pathname = usePathname();
   const isDemo = email === null;
+  const nav = isAdmin ? [...NAV, ADMIN_ITEM] : NAV;
 
   return (
     <>
@@ -72,7 +82,7 @@ export function AppSidebar({ email }: { email: string | null }) {
           )}
         </div>
         <nav aria-label="Navigation principale" className="flex gap-1 overflow-x-auto px-3 pb-2">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = item.isActive(pathname);
             return (
               <Link
@@ -100,7 +110,7 @@ export function AppSidebar({ email }: { email: string | null }) {
         </div>
 
         <nav aria-label="Navigation principale" className="flex-1 space-y-1 px-3">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = item.isActive(pathname);
             return (
               <Link
