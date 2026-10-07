@@ -6,7 +6,6 @@ import { ContactEditor } from "@/components/application/contact-editor";
 import { CvAdapter } from "@/components/application/cv-adapter";
 import { NotesPad } from "@/components/application/notes-pad";
 import { DeleteApplicationButton } from "@/components/application/delete-application-button";
-import { DocumentsList } from "@/components/application/documents-list";
 import { FollowUpBox } from "@/components/application/follow-up-box";
 import { StatusChanger } from "@/components/application/status-changer";
 import { Timeline } from "@/components/application/timeline";
@@ -84,7 +83,7 @@ export default async function ApplicationPage({
   ]);
   if (!detail) notFound();
 
-  const { application: app, events, documents, source } = detail;
+  const { application: app, events, source } = detail;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -204,10 +203,6 @@ export default async function ApplicationPage({
               <p className="text-sm text-slate-500">Aucune description enregistrée.</p>
             )}
           </section>
-
-          <Card title="Documents">
-            <DocumentsList documents={documents} />
-          </Card>
 
           <CvAdapter
             applicationId={app.id}
