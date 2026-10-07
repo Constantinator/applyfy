@@ -37,14 +37,28 @@ function Spinner() {
   );
 }
 
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
+      <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DashIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
+      <path d="M3.5 8h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function SuggestionList({
-  icon,
   title,
   items,
   empty,
   tone,
 }: {
-  icon: string;
   title: string;
   items: string[];
   empty: string;
@@ -52,17 +66,18 @@ function SuggestionList({
 }) {
   const styles =
     tone === "match"
-      ? { box: "border-emerald-200 bg-emerald-50/60", marker: "text-emerald-600" }
-      : { box: "border-amber-200 bg-amber-50/60", marker: "text-amber-600" };
+      ? { box: "border-[#BFDBFE] bg-[#F0F7FF]", title: "text-[#1E40AF]", marker: "text-[#1E40AF]/60" }
+      : { box: "border-[#E2E8F0] bg-[#F8FAFC]", title: "text-[#374151]", marker: "text-[#9CA3AF]" };
 
   return (
     <section className={`rounded-xl border p-4 ${styles.box}`}>
-      <h3 className="flex items-center gap-2 font-semibold text-slate-900">
-        <span aria-hidden="true">{icon}</span> {title}
+      <h3 className={`flex items-center gap-2 font-semibold ${styles.title}`}>
+        {tone === "match" ? <CheckIcon className="h-4 w-4" /> : <DashIcon className="h-4 w-4" />}
+        {title}
         <span className="text-sm font-normal text-slate-500">({items.length})</span>
       </h3>
       {items.length > 0 ? (
-        <ul className="mt-3 space-y-1.5 text-sm text-slate-800">
+        <ul className="mt-3 space-y-1.5 text-sm text-[#374151]">
           {items.map((item, i) => (
             <li key={`${i}-${item}`} className="flex gap-2">
               <span aria-hidden="true" className={styles.marker}>
@@ -83,14 +98,12 @@ function SuggestionsView({ suggestions }: { suggestions: CvSuggestions }) {
   return (
     <div className="grid gap-4">
       <SuggestionList
-        icon="✅"
         title="Ce qui matche"
         items={suggestions.ce_qui_matche}
         empty="Aucun point fort identifié pour ce poste."
         tone="match"
       />
       <SuggestionList
-        icon="⚠️"
         title="Ce qui manque"
         items={suggestions.ce_qui_manque}
         empty="Rien d'important ne manque à ton CV pour ce poste."
