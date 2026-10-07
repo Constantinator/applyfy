@@ -5,7 +5,8 @@ import "server-only";
 
 const GEO_API = "https://geo.api.gouv.fr";
 
-export type Department = { code: string; name: string };
+/** `name` : libellé affiché (« Rhône (Lyon) ») ; `departmentName` : nom seul du département. */
+export type Department = { code: string; name: string; departmentName: string };
 
 const DEPARTMENT_CODE = /^(\d{2,3}|2[ab])$/i;
 
@@ -21,7 +22,7 @@ export async function resolveDepartment(input: string): Promise<Department | nul
       });
       if (!response.ok) return null;
       const dep = (await response.json()) as { code: string; nom: string };
-      return { code: dep.code, name: dep.nom };
+      return { code: dep.code, name: dep.nom, departmentName: dep.nom };
     }
 
     // Ville : la commune la plus peuplée portant ce nom.
@@ -38,9 +39,9 @@ export async function resolveDepartment(input: string): Promise<Department | nul
       codeDepartement: string;
       departement?: { nom: string };
     }[];
-    return commune
-      ? { code: commune.codeDepartement, name: `${commune.departement?.nom ?? commune.codeDepartement} (${commune.nom})` }
-      : null;
+    if (!commune) return null;
+    const departmentName = commune.departement?.nom ?? commune.codeDepartement;
+    return { code: commune.codeDepartement, name: `${departmentName} (${commune.nom})`, departmentName };
   } catch (error) {
     console.error("[geo] résolution de la localisation", error);
     return null;

@@ -10,10 +10,13 @@ const initialState: AddOfferState = { status: "idle" };
 /** « Ajouter à mes candidatures » : crée la candidature puis ouvre sa fiche. */
 export function AddOfferButton({
   offerId,
+  search,
   title,
   className = "items-start sm:items-end",
 }: {
   offerId: string;
+  /** Paramètres d'URL de la recherche où l'offre a été vue (pour retrouver une offre Adzuna). */
+  search: string;
   title: string;
   /** Alignement du bouton et du message d'erreur. */
   className?: string;
@@ -23,6 +26,7 @@ export function AddOfferButton({
   return (
     <form action={formAction} className={`flex flex-col gap-2 ${className}`}>
       <input type="hidden" name="offerId" value={offerId} />
+      <input type="hidden" name="search" value={search} />
       <button
         type="submit"
         disabled={pending}

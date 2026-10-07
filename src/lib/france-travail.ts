@@ -1,5 +1,15 @@
 import "server-only";
 
+import {
+  CONTRACT_FILTERS,
+  OfferSourceError,
+  SOURCE_PAGE_SIZE,
+  type OfferListing,
+  type OfferSearch,
+  type OfferSearchResult,
+  type OfferSummary,
+} from "@/lib/offer-types";
+
 // Client de l'API « Offres d'emploi v2 » de France Travail (francetravail.io).
 // Authentification OAuth2 « client credentials » : un jeton d'accès (≈ 25 min) est
 // obtenu avec FRANCE_TRAVAIL_CLIENT_ID / FRANCE_TRAVAIL_CLIENT_SECRET et gardé en mémoire.
@@ -11,8 +21,6 @@ const API_URL =
   process.env.FRANCE_TRAVAIL_API_URL ?? "https://api.francetravail.io/partenaire/offresdemploi/v2";
 const SCOPE = "api_offresdemploiv2 o2dsoffre";
 
-/** Taille d'une page de résultats. */
-export const OFFERS_PAGE_SIZE = 20;
 /** L'API ne renvoie pas d'offres au-delà de l'index 1149. */
 const MAX_INDEX = 1149;
 
@@ -20,7 +28,7 @@ export function isFranceTravailConfigured() {
   return Boolean(process.env.FRANCE_TRAVAIL_CLIENT_ID && process.env.FRANCE_TRAVAIL_CLIENT_SECRET);
 }
 
-export class FranceTravailError extends Error {}
+export class FranceTravailError extends OfferSourceError {}
 
 // ---------------------------------------------------------------------------
 // Jeton d'accès
@@ -92,63 +100,6 @@ export async function getSectors(): Promise<ReferenceItem[]> {
 // Recherche
 // ---------------------------------------------------------------------------
 
-/** Types de contrat proposés dans les filtres. */
-export const CONTRACT_FILTERS = {
-  cdi: "CDI",
-  cdd: "CDD",
-  alternance: "Alternance",
-  stage: "Stage",
-} as const;
-export type ContractFilter = keyof typeof CONTRACT_FILTERS;
-
-export function isContractFilter(value: unknown): value is ContractFilter {
-  return typeof value === "string" && value in CONTRACT_FILTERS;
-}
-
-export type OfferSearch = {
-  keywords: string;
-  /** Code de département (ex. « 75 », « 2A »), déjà résolu depuis la saisie. */
-  department: string | null;
-  contract: ContractFilter | null;
-  sector: string | null;
-  page: number;
-};
-
-export type OfferSummary = {
-  id: string;
-  title: string;
-  company: string | null;
-  location: string | null;
-  publishedAt: string | null;
-  contract: string | null;
-};
-
-/** Profil recherché, tel que décrit par les champs structurés de l'offre. */
-export type OfferProfile = {
-  experience: string | null;
-  formations: string[];
-  /** Compétences ; `required` : exigée (sinon souhaitée). */
-  skills: { label: string; required: boolean }[];
-  qualities: string[];
-  languages: string[];
-  licences: string[];
-};
-
-/** Offre complète, pour la liste des résultats et le panneau de détails. */
-export type OfferListing = OfferSummary & {
-  /** Page publique de l'offre sur France Travail. */
-  url: string;
-  description: string;
-  salary: string | null;
-  workingHours: string | null;
-  experience: string | null;
-  sector: string | null;
-  companyDescription: string | null;
-  profile: OfferProfile;
-};
-
-export type OfferSearchResult = { offers: OfferListing[]; total: number };
-
 type RawOffer = {
   id: string;
   intitule?: string;
@@ -175,6 +126,7 @@ type RawOffer = {
 
 const toSummary = (offer: RawOffer): OfferSummary => ({
   id: offer.id,
+  source: "france-travail",
   title: offer.intitule?.trim() || "Offre sans intitulé",
   company: offer.entreprise?.nom?.trim() || null,
   location: offer.lieuTravail?.libelle?.trim() || null,
@@ -197,6 +149,7 @@ function toListing(offer: RawOffer): OfferListing {
       offer.origineOffre?.urlOrigine ||
       `https://candidat.francetravail.fr/offres/recherche/detail/${encodeURIComponent(offer.id)}`,
     description: offer.description?.trim() ?? "",
+    descriptionTruncated: false,
     salary: salary || null,
     workingHours: clean(offer.dureeTravailLibelle),
     experience: clean(offer.experienceLibelle),
@@ -223,15 +176,17 @@ async function natureCodes(pattern: RegExp): Promise<string[]> {
   return natures.filter((n) => pattern.test(n.libelle)).map((n) => n.code);
 }
 
-export async function searchOffers(search: OfferSearch): Promise<OfferSearchResult> {
-  const start = Math.min((search.page - 1) * OFFERS_PAGE_SIZE, MAX_INDEX);
+export async function searchFranceTravail(search: OfferSearch): Promise<OfferSearchResult> {
+  const start = (search.page - 1) * SOURCE_PAGE_SIZE;
+  // Page au-delà des résultats consultables (l'autre source peut en avoir davantage).
+  if (start > MAX_INDEX) return { offers: [], total: 0 };
   const params = new URLSearchParams({
-    range: `${start}-${Math.min(start + OFFERS_PAGE_SIZE - 1, MAX_INDEX)}`,
+    range: `${start}-${Math.min(start + SOURCE_PAGE_SIZE - 1, MAX_INDEX)}`,
     // 0 : pertinence (avec mots-clés), 1 : plus récentes d'abord.
     sort: search.keywords ? "0" : "1",
   });
   let keywords = search.keywords;
-  if (search.department) params.set("departement", search.department);
+  if (search.department) params.set("departement", search.department.code);
   if (search.sector) params.set("secteurActivite", search.sector);
 
   if (search.contract === "cdi" || search.contract === "cdd") {
@@ -249,7 +204,8 @@ export async function searchOffers(search: OfferSearch): Promise<OfferSearchResu
   if (keywords) params.set("motsCles", keywords);
 
   const response = await apiGet(`/offres/search?${params}`);
-  if (response.status === 204) return { offers: [], total: 0 };
+  // 204 : aucun résultat ; 416 : page au-delà du nombre d'offres trouvées.
+  if (response.status === 204 || response.status === 416) return { offers: [], total: 0 };
   if (!response.ok) {
     console.error("[france-travail] recherche", response.status, await response.text().catch(() => ""));
     throw new FranceTravailError(
@@ -270,13 +226,13 @@ export async function searchOffers(search: OfferSearch): Promise<OfferSearchResu
 // Détail d'une offre (panneau de détails, création de la candidature)
 // ---------------------------------------------------------------------------
 
-export function isOfferId(id: unknown): id is string {
+export function isFranceTravailOfferId(id: unknown): id is string {
   return typeof id === "string" && /^[A-Za-z0-9]{1,20}$/.test(id);
 }
 
 /** Une offre par son identifiant ; null si elle n'existe plus. */
-export async function getOfferListing(id: string): Promise<OfferListing | null> {
-  if (!isOfferId(id)) return null;
+export async function getFranceTravailOffer(id: string): Promise<OfferListing | null> {
+  if (!isFranceTravailOfferId(id)) return null;
   const response = await apiGet(`/offres/${encodeURIComponent(id)}`);
   if (response.status === 404 || response.status === 204) return null;
   if (!response.ok) {
@@ -284,29 +240,4 @@ export async function getOfferListing(id: string): Promise<OfferListing | null> 
     throw new FranceTravailError("Impossible de récupérer cette offre. Réessaie dans un instant.");
   }
   return toListing((await response.json()) as RawOffer);
-}
-
-export type OfferDetail = OfferSummary & { url: string; description: string };
-
-/** Offre au format d'une candidature : description + informations clés (lib/format-offer). */
-export async function getOffer(id: string): Promise<OfferDetail | null> {
-  const offer = await getOfferListing(id);
-  if (!offer) return null;
-
-  const details = [
-    offer.contract && `• Contrat : ${offer.contract}`,
-    offer.workingHours && `• Durée du travail : ${offer.workingHours}`,
-    offer.salary && `• Salaire : ${offer.salary}`,
-    offer.experience && `• Expérience : ${offer.experience}`,
-    offer.sector && `• Secteur : ${offer.sector}`,
-  ].filter(Boolean);
-  const description = [
-    offer.description,
-    details.length ? `## Informations clés\n${details.join("\n")}` : null,
-    offer.companyDescription ? `## L'entreprise\n${offer.companyDescription}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  return { ...offer, description };
 }

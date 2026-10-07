@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { FormattedText } from "@/components/formatted-text";
 import { IconBriefcase, IconClock, IconMapPin } from "@/components/icons";
-import type { OfferListing } from "@/lib/france-travail";
+import { OFFER_SOURCES, type OfferListing } from "@/lib/offer-types";
 
 import { AddOfferButton } from "./add-offer-button";
 
@@ -40,7 +40,16 @@ function ProfileList({ title, items }: { title: string; items: React.ReactNode[]
  * Panneau de détails d'une offre : à droite de la liste sur grand écran (défilement
  * propre, boutons toujours visibles en bas), pleine largeur sur mobile.
  */
-export function OfferDetails({ offer, backHref }: { offer: OfferListing; backHref: string }) {
+export function OfferDetails({
+  offer,
+  backHref,
+  search,
+}: {
+  offer: OfferListing;
+  backHref: string;
+  /** Paramètres d'URL de la recherche en cours. */
+  search: string;
+}) {
   const { profile } = offer;
   const hasProfile =
     profile.experience ||
@@ -65,6 +74,7 @@ export function OfferDetails({ offer, backHref }: { offer: OfferListing; backHre
             {offer.title}
           </h2>
           <p className="text-slate-600">{offer.company ?? "Entreprise non communiquée"}</p>
+          <p className="text-xs text-slate-500">Source : {OFFER_SOURCES[offer.source]}</p>
         </header>
 
         <dl className="grid gap-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 sm:grid-cols-2">
@@ -94,7 +104,14 @@ export function OfferDetails({ offer, backHref }: { offer: OfferListing; backHre
             Description du poste
           </h3>
           {offer.description ? (
-            <FormattedText text={offer.description} />
+            <>
+              <FormattedText text={offer.description} />
+              {offer.descriptionTruncated && (
+                <p className="text-sm text-slate-500">
+                  Ceci n&apos;est qu&apos;un extrait : la description complète est sur l&apos;offre originale.
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-sm text-slate-500">Pas de description pour cette offre.</p>
           )}
@@ -137,14 +154,14 @@ export function OfferDetails({ offer, backHref }: { offer: OfferListing; backHre
       </div>
 
       <footer className="flex flex-wrap items-start gap-2 border-t border-slate-200 bg-white p-4 sm:px-6">
-        <AddOfferButton offerId={offer.id} title={offer.title} className="items-start" />
+        <AddOfferButton offerId={offer.id} search={search} title={offer.title} className="items-start" />
         <a
           href={offer.url}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-secondary px-4 py-2 text-sm"
         >
-          Voir sur France Travail ↗
+          Voir l&apos;offre ↗
         </a>
       </footer>
     </article>

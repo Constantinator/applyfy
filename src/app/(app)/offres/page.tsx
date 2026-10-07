@@ -1,41 +1,36 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 
 import { IconBriefcase, IconClock, IconMapPin, IconSearch } from "@/components/icons";
 import { OfferDetails } from "@/components/offers/offer-details";
 import { OfferLink } from "@/components/offers/offer-link";
 import { requireUser } from "@/lib/auth";
+import { getSectors, isFranceTravailConfigured, type ReferenceItem } from "@/lib/france-travail";
+import type { Department } from "@/lib/geo";
 import {
   CONTRACT_FILTERS,
-  FranceTravailError,
-  OFFERS_PAGE_SIZE,
-  getOfferListing,
-  getSectors,
-  isContractFilter,
-  isFranceTravailConfigured,
-  isOfferId,
-  searchOffers,
+  OFFER_SOURCES,
+  OfferSourceError,
   type OfferListing,
-  type OfferSearchResult,
-  type ReferenceItem,
-} from "@/lib/france-travail";
-import { resolveDepartment, type Department } from "@/lib/geo";
+  type OfferSearch,
+} from "@/lib/offer-types";
+import {
+  findOffer,
+  hasOfferQuery,
+  isOfferId,
+  isOfferSearchConfigured,
+  offerQueryParams,
+  readOfferQuery,
+  resolveOfferSearch,
+  searchAllOffers,
+  type CombinedSearchResult,
+} from "@/lib/offers";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Trouver une offre — Applyfy" };
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 const numberFormatter = new Intl.NumberFormat("fr-FR");
-
-/** Logo France Travail (public/france-travail.svg), proportions 127 × 45. */
-const FRANCE_TRAVAIL_LOGO = { src: "/france-travail.svg", width: 127, height: 45 };
-
-/** L'API ne renvoie pas d'offres au-delà de 1 150 résultats. */
-const MAX_RESULTS = 1150;
-
-const text = (value: string | string[] | undefined, max = 120) =>
-  (typeof value === "string" ? value : "").trim().slice(0, max);
 
 function publishedLabel(iso: string | null) {
   if (!iso) return null;
@@ -49,37 +44,37 @@ function publishedLabel(iso: string | null) {
 export default async function OffersPage({ searchParams }: PageProps<"/offres">) {
   if (isSupabaseConfigured()) await requireUser();
   const params = await searchParams;
-  const keywords = text(params.q);
-  const place = text(params.lieu, 80);
-  const contract = isContractFilter(params.contrat) ? params.contrat : null;
-  const sector = /^[A-Za-z0-9]{1,6}$/.test(text(params.secteur)) ? text(params.secteur) : null;
-  const page = Math.max(1, Math.min(Number.parseInt(text(params.page), 10) || 1, MAX_RESULTS / OFFERS_PAGE_SIZE));
-  const hasSearch = Boolean(keywords || place || contract || sector);
+  const query = readOfferQuery(params);
+  const { keywords, place, contract, sector, page } = query;
+  const hasSearch = hasOfferQuery(query);
   /** Offre affichée dans le panneau de détails (?offre=). */
   const selectedId = isOfferId(params.offre) ? params.offre : null;
-  const configured = isFranceTravailConfigured();
+  const configured = isOfferSearchConfigured();
 
   let sectors: ReferenceItem[] = [];
+  let search: OfferSearch | null = null;
   let department: Department | null = null;
-  let result: OfferSearchResult | null = null;
+  let result: CombinedSearchResult | null = null;
   let error: string | null = null;
 
   if (configured) {
-    // Filtres : sans secteurs (service indisponible), la recherche reste possible.
-    sectors = await getSectors().catch((e) => {
-      console.error("[offres] secteurs", e);
-      return [];
-    });
+    // Filtres : sans secteurs (France Travail absent ou indisponible), la recherche reste possible.
+    if (isFranceTravailConfigured()) {
+      sectors = await getSectors().catch((e) => {
+        console.error("[offres] secteurs", e);
+        return [];
+      });
+    }
     if (hasSearch) {
-      department = place ? await resolveDepartment(place) : null;
-      if (place && !department) {
+      ({ search, department } = await resolveOfferSearch(query));
+      if (!search) {
         error = `Localisation « ${place} » introuvable : indique une ville ou un numéro de département (ex. Lyon, 69).`;
       } else {
         try {
-          result = await searchOffers({ keywords, department: department?.code ?? null, contract, sector, page });
+          result = await searchAllOffers(search);
         } catch (e) {
-          if (!(e instanceof FranceTravailError)) console.error("[offres] recherche", e);
-          error = e instanceof FranceTravailError ? e.message : "La recherche a échoué. Réessaie dans un instant.";
+          if (!(e instanceof OfferSourceError)) console.error("[offres] recherche", e);
+          error = e instanceof OfferSourceError ? e.message : "La recherche a échoué. Réessaie dans un instant.";
         }
       }
     }
@@ -91,24 +86,20 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   if (configured && selectedId) {
     selected = result?.offers.find((offer) => offer.id === selectedId) ?? null;
     if (!selected) {
-      selected = await getOfferListing(selectedId).catch((e) => {
-        if (!(e instanceof FranceTravailError)) console.error("[offres] détail", e);
+      selected = await findOffer(selectedId, search).catch((e) => {
+        if (!(e instanceof OfferSourceError)) console.error("[offres] détail", e);
         return null;
       });
       selectedMissing = !selected;
     }
   }
 
-  const pageCount = result ? Math.ceil(Math.min(result.total, MAX_RESULTS) / OFFERS_PAGE_SIZE) : 0;
+  const pageCount = result?.pageCount ?? 0;
+  const searchParamsOf = (target: number) => offerQueryParams({ ...query, page: target });
   const href = (target: number, offre: string | null = null) => {
-    const query = new URLSearchParams();
-    if (keywords) query.set("q", keywords);
-    if (place) query.set("lieu", place);
-    if (contract) query.set("contrat", contract);
-    if (sector) query.set("secteur", sector);
-    if (target > 1) query.set("page", String(target));
-    if (offre) query.set("offre", offre);
-    return `/offres?${query}`;
+    const params = searchParamsOf(target);
+    if (offre) params.set("offre", offre);
+    return `/offres?${params}`;
   };
   // Sur mobile, l'offre sélectionnée s'affiche seule (page dédiée) : le reste est masqué.
   const mobileHidden = selected ? "max-lg:hidden" : "";
@@ -127,8 +118,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
 
       {!configured ? (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
-          La recherche d&apos;offres n&apos;est pas encore configurée sur ce site (identifiants de
-          l&apos;API France Travail manquants).
+          La recherche d&apos;offres n&apos;est pas encore configurée sur ce site (identifiants des
+          API France Travail et Adzuna manquants).
         </p>
       ) : (
         <form action="/offres" role="search" className={`card space-y-4 p-5 ${mobileHidden}`}>
@@ -215,9 +206,15 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         </p>
       )}
 
+      {result?.warning && (
+        <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          {result.warning}
+        </p>
+      )}
+
       {selectedMissing && (
         <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
-          Cette offre n&apos;est plus disponible sur France Travail.
+          Cette offre n&apos;est plus disponible.
         </p>
       )}
 
@@ -239,7 +236,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                   {numberFormatter.format(result.total)} offre{result.total > 1 ? "s" : ""}
                 </strong>
                 {department && <> · {department.name}</>}
-                {result.total > MAX_RESULTS && " · affine ta recherche pour voir les plus pertinentes"}
+                {result.truncated && " · affine ta recherche pour voir les plus pertinentes"}
               </h2>
 
               {result.offers.length === 0 ? (
@@ -282,12 +279,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                               </li>
                             )}
                           </ul>
-                          {/* Source de l'offre (aussi indiquée en pied de page) : décoratif. */}
-                          <Image
-                            {...FRANCE_TRAVAIL_LOGO}
-                            alt=""
-                            className="pointer-events-none absolute right-4 bottom-2.5 h-5 w-auto opacity-80"
-                          />
+                          <span className="absolute right-4 bottom-2.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] text-slate-500 ring-1 ring-slate-200">
+                            <span className="sr-only">Source : </span>
+                            {OFFER_SOURCES[offer.source]}
+                          </span>
                         </OfferLink>
                       </li>
                     );
@@ -321,7 +316,12 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
 
           {selected ? (
             <div className={result ? "" : "lg:col-span-2"}>
-              <OfferDetails key={selected.id} offer={selected} backHref={href(page)} />
+              <OfferDetails
+                key={selected.id}
+                offer={selected}
+                backHref={href(page)}
+                search={searchParamsOf(page).toString()}
+              />
             </div>
           ) : (
             result &&
@@ -337,7 +337,13 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         </div>
       )}
 
-      <p className="text-xs text-slate-400">Offres fournies par l&apos;API Offres d&apos;emploi de France Travail.</p>
+      <p className="text-xs text-slate-400">
+        Offres fournies par l&apos;API Offres d&apos;emploi de France Travail et par{" "}
+        <a href="https://www.adzuna.fr" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">
+          Adzuna
+        </a>
+        .
+      </p>
     </main>
   );
 }
