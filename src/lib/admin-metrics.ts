@@ -4,6 +4,16 @@ import { redirect } from "next/navigation";
 
 import { AI_USAGE_KINDS, type AiUsageKind } from "./ai-usage-limits";
 import { requireUser } from "./auth";
+import { toFeedback } from "./feedback";
+import {
+  FAVORITE_FEATURES,
+  MISSING_FEATURES,
+  RECOMMEND_ANSWERS,
+  type FavoriteFeature,
+  type Feedback,
+  type MissingFeature,
+  type RecommendAnswer,
+} from "./feedback-options";
 import { isPremiumStatus } from "./subscription";
 import { createAdminClient, isAdminConfigured } from "./supabase/admin";
 
@@ -368,3 +378,76 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Avis utilisateurs (table "feedback", migration 0016) : tous les avis, sans filtre de mois
+// ---------------------------------------------------------------------------
+
+export type FeedbackEntry = Feedback & { email: string; updatedAt: string };
+
+export type FeedbackMetrics = {
+  count: number;
+  averageRating: number;
+  /** Nombre d'avis par note, de 1 à 5 étoiles. */
+  ratingCounts: number[];
+  favorites: { key: FavoriteFeature; count: number }[];
+  missing: { key: MissingFeature; count: number }[];
+  recommend: { key: RecommendAnswer; count: number }[];
+  /** Tendance : avis donnés ou modifiés par mois (6 derniers mois, du plus ancien au plus récent). */
+  trend: { month: string; count: number; averageRating: number | null; recommendYes: number }[];
+  entries: FeedbackEntry[];
+};
+
+/** Avis utilisateurs ; null si la table n'existe pas encore (migration 0016 non appliquée). */
+export async function getFeedbackMetrics(now = new Date()): Promise<FeedbackMetrics | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("feedback")
+    .select("user_id, rating, favorite_feature, missing, improvement, recommend, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(PAGE);
+  if (error) {
+    console.error("[admin] avis", error.message);
+    return null;
+  }
+
+  const users = await listAllUsers(supabase);
+  const emailById = new Map(users.map((u) => [u.id, u.email ?? "(sans email)"]));
+  const entries: FeedbackEntry[] = data.map((row) => ({
+    ...toFeedback(row),
+    email: emailById.get(row.user_id) ?? "(compte supprimé)",
+    updatedAt: row.updated_at,
+  }));
+
+  const count = entries.length;
+  const tally = <K extends string>(keys: K[], pick: (entry: FeedbackEntry) => K[]) =>
+    keys
+      .map((key) => ({ key, count: entries.filter((e) => pick(e).includes(key)).length }))
+      .sort((a, b) => b.count - a.count);
+
+  const currentMonth = parisDay(now).slice(0, 7);
+  const months = Array.from({ length: 6 }, (_, i) => shiftMonth(currentMonth, i - 5));
+  const trend = months.map((month) => {
+    const inMonth = entries.filter((e) => parisDay(e.updatedAt).startsWith(month));
+    return {
+      month,
+      count: inMonth.length,
+      averageRating: inMonth.length ? inMonth.reduce((s, e) => s + e.rating, 0) / inMonth.length : null,
+      recommendYes: inMonth.filter((e) => e.recommend === "oui").length,
+    };
+  });
+
+  return {
+    count,
+    averageRating: count ? entries.reduce((s, e) => s + e.rating, 0) / count : 0,
+    ratingCounts: [1, 2, 3, 4, 5].map((r) => entries.filter((e) => e.rating === r).length),
+    favorites: tally(Object.keys(FAVORITE_FEATURES) as FavoriteFeature[], (e) => [e.favoriteFeature]),
+    missing: tally(Object.keys(MISSING_FEATURES) as MissingFeature[], (e) => e.missing),
+    recommend: (Object.keys(RECOMMEND_ANSWERS) as RecommendAnswer[]).map((key) => ({
+      key,
+      count: entries.filter((e) => e.recommend === key).length,
+    })),
+    trend,
+    entries,
+  };
+}

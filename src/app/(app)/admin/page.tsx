@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { DailyChart } from "@/components/admin/daily-chart";
+import { FeedbackSection } from "@/components/admin/feedback-section";
 import { MonthPicker } from "@/components/admin/month-picker";
 import {
   AI_ACTION_COSTS,
@@ -11,6 +12,7 @@ import {
   URSSAF_RATE,
   VAT_FRANCHISE_THRESHOLD,
   getAdminMetrics,
+  getFeedbackMetrics,
   requireAdmin,
 } from "@/lib/admin-metrics";
 import { AI_USAGE_LABELS } from "@/lib/ai-usage-limits";
@@ -82,7 +84,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   await connection();
   await requireAdmin();
   const { mois } = await searchParams;
-  const m = await getAdminMetrics(typeof mois === "string" ? mois : undefined);
+  const [m, feedback] = await Promise.all([
+    getAdminMetrics(typeof mois === "string" ? mois : undefined),
+    getFeedbackMetrics(),
+  ]);
   const month = monthName.format(new Date(`${m.month}-01T00:00:00Z`));
   const asOf = dayName.format(new Date(`${m.asOf}T00:00:00Z`));
   // « d'octobre », « de mars ».
@@ -419,6 +424,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             </tbody>
           </table>
         </div>
+      </Section>
+
+      {/* 6. Avis utilisateurs (tous les mois, indépendant du sélecteur) */}
+      <Section id="admin-avis" title="Avis utilisateurs">
+        <FeedbackSection feedback={feedback} />
       </Section>
     </main>
   );

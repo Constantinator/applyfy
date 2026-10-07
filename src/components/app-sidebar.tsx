@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { logoutAction } from "@/app/actions/auth";
 import { IconActivity, IconGrid, IconHome, IconLogout, IconPlus, IconSearch, IconUser } from "@/components/icons";
+import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
 import { Logo } from "@/components/logo";
 
 type NavItem = {
@@ -133,6 +134,7 @@ export function AppSidebar({ email, isAdmin = false }: { email: string | null; i
         </nav>
 
         <div className="space-y-1 border-t border-slate-200 p-3">
+          {!isDemo && <FeedbackDialog />}
           <Link
             href="/"
             className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900"
