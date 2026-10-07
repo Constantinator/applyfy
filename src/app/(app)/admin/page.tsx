@@ -2,7 +2,16 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { DailyChart } from "@/components/admin/daily-chart";
-import { AI_ACTION_COSTS, PREMIUM_MONTHLY_PRICE, getAdminMetrics, requireAdmin } from "@/lib/admin-metrics";
+import {
+  AI_ACTION_COSTS,
+  PREMIUM_MONTHLY_PRICE,
+  STRIPE_FEE_FIXED,
+  STRIPE_FEE_RATE,
+  URSSAF_RATE,
+  VAT_FRANCHISE_THRESHOLD,
+  getAdminMetrics,
+  requireAdmin,
+} from "@/lib/admin-metrics";
 import { AI_USAGE_LABELS } from "@/lib/ai-usage-limits";
 
 export const metadata: Metadata = { title: "Admin — Applyfy", robots: { index: false } };
@@ -63,7 +72,9 @@ const th = "px-3 py-2 text-left text-xs font-medium tracking-wide text-slate-500
 const td = "px-3 py-2 text-sm text-slate-700";
 const num = "text-right tabular-nums";
 
-const signed = (value: number) => `${value > 0 ? "+" : ""}${euros.format(value)}`;
+// Montant signé : « +5,54 € », « -0,37 € », « 0,00 € » (jamais « -0,00 € »).
+const signed = (value: number) =>
+  Math.abs(value) < 0.005 ? euros.format(0) : `${value > 0 ? "+" : ""}${euros.format(value)}`;
 
 export default async function AdminPage() {
   await connection();
@@ -72,6 +83,10 @@ export default async function AdminPage() {
   const month = monthName.format(new Date(`${m.period}T00:00:00Z`));
   // « d'octobre », « de mars ».
   const ofMonth = `${/^[aeiou]/i.test(month) ? "d'" : "de "}${month}`;
+  const p = m.profitability;
+  const sumOf = (key: "revenue" | "stripeFees" | "aiCost" | "urssaf" | "net") =>
+    p.projection.reduce((sum, row) => sum + row[key], 0);
+  const projectedYearRevenue = sumOf("revenue");
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -233,16 +248,80 @@ export default async function AdminPage() {
 
       {/* 4. Rentabilité */}
       <Section id="admin-rentabilite" title="Rentabilité">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Stat label="Revenus du mois (MRR)" value={euros.format(m.profitability.revenue)} />
-          <Stat label="Coûts IA du mois" value={euros.format(m.profitability.cost)} />
-          <Stat
-            label={m.profitability.result >= 0 ? "Bénéfice estimé" : "Perte estimée"}
-            value={signed(m.profitability.result)}
-            tone={m.profitability.result >= 0 ? "good" : "bad"}
-            hint="Hors frais Stripe, hébergement et autres coûts"
-          />
+        <div className="card overflow-x-auto">
+          <table className="w-full">
+            <caption className="px-3 pt-3 text-left text-sm font-medium text-slate-900">
+              Compte de résultat {ofMonth}
+            </caption>
+            <tbody className="divide-y divide-slate-100">
+              <tr>
+                <th scope="row" className={`${td} text-left font-medium text-slate-900`}>
+                  Revenus bruts (MRR)
+                  <span className="block text-xs font-normal text-slate-500">
+                    {integer.format(m.users.premium)} abonnés × {PREMIUM_MONTHLY_PRICE} €
+                  </span>
+                </th>
+                <td className={`${td} ${num} font-medium text-slate-900`}>{euros.format(p.revenue)}</td>
+              </tr>
+              <tr>
+                <th scope="row" className={`${td} text-left font-normal`}>
+                  Frais Stripe
+                  <span className="block text-xs text-slate-500">
+                    {percent.format(STRIPE_FEE_RATE)} + {euros.format(STRIPE_FEE_FIXED)} par paiement
+                  </span>
+                </th>
+                <td className={`${td} ${num}`}>{signed(-p.stripeFees)}</td>
+              </tr>
+              <tr>
+                <th scope="row" className={`${td} text-left font-normal`}>
+                  Coûts IA
+                  <span className="block text-xs text-slate-500">Calculés depuis la table usage</span>
+                </th>
+                <td className={`${td} ${num}`}>{signed(-p.aiCost)}</td>
+              </tr>
+              <tr>
+                <th scope="row" className={`${td} text-left font-normal`}>
+                  Cotisations URSSAF
+                  <span className="block text-xs text-slate-500">
+                    {percent.format(URSSAF_RATE)} du CA brut
+                  </span>
+                </th>
+                <td className={`${td} ${num}`}>{signed(-p.urssaf)}</td>
+              </tr>
+              <tr>
+                <th scope="row" className={`${td} text-left font-normal`}>
+                  TVA
+                  <span className="block text-xs text-slate-500">
+                    Auto-entrepreneur sous {euros.format(VAT_FRANCHISE_THRESHOLD)} de CA annuel
+                  </span>
+                </th>
+                <td className={`${td} text-right text-slate-500`}>Non applicable — Franchise en base de TVA</td>
+              </tr>
+            </tbody>
+            <tfoot className="border-t-2 border-slate-200">
+              <tr>
+                <th scope="row" className={`${td} text-left font-semibold text-slate-900`}>
+                  Bénéfice net réel
+                  <span className="block text-xs font-normal text-slate-500">
+                    Revenus − frais Stripe − coûts IA − URSSAF (hors hébergement et autres frais)
+                  </span>
+                </th>
+                <td
+                  className={`${td} ${num} text-base font-bold ${p.net >= 0 ? "text-emerald-700" : "text-red-700"}`}
+                >
+                  {signed(p.net)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
+        {projectedYearRevenue > VAT_FRANCHISE_THRESHOLD && (
+          <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+            Au rythme projeté, le CA des 12 prochains mois ({euros.format(projectedYearRevenue)}) dépasserait le
+            plafond de la franchise en base de TVA ({euros.format(VAT_FRANCHISE_THRESHOLD)}) : la TVA deviendrait
+            applicable. La projection ci-dessous n&apos;en tient pas compte.
+          </p>
+        )}
         <div className="card overflow-x-auto">
           <table className="w-full">
             <caption className="px-3 pt-3 text-left">
@@ -250,7 +329,8 @@ export default async function AdminPage() {
               <span className="block text-xs text-slate-500">
                 Même croissance que sur les 30 derniers jours : +{integer.format(m.users.newLast30Days)} inscrits et{" "}
                 {m.revenue.netNewSubscribers30Days >= 0 ? "+" : ""}
-                {m.revenue.netNewSubscribers30Days} abonnés par mois, coût IA moyen par utilisateur inchangé.
+                {m.revenue.netNewSubscribers30Days} abonnés par mois, coût IA moyen par utilisateur et taux
+                (Stripe, URSSAF) inchangés.
               </span>
             </caption>
             <thead className="border-b border-slate-200">
@@ -259,8 +339,10 @@ export default async function AdminPage() {
                 <th className={`${th} ${num}`}>Inscrits</th>
                 <th className={`${th} ${num}`}>Abonnés</th>
                 <th className={`${th} ${num}`}>Revenus</th>
+                <th className={`${th} ${num}`}>Stripe</th>
                 <th className={`${th} ${num}`}>Coûts IA</th>
-                <th className={`${th} ${num}`}>Résultat</th>
+                <th className={`${th} ${num}`}>URSSAF</th>
+                <th className={`${th} ${num}`}>Bénéfice net</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -270,15 +352,29 @@ export default async function AdminPage() {
                   <td className={`${td} ${num}`}>{integer.format(row.users)}</td>
                   <td className={`${td} ${num}`}>{integer.format(row.subscribers)}</td>
                   <td className={`${td} ${num}`}>{euros.format(row.revenue)}</td>
-                  <td className={`${td} ${num}`}>{euros.format(row.cost)}</td>
-                  <td
-                    className={`${td} ${num} font-medium ${row.result >= 0 ? "text-emerald-700" : "text-red-700"}`}
-                  >
-                    {signed(row.result)}
+                  <td className={`${td} ${num} text-slate-500`}>{euros.format(row.stripeFees)}</td>
+                  <td className={`${td} ${num} text-slate-500`}>{euros.format(row.aiCost)}</td>
+                  <td className={`${td} ${num} text-slate-500`}>{euros.format(row.urssaf)}</td>
+                  <td className={`${td} ${num} font-medium ${row.net >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                    {signed(row.net)}
                   </td>
                 </tr>
               ))}
             </tbody>
+            <tfoot className="border-t border-slate-200">
+              <tr>
+                <td className={`${td} font-semibold text-slate-900`} colSpan={3}>
+                  Total 12 mois
+                </td>
+                <td className={`${td} ${num} font-semibold`}>{euros.format(projectedYearRevenue)}</td>
+                <td className={`${td} ${num}`}>{euros.format(sumOf("stripeFees"))}</td>
+                <td className={`${td} ${num}`}>{euros.format(sumOf("aiCost"))}</td>
+                <td className={`${td} ${num}`}>{euros.format(sumOf("urssaf"))}</td>
+                <td className={`${td} ${num} font-semibold ${sumOf("net") >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                  {signed(sumOf("net"))}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </Section>

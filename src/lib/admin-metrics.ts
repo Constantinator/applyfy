@@ -108,6 +108,32 @@ function lastDays(count: number, now: Date): string[] {
 
 export type DailyPoint = { day: string; value: number };
 
+/** Compte de résultat d'un mois, en euros. */
+export type ProfitBreakdown = {
+  /** Revenus bruts (MRR). */
+  revenue: number;
+  stripeFees: number;
+  aiCost: number;
+  urssaf: number;
+  /** Bénéfice net réel = revenus − frais Stripe − coûts IA − URSSAF. */
+  net: number;
+};
+
+/** Frais Stripe par paiement mensuel : 1,5 % + 0,25 €. */
+export const STRIPE_FEE_RATE = 0.015;
+export const STRIPE_FEE_FIXED = 0.25;
+/** Cotisations sociales de l'auto-entrepreneur : 22 % du chiffre d'affaires brut. */
+export const URSSAF_RATE = 0.22;
+/** Plafond annuel de la franchise en base de TVA (prestations de services). */
+export const VAT_FRANCHISE_THRESHOLD = 36_800;
+
+function profit(subscribers: number, aiCost: number): ProfitBreakdown {
+  const revenue = subscribers * PREMIUM_MONTHLY_PRICE;
+  const stripeFees = subscribers * (PREMIUM_MONTHLY_PRICE * STRIPE_FEE_RATE + STRIPE_FEE_FIXED);
+  const urssaf = revenue * URSSAF_RATE;
+  return { revenue, stripeFees, aiCost, urssaf, net: revenue - stripeFees - aiCost - urssaf };
+}
+
 export type AdminMetrics = {
   generatedAt: string;
   /** 1er du mois en cours (YYYY-MM-DD). */
@@ -136,11 +162,8 @@ export type AdminMetrics = {
     avgPerPremiumUser: number;
     topUsers: { email: string; premium: boolean; actions: number; cost: number }[];
   };
-  profitability: {
-    revenue: number;
-    cost: number;
-    result: number;
-    projection: { month: number; subscribers: number; users: number; revenue: number; cost: number; result: number }[];
+  profitability: ProfitBreakdown & {
+    projection: (ProfitBreakdown & { month: number; subscribers: number; users: number })[];
   };
   latestSignups: { email: string; createdAt: string; premium: boolean; actionsThisMonth: number }[];
 };
@@ -232,14 +255,14 @@ export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
 
   // --- Projection sur 12 mois ----------------------------------------------
   // Hypothèse « même croissance » : chaque mois, autant de nouveaux inscrits et d'abonnés
-  // nets qu'au cours des 30 derniers jours ; coût moyen par utilisateur inchangé.
+  // nets qu'au cours des 30 derniers jours ; coût IA moyen par utilisateur inchangé ; mêmes
+  // taux de frais Stripe et d'URSSAF.
   const projection = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
     const subscribers = Math.max(0, premiumCount + netNewSubscribers30Days * month);
     const totalUsers = Math.max(subscribers, users.length + newLast30Days * month);
-    const revenue = subscribers * PREMIUM_MONTHLY_PRICE;
-    const cost = (totalUsers - subscribers) * avgPerFreeUser + subscribers * avgPerPremiumUser;
-    return { month, subscribers, users: totalUsers, revenue, cost, result: revenue - cost };
+    const aiCost = (totalUsers - subscribers) * avgPerFreeUser + subscribers * avgPerPremiumUser;
+    return { month, subscribers, users: totalUsers, ...profit(subscribers, aiCost) };
   });
 
   // --- Derniers inscrits ---------------------------------------------------
@@ -271,7 +294,7 @@ export async function getAdminMetrics(now = new Date()): Promise<AdminMetrics> {
       netNewSubscribers30Days,
     },
     costs: { byKind, total: totalCost, avgPerFreeUser, avgPerPremiumUser, topUsers },
-    profitability: { revenue: mrr, cost: totalCost, result: mrr - totalCost, projection },
+    profitability: { ...profit(premiumCount, totalCost), projection },
     latestSignups,
   };
 }
