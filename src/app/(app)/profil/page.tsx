@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { openBillingPortalAction } from "@/app/actions/premium";
+import { BetaReports } from "@/components/beta/beta-reports";
 import { AccountNameForm } from "@/components/profile/account-name-form";
 import { DeleteAccount } from "@/components/profile/delete-account";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
@@ -12,6 +13,7 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
 import { ReminderSettingsForm } from "@/components/profile/reminder-settings-form";
 import { getCurrentUser } from "@/lib/auth";
+import { getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { PROFILE_CV_LIMIT } from "@/lib/cv-types";
 import { isEmailConfigured } from "@/lib/email/brevo";
 import { getReminderSettings, listProfileCvs } from "@/lib/profile";
@@ -42,12 +44,17 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
     readAiUsage(),
     getSubscription(),
   ]);
-  const premium = subscription?.premium ?? false;
+  const beta = await getMyBeta();
+  const stripePremium = subscription?.premium ?? false;
+  const betaPremium = hasBetaPremium(beta);
+  const premium = stripePremium || betaPremium;
   const periodEnd = subscription?.currentPeriodEnd
     ? longDate.format(new Date(subscription.currentPeriodEnd))
     : null;
   let planDescription = `Limites mensuelles par fonctionnalité IA. Premium à ${PREMIUM_PRICE_LABEL} : accès illimité.`;
-  if (premium) {
+  if (betaPremium && !stripePremium && beta) {
+    planDescription = `Premium offert en tant que beta testeur, jusqu'au ${longDate.format(new Date(`${beta.premiumUntil}T12:00:00Z`))}.`;
+  } else if (premium) {
     planDescription =
       subscription?.cancelAtPeriodEnd && periodEnd
         ? `Résiliation programmée : ton Premium reste actif jusqu'au ${periodEnd}.`
@@ -63,7 +70,14 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
       </Link>
 
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon profil</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon profil</h1>
+          {beta?.status === "active" && (
+            <span className="bg-brand-gradient rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm">
+              Beta testeur
+            </span>
+          )}
+        </div>
         {user?.email && <p className="mt-1 text-sm text-slate-500">{user.email}</p>}
       </div>
 
@@ -88,18 +102,38 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
             La gestion de l&apos;abonnement n&apos;a pas pu s&apos;ouvrir. Réessaie dans un instant.
           </p>
         )}
-        {premium ? (
+        {stripePremium ? (
           <form action={openBillingPortalAction}>
             <button type="submit" className="btn-secondary px-4 py-2 text-sm">
               Gérer mon abonnement
             </button>
           </form>
         ) : (
-          <Link href="/premium" className="btn-primary inline-flex px-4 py-2 text-sm">
-            Passer au Premium
-          </Link>
+          !premium && (
+            <Link href="/premium" className="btn-primary inline-flex px-4 py-2 text-sm">
+              Passer au Premium
+            </Link>
+          )
         )}
       </section>
+
+      {beta && (
+        <section id="beta" aria-labelledby="beta-title" className="scroll-mt-6 space-y-4 card p-5 sm:p-6">
+          <div>
+            <h2 id="beta-title" className="font-semibold text-slate-900">
+              Mes rapports beta
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {beta.status === "active"
+                ? "Envoie chaque rapport avant sa date limite pour garder ton accès beta et le Premium offert. Un rappel t'est envoyé par email 2 jours avant."
+                : `Ton accès beta est ${beta.status === "suspended" ? "suspendu" : "retiré"}${
+                    beta.suspensionReason ? ` : ${beta.suspensionReason.charAt(0).toLowerCase()}${beta.suspensionReason.slice(1)}` : ""
+                  }. Tu es repassé·e au plan gratuit.`}
+            </p>
+          </div>
+          <BetaReports joinedAt={beta.joinedAt} active={beta.status === "active"} submitted={beta.reports} />
+        </section>
+      )}
 
       <section aria-labelledby="identite-title" className="space-y-4 card p-5 sm:p-6">
         <div>

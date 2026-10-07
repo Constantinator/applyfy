@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
+import { getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { createCheckoutUrl, createPortalUrl, isStripeConfigured } from "@/lib/stripe";
 import { getSubscription } from "@/lib/subscription";
 
@@ -23,6 +24,8 @@ export async function startCheckoutAction() {
 
   const subscription = await getSubscription();
   if (subscription?.premium) redirect("/profil");
+  // Beta testeur actif : le Premium est déjà offert, pas de paiement.
+  if (hasBetaPremium(await getMyBeta())) redirect("/premium");
 
   let url: string;
   try {

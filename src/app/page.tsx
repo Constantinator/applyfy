@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AccountDeletedNotice } from "@/components/account-deleted-notice";
+import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { IconActivity, IconBell, IconDocument, IconFolder } from "@/components/icons";
 import { Logo } from "@/components/logo";
 
@@ -161,6 +162,13 @@ export default function LandingPage() {
               <Link href="/login" className="font-medium text-blue-600 underline-offset-4 hover:underline">
                 Se connecter
               </Link>
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Programme beta : Premium offert jusqu&apos;au 31 décembre 2026 (30 places) →{" "}
+              <BetaJoinDialog
+                mode="link"
+                triggerClassName="font-medium text-blue-600 underline-offset-4 hover:underline"
+              />
             </p>
 
             <DashboardPreview />

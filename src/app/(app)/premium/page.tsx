@@ -7,6 +7,8 @@ import { IconSparkles } from "@/components/icons";
 import { AI_MONTHLY_LIMITS, PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
 import { isStripeConfigured } from "@/lib/stripe";
+import { getMyBeta, hasBetaPremium } from "@/lib/beta";
+import { BETA_PREMIUM_UNTIL_LABEL } from "@/lib/beta-rules";
 import { getSubscription } from "@/lib/subscription";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
@@ -55,8 +57,9 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
   if (isSupabaseConfigured()) await requireUser();
   const { erreur } = await searchParams;
   const error = typeof erreur === "string" ? ERRORS[erreur] : undefined;
-  const subscription = await getSubscription();
-  const premium = subscription?.premium ?? false;
+  const [subscription, beta] = await Promise.all([getSubscription(), getMyBeta()]);
+  const stripePremium = subscription?.premium ?? false;
+  const premium = stripePremium || hasBetaPremium(beta);
   const paymentEnabled = isSupabaseConfigured() && isStripeConfigured();
 
   return (
@@ -109,7 +112,7 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
           </div>
           <FeatureList items={PREMIUM_FEATURES} tone="blue" />
           <div className="mt-auto pt-2">
-            {premium ? (
+            {stripePremium ? (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-emerald-700">✓ Tu es Premium</p>
                 <form action={openBillingPortalAction}>
@@ -118,6 +121,10 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
                   </button>
                 </form>
               </div>
+            ) : premium ? (
+              <p className="text-sm font-medium text-emerald-700">
+                ✓ Premium offert en tant que beta testeur, jusqu&apos;au {BETA_PREMIUM_UNTIL_LABEL}.
+              </p>
             ) : (
               <form action={startCheckoutAction} className="space-y-2">
                 <button

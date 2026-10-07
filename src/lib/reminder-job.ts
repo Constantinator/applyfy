@@ -1,5 +1,6 @@
 import "server-only";
 
+import { appUrl } from "./app-url";
 import { isEmailConfigured, sendEmail } from "./email/brevo";
 import { buildReminderEmail } from "./email/reminder-email";
 import { MAX_REMINDERS, REMINDER_STATUSES, daysBetween, dueReminder, readReminderSettings } from "./reminders";
@@ -25,12 +26,6 @@ export type ReminderJobResult = {
   errors: { applicationId: string; error: string }[];
 };
 
-/** URL publique de l'app (liens des emails). */
-function appUrl() {
-  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  return "http://localhost:3000";
-}
 
 /**
  * Tâche quotidienne : envoie les rappels de relance dus.

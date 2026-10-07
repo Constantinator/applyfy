@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { getCurrentUser } from "./auth";
+import { getMyBeta, hasBetaPremium } from "./beta";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 // Statut Premium de l'utilisateur connecté (table "subscriptions", migration 0014), tenu
@@ -60,7 +61,11 @@ export const getSubscription = cache(async (): Promise<Subscription | null> => {
   };
 });
 
-/** L'utilisateur connecté est-il Premium ? */
+/**
+ * L'utilisateur connecté est-il Premium ? Abonnement Stripe en cours, ou beta testeur actif
+ * (Premium offert jusqu'à la fin du programme). Aligné avec is_premium (migration 0017).
+ */
 export async function isPremium(): Promise<boolean> {
-  return (await getSubscription())?.premium ?? false;
+  const [subscription, beta] = await Promise.all([getSubscription(), getMyBeta()]);
+  return (subscription?.premium ?? false) || hasBetaPremium(beta);
 }

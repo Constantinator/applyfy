@@ -60,15 +60,15 @@ export function isAdminEmail(email: string | null | undefined) {
 // Lecture des données
 // ---------------------------------------------------------------------------
 
-type AdminClient = ReturnType<typeof createAdminClient>;
+export type AdminClient = ReturnType<typeof createAdminClient>;
 
-type AuthUser = { id: string; email: string | null; createdAt: string };
+export type AuthUser = { id: string; email: string | null; createdAt: string };
 type UsageRow = { user_id: string; kind: AiUsageKind };
 type SubscriptionRow = { user_id: string; status: string; created_at: string; updated_at: string };
 
 const PAGE = 1000;
 
-async function listAllUsers(supabase: AdminClient): Promise<AuthUser[]> {
+export async function listAllUsers(supabase: AdminClient): Promise<AuthUser[]> {
   const users: AuthUser[] = [];
   for (let page = 1; ; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: PAGE });

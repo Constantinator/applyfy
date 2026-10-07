@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { connection } from "next/server";
 
 import { DailyChart } from "@/components/admin/daily-chart";
@@ -16,6 +17,7 @@ import {
   requireAdmin,
 } from "@/lib/admin-metrics";
 import { AI_USAGE_LABELS } from "@/lib/ai-usage-limits";
+import { betaActivity, listBetaTesters } from "@/lib/beta-admin";
 
 export const metadata: Metadata = { title: "Admin — Applyfy", robots: { index: false } };
 
@@ -84,10 +86,16 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   await connection();
   await requireAdmin();
   const { mois } = await searchParams;
-  const [m, feedback] = await Promise.all([
+  const [m, feedback, betaTesters] = await Promise.all([
     getAdminMetrics(typeof mois === "string" ? mois : undefined),
     getFeedbackMetrics(),
+    listBetaTesters(),
   ]);
+  // Notification beta : rapports soumis ou en retard, et suspensions des 7 derniers jours.
+  const weekAgo = new Date(m.generatedAt).getTime() - 7 * 86_400_000;
+  const betaNews = betaActivity(betaTesters ?? []).filter((e) => new Date(e.date).getTime() >= weekAgo);
+  const betaSubmitted = betaNews.filter((e) => e.kind === "soumis").length;
+  const betaLate = betaNews.length - betaSubmitted;
   const month = monthName.format(new Date(`${m.month}-01T00:00:00Z`));
   const asOf = dayName.format(new Date(`${m.asOf}T00:00:00Z`));
   // « d'octobre », « de mars ».
@@ -108,8 +116,33 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               : `Mois terminé · inscrits et abonnés au ${asOf}`}
           </p>
         </div>
-        <MonthPicker month={m.month} months={m.months} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/beta" className="btn-secondary px-4 py-2 text-sm">
+            Beta testeurs →
+          </Link>
+          <MonthPicker month={m.month} months={m.months} />
+        </div>
       </div>
+
+      {betaNews.length > 0 && (
+        <Link
+          href="/admin/beta"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900 ring-1 ring-blue-200 hover:bg-blue-100"
+        >
+          <span className="font-semibold">Beta · 7 derniers jours</span>
+          {betaSubmitted > 0 && (
+            <span>
+              📝 {betaSubmitted} rapport{betaSubmitted > 1 ? "s" : ""} soumis
+            </span>
+          )}
+          {betaLate > 0 && (
+            <span className="text-red-700">
+              ⏰ {betaLate} retard{betaLate > 1 ? "s" : ""} ou suspension{betaLate > 1 ? "s" : ""}
+            </span>
+          )}
+          <span className="ml-auto font-medium">Voir les beta testeurs →</span>
+        </Link>
+      )}
 
       {/* 1. Utilisateurs */}
       <Section id="admin-utilisateurs" title="Utilisateurs">

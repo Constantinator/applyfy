@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { ApplicationsView } from "@/components/dashboard/applications-view";
 import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
@@ -7,6 +8,7 @@ import { IconPlus, IconSparkles } from "@/components/icons";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { getApplications } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
+import { getBetaSpotsLeft, getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { FOLLOW_UP_AFTER_DAYS, FOLLOW_UP_FILTER, needsFollowUp } from "@/lib/follow-up";
 import { DEFAULT_SORT, isSortKey } from "@/lib/sort-applications";
 import { isStripeConfigured, syncCheckoutSession } from "@/lib/stripe";
@@ -14,7 +16,7 @@ import { getSubscription } from "@/lib/subscription";
 import { isApplicationStatus } from "@/lib/types";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
-  const { filtre, tri, ajout, suppression, premium: premiumWelcome, session_id } = await searchParams;
+  const { filtre, tri, ajout, suppression, premium: premiumWelcome, session_id, beta: betaParam } = await searchParams;
   const welcomePremium = premiumWelcome === "bienvenue";
   // Retour de Stripe Checkout : abonnement enregistré tout de suite, sans attendre le webhook.
   if (welcomePremium && typeof session_id === "string" && isStripeConfigured()) {
@@ -29,7 +31,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     filtre === FOLLOW_UP_FILTER || isApplicationStatus(filtre) ? filtre : "toutes";
   const initialSort = isSortKey(tri) ? tri : DEFAULT_SORT;
 
-  const [{ applications, source }, subscription] = await Promise.all([getApplications(), getSubscription()]);
+  const [{ applications, source }, subscription, beta] = await Promise.all([
+    getApplications(),
+    getSubscription(),
+    getMyBeta(),
+  ]);
+  const premium = (subscription?.premium ?? false) || hasBetaPremium(beta);
+  // Programme beta : proposé à ceux qui n'y participent pas encore.
+  const canJoinBeta = source !== "demo" && !beta;
+  const betaSpotsLeft = canJoinBeta ? await getBetaSpotsLeft() : 0;
   // Date de référence unique, transmise au client pour des calculs identiques des deux côtés.
   const now = new Date();
   const toFollowUp = applications.filter((app) => needsFollowUp(app, now));
@@ -80,7 +90,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          {source !== "demo" && !subscription?.premium && (
+          {canJoinBeta && (
+            <BetaJoinDialog mode="join" spotsLeft={betaSpotsLeft} autoOpen={betaParam === "rejoindre"} />
+          )}
+          {source !== "demo" && !premium && (
             <Link href="/premium" className="btn-secondary px-4 py-2.5 text-sm">
               <IconSparkles className="h-4 w-4 text-blue-600" />
               Passer au Premium
