@@ -58,6 +58,17 @@ export async function createCheckoutUrl({
     ...(customerId ? { customer: customerId } : email ? { customer_email: email } : {}),
     // Retrouver l'utilisateur depuis les événements de l'abonnement (résiliation…).
     subscription_data: { metadata: { user_id: userId } },
+    // Case obligatoire avant le bouton de paiement : renonciation au droit de rétractation
+    // (accès immédiat au service). Stripe exige une URL de conditions d'utilisation dans
+    // Dashboard > Paramètres > Informations publiques ; l'acceptation est enregistrée dans
+    // la session (consent.terms_of_service = "accepted").
+    consent_collection: { terms_of_service: "required" },
+    custom_text: {
+      terms_of_service_acceptance: {
+        message:
+          "Je renonce expressément à mon droit de rétractation de 14 jours en demandant l'accès immédiat au service Premium.",
+      },
+    },
     locale: "fr",
     success_url: `${origin}/dashboard?premium=bienvenue&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/premium`,
