@@ -13,6 +13,7 @@ import {
   OfferSourceError,
   type OfferListing,
   type OfferSearch,
+  type OfferSource,
 } from "@/lib/offer-types";
 import {
   findOffer,
@@ -31,6 +32,12 @@ export const metadata: Metadata = { title: "Trouver une offre — Applyfy" };
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 const numberFormatter = new Intl.NumberFormat("fr-FR");
+
+/** Couleurs de la pastille indiquant la source de l'offre. */
+const SOURCE_BADGE: Record<OfferSource, string> = {
+  "france-travail": "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  adzuna: "bg-orange-50 text-orange-700 ring-orange-200",
+};
 
 function publishedLabel(iso: string | null) {
   if (!iso) return null;
@@ -253,11 +260,19 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                         <OfferLink
                           href={href(page, offer.id)}
                           selected={isSelected}
-                          className={`card relative block space-y-1.5 p-4 pb-9 transition ${
+                          className={`card block space-y-1.5 p-4 transition ${
                             isSelected ? "bg-blue-50/60 ring-2 ring-blue-500" : "hover:ring-1 hover:ring-blue-300"
                           }`}
                         >
-                          <h3 className="font-semibold text-slate-900">{offer.title}</h3>
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="font-semibold text-slate-900">{offer.title}</h3>
+                            <span
+                              className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${SOURCE_BADGE[offer.source]}`}
+                            >
+                              <span className="sr-only">Source : </span>
+                              {OFFER_SOURCES[offer.source]}
+                            </span>
+                          </div>
                           <p className="text-sm text-slate-600">{offer.company ?? "Entreprise non communiquée"}</p>
                           <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                             {offer.location && (
@@ -279,10 +294,6 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                               </li>
                             )}
                           </ul>
-                          <span className="absolute right-4 bottom-2.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] text-slate-500 ring-1 ring-slate-200">
-                            <span className="sr-only">Source : </span>
-                            {OFFER_SOURCES[offer.source]}
-                          </span>
                         </OfferLink>
                       </li>
                     );
