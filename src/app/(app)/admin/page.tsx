@@ -70,13 +70,15 @@ export default async function AdminPage() {
   await requireAdmin();
   const m = await getAdminMetrics();
   const month = monthName.format(new Date(`${m.period}T00:00:00Z`));
+  // « d'octobre », « de mars ».
+  const ofMonth = `${/^[aeiou]/i.test(month) ? "d'" : "de "}${month}`;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Admin</h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Données de {month} · mises à jour le {dateTime.format(new Date(m.generatedAt))}
+          Données {ofMonth} · mises à jour le {dateTime.format(new Date(m.generatedAt))}
         </p>
       </div>
 
@@ -142,7 +144,7 @@ export default async function AdminPage() {
       </Section>
 
       {/* 3. Coûts IA */}
-      <Section id="admin-couts" title={`Coûts IA de ${month}`}>
+      <Section id="admin-couts" title={`Coûts IA ${ofMonth}`}>
         <div className="grid gap-4 sm:grid-cols-3">
           <Stat label="Coût total" value={euros.format(m.costs.total)} />
           <Stat
