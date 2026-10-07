@@ -78,7 +78,36 @@ export default function TermsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="5. Utilisation acceptable">
+      <LegalSection title="5. Programme Beta Testeurs">
+        <p>
+          Le programme beta testeurs permet d&apos;aider à améliorer Applyfy en échange d&apos;un accès
+          Premium gratuit. Il est limité à 30 participants.
+        </p>
+        <ul>
+          <li>
+            <strong>Avantage :</strong> accès Premium gratuit jusqu&apos;au 31 décembre 2026, sans
+            moyen de paiement à fournir.
+          </li>
+          <li>
+            <strong>Engagement :</strong> soumettre 3 rapports depuis <strong>Mon profil</strong> :
+            semaine 1 (dans les 7 jours suivant l&apos;inscription), semaine 2 (dans les 14 jours) et
+            mois 1 (dans les 30 jours). Un rappel est envoyé par email 2 jours avant chaque date
+            limite.
+          </li>
+          <li>
+            <strong>Retrait automatique :</strong> si un rapport n&apos;est pas soumis dans les délais,
+            l&apos;accès beta et le Premium gratuit sont retirés automatiquement, et le compte repasse
+            au plan gratuit. Le compte et ses données sont conservés.
+          </li>
+          <li>
+            <strong>Inscription volontaire et définitive :</strong> rejoindre le programme est un choix
+            libre. Une fois l&apos;inscription confirmée, elle ne peut pas être annulée, et un accès
+            retiré ne peut pas être rétabli par une nouvelle inscription.
+          </li>
+        </ul>
+      </LegalSection>
+
+      <LegalSection title="6. Utilisation acceptable">
         <p>Tu t&apos;engages à utiliser Applyfy de manière loyale. Il est notamment interdit :</p>
         <ul>
           <li>d&apos;utiliser le service à des fins illégales, frauduleuses ou contraires à l&apos;ordre public ;</li>
@@ -98,7 +127,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="6. Contenus générés par l'intelligence artificielle">
+      <LegalSection title="7. Contenus générés par l'intelligence artificielle">
         <p>
           Les résumés, suggestions, CV adaptés et lettres de motivation sont générés automatiquement
           par une intelligence artificielle, à partir des informations que tu fournis. Ils peuvent
@@ -119,7 +148,7 @@ export default function TermsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="7. Tes contenus">
+      <LegalSection title="8. Tes contenus">
         <p>
           Tu restes propriétaire des contenus que tu ajoutes (CV, candidatures, notes) et des documents
           générés pour toi. Tu accordes à Applyfy le seul droit de les traiter pour te fournir le
@@ -128,7 +157,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Disponibilité et limitation de responsabilité">
+      <LegalSection title="9. Disponibilité et limitation de responsabilité">
         <p>
           Le service est fourni « en l&apos;état ». L&apos;éditeur s&apos;efforce d&apos;en assurer
           l&apos;accès et le bon fonctionnement, sans garantie de disponibilité continue : des
@@ -142,7 +171,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Modification des CGU">
+      <LegalSection title="10. Modification des CGU">
         <p>
           Ces conditions peuvent être modifiées pour suivre l&apos;évolution du service. La date de
           dernière mise à jour figure en haut de cette page ; en cas de changement important, tu en
@@ -150,7 +179,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Droit applicable et contact">
+      <LegalSection title="11. Droit applicable et contact">
         <p>
           Les présentes CGU sont soumises au droit français. En cas de litige, une solution amiable sera
           recherchée avant toute action ; à défaut, les tribunaux français seront compétents.
