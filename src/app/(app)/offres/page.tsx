@@ -4,9 +4,11 @@ import Link from "next/link";
 import { IconBriefcase, IconClock, IconMapPin, IconSearch } from "@/components/icons";
 import { OfferDetails } from "@/components/offers/offer-details";
 import { OfferLink } from "@/components/offers/offer-link";
+import { RecommendationsToggle } from "@/components/offers/recommendations-toggle";
 import { requireUser } from "@/lib/auth";
 import { getSectors, isFranceTravailConfigured, type ReferenceItem } from "@/lib/france-travail";
 import type { Department } from "@/lib/geo";
+import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
   CONTRACT_FILTERS,
   OFFER_SOURCES,
@@ -25,6 +27,7 @@ import {
   resolveOfferSearch,
   searchAllOffers,
   type CombinedSearchResult,
+  type OfferQuery,
 } from "@/lib/offers";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
@@ -51,12 +54,28 @@ function publishedLabel(iso: string | null) {
 export default async function OffersPage({ searchParams }: PageProps<"/offres">) {
   if (isSupabaseConfigured()) await requireUser();
   const params = await searchParams;
-  const query = readOfferQuery(params);
-  const { keywords, place, contract, sector, page } = query;
-  const hasSearch = hasOfferQuery(query);
+  /** Recherche saisie dans le formulaire. */
+  const manualQuery = readOfferQuery(params);
+  const { keywords, place, contract, sector } = manualQuery;
+  const hasManualSearch = hasOfferQuery(manualQuery);
   /** Offre affichée dans le panneau de détails (?offre=). */
   const selectedId = isOfferId(params.offre) ? params.offre : null;
   const configured = isOfferSearchConfigured();
+
+  // Recommandations personnalisées (?reco=1, sans recherche manuelle) : recherche
+  // construite à partir des candidatures de l'utilisateur.
+  const recommending = configured && params.reco === "1" && !hasManualSearch;
+  const basis = recommending
+    ? await getRecommendationBasis().catch((e) => {
+        console.error("[offres] recommandations", e);
+        return null;
+      })
+    : null;
+  const query: OfferQuery = basis
+    ? { keywords: basis.keywords, place: basis.place, contract: basis.contract, sector: null, page: manualQuery.page }
+    : manualQuery;
+  const { page } = query;
+  const hasSearch = recommending ? basis !== null : hasManualSearch;
 
   let sectors: ReferenceItem[] = [];
   let search: OfferSearch | null = null;
@@ -102,9 +121,12 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   }
 
   const pageCount = result?.pageCount ?? 0;
+  /** Recherche effectuée (mots-clés recommandés compris), pour retrouver une offre à l'ajout. */
   const searchParamsOf = (target: number) => offerQueryParams({ ...query, page: target });
   const href = (target: number, offre: string | null = null) => {
-    const params = searchParamsOf(target);
+    // En mode recommandations, l'URL garde ?reco=1 : la recherche est recalculée côté serveur.
+    const params = recommending ? new URLSearchParams({ reco: "1" }) : searchParamsOf(target);
+    if (recommending && target > 1) params.set("page", String(target));
     if (offre) params.set("offre", offre);
     return `/offres?${params}`;
   };
@@ -122,6 +144,20 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
         </p>
       </div>
+
+      {configured && (
+        <div className={mobileHidden}>
+          <RecommendationsToggle active={recommending} canAutoOpen={!hasManualSearch && !selectedId}>
+            {basis && (
+              <p className="text-xs text-slate-500">
+                Basées sur tes candidatures : « {basis.keywords} »
+                {department ? ` · ${department.name}` : basis.place ? ` · ${basis.place}` : " · toute la France"}
+                {basis.contract ? ` · ${CONTRACT_FILTERS[basis.contract]}` : ""}
+              </p>
+            )}
+          </RecommendationsToggle>
+        </div>
+      )}
 
       {!configured ? (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
@@ -225,7 +261,21 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         </p>
       )}
 
-      {configured && !hasSearch && !selected && (
+      {recommending && !basis && !selected && (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <p className="font-medium text-slate-900">
+            Ajoute des candidatures pour recevoir des recommandations personnalisées
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            Les offres recommandées s&apos;appuient sur les postes et les villes de tes candidatures.
+          </p>
+          <Link href="/candidatures/nouvelle" className="btn-primary mt-4 inline-flex px-4 py-2 text-sm">
+            Ajouter une candidature
+          </Link>
+        </div>
+      )}
+
+      {configured && !hasSearch && !recommending && !selected && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
           <p className="font-medium text-slate-900">Lance ta recherche</p>
           <p className="mt-1 text-sm text-slate-500">
