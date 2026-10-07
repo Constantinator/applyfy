@@ -286,7 +286,9 @@ export async function recordFollowUp(id: string, message: string) {
 /** Champs modifiables directement depuis la fiche (sans événement d'historique). */
 export type ApplicationDetailsPatch =
   | { notes: string | null }
-  | { contact_name: string | null; contact_email: string | null };
+  | { contact_name: string | null; contact_email: string | null }
+  // Description complétée à la main (offre dont seul un extrait avait été récupéré).
+  | { offer_description: string; offer_description_partial: false };
 
 export async function updateApplicationDetails(id: string, patch: ApplicationDetailsPatch) {
   if (!isSupabaseConfigured()) {

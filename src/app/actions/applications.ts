@@ -113,6 +113,36 @@ export async function saveNotesAction(id: string, notes: string): Promise<SaveDe
   return saveDetails(id, { notes: notes.trim() ? notes : null }, "saveNotes");
 }
 
+/** Longueur minimale d'une description collée à la main (en dessous : sans doute incomplète). */
+const PASTED_DESCRIPTION_MIN_LENGTH = 100;
+
+/**
+ * Description complète collée par l'utilisateur, à la place d'un extrait (offre Adzuna ou
+ * France Travail dont le site d'origine bloque la lecture). Retire la mention « partielle ».
+ */
+export async function completeOfferDescriptionAction(id: string, description: string): Promise<SaveDetailsResult> {
+  if (typeof description !== "string") return { ok: false, error: "Requête invalide." };
+  const text = description
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (text.length < PASTED_DESCRIPTION_MIN_LENGTH) {
+    return { ok: false, error: "Colle la description complète de l'offre (missions, profil recherché…)." };
+  }
+  if (text.length > OFFER_DESCRIPTION_MAX_LENGTH) {
+    return { ok: false, error: "Description trop longue (20 000 caractères max)." };
+  }
+
+  const result = await saveDetails(
+    id,
+    { offer_description: text, offer_description_partial: false },
+    "completeOfferDescription",
+  );
+  if (result.ok) revalidateApplication(id);
+  return result;
+}
+
 /** Nom et email du contact (recruteur, RH…), modifiés directement sur la fiche. */
 export async function updateContactAction(
   id: string,

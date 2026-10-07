@@ -5,6 +5,7 @@ import { CoverLetterGenerator } from "@/components/application/cover-letter-gene
 import { ContactEditor } from "@/components/application/contact-editor";
 import { CvAdapter } from "@/components/application/cv-adapter";
 import { NotesPad } from "@/components/application/notes-pad";
+import { OfferDescriptionCompleter } from "@/components/application/offer-description-completer";
 import { DeleteApplicationButton } from "@/components/application/delete-application-button";
 import { FollowUpBox } from "@/components/application/follow-up-box";
 import { StatusChanger } from "@/components/application/status-changer";
@@ -195,25 +196,16 @@ export default async function ApplicationPage({
                 <p className="mt-0.5 text-xs text-slate-500">Texte de l&apos;annonce, tel qu&apos;importé.</p>
               )}
             </div>
+            {/* Extrait seulement (site d'origine bloqué) : l'utilisateur peut coller l'offre complète. */}
+            {app.offer_description_partial && (
+              <OfferDescriptionCompleter applicationId={app.id} offerUrl={app.offer_url} />
+            )}
             {app.offer_description ? (
               <CollapsibleBox label="Description de l'offre">
                 <FormattedText text={app.offer_description} className="text-slate-600" />
               </CollapsibleBox>
             ) : (
               <p className="text-sm text-slate-500">Aucune description enregistrée.</p>
-            )}
-            {app.offer_description_partial && app.offer_url && (
-              <p className="mt-3 text-xs text-slate-500">
-                Description partielle —{" "}
-                <a
-                  href={app.offer_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-blue-600 hover:text-blue-500"
-                >
-                  voir l&apos;offre complète ↗
-                </a>
-              </p>
             )}
           </section>
 
