@@ -11,7 +11,8 @@ import {
   type RefineChatTurn,
 } from "./claude";
 import { CV_HTML_MAX_LENGTH, sanitizeCvHtml } from "./cv-html";
-import { REFINE_MESSAGE_MAX_LENGTH } from "./cv-types";
+import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH } from "./cv-types";
+import { getLatestProfileCvHtml } from "./profile";
 
 // Chat « Affiner avec l'IA » (CV amélioré et lettre) : logique commune aux deux Server
 // Actions. Le document n'est pas enregistré : l'éditeur affiche le résultat, que le
@@ -32,6 +33,18 @@ const LABELS = {
     done: "C'est fait : les modifications sont surlignées dans ta lettre.",
   },
 } as const;
+
+/** HTML du CV → texte lisible (une ligne par bloc), pour le contexte du chat. */
+function htmlToText(html: string | null | undefined): string | null {
+  if (!html) return null;
+  const text = html
+    .replace(/<\/(h1|h2|h3|p|li)>/g, "\n")
+    .replace(/<li>/g, "• ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return text || null;
+}
 
 function readHistory(raw: unknown): RefineChatTurn[] {
   if (!Array.isArray(raw)) return [];
@@ -87,9 +100,16 @@ export async function refineApplicationDocument(
     description: app.offer_description,
   };
 
+  // CV : l'analyse faite pour cette offre. Lettre : le CV du candidat (celui de l'éditeur
+  // de CV pour cette candidature, sinon le dernier CV du profil importé dans l'éditeur).
+  const context =
+    document === "cv"
+      ? { analysis: readCvSuggestions(app.cv_suggestions) }
+      : { candidateCv: htmlToText(app.cv_improved_html ?? (await getLatestProfileCvHtml())) };
+
   let refined;
   try {
-    refined = await refineDocument(document, current, offer, readHistory(history), request);
+    refined = await refineDocument(document, current, offer, readHistory(history), request, context);
   } catch (error) {
     return { ok: false, error: claudeErrorMessage(error, `refine:${document}`) };
   }

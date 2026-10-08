@@ -11,7 +11,7 @@ import { cvFontVariables } from "@/lib/cv-fonts";
 import { firstHeadingText, sanitizeCvHtml } from "@/lib/cv-html";
 import { readCvStyle } from "@/lib/cv-style";
 
-export const metadata: Metadata = { title: "Mon CV amélioré — Applyfy" };
+export const metadata: Metadata = { title: "Mon CV — Applyfy" };
 
 // « Affiner avec l'IA » (Server Action de cette page) : jusqu'à une minute.
 export const maxDuration = 120;
@@ -34,9 +34,9 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
         >
           ← Retour à la candidature {app.company}
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon CV amélioré</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon CV</h1>
         <p className="text-sm text-slate-500">
-          Adapté au poste « {app.position} » chez {app.company}.
+          Pour le poste « {app.position} » chez {app.company}.
         </p>
       </div>
 
@@ -58,9 +58,9 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
         />
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center print:hidden">
-          <p className="font-medium text-slate-900">Pas encore de CV amélioré pour cette candidature</p>
+          <p className="font-medium text-slate-900">Pas encore de CV pour cette candidature</p>
           <p className="mt-1 text-sm text-slate-500">
-            Lance « Adapter mon CV » sur la fiche, puis « Générer mon CV amélioré ».
+            Clique sur « Ouvrir l&apos;éditeur de CV » sur la fiche pour y ouvrir un CV de ton profil.
           </p>
           <Link
             href={`/candidatures/${app.id}`}

@@ -50,3 +50,27 @@ export function coverLetterToHtml(letter: CoverLetter, position: string, date: D
   parts.push(`<p><strong>${inline(letter.nom)}</strong></p>`);
   return parts.join("\n");
 }
+
+/**
+ * Lettre vierge pour l'éditeur (aucune lettre encore enregistrée) : en-tête, objet et
+ * formules, à compléter à la main ou en demandant au chat de rédiger la lettre.
+ */
+export function emptyCoverLetterHtml(
+  position: string,
+  company: string,
+  name: string | null,
+  date: Date = new Date(),
+): string {
+  const signer = name?.trim() || "Prénom Nom";
+  return [
+    `<h1>${inline(signer)}</h1>`,
+    "<p>Email · Téléphone · Ville</p>",
+    `<p>${inline(company)}</p>`,
+    `<p>Le ${letterDate.format(date)}</p>`,
+    `<h2>Objet : ${inline(coverLetterSubject(position, signer))}</h2>`,
+    "<p>Madame, Monsieur,</p>",
+    "<p>Écris ta lettre ici, ou demande au chat de la rédiger pour toi à partir de l'offre et de ton CV.</p>",
+    "<p>Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.</p>",
+    `<p><strong>${inline(signer)}</strong></p>`,
+  ].join("\n");
+}

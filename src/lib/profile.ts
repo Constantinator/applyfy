@@ -69,6 +69,60 @@ export async function getProfileCvFile(id: string): Promise<{ cv: ProfileCv; byt
   return { cv: toCv(row as Row), bytes: Buffer.from(await data.arrayBuffer()) };
 }
 
+// ---------------------------------------------------------------------------
+// CV du profil au format de l'éditeur (colonne html, migration 0019) : retranscrit une
+// seule fois par CV, puis réutilisé pour chaque candidature. Sans échec : null si la
+// colonne n'existe pas encore.
+// ---------------------------------------------------------------------------
+
+/** Version éditable (HTML) d'un CV du profil, ou null si pas encore retranscrit. */
+export async function getProfileCvHtml(id: string): Promise<string | null> {
+  if (!isSupabaseConfigured() || !isUuid(id)) return null;
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profile_cvs")
+    .select("html")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) {
+    console.error("[profile] lecture du CV éditable", error.message);
+    return null;
+  }
+  return (data?.html as string | null) ?? null;
+}
+
+/** Mémorise la version éditable d'un CV du profil (non bloquant en cas d'échec). */
+export async function saveProfileCvHtml(id: string, html: string) {
+  if (!isSupabaseConfigured() || !isUuid(id)) return;
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profile_cvs")
+    .update({ html, html_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) console.error("[profile] enregistrement du CV éditable", error.message);
+}
+
+/** Dernier CV du profil déjà retranscrit (contexte du chat de la lettre), ou null. */
+export async function getLatestProfileCvHtml(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profile_cvs")
+    .select("html")
+    .eq("user_id", user.id)
+    .not("html", "is", null)
+    .order("html_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return (data?.html as string | null) ?? null;
+}
+
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ");
 }

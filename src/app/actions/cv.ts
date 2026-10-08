@@ -13,16 +13,16 @@ import {
 } from "@/lib/applications";
 import {
   claudeErrorMessage,
-  generateImprovedCv,
   isClaudeConfigured,
   suggestCvAdaptations,
+  transcribeCv,
   type OfferContext,
 } from "@/lib/claude";
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
 import { readCvStyle } from "@/lib/cv-style";
-import { readCvSuggestions, type CvSuggestions } from "@/lib/cv-types";
-import { getProfileCvFile } from "@/lib/profile";
+import type { CvSuggestions } from "@/lib/cv-types";
+import { getProfileCvFile, getProfileCvHtml, saveProfileCvHtml } from "@/lib/profile";
 import { refineApplicationDocument, type RefineResult } from "@/lib/refine";
 
 export type AdaptCvState =
@@ -30,7 +30,7 @@ export type AdaptCvState =
   | { status: "error"; message: string; limitReached?: boolean }
   | { status: "success"; suggestions: CvSuggestions; generatedAt: string };
 
-export type GenerateCvState =
+export type OpenCvEditorState =
   | { status: "idle" }
   | { status: "error"; message: string; limitReached?: boolean };
 
@@ -115,45 +115,57 @@ export async function adaptCvAction(
 }
 
 // ---------------------------------------------------------------------------
-// 2. CV complet amélioré
+// 2. Éditeur de CV de la candidature
 // ---------------------------------------------------------------------------
 
-export async function generateImprovedCvAction(
-  _prev: GenerateCvState,
+/**
+ * « Ouvrir l'éditeur de CV » : ouvre le CV de la candidature, ou le crée à partir d'un CV
+ * du profil. Le PDF n'est retranscrit qu'une fois par CV du profil (version mémorisée
+ * ensuite) ; chaque retranscription compte dans la limite « CV ouverts dans l'éditeur ».
+ */
+export async function openCvEditorAction(
+  _prev: OpenCvEditorState,
   formData: FormData,
-): Promise<GenerateCvState> {
-  const prepared = await prepare(formData);
-  if (!prepared.ok) return { status: "error", message: prepared.message };
+): Promise<OpenCvEditorState> {
+  // Vérifie la connexion ET que la candidature appartient bien à l'utilisateur.
+  const id = String(formData.get("id") ?? "");
+  const detail = id ? await getApplicationDetail(id) : null;
+  if (!detail) return { status: "error", message: "Candidature introuvable." };
+  const app = detail.application;
 
-  const app = prepared.detail.application;
-  const suggestions = readCvSuggestions(app.cv_suggestions);
-  if (!suggestions) {
-    return { status: "error", message: "Lance d'abord l'analyse de ton CV pour cette offre." };
-  }
-  // Génération et regénération comptent toutes deux dans la limite mensuelle.
-  if (isLimitReached(await getAiUsageFor("cv_ameliore"))) {
-    return { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true };
+  if (!app.cv_improved_html) {
+    const cvId = String(formData.get("cvId") ?? "");
+    let html = await getProfileCvHtml(cvId);
+    if (!html) {
+      if (!isClaudeConfigured()) {
+        return { status: "error", message: "L'ouverture d'un CV dans l'éditeur n'est pas disponible sur ce site." };
+      }
+      if (isLimitReached(await getAiUsageFor("cv_ameliore"))) {
+        return { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true };
+      }
+      const profileCv = await getProfileCvFile(cvId);
+      if (!profileCv) return { status: "error", message: "Ce CV n'existe plus dans ton profil. Choisis-en un autre." };
+      try {
+        const cv = await transcribeCv(profileCv.bytes.toString("base64"));
+        if (!cv) return { status: "error", message: "Ce CV n'a pas pu être lu. Vérifie qu'il s'agit bien d'un PDF de CV." };
+        html = sanitizeCvHtml(improvedCvToHtml(cv));
+      } catch (error) {
+        return { status: "error", message: claudeErrorMessage(error, "transcribeCv") };
+      }
+      await recordAiUsage("cv_ameliore");
+      await saveProfileCvHtml(cvId, html);
+    }
+
+    try {
+      await saveImprovedCv(app.id, html);
+    } catch (error) {
+      unstable_rethrow(error);
+      console.error("[openCvEditor] enregistrement", error);
+      return { status: "error", message: "Le CV n'a pas pu être ouvert. Réessaie dans un instant." };
+    }
+    revalidatePath(`/candidatures/${app.id}`);
   }
 
-  let html: string;
-  try {
-    const improved = await generateImprovedCv(prepared.pdfBase64, prepared.offer, suggestions);
-    if (!improved) return { status: "error", message: "Le CV amélioré n'a pas pu être généré." };
-    await recordAiUsage("cv_ameliore");
-    html = sanitizeCvHtml(improvedCvToHtml(improved));
-  } catch (error) {
-    return { status: "error", message: claudeErrorMessage(error, "generateImprovedCv") };
-  }
-
-  try {
-    await saveImprovedCv(app.id, html);
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("[generateImprovedCv] enregistrement", error);
-    return { status: "error", message: "Le CV a été généré mais n'a pas pu être enregistré." };
-  }
-
-  revalidatePath(`/candidatures/${app.id}`);
   redirect(`/candidatures/${app.id}/cv`);
 }
 

@@ -27,7 +27,7 @@ export const AI_MONTHLY_LIMITS: Record<AiUsageKind, number> = {
 export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string; feminine: boolean }> = {
   resume_offre: { title: "Résumés d'offre", unit: "résumés", feminine: false },
   adaptation_cv: { title: "Analyses de CV", unit: "analyses", feminine: true },
-  cv_ameliore: { title: "CV améliorés", unit: "générations", feminine: true },
+  cv_ameliore: { title: "CV ouverts dans l'éditeur", unit: "ouvertures", feminine: true },
   affinage_cv: { title: "Chat « Affiner avec l'IA » — CV", unit: "messages", feminine: false },
   lettre: { title: "Lettres de motivation", unit: "générations", feminine: true },
   affinage_lettre: { title: "Chat « Affiner avec l'IA » — lettre", unit: "messages", feminine: false },

@@ -29,7 +29,7 @@ import { fullName } from "@/lib/person-name";
 import { readCvSuggestions } from "@/lib/cv-types";
 import { listProfileCvs } from "@/lib/profile";
 
-// Analyse de CV, CV amélioré et lettre de motivation (Server Actions de cette page) : 30 à 90 s.
+// Analyse de CV, ouverture du CV dans l'éditeur et lettre (Server Actions de cette page) : 30 à 90 s.
 export const maxDuration = 120;
 
 // Date sans heure (YYYY-MM-DD) : formatée en UTC pour ne pas dépendre du fuseau du serveur.
@@ -178,9 +178,6 @@ export default async function ApplicationPage({
                   <h2 id="summary-title" className="text-lg font-semibold text-slate-900">
                     Résumé de l&apos;offre
                   </h2>
-                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
-                    Généré par l&apos;IA
-                  </span>
                 </div>
                 <FormattedText text={app.offer_summary} />
               </div>
@@ -218,7 +215,7 @@ export default async function ApplicationPage({
             profileCvs={profileCvs}
             hasImprovedCv={Boolean(app.cv_improved_html)}
             usage={usage.counts.adaptation_cv}
-            improveUsage={usage.counts.cv_ameliore}
+            editorUsage={usage.counts.cv_ameliore}
             resetLabel={formatResetDate(usage.resetsOn)}
           />
 

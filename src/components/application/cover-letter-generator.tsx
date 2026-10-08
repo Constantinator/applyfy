@@ -57,8 +57,8 @@ export function CoverLetterGenerator({
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [summary, setSummary] = useState("");
-  // Avec une lettre existante, le choix du profil s'affiche à la demande (regénération).
-  const [pickerOpen, setPickerOpen] = useState(!hasLetter);
+  // Le choix du profil s'affiche à la demande (« Générer ma lettre »).
+  const [pickerOpen, setPickerOpen] = useState(false);
   const limitReached =
     isLimitReached(usage) || (state.status === "error" && state.limitReached === true);
 
@@ -103,44 +103,36 @@ export function CoverLetterGenerator({
 
   return (
     <section aria-labelledby="letter-title" className="card p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 id="letter-title" className="font-semibold text-slate-900">
-            Lettre de motivation
-          </h2>
+      <div>
+        <h2 id="letter-title" className="font-semibold text-slate-900">
+          Lettre de motivation
+        </h2>
+        {hasLetter && letterSavedAt && (
           <p className="mt-1 text-sm text-slate-500">
-            {hasLetter && letterSavedAt
-              ? `Dernière modification le ${dateTimeFormatter.format(new Date(letterSavedAt))}.`
-              : "L'assistant rédige une lettre personnalisée à partir de ton profil et de l'offre."}
+            Dernière modification le {dateTimeFormatter.format(new Date(letterSavedAt))}.
           </p>
-        </div>
-        {!hasLetter && limitReached && aiEnabled && (
-          <button type="button" disabled className="btn-primary shrink-0 self-start px-4 py-2 text-sm">
-            {LIMIT_REACHED_LABEL}
-          </button>
-        )}
-        {hasLetter && (
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Link href={`/candidatures/${applicationId}/lettre`} className="btn-primary px-4 py-2 text-sm">
-              Ouvrir ma lettre →
-            </Link>
-            {(!pickerOpen || limitReached) && (
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                disabled={!aiEnabled || limitReached}
-                className="btn-secondary px-4 py-2 text-sm"
-              >
-                {limitReached ? LIMIT_REACHED_LABEL : "Regénérer ma lettre"}
-              </button>
-            )}
-          </div>
         )}
       </div>
 
-      {!aiEnabled && (
-        <p className="mt-3 text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
-      )}
+      {/* Action principale : générer tant qu'il n'y a pas de lettre, ensuite l'éditeur. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          disabled={!aiEnabled || limitReached || pickerOpen}
+          className={`${hasLetter ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`}
+        >
+          {limitReached ? LIMIT_REACHED_LABEL : "Générer ma lettre"}
+        </button>
+        <Link
+          href={`/candidatures/${applicationId}/lettre`}
+          className={`${hasLetter ? "btn-primary" : "btn-secondary"} px-4 py-2 text-sm`}
+        >
+          Ouvrir l&apos;éditeur de lettre
+        </Link>
+      </div>
+
+      {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Génération non disponible sur ce site.</p>}
 
       {aiEnabled && limitReached && !generating && (
         <div className="mt-4">
@@ -239,10 +231,6 @@ export function CoverLetterGenerator({
               personnalisée. Ajoute la description pour un meilleur résultat.
             </p>
           )}
-          <p className="text-xs text-slate-500">
-            Ton profil et l&apos;offre sont transmis à Claude (Anthropic) pour la rédaction.
-          </p>
-
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -254,9 +242,9 @@ export function CoverLetterGenerator({
                 ? "Rédaction en cours…"
                 : hasLetter
                   ? "Regénérer ma lettre"
-                  : "Générer ma lettre de motivation"}
+                  : "Générer ma lettre"}
             </button>
-            {hasLetter && !generating && (
+            {!generating && (
               <button
                 type="button"
                 onClick={() => setPickerOpen(false)}
@@ -273,7 +261,7 @@ export function CoverLetterGenerator({
                 aria-hidden="true"
                 className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
               />
-              L&apos;assistant rédige ta lettre… cela peut prendre jusqu&apos;à une minute.
+              Rédaction de ta lettre… cela peut prendre jusqu&apos;à une minute.
             </p>
           )}
           {state.status === "error" && !generating && (

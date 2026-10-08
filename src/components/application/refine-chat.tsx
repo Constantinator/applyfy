@@ -11,30 +11,30 @@ import type { RefineResult } from "@/lib/refine";
 const DOCUMENTS = {
   cv: {
     intro: "Demande une modification : elle est appliquée directement au CV, surlignée en jaune.",
-    empty: "Dis à l'assistant ce que tu veux améliorer dans ton CV.",
+    empty: "Dis à l'assistant ce que tu veux améliorer dans ton CV. Il s'appuie sur l'analyse de ton CV si tu l'as lancée sur la fiche.",
     pending: "L'assistant modifie ton CV… cela peut prendre jusqu'à une minute.",
     placeholder: "Ex: Rends les bullet points plus percutants, ajoute plus de chiffres...",
-    privacy: "Ton CV et l'offre sont transmis à Claude (Anthropic).",
+    privacy: "Ton CV, son analyse et l'offre sont transmis à Claude (Anthropic).",
     save: "Pense à enregistrer le CV pour garder les modifications.",
     suggestions: [
+      "Adapte mon CV à l'offre",
       "Rends les bullet points plus percutants",
       "Ajoute plus de chiffres et résultats",
-      "Adapte mieux à l'offre",
       "Raccourcis pour tenir en 1 page",
     ],
   },
   lettre: {
-    intro: "Demande une modification : elle est appliquée directement à la lettre, surlignée en jaune.",
-    empty: "Dis à l'assistant ce que tu veux améliorer dans ta lettre.",
-    pending: "L'assistant modifie ta lettre… cela peut prendre jusqu'à une minute.",
+    intro: "Demande à l'assistant de rédiger ta lettre ou de la modifier : les changements sont surlignés en jaune.",
+    empty: "Demande à l'assistant de rédiger ta lettre à partir de l'offre et de ton CV, ou ce que tu veux y améliorer.",
+    pending: "L'assistant travaille sur ta lettre… cela peut prendre jusqu'à une minute.",
     placeholder: "Ex: Rends l'accroche plus percutante, adopte un ton plus direct...",
-    privacy: "Ta lettre et l'offre sont transmises à Claude (Anthropic).",
+    privacy: "Ta lettre, ton CV et l'offre sont transmis à Claude (Anthropic).",
     save: "Pense à enregistrer la lettre pour garder les modifications.",
     suggestions: [
+      "Rédige ma lettre",
       "Rends l'accroche plus percutante",
       "Ajoute des exemples concrets",
       "Adapte mieux à l'offre",
-      "Raccourcis la lettre",
     ],
   },
 } as const;

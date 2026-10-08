@@ -3,13 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CvEditor } from "@/components/application/cv-editor";
+import { getAccountName } from "@/lib/account";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
+import { emptyCoverLetterHtml } from "@/lib/cover-letter";
 import { cvFontVariables } from "@/lib/cv-fonts";
 import { firstHeadingText, sanitizeCvHtml } from "@/lib/cv-html";
 import { DEFAULT_LETTER_STYLE, readCvStyle } from "@/lib/cv-style";
+import { fullName } from "@/lib/person-name";
 
 export const metadata: Metadata = { title: "Ma lettre de motivation — Applyfy" };
 
@@ -18,7 +21,12 @@ export const maxDuration = 120;
 
 export default async function CoverLetterPage({ params }: PageProps<"/candidatures/[id]/lettre">) {
   const { id } = await params;
-  const [detail, usage] = await Promise.all([getApplicationDetail(id), readAiUsage()]);
+  const [detail, usage, accountName] = await Promise.all([
+    getApplicationDetail(id),
+    readAiUsage(),
+    // Non bloquant : sans nom, le modèle vierge affiche « Prénom Nom ».
+    getAccountName().catch(() => null),
+  ]);
   if (!detail) notFound();
   const { application: app } = detail;
 
@@ -36,34 +44,27 @@ export default async function CoverLetterPage({ params }: PageProps<"/candidatur
         </p>
       </div>
 
-      {app.cover_letter_html ? (
-        // Renettoyée à l'affichage (défense en profondeur, en plus du nettoyage à l'enregistrement).
-        <CvEditor
-          kind="lettre"
-          applicationId={app.id}
-          initialHtml={sanitizeCvHtml(app.cover_letter_html)}
-          initialStyle={readCvStyle(app.cover_letter_style, DEFAULT_LETTER_STYLE)}
-          savedAt={app.cover_letter_at ?? null}
-          pdfTitle={["Lettre de motivation", firstHeadingText(app.cover_letter_html), "-", app.company]
-            .filter(Boolean)
-            .join(" ")}
-          refine={{
-            aiEnabled: isClaudeConfigured(),
-            usage: usage.counts.affinage_lettre,
-            resetLabel: formatResetDate(usage.resetsOn),
-          }}
-        />
-      ) : (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center print:hidden">
-          <p className="font-medium text-slate-900">Pas encore de lettre de motivation pour cette candidature</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Lance « Générer ma lettre de motivation » sur la fiche.
-          </p>
-          <Link href={`/candidatures/${app.id}`} className="btn-primary mt-4 px-4 py-2 text-sm">
-            Aller à la fiche
-          </Link>
-        </div>
-      )}
+      {/* Renettoyée à l'affichage (défense en profondeur, en plus du nettoyage à
+          l'enregistrement). Sans lettre enregistrée : modèle vierge, enregistré au premier
+          « Enregistrer ». */}
+      <CvEditor
+        kind="lettre"
+        applicationId={app.id}
+        initialHtml={sanitizeCvHtml(
+          app.cover_letter_html ??
+            emptyCoverLetterHtml(app.position, app.company, accountName ? fullName(accountName) : null),
+        )}
+        initialStyle={readCvStyle(app.cover_letter_style, DEFAULT_LETTER_STYLE)}
+        savedAt={app.cover_letter_html ? (app.cover_letter_at ?? null) : null}
+        pdfTitle={["Lettre de motivation", firstHeadingText(app.cover_letter_html ?? ""), "-", app.company]
+          .filter(Boolean)
+          .join(" ")}
+        refine={{
+          aiEnabled: isClaudeConfigured(),
+          usage: usage.counts.affinage_lettre,
+          resetLabel: formatResetDate(usage.resetsOn),
+        }}
+      />
     </main>
   );
 }

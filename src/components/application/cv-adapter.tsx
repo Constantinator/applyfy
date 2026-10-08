@@ -5,9 +5,9 @@ import { startTransition, useActionState, useState } from "react";
 
 import {
   adaptCvAction,
-  generateImprovedCvAction,
+  openCvEditorAction,
   type AdaptCvState,
-  type GenerateCvState,
+  type OpenCvEditorState,
 } from "@/app/actions/cv";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
@@ -15,7 +15,7 @@ import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai
 import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
 
 const initialAdaptState: AdaptCvState = { status: "idle" };
-const initialGenerateState: GenerateCvState = { status: "idle" };
+const initialEditorState: OpenCvEditorState = { status: "idle" };
 
 const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -113,6 +113,7 @@ function SuggestionsView({ suggestions }: { suggestions: CvSuggestions }) {
   );
 }
 
+
 export function CvAdapter({
   applicationId,
   hasOfferDescription,
@@ -122,7 +123,7 @@ export function CvAdapter({
   profileCvs,
   hasImprovedCv,
   usage,
-  improveUsage,
+  editorUsage,
   resetLabel,
 }: {
   applicationId: string;
@@ -131,45 +132,47 @@ export function CvAdapter({
   saved: CvSuggestions | null;
   savedAt: string | null;
   profileCvs: ProfileCv[];
+  /** Un CV est déjà ouvert dans l'éditeur pour cette candidature. */
   hasImprovedCv: boolean;
   /** Analyses de CV utilisées ce mois-ci. */
   usage: AiUsageCount;
-  /** Générations du CV amélioré ce mois-ci. */
-  improveUsage: AiUsageCount;
+  /** CV ouverts dans l'éditeur (première ouverture d'un CV du profil) ce mois-ci. */
+  editorUsage: AiUsageCount;
   /** Date de remise à zéro du compteur (ex. « 1er novembre 2026 »). */
   resetLabel: string;
 }) {
   const [adaptState, adaptAction, analyzing] = useActionState(adaptCvAction, initialAdaptState);
-  const [generateState, generateAction, generating] = useActionState(
-    generateImprovedCvAction,
-    initialGenerateState,
-  );
+  const [editorState, editorAction, opening] = useActionState(openCvEditorAction, initialEditorState);
 
-  // Source du CV (id d'un CV du profil, ou "upload"), partagée par l'analyse et la
-  // génération du CV amélioré.
+  // Source du CV à analyser (id d'un CV du profil, ou "upload").
   const [source, setSource] = useState<string>(profileCvs[0]?.id ?? UPLOAD);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  // Le choix du CV s'affiche à la demande ; il se referme dès qu'une analyse réussit
-  // (l'état de l'action change par rapport à celui de l'ouverture).
+  // Le choix du CV à analyser s'affiche à la demande ; il se referme dès qu'une analyse
+  // réussit (l'état de l'action change par rapport à celui de l'ouverture).
   const [pickerOpenedAt, setPickerOpenedAt] = useState<AdaptCvState | null>(null);
+  // CV du profil à ouvrir dans l'éditeur, choisi quand le profil en contient plusieurs.
+  const [editorPickerOpen, setEditorPickerOpen] = useState(false);
+  const [editorCv, setEditorCv] = useState<string>(profileCvs[0]?.id ?? "");
+  const [noProfileCv, setNoProfileCv] = useState(false);
 
   const result = adaptState.status === "success" ? adaptState : null;
   const suggestions = result?.suggestions ?? saved;
   const generatedAt = result?.generatedAt ?? savedAt;
-  const busy = analyzing || generating;
+  const busy = analyzing || opening;
   const limitReached =
     isLimitReached(usage) || (adaptState.status === "error" && adaptState.limitReached === true);
-  const improveLimitReached =
-    isLimitReached(improveUsage) ||
-    (generateState.status === "error" && generateState.limitReached === true);
+  const editorLimitReached =
+    !hasImprovedCv &&
+    (isLimitReached(editorUsage) || (editorState.status === "error" && editorState.limitReached === true));
   const selectedProfileCv = profileCvs.find((cv) => cv.id === source) ?? null;
   const sourceReady = source === UPLOAD ? Boolean(file) && !fileError : Boolean(selectedProfileCv);
   const pickerOpen =
     pickerOpenedAt !== null &&
     (analyzing || adaptState === pickerOpenedAt || adaptState.status === "error");
 
-  function buildFormData() {
+  function runAnalysis() {
+    if (!sourceReady || busy) return;
     const formData = new FormData();
     formData.set("id", applicationId);
     if (source === UPLOAD) {
@@ -179,29 +182,29 @@ export function CvAdapter({
       formData.set("source", "profil");
       formData.set("cvId", source);
     }
-    return formData;
-  }
-
-  function runAnalysis() {
-    if (!sourceReady || busy) return;
-    const formData = buildFormData();
     startTransition(() => adaptAction(formData));
   }
 
-  function runGeneration() {
-    if (!sourceReady || busy) {
-      setPickerOpenedAt(adaptState); // il faut d'abord choisir un CV
-      return;
-    }
-    const formData = buildFormData();
-    startTransition(() => generateAction(formData));
+  function openEditor(cvId: string) {
+    if (busy) return;
+    const formData = new FormData();
+    formData.set("id", applicationId);
+    formData.set("cvId", cvId);
+    startTransition(() => editorAction(formData));
+  }
+
+  /** « Ouvrir l'éditeur de CV » sans CV encore ouvert pour cette candidature. */
+  function startEditor() {
+    if (profileCvs.length === 0) setNoProfileCv(true);
+    else if (profileCvs.length === 1) openEditor(profileCvs[0].id);
+    else setEditorPickerOpen(true);
   }
 
   const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700";
 
   const sourcePicker = (
     <fieldset className="space-y-3" disabled={busy}>
-      <legend className="text-sm font-medium text-slate-700">Quel CV utiliser ?</legend>
+      <legend className="text-sm font-medium text-slate-700">Quel CV analyser ?</legend>
 
       {profileCvs.length > 0 ? (
         <div className="space-y-2">
@@ -271,46 +274,116 @@ export function CvAdapter({
     </fieldset>
   );
 
+  // Action principale : l'analyse tant qu'elle n'est pas faite, ensuite l'éditeur.
+  const analyzeClass = `${suggestions ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`;
+  const editorClass = `${suggestions ? "btn-primary" : "btn-secondary"} px-4 py-2 text-sm`;
+
   return (
     <section aria-labelledby="cv-title" className="card p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 id="cv-title" className="font-semibold text-slate-900">
-            Adapter mon CV
-          </h2>
+      <div>
+        <h2 id="cv-title" className="font-semibold text-slate-900">
+          Adapter mon CV
+        </h2>
+        {suggestions && generatedAt && (
           <p className="mt-1 text-sm text-slate-500">
-            {suggestions && generatedAt
-              ? `Suggestions générées le ${dateTimeFormatter.format(new Date(generatedAt))}.`
-              : "L'assistant compare ton CV à l'offre et te dit quoi mettre en avant."}
+            Analyse du {dateTimeFormatter.format(new Date(generatedAt))}.
           </p>
-        </div>
-        {!pickerOpen && (
-          <OnboardingTip
-            id="adapter-cv"
-            text="Laisse-nous analyser ton CV pour ce poste"
-            align="end"
-            className="shrink-0 self-start"
-          >
-            <button
-              type="button"
-              onClick={() => setPickerOpenedAt(adaptState)}
-              disabled={!aiEnabled || busy || limitReached}
-              className={`${suggestions ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`}
-            >
-              {limitReached ? LIMIT_REACHED_LABEL : suggestions ? "Refaire l'analyse" : "Adapter mon CV"}
-            </button>
-          </OnboardingTip>
         )}
       </div>
 
-      {!aiEnabled && (
-        <p className="mt-3 text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
-      )}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <OnboardingTip id="adapter-cv" text="Analyse ton CV pour ce poste">
+          <button
+            type="button"
+            onClick={() => setPickerOpenedAt(adaptState)}
+            disabled={!aiEnabled || busy || limitReached || pickerOpen}
+            className={analyzeClass}
+          >
+            {limitReached ? LIMIT_REACHED_LABEL : "Analyser mon CV"}
+          </button>
+        </OnboardingTip>
+        {hasImprovedCv ? (
+          <Link href={`/candidatures/${applicationId}/cv`} className={editorClass}>
+            Ouvrir l&apos;éditeur de CV
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={startEditor}
+            disabled={busy || editorLimitReached || editorPickerOpen}
+            className={editorClass}
+          >
+            {opening ? "Ouverture…" : editorLimitReached ? LIMIT_REACHED_LABEL : "Ouvrir l'éditeur de CV"}
+          </button>
+        )}
+      </div>
 
-      {aiEnabled && limitReached && !analyzing && (
+      {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Analyse non disponible sur ce site.</p>}
+
+      {aiEnabled && (limitReached || editorLimitReached) && !busy && (
         <div className="mt-4">
           <UsageLimitBanner resetLabel={resetLabel} />
         </div>
+      )}
+
+      {noProfileCv && profileCvs.length === 0 && (
+        <p role="status" className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 ring-1 ring-slate-200">
+          Enregistre ton CV dans{" "}
+          <Link href="/profil" className="font-medium text-blue-700 underline underline-offset-2">
+            Mon profil
+          </Link>{" "}
+          pour l&apos;ouvrir dans l&apos;éditeur.
+        </p>
+      )}
+
+      {/* Plusieurs CV dans le profil : lequel ouvrir dans l'éditeur ? */}
+      {editorPickerOpen && !hasImprovedCv && (
+        <div className="mt-4 space-y-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          <fieldset className="space-y-2" disabled={opening}>
+            <legend className="text-sm font-medium text-slate-700">Quel CV ouvrir dans l&apos;éditeur ?</legend>
+            {profileCvs.map((cv) => (
+              <label key={cv.id} className={radioClass}>
+                <input
+                  type="radio"
+                  name="editor-cv"
+                  checked={editorCv === cv.id}
+                  onChange={() => setEditorCv(cv.id)}
+                  className="mt-0.5 accent-blue-600"
+                />
+                <span>
+                  {cv.name} <span className="text-slate-500">({cv.fileName})</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openEditor(editorCv)}
+              disabled={opening || !editorCv}
+              className="btn-primary px-4 py-2 text-sm"
+            >
+              {opening ? "Ouverture…" : "Ouvrir"}
+            </button>
+            {!opening && (
+              <button type="button" onClick={() => setEditorPickerOpen(false)} className="btn-secondary px-4 py-2 text-sm">
+                Annuler
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {opening && (
+        <p role="status" className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+          <Spinner />
+          Préparation de ton CV dans l&apos;éditeur… cela peut prendre jusqu&apos;à une minute la première fois.
+        </p>
+      )}
+      {editorState.status === "error" && !editorState.limitReached && !opening && (
+        <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          {editorState.message}
+        </p>
       )}
 
       {pickerOpen && (
@@ -318,13 +391,10 @@ export function CvAdapter({
           {sourcePicker}
           {!hasOfferDescription && (
             <p className="text-xs text-amber-700">
-              Cette candidature n&apos;a pas de description d&apos;offre : les suggestions se baseront
-              sur l&apos;intitulé du poste et seront moins précises.
+              Cette candidature n&apos;a pas de description d&apos;offre : l&apos;analyse se basera sur
+              l&apos;intitulé du poste et sera moins précise.
             </p>
           )}
-          <p className="text-xs text-slate-500">
-            Ton CV est transmis à Claude (Anthropic) pour l&apos;analyse.
-          </p>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -332,7 +402,7 @@ export function CvAdapter({
               disabled={busy || !sourceReady || limitReached}
               className="btn-primary px-4 py-2 text-sm"
             >
-              {analyzing ? "Analyse en cours…" : limitReached ? LIMIT_REACHED_LABEL : "Analyser mon CV"}
+              {analyzing ? "Analyse en cours…" : limitReached ? LIMIT_REACHED_LABEL : "Analyser"}
             </button>
             {!busy && (
               <button
@@ -347,7 +417,7 @@ export function CvAdapter({
           {analyzing && (
             <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
               <Spinner />
-              L&apos;assistant lit ton CV et l&apos;offre… cela prend généralement 30 à 60 secondes.
+              Analyse de ton CV et de l&apos;offre… cela prend généralement 30 à 60 secondes.
             </p>
           )}
           {adaptState.status === "error" && !adaptState.limitReached && !analyzing && (
@@ -359,61 +429,8 @@ export function CvAdapter({
       )}
 
       {suggestions && !analyzing && (
-        <div className="mt-5 space-y-5">
+        <div className="mt-5">
           <SuggestionsView suggestions={suggestions} />
-
-          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-            <h3 className="font-semibold text-slate-900">CV amélioré</h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Génère un CV complet qui applique ces suggestions, avec les améliorations surlignées.
-              Tu pourras le modifier puis l&apos;exporter en PDF.
-            </p>
-            {/* Comme pour la lettre : ouvrir = action principale, regénérer = secondaire. */}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {hasImprovedCv && !generating && (
-                <Link href={`/candidatures/${applicationId}/cv`} className="btn-primary px-4 py-2 text-sm">
-                  Ouvrir mon CV amélioré →
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={runGeneration}
-                disabled={busy || !aiEnabled || improveLimitReached}
-                className={`${hasImprovedCv ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`}
-              >
-                {generating
-                  ? "Rédaction en cours…"
-                  : improveLimitReached
-                    ? LIMIT_REACHED_LABEL
-                    : hasImprovedCv
-                      ? "Regénérer mon CV"
-                      : "Générer mon CV amélioré"}
-              </button>
-            </div>
-            {aiEnabled && improveLimitReached && !generating && (
-              <div className="mt-3">
-                <UsageLimitBanner resetLabel={resetLabel} />
-              </div>
-            )}
-            {!sourceReady && !generating && (
-              <p className="mt-2 text-xs text-slate-500">
-                {limitReached
-                  ? "Le CV d'origine est nécessaire : clique sur « Générer » pour le choisir."
-                  : "Le CV d'origine est nécessaire : choisis-le via « Refaire l'analyse » ou enregistre-le dans ton profil."}
-              </p>
-            )}
-            {generating && (
-              <p role="status" className="mt-3 flex items-center gap-2 text-sm text-slate-500">
-                <Spinner />
-                Rédaction de ton CV amélioré… cela peut prendre jusqu&apos;à une minute.
-              </p>
-            )}
-            {generateState.status === "error" && !generateState.limitReached && !generating && (
-              <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
-                {generateState.message}
-              </p>
-            )}
-          </div>
         </div>
       )}
     </section>

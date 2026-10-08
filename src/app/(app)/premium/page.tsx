@@ -24,7 +24,7 @@ const L = AI_MONTHLY_LIMITS;
 const FREE_FEATURES = [
   `${L.resume_offre} résumés d'offre par mois`,
   `${L.adaptation_cv} analyses de CV par mois`,
-  `${L.cv_ameliore} CV améliorés par mois`,
+  `${L.cv_ameliore} CV ouverts dans l'éditeur par mois`,
   `${L.lettre} lettres de motivation par mois`,
   `${L.affinage_cv} messages par mois au chat « Affiner avec l'IA » (CV et lettre)`,
 ];
@@ -32,7 +32,7 @@ const FREE_FEATURES = [
 const PREMIUM_FEATURES = [
   "Résumés d'offre illimités",
   "Analyses de CV illimitées",
-  "CV améliorés illimités",
+  "Éditeur de CV illimité",
   "Lettres de motivation illimitées",
   "Chat « Affiner avec l'IA » illimité",
 ];
