@@ -83,7 +83,7 @@ export function BetaMessageForm({
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="btn-primary px-4 py-2 text-sm">
-          {pending ? "Envoi…" : "Envoyer l&apos;email"}
+          {pending ? "Envoi…" : "Envoyer l'email"}
         </button>
         {result && (
           <p role={result.ok ? "status" : "alert"} className={`text-sm ${result.ok ? "text-emerald-700" : "text-red-700"}`}>
