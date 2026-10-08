@@ -99,7 +99,7 @@ export default function TermsPage() {
 
         <p>
           Pour une demande de remboursement ou en cas de litige :{" "}
-          <a href="mailto:hello@applyfy.fr">hello@applyfy.fr</a>.
+          <ContactLink />.
         </p>
       </LegalSection>
 
