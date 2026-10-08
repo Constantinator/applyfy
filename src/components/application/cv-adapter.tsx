@@ -247,9 +247,6 @@ export function CvAdapter({
     </fieldset>
   );
 
-  // Action principale : l'analyse tant qu'elle n'est pas faite, ensuite l'éditeur.
-  const analyzeClass = `${suggestions ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`;
-  const editorClass = `${suggestions ? "btn-primary" : "btn-secondary"} px-4 py-2 text-sm`;
 
   return (
     <section aria-labelledby="cv-title" className="card p-5">
@@ -264,17 +261,8 @@ export function CvAdapter({
         )}
       </div>
 
+      {/* Action principale : l'éditeur ; l'analyse est une aide facultative. */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <OnboardingTip id="adapter-cv" text="Analyse ton CV pour ce poste">
-          <button
-            type="button"
-            onClick={() => setPickerOpenedAt(adaptState)}
-            disabled={!aiEnabled || busy || limitReached || pickerOpen}
-            className={analyzeClass}
-          >
-            {limitReached ? LIMIT_REACHED_LABEL : "Analyser mon CV"}
-          </button>
-        </OnboardingTip>
         <CvEditorLauncher
           applicationId={applicationId}
           profileCvs={profileCvs}
@@ -282,8 +270,18 @@ export function CvAdapter({
           aiEnabled={aiEnabled}
           limitReached={isLimitReached(editorUsage)}
           resetLabel={resetLabel}
-          className={editorClass}
+          className="btn-primary px-4 py-2 text-sm"
         />
+        <OnboardingTip id="adapter-cv" text="Analyse ton CV pour ce poste">
+          <button
+            type="button"
+            onClick={() => setPickerOpenedAt(adaptState)}
+            disabled={!aiEnabled || busy || limitReached || pickerOpen}
+            className="btn-secondary px-4 py-2 text-sm"
+          >
+            {limitReached ? LIMIT_REACHED_LABEL : "Analyser mon CV"}
+          </button>
+        </OnboardingTip>
       </div>
 
       {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Analyse non disponible sur ce site.</p>}

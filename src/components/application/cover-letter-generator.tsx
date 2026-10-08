@@ -106,6 +106,28 @@ export function CoverLetterGenerator({
     </label>
   );
 
+  const generateButton = (
+    <button
+      type="button"
+      onClick={() => setPickerOpen(true)}
+      disabled={!aiEnabled || limitReached || pickerOpen}
+      className={`${hasLetter ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`}
+    >
+      {limitReached ? LIMIT_REACHED_LABEL : hasLetter ? "Regénérer ma lettre" : "Générer ma lettre"}
+    </button>
+  );
+  const editorButton = (
+    <LetterEditorLauncher
+      applicationId={applicationId}
+      hasLetter={hasLetter}
+      hasCv={hasCv}
+      aiEnabled={aiEnabled}
+      limitReached={limitReached}
+      resetLabel={resetLabel}
+      className={`${hasLetter ? "btn-primary" : "btn-secondary"} px-4 py-2 text-sm`}
+    />
+  );
+
   return (
     <section aria-labelledby="letter-title" className="card p-5">
       <div>
@@ -119,25 +141,20 @@ export function CoverLetterGenerator({
         )}
       </div>
 
-      {/* Action principale : générer tant qu'il n'y a pas de lettre, ensuite l'éditeur. */}
+      {/* Action principale (en bleu, en premier) : générer tant qu'il n'y a pas de lettre,
+          ensuite l'éditeur. L'ordre du code suit l'ordre affiché (navigation au clavier). */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          disabled={!aiEnabled || limitReached || pickerOpen}
-          className={`${hasLetter ? "btn-secondary" : "btn-primary"} px-4 py-2 text-sm`}
-        >
-          {limitReached ? LIMIT_REACHED_LABEL : "Générer ma lettre"}
-        </button>
-        <LetterEditorLauncher
-          applicationId={applicationId}
-          hasLetter={hasLetter}
-          hasCv={hasCv}
-          aiEnabled={aiEnabled}
-          limitReached={limitReached}
-          resetLabel={resetLabel}
-          className={`${hasLetter ? "btn-primary" : "btn-secondary"} px-4 py-2 text-sm`}
-        />
+        {hasLetter ? (
+          <>
+            {editorButton}
+            {generateButton}
+          </>
+        ) : (
+          <>
+            {generateButton}
+            {editorButton}
+          </>
+        )}
       </div>
 
       {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Génération non disponible sur ce site.</p>}
