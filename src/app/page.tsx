@@ -4,6 +4,12 @@ import { Suspense } from "react";
 import { AccountDeletedNotice } from "@/components/account-deleted-notice";
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { IconActivity, IconBell, IconDocument, IconFolder } from "@/components/icons";
+import {
+  CvPreview,
+  DocumentsPreview,
+  FollowUpPreview,
+  TrackingPreview,
+} from "@/components/landing/feature-previews";
 import { LogoFull } from "@/components/logo";
 
 // « Les chiffres qui font mal » : chiffre mis en avant, puis sa description.
@@ -16,24 +22,28 @@ const PAIN_STATS = [
 const FEATURES = [
   {
     title: "Suivi en temps réel",
+    preview: TrackingPreview,
     description:
       "Toutes tes candidatures au même endroit, avec leur statut à jour : envoyée, relancée, entretien, offre.",
     icon: IconActivity,
   },
   {
     title: "Ton CV optimisé",
+    preview: CvPreview,
     description:
       "Adapte ton CV et ta lettre à chaque offre, sans perdre ce qui fait ta personnalité.",
     icon: IconDocument,
   },
   {
     title: "Rappels de relance",
+    preview: FollowUpPreview,
     description:
       "Applyfy te prévient quand une entreprise tarde à répondre et prépare ton message de relance.",
     icon: IconBell,
   },
   {
     title: "Tous tes documents",
+    preview: DocumentsPreview,
     description:
       "CV, lettres, offres et échanges : chaque candidature garde son historique complet.",
     icon: IconFolder,
@@ -199,16 +209,20 @@ export default function LandingPage() {
             <h2 id="features-title" className="mt-2 text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               Tout ce qu&apos;il te faut pour décrocher ton job
             </h2>
-            <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {/* 2 colonnes au plus : les aperçus de l'interface restent lisibles. */}
+            <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-2">
               {FEATURES.map((feature) => (
                 <article
                   key={feature.title}
-                  className="card p-6 transition-transform duration-200 hover:-translate-y-0.5"
+                  className="card p-5 transition-transform duration-200 hover:-translate-y-0.5 sm:p-6"
                 >
-                  <span className="bg-brand flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm shadow-blue-600/20">
-                    <feature.icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-5 font-semibold text-slate-900">{feature.title}</h3>
+                  <feature.preview />
+                  <div className="mt-5 flex items-center gap-3">
+                    <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm shadow-blue-600/20">
+                      <feature.icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="font-semibold text-slate-900">{feature.title}</h3>
+                  </div>
                   <p className="mt-2 text-sm leading-relaxed text-slate-500">{feature.description}</p>
                 </article>
               ))}
