@@ -131,17 +131,12 @@ export default function LandingPage() {
         {/* Hero */}
         <section className="relative overflow-hidden">
           <div className="relative mx-auto max-w-5xl px-4 pt-20 pb-24 text-center sm:px-6 sm:pt-28">
-            {/* Logo complet, centré au-dessus du badge (224 px de large). */}
-            <LogoFull className="mx-auto mb-8 block h-auto w-56" />
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 py-1 pr-3 pl-1 text-sm text-slate-600 shadow-sm">
-              <span className="bg-brand rounded-full px-2 py-0.5 text-xs font-semibold text-white">
-                Nouveau
-              </span>
-              Pour tous ceux qui cherchent leur prochain job
-            </p>
+            {/* Logo complet, centré au-dessus du titre (320 px de large). */}
+            <LogoFull className="mx-auto mb-10 block h-auto w-80" />
             <h1 className="text-4xl font-extrabold tracking-tight text-balance text-slate-900 sm:text-6xl sm:leading-[1.05]">
               Trouve ton job.{" "}
-              <span className="text-brand">Sans te noyer dans les candidatures.</span>
+              {/* Cyan du logo (#06B6D4) : seule exception à la règle « cyan réservé au logo ». */}
+              <span className="text-[#06B6D4]">Sans te noyer dans les candidatures.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-slate-500">
               Applyfy centralise tes candidatures, t&apos;aide à construire des CV et lettres qui te
