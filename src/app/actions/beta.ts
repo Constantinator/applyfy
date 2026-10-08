@@ -45,6 +45,6 @@ export async function submitBetaReportAction(number: number, input: unknown): Pr
     console.error("[beta] rapport", error);
     return { ok: false, error: "L'envoi a échoué. Réessaie dans un instant." };
   }
-  revalidatePath("/profil");
+  revalidatePath("/beta");
   return { ok: true };
 }

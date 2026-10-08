@@ -99,7 +99,7 @@ export async function runBetaJob({ dryRun = false, now = new Date() } = {}): Pro
             reportTitle: def.title,
             period: def.period,
             deadline,
-            profileUrl: `${appUrl()}/profil#beta`,
+            reportsUrl: `${appUrl()}/beta`,
           }),
         );
       }

@@ -89,7 +89,7 @@ export default function TermsPage() {
             moyen de paiement à fournir.
           </li>
           <li>
-            <strong>Engagement :</strong> soumettre 3 rapports depuis <strong>Mon profil</strong> :
+            <strong>Engagement :</strong> soumettre 3 rapports depuis l&apos;onglet <strong>Beta testing</strong> :
             semaine 1 (dans les 7 jours suivant l&apos;inscription), semaine 2 (dans les 14 jours) et
             mois 1 (dans les 30 jours). Un rappel est envoyé par email 2 jours avant chaque date
             limite.

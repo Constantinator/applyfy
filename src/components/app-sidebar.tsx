@@ -4,7 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { logoutAction } from "@/app/actions/auth";
-import { IconActivity, IconGrid, IconHome, IconLogout, IconPlus, IconSearch, IconUser } from "@/components/icons";
+import {
+  IconActivity,
+  IconGrid,
+  IconHome,
+  IconLogout,
+  IconPlus,
+  IconSearch,
+  IconStar,
+  IconUser,
+  IconUsers,
+} from "@/components/icons";
 import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
 import { Logo } from "@/components/logo";
 
@@ -48,19 +58,47 @@ const NAV: NavItem[] = [
   },
 ];
 
-/** Lien du tableau de bord admin (l'accès est vérifié par la page elle-même). */
-const ADMIN_ITEM: NavItem = {
-  href: "/admin",
-  label: "Admin",
-  shortLabel: "Admin",
-  icon: IconActivity,
-  isActive: (p) => p.startsWith("/admin"),
+/** Rapports du programme beta : beta testeurs actifs uniquement. */
+const BETA_ITEM: NavItem = {
+  href: "/beta",
+  label: "Beta testing",
+  shortLabel: "Beta",
+  icon: IconStar,
+  isActive: (p) => p.startsWith("/beta"),
 };
 
-export function AppSidebar({ email, isAdmin = false }: { email: string | null; isAdmin?: boolean }) {
+/** Liens admin (l'accès est vérifié par les pages elles-mêmes). */
+const ADMIN_ITEMS: NavItem[] = [
+  {
+    href: "/admin",
+    label: "Admin",
+    shortLabel: "Admin",
+    icon: IconActivity,
+    isActive: (p) => p.startsWith("/admin") && !p.startsWith("/admin/beta"),
+  },
+  {
+    href: "/admin/beta",
+    label: "Beta testeurs",
+    shortLabel: "Testeurs",
+    icon: IconUsers,
+    isActive: (p) => p.startsWith("/admin/beta"),
+  },
+];
+
+export function AppSidebar({
+  email,
+  isAdmin = false,
+  isBetaTester = false,
+}: {
+  email: string | null;
+  isAdmin?: boolean;
+  /** Beta testeur actif : onglet « Beta testing ». */
+  isBetaTester?: boolean;
+}) {
   const pathname = usePathname();
   const isDemo = email === null;
-  const nav = isAdmin ? [...NAV, ADMIN_ITEM] : NAV;
+  // Ordre : … Mon profil, Beta testing, Admin, Beta testeurs.
+  const nav = [...NAV, ...(isBetaTester ? [BETA_ITEM] : []), ...(isAdmin ? ADMIN_ITEMS : [])];
 
   return (
     <>

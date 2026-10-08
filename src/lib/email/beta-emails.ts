@@ -44,7 +44,7 @@ export function buildBetaReminderEmail(input: {
   reportTitle: string;
   period: string;
   deadline: Date;
-  profileUrl: string;
+  reportsUrl: string;
 }): EmailMessage {
   const paragraphs = [
     `Petit rappel : ton ${input.reportTitle.toLowerCase()} beta (${input.period.toLowerCase()}) est à envoyer avant le ${dateLabel(input.deadline)}.`,
@@ -53,8 +53,8 @@ export function buildBetaReminderEmail(input: {
   return {
     to: input.to,
     subject: `Rappel : ton ${input.reportTitle.toLowerCase()} beta est attendu dans 2 jours`,
-    html: layout({ paragraphs, button: { label: "Envoyer mon rapport", url: input.profileUrl } }),
-    text: `${paragraphs.join("\n\n")}\n\nEnvoyer mon rapport : ${input.profileUrl}`,
+    html: layout({ paragraphs, button: { label: "Envoyer mon rapport", url: input.reportsUrl } }),
+    text: `${paragraphs.join("\n\n")}\n\nEnvoyer mon rapport : ${input.reportsUrl}`,
   };
 }
 

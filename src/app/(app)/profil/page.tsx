@@ -3,7 +3,6 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { openBillingPortalAction } from "@/app/actions/premium";
-import { BetaReports } from "@/components/beta/beta-reports";
 import { AccountNameForm } from "@/components/profile/account-name-form";
 import { DeleteAccount } from "@/components/profile/delete-account";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
@@ -116,24 +115,6 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
           )
         )}
       </section>
-
-      {beta && (
-        <section id="beta" aria-labelledby="beta-title" className="scroll-mt-6 space-y-4 card p-5 sm:p-6">
-          <div>
-            <h2 id="beta-title" className="font-semibold text-slate-900">
-              Mes rapports beta
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {beta.status === "active"
-                ? "Envoie chaque rapport avant sa date limite pour garder ton accès beta et le Premium offert. Un rappel t'est envoyé par email 2 jours avant."
-                : `Ton accès beta est ${beta.status === "suspended" ? "suspendu" : "retiré"}${
-                    beta.suspensionReason ? ` : ${beta.suspensionReason.charAt(0).toLowerCase()}${beta.suspensionReason.slice(1)}` : ""
-                  }. Tu es repassé·e au plan gratuit.`}
-            </p>
-          </div>
-          <BetaReports joinedAt={beta.joinedAt} active={beta.status === "active"} submitted={beta.reports} />
-        </section>
-      )}
 
       <section aria-labelledby="identite-title" className="space-y-4 card p-5 sm:p-6">
         <div>

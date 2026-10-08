@@ -126,3 +126,18 @@ export const IconMenu = (p: IconProps) => (
     <path d="M4 6h16M4 12h16M4 18h16" />
   </Icon>
 );
+
+export const IconStar = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
+  </Icon>
+);
+
+export const IconUsers = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+    <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8" />
+    <path d="M18 14.5a6.5 6.5 0 0 1 3.5 5.5" />
+  </Icon>
+);

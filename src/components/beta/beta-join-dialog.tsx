@@ -12,7 +12,7 @@ const CONDITIONS = [
   { title: "Badge « Beta testeur »", detail: "Visible sur ton profil." },
   {
     title: "Engagement : 3 rapports à envoyer",
-    detail: "Semaine 1 (sous 7 jours), semaine 2 (sous 14 jours) et mois 1 (sous 30 jours), depuis Mon profil.",
+    detail: "Semaine 1 (sous 7 jours), semaine 2 (sous 14 jours) et mois 1 (sous 30 jours), depuis l'onglet « Beta testing ».",
   },
   {
     title: "Délais obligatoires",
@@ -106,10 +106,10 @@ export function BetaJoinDialog({
               Bienvenue dans la beta !
             </p>
             <p className="text-sm text-slate-500">
-              Ton Premium est actif. Retrouve tes 3 rapports à envoyer dans Mon profil.
+              Ton Premium est actif. Retrouve tes 3 rapports à envoyer dans l&apos;onglet « Beta testing ».
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Link href="/profil#beta" className="btn-primary px-5 py-2.5 text-sm">
+              <Link href="/beta" className="btn-primary px-5 py-2.5 text-sm">
                 Voir mes rapports
               </Link>
               <button type="button" onClick={close} className="btn-secondary px-5 py-2.5 text-sm">

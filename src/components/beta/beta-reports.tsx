@@ -121,7 +121,7 @@ function ReportForm({ def, onDone }: { def: BetaReportDefinition; onDone: () => 
 }
 
 /**
- * Section « Mes rapports beta » de Mon profil : les 3 rapports, leur date limite et leur
+ * Section « Mes rapports beta » (page Beta testing) : les 3 rapports, leur date limite et leur
  * statut ; formulaire du rapport en cours, réponses des rapports envoyés.
  */
 export function BetaReports({
