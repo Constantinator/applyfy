@@ -12,16 +12,16 @@ export function EmptyDashboard() {
       {/* Halo décoratif */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-100 via-cyan-100 to-blue-100 opacity-70 blur-3xl"
+        className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-blue-100 opacity-70 blur-3xl"
       />
 
       <div className="relative">
         {/* Illustration : mallette dans un médaillon dégradé, avec étincelles */}
         <div aria-hidden="true" className="relative mx-auto h-24 w-24">
-          <div className="bg-brand-gradient flex h-24 w-24 items-center justify-center rounded-[1.75rem] text-white shadow-xl shadow-blue-500/25">
+          <div className="bg-brand flex h-24 w-24 items-center justify-center rounded-[1.75rem] text-white shadow-xl shadow-blue-500/25">
             <IconBriefcase className="h-11 w-11" />
           </div>
-          <IconSparkles className="absolute -top-3 -right-4 h-7 w-7 text-cyan-500" />
+          <IconSparkles className="absolute -top-3 -right-4 h-7 w-7 text-blue-600" />
           <span className="absolute -bottom-2 -left-3 h-4 w-4 rounded-full bg-blue-200" />
         </div>
 
@@ -34,7 +34,7 @@ export function EmptyDashboard() {
 
         <Link
           href="/candidatures/nouvelle"
-          className="bg-brand-gradient mt-8 inline-flex items-center gap-2 rounded-2xl px-7 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:shadow-xl hover:shadow-blue-500/40 hover:brightness-105 focus-visible:ring-4 focus-visible:ring-blue-500/30 focus-visible:outline-none"
+          className="bg-brand mt-8 inline-flex items-center gap-2 rounded-2xl px-7 py-4 text-base font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:shadow-xl hover:shadow-blue-500/40 hover:brightness-105 focus-visible:ring-4 focus-visible:ring-blue-500/30 focus-visible:outline-none"
         >
           <IconPlus className="h-5 w-5" />
           Ajouter ma première candidature

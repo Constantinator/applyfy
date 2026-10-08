@@ -7,10 +7,6 @@ import { isSupabaseConfigured } from "@/lib/supabase/server";
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-slate-50 px-4 py-12">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 -top-32 h-96 bg-[radial-gradient(ellipse_at_top,rgba(30,64,175,0.14),rgba(6,182,212,0.08)_45%,transparent_70%)]"
-      />
       <Link href="/" aria-label="Applyfy, accueil" className="relative mb-8">
         <LogoFull className="h-14 w-auto" />
       </Link>

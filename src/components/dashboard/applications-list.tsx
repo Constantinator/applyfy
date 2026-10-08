@@ -125,7 +125,7 @@ export function ApplicationsList({
                   >
                     <span
                       aria-hidden="true"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 text-sm font-bold text-blue-700 ring-1 ring-blue-100"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700 ring-1 ring-blue-100"
                     >
                       {app.company.charAt(0).toUpperCase()}
                     </span>

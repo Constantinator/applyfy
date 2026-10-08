@@ -119,7 +119,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 label: "En attente de réponse",
                 value:
                   countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
-                tone: "cyan",
+                tone: "indigo",
               },
               { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
               {

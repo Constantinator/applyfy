@@ -59,7 +59,7 @@ export function UsageOverview({ usage }: { usage: AiUsage }) {
               >
                 <div
                   className={`h-full rounded-full transition-[width] ${
-                    reached ? "bg-amber-500" : "bg-linear-to-r from-blue-600 to-cyan-500"
+                    reached ? "bg-amber-500" : "bg-blue-600"
                   }`}
                   style={{ width: `${(shown / limit) * 100}%` }}
                 />

@@ -168,11 +168,11 @@ export default async function ApplicationPage({
           {app.offer_summary && (
             <section
               aria-labelledby="summary-title"
-              className="bg-brand-gradient rounded-2xl p-[1.5px] shadow-md shadow-blue-500/10"
+              className="bg-brand rounded-2xl p-[1.5px] shadow-md shadow-blue-500/10"
             >
               <div className="rounded-[calc(1rem-1.5px)] bg-white p-5 sm:p-6">
                 <div className="mb-4 flex flex-wrap items-center gap-3">
-                  <span className="bg-brand-gradient flex h-9 w-9 items-center justify-center rounded-xl text-white">
+                  <span className="bg-brand flex h-9 w-9 items-center justify-center rounded-xl text-white">
                     <IconSparkles className="h-5 w-5" />
                   </span>
                   <h2 id="summary-title" className="text-lg font-semibold text-slate-900">

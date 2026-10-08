@@ -21,7 +21,7 @@ export function StatusFilter({
             aria-pressed={isActive}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive
-                ? "bg-brand-gradient text-white shadow-sm shadow-blue-600/20"
+                ? "bg-brand text-white shadow-sm shadow-blue-600/20"
                 : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
             }`}
           >

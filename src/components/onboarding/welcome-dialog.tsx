@@ -49,7 +49,7 @@ export function WelcomeDialog({ firstName }: { firstName: string | null }) {
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-3xl bg-white p-0 shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
     >
-      <div className="bg-brand-gradient px-6 pt-7 pb-6 text-white sm:px-8">
+      <div className="bg-brand px-6 pt-7 pb-6 text-white sm:px-8">
         <p className="text-sm font-medium text-white/80">Ton espace est prêt</p>
         <h2 id="welcome-title" className="mt-1 text-2xl font-bold tracking-tight">
           Bienvenue sur Applyfy{firstName ? `, ${firstName}` : ""} !
@@ -62,7 +62,7 @@ export function WelcomeDialog({ firstName }: { firstName: string | null }) {
           <li key={step.title} className="flex items-start gap-4">
             <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
               <step.icon className="h-5 w-5" />
-              <span className="bg-brand-gradient absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-white">
+              <span className="bg-brand absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-white">
                 {index + 1}
               </span>
             </span>

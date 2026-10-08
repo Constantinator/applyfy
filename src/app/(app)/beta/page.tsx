@@ -31,7 +31,7 @@ export default async function BetaPage() {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Beta testing</h1>
           {active && (
-            <span className="bg-brand-gradient rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm">
+            <span className="bg-brand rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm">
               Beta testeur
             </span>
           )}

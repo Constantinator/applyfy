@@ -1,12 +1,12 @@
 import { IconBell, IconBriefcase, IconChat, IconClock } from "@/components/icons";
 
-export type StatTone = "blue" | "cyan" | "violet" | "amber";
+export type StatTone = "blue" | "indigo" | "violet" | "amber";
 
 type Stat = { label: string; value: number; hint?: string; tone: StatTone; highlight?: boolean };
 
 const TONES: Record<StatTone, { icon: typeof IconBriefcase; badge: string }> = {
   blue: { icon: IconBriefcase, badge: "bg-blue-50 text-blue-600" },
-  cyan: { icon: IconClock, badge: "bg-cyan-50 text-cyan-600" },
+  indigo: { icon: IconClock, badge: "bg-indigo-50 text-indigo-600" },
   violet: { icon: IconChat, badge: "bg-violet-50 text-violet-600" },
   amber: { icon: IconBell, badge: "bg-amber-50 text-amber-600" },
 };

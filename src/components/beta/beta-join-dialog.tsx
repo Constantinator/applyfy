@@ -87,7 +87,7 @@ export function BetaJoinDialog({
         }}
         className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl bg-white p-0 text-left shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
       >
-        <div className="bg-brand-gradient px-6 pt-6 pb-5 text-white sm:px-8">
+        <div className="bg-brand px-6 pt-6 pb-5 text-white sm:px-8">
           <p className="text-sm font-medium text-white/80">Programme beta · {BETA_MAX_TESTERS} places</p>
           <h2 id="beta-title" className="mt-1 text-2xl font-bold tracking-tight">
             Deviens beta testeur

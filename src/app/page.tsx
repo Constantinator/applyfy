@@ -130,20 +130,16 @@ export default function LandingPage() {
 
         {/* Hero */}
         <section className="relative overflow-hidden">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 -top-40 h-[34rem] bg-[radial-gradient(ellipse_at_top,rgba(30,64,175,0.14),rgba(6,182,212,0.08)_40%,transparent_70%)]"
-          />
           <div className="relative mx-auto max-w-5xl px-4 pt-20 pb-24 text-center sm:px-6 sm:pt-28">
             <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 py-1 pr-3 pl-1 text-sm text-slate-600 shadow-sm">
-              <span className="bg-brand-gradient rounded-full px-2 py-0.5 text-xs font-semibold text-white">
+              <span className="bg-brand rounded-full px-2 py-0.5 text-xs font-semibold text-white">
                 Nouveau
               </span>
               Pour tous ceux qui cherchent leur prochain job
             </p>
             <h1 className="text-4xl font-extrabold tracking-tight text-balance text-slate-900 sm:text-6xl sm:leading-[1.05]">
               Trouve ton job.{" "}
-              <span className="text-brand-gradient">Sans te noyer dans les candidatures.</span>
+              <span className="text-brand">Sans te noyer dans les candidatures.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-slate-500">
               Applyfy centralise tes candidatures, t&apos;aide à construire des CV et lettres qui te
@@ -187,7 +183,7 @@ export default function LandingPage() {
             <ul className="mt-14 grid gap-12 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-slate-200">
               {PAIN_STATS.map((stat) => (
                 <li key={stat.value} className="flex flex-col items-center px-6 text-center">
-                  <p className="text-brand-gradient text-6xl font-extrabold tracking-tight whitespace-nowrap sm:text-5xl lg:text-7xl">
+                  <p className="text-brand text-6xl font-extrabold tracking-tight whitespace-nowrap sm:text-5xl lg:text-7xl">
                     {stat.value}
                   </p>
                   <p className="mt-3 max-w-[16rem] text-base leading-relaxed text-slate-600">{stat.label}</p>
@@ -212,7 +208,7 @@ export default function LandingPage() {
                   key={feature.title}
                   className="card p-6 transition-transform duration-200 hover:-translate-y-0.5"
                 >
-                  <span className="bg-brand-gradient flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm shadow-blue-600/20">
+                  <span className="bg-brand flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm shadow-blue-600/20">
                     <feature.icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 font-semibold text-slate-900">{feature.title}</h3>
@@ -236,11 +232,11 @@ export default function LandingPage() {
               {/* Ligne de liaison entre les étapes (grand écran) */}
               <span
                 aria-hidden="true"
-                className="absolute top-5 right-[12%] left-[12%] hidden h-px bg-gradient-to-r from-blue-200 via-cyan-200 to-blue-200 lg:block"
+                className="absolute top-5 right-[12%] left-[12%] hidden h-px bg-blue-200 lg:block"
               />
               {STEPS.map((step, index) => (
                 <li key={step.title} className="relative text-center">
-                  <span className="bg-brand-gradient relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-md shadow-blue-600/25 ring-4 ring-white">
+                  <span className="bg-brand relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-md shadow-blue-600/25 ring-4 ring-white">
                     {index + 1}
                   </span>
                   <h3 className="mt-5 font-semibold text-slate-900">{step.title}</h3>
@@ -253,11 +249,7 @@ export default function LandingPage() {
 
         {/* Appel à l'action final */}
         <section aria-labelledby="cta-title" className="px-4 pb-24 sm:px-6">
-          <div className="bg-brand-gradient relative mx-auto max-w-4xl overflow-hidden rounded-3xl px-6 py-14 text-center shadow-xl shadow-blue-600/20 sm:px-12">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)]"
-            />
+          <div className="bg-brand relative mx-auto max-w-4xl overflow-hidden rounded-3xl px-6 py-14 text-center shadow-xl shadow-blue-600/20 sm:px-12">
             <h2 id="cta-title" className="relative text-3xl font-bold tracking-tight text-white">
               Prêt·e à reprendre le contrôle de ta recherche ?
             </h2>
