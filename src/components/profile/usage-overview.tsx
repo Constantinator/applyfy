@@ -1,10 +1,9 @@
-import { PremiumButton } from "@/components/usage/usage-limit-banner";
+import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import {
   AI_USAGE_KINDS,
   AI_USAGE_LABELS,
   formatResetDate,
   isLimitReached,
-  LIMIT_REACHED_MESSAGE,
   usageLabel,
   type AiUsage,
 } from "@/lib/ai-usage-limits";
@@ -73,12 +72,8 @@ export function UsageOverview({ usage }: { usage: AiUsage }) {
         Tes compteurs repartent à zéro le {formatResetDate(usage.resetsOn)}.
       </p>
 
-      {anyReached && (
-        <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
-          <p className="text-amber-900">{LIMIT_REACHED_MESSAGE}</p>
-          <PremiumButton />
-        </div>
-      )}
+      {/* Même bandeau que sur les fiches ; la date de remise à zéro est affichée juste au-dessus. */}
+      {anyReached && <UsageLimitBanner />}
     </div>
   );
 }

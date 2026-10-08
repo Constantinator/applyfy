@@ -11,18 +11,17 @@ export function PremiumButton() {
   );
 }
 
-/** Bandeau affiché quand la limite mensuelle d'une action IA est atteinte. */
-export function UsageLimitBanner({ resetLabel }: { resetLabel: string }) {
+/**
+ * Bandeau affiché quand la limite mensuelle d'une action IA est atteinte : fond blanc,
+ * bordure fine et texte dans le bleu de marque. `resetLabel` : date de remise à zéro
+ * (omise là où elle est déjà affichée, ex. « Mon utilisation »).
+ */
+export function UsageLimitBanner({ resetLabel }: { resetLabel?: string }) {
   return (
-    <div role="alert" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
-      <div className="flex gap-3">
-        <span aria-hidden="true" className="text-lg leading-none">
-          ⏳
-        </span>
-        <div>
-          <p className="font-medium text-amber-900">{LIMIT_REACHED_MESSAGE}</p>
-          <p className="mt-1 text-amber-800">Ton compteur repart à zéro le {resetLabel}.</p>
-        </div>
+    <div role="alert" className="space-y-3 rounded-xl border border-[#1E40AF] bg-white p-4 text-sm">
+      <div>
+        <p className="font-medium text-[#1E40AF]">{LIMIT_REACHED_MESSAGE}</p>
+        {resetLabel && <p className="mt-1 text-slate-500">Ton compteur repart à zéro le {resetLabel}.</p>}
       </div>
       <PremiumButton />
     </div>
