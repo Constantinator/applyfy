@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Logo } from "@/components/logo";
+import { LogoFull } from "@/components/logo";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 // Layout des pages de connexion / inscription.
@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         className="pointer-events-none absolute inset-x-0 -top-32 h-96 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.14),rgba(6,182,212,0.08)_45%,transparent_70%)]"
       />
       <Link href="/" aria-label="Applyfy, accueil" className="relative mb-8">
-        <Logo size="lg" />
+        <LogoFull className="h-14 w-auto" />
       </Link>
 
       <div className="card relative w-full max-w-md p-6 sm:p-8">

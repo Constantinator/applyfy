@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { AccountDeletedNotice } from "@/components/account-deleted-notice";
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { IconActivity, IconBell, IconDocument, IconFolder } from "@/components/icons";
-import { Logo } from "@/components/logo";
+import { LogoFull } from "@/components/logo";
 
 // « Les chiffres qui font mal » : chiffre mis en avant, puis sa description.
 const PAIN_STATS = [
@@ -106,7 +106,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" aria-label="Applyfy, accueil">
-            <Logo />
+            <LogoFull className="h-10 w-auto" />
           </Link>
           <nav className="flex items-center gap-2 text-sm font-medium sm:gap-6">
             <a href="#comment-ca-marche" className="hidden text-slate-600 hover:text-slate-900 sm:block">
