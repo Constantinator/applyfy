@@ -136,6 +136,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         <p className="mt-1.5 text-slate-500">
           Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
         </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Les offres proviennent de France Travail et Adzuna. Pour postuler, tu seras redirigé vers le site
+          d&apos;origine. Ajoute l&apos;offre à tes candidatures pour la suivre depuis Applyfy.
+        </p>
       </div>
 
       {configured && (
