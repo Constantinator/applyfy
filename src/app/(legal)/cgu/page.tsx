@@ -55,27 +55,52 @@ export default function TermsPage() {
             <strong>Paiement :</strong> par carte bancaire, via le prestataire de paiement Stripe.
             Applyfy n&apos;a jamais accès à tes numéros de carte.
           </li>
+        </ul>
+
+        <h3 className="pt-2 font-semibold text-slate-900">Droit de rétractation</h3>
+        <ul>
           <li>
-            <strong>Renouvellement automatique :</strong> l&apos;abonnement est reconduit chaque mois, à
-            la date anniversaire de ta souscription, et le montant est prélevé automatiquement sur le
-            moyen de paiement enregistré.
+            Conformément à l&apos;article L221-18 du Code de la consommation, tu disposes d&apos;un
+            délai de 14 jours pour exercer ton droit de rétractation.
           </li>
           <li>
-            <strong>Résiliation :</strong> tu peux résilier à tout moment depuis{" "}
-            <strong>Mon profil → Gérer mon abonnement</strong>. Aucun nouveau prélèvement n&apos;a lieu
-            après la résiliation.
+            Ce droit ne s&apos;applique pas si tu as expressément renoncé à ton droit de rétractation au
+            moment du paiement, en cochant la case prévue à cet effet.
           </li>
           <li>
-            <strong>Fin de l&apos;accès :</strong> après une résiliation, tu conserves l&apos;accès
-            Premium jusqu&apos;à la fin de la période déjà payée, puis ton compte repasse au plan
-            gratuit.
-          </li>
-          <li>
-            <strong>Remboursement :</strong> la période en cours n&apos;est pas remboursée, que tu
-            résilies en cours de mois ou que tu supprimes ton compte (la suppression du compte résilie
-            immédiatement l&apos;abonnement).
+            En cochant cette case, tu reconnais que le service Premium est accessible immédiatement et
+            tu renonces expressément à ton droit de rétractation.
           </li>
         </ul>
+
+        <h3 className="pt-2 font-semibold text-slate-900">Remboursement, renouvellement et résiliation</h3>
+        <ul>
+          <li>
+            <strong>Sans renonciation au droit de rétractation :</strong> remboursement intégral possible
+            dans les 14 jours suivant ton premier abonnement.
+          </li>
+          <li>
+            <strong>Avec renonciation au droit de rétractation :</strong> aucun remboursement pour la
+            période en cours, y compris en cas de résiliation en cours de mois ou de suppression du compte
+            (la suppression du compte résilie immédiatement l&apos;abonnement).
+          </li>
+          <li>
+            <strong>Renouvellement automatique mensuel :</strong> l&apos;abonnement est reconduit chaque
+            mois, à la date anniversaire de ta souscription, et le montant est prélevé automatiquement sur
+            le moyen de paiement enregistré. Tu peux l&apos;annuler à tout moment depuis{" "}
+            <strong>Mon profil → Gérer mon abonnement</strong> ; aucun nouveau prélèvement n&apos;a lieu
+            ensuite.
+          </li>
+          <li>
+            <strong>Résiliation :</strong> ton accès Premium est maintenu jusqu&apos;à la fin de la période
+            payée, puis ton compte repasse au plan gratuit.
+          </li>
+        </ul>
+
+        <p>
+          Pour une demande de remboursement ou en cas de litige :{" "}
+          <a href="mailto:hello@applyfy.fr">hello@applyfy.fr</a>.
+        </p>
       </LegalSection>
 
       <LegalSection title="5. Programme Beta Testeurs">
