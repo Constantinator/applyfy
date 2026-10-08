@@ -69,7 +69,7 @@ const STEPS = [
   },
 ];
 
-/** Aperçu décoratif du dashboard dans le hero. */
+/** Aperçu décoratif du dashboard (section « Voilà à quoi ça ressemble »). */
 function DashboardPreview() {
   const rows = [
     { company: "Doctolib", role: "Product Manager", status: "Entretien", tone: "bg-violet-50 text-violet-700" },
@@ -77,32 +77,32 @@ function DashboardPreview() {
     { company: "Alan", role: "Growth Marketing", status: "À relancer", tone: "bg-amber-50 text-amber-700" },
   ];
   return (
-    <div aria-hidden="true" className="card mx-auto mt-16 max-w-3xl overflow-hidden text-left">
+    <div aria-hidden="true" className="card mx-auto mt-8 max-w-4xl overflow-hidden text-left shadow-xl shadow-slate-900/10">
       <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50 px-4 py-3">
         <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
         <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
         <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
       </div>
-      <div className="grid grid-cols-3 gap-3 p-5">
+      <div className="grid grid-cols-3 gap-3 p-5 sm:gap-4 sm:p-6">
         {[
           ["Candidatures", "12"],
           ["Entretiens", "3"],
           ["À relancer", "2"],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-slate-200 p-3">
-            <p className="text-xs text-slate-500">{label}</p>
-            <p className="mt-1 text-xl font-bold text-slate-900">{value}</p>
+          <div key={label} className="rounded-xl border border-slate-200 p-3 sm:p-4">
+            <p className="text-xs text-slate-500 sm:text-sm">{label}</p>
+            <p className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">{value}</p>
           </div>
         ))}
       </div>
       <ul className="divide-y divide-slate-100 border-t border-slate-100">
         {rows.map((row) => (
-          <li key={row.company} className="flex items-center justify-between px-5 py-3 text-sm">
+          <li key={row.company} className="flex items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6 sm:py-4 sm:text-base">
             <span>
               <span className="font-semibold text-slate-900">{row.company}</span>
               <span className="text-slate-500"> · {row.role}</span>
             </span>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${row.tone}`}>{row.status}</span>
+            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium sm:text-sm ${row.tone}`}>{row.status}</span>
           </li>
         ))}
       </ul>
@@ -173,7 +173,15 @@ export default function LandingPage() {
                 triggerClassName="font-medium text-blue-600 underline-offset-4 hover:underline"
               />
             </p>
+          </div>
+        </section>
 
+        {/* Aperçu du produit */}
+        <section aria-labelledby="preview-title" className="border-t border-slate-100 bg-slate-50">
+          <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20">
+            <h2 id="preview-title" className="text-center text-sm font-medium tracking-wide text-slate-500">
+              Voilà à quoi ça ressemble
+            </h2>
             <DashboardPreview />
           </div>
         </section>
