@@ -89,16 +89,31 @@ export function AppSidebar({
   email,
   isAdmin = false,
   isBetaTester = false,
+  unreadBeta = 0,
+  unreadAdmin = 0,
 }: {
   email: string | null;
   isAdmin?: boolean;
   /** Beta testeur actif : onglet « Beta testing ». */
   isBetaTester?: boolean;
+  /** Messages de l'équipe non lus (onglet « Beta testing »). */
+  unreadBeta?: number;
+  /** Messages des beta testeurs non lus (onglet « Beta testeurs », admin). */
+  unreadAdmin?: number;
 }) {
   const pathname = usePathname();
   const isDemo = email === null;
   // Ordre : … Mon profil, Beta testing, Admin, Beta testeurs.
   const nav = [...NAV, ...(isBetaTester ? [BETA_ITEM] : []), ...(isAdmin ? ADMIN_ITEMS : [])];
+  // Messages non lus de la messagerie beta : badge rouge sur l'onglet concerné.
+  const badges: Record<string, number> = { "/beta": unreadBeta, "/admin/beta": unreadAdmin };
+  const badge = (href: string) =>
+    badges[href] > 0 ? (
+      <span className="ml-auto rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] leading-none font-semibold text-white">
+        {badges[href]}
+        <span className="sr-only"> message{badges[href] > 1 ? "s" : ""} non lu{badges[href] > 1 ? "s" : ""}</span>
+      </span>
+    ) : null;
 
   return (
     <>
@@ -134,6 +149,7 @@ export function AppSidebar({
               >
                 <item.icon className="h-4 w-4" />
                 {item.shortLabel}
+                {badge(item.href)}
               </Link>
             );
           })}
@@ -166,6 +182,7 @@ export function AppSidebar({
                   className={`h-5 w-5 ${active ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"}`}
                 />
                 {item.label}
+                {badge(item.href)}
               </Link>
             );
           })}

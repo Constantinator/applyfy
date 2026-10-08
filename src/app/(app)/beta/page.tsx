@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
+import { TesterMessages } from "@/components/beta/beta-messages";
 import { BetaReports } from "@/components/beta/beta-reports";
 import { requireUser } from "@/lib/auth";
 import { getMyBeta } from "@/lib/beta";
+import { getMyBetaMessages } from "@/lib/beta-messages";
 import { BETA_PREMIUM_UNTIL_LABEL } from "@/lib/beta-rules";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
@@ -15,7 +17,7 @@ export default async function BetaPage() {
   await connection(); // statut des rapports calculé à chaque visite
   if (!isSupabaseConfigured()) redirect("/dashboard");
   await requireUser();
-  const beta = await getMyBeta();
+  const [beta, messages] = await Promise.all([getMyBeta(), getMyBetaMessages()]);
   if (!beta) redirect("/dashboard"); // ne participe pas au programme
 
   const active = beta.status === "active";
@@ -54,6 +56,18 @@ export default async function BetaPage() {
           )}
         </div>
         <BetaReports joinedAt={beta.joinedAt} active={active} submitted={beta.reports} />
+      </section>
+
+      <section aria-labelledby="beta-messages-title" className="space-y-4 card p-5 sm:p-6">
+        <div>
+          <h2 id="beta-messages-title" className="font-semibold text-slate-900">
+            Messages
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Tes échanges avec l&apos;équipe Applyfy : pose une question, signale un problème, partage une idée.
+          </p>
+        </div>
+        <TesterMessages messages={messages} />
       </section>
     </main>
   );

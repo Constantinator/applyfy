@@ -116,12 +116,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               : `Mois terminé · inscrits et abonnés au ${asOf}`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/beta" className="btn-secondary px-4 py-2 text-sm">
-            Beta testeurs →
-          </Link>
-          <MonthPicker month={m.month} months={m.months} />
-        </div>
+        <MonthPicker month={m.month} months={m.months} />
       </div>
 
       {betaNews.length > 0 && (

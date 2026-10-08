@@ -3,8 +3,10 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { BetaMessageForm, RemoveBetaButton } from "@/components/admin/beta-admin-controls";
+import { AdminThread, BroadcastMessageForm } from "@/components/beta/beta-messages";
 import { requireAdmin } from "@/lib/admin-metrics";
 import { betaActivity, listBetaTesters, type BetaActivity } from "@/lib/beta-admin";
+import { listBetaThreads } from "@/lib/beta-messages";
 import {
   BETA_MAX_TESTERS,
   BETA_REPORT_STATUS_LABELS,
@@ -46,8 +48,8 @@ const td = "px-3 py-2 align-top text-sm text-slate-700";
 export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/beta">) {
   await connection();
   await requireAdmin();
-  const { a: messageTarget } = await searchParams;
-  const testers = await listBetaTesters();
+  const { a: messageTarget, fil } = await searchParams;
+  const [testers, threads] = await Promise.all([listBetaTesters(), listBetaThreads()]);
 
   if (!testers) {
     return (
@@ -68,6 +70,24 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
   const activity = betaActivity(testers);
   const submittedCount = testers.reduce((sum, t) => sum + t.submittedCount, 0);
   const target = typeof messageTarget === "string" && testers.some((t) => t.userId === messageTarget) ? messageTarget : "all";
+
+  // Messagerie interne : un fil par testeur, les plus récents d'abord.
+  const threadList = testers
+    .map((tester) => {
+      const messages = threads?.get(tester.userId) ?? [];
+      return {
+        tester,
+        messages,
+        lastAt: messages.at(-1)?.createdAt ?? null,
+        unread: messages.filter((m) => m.sender === "tester" && !m.readAt).length,
+      };
+    })
+    .sort((a, b) => (b.lastAt ?? "").localeCompare(a.lastAt ?? ""));
+  // Fil ouvert : celui demandé (?fil=), sinon le plus récent.
+  const openThread =
+    (typeof fil === "string" && threadList.find((t) => t.tester.userId === fil)) ||
+    threadList.find((t) => t.messages.length > 0) ||
+    null;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -193,13 +213,22 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
                       </td>
                     ))}
                     <td className={`${td} space-y-1.5`}>
-                      <Link
-                        href={`/admin/beta?a=${t.userId}#message`}
-                        scroll={false}
-                        className="btn-secondary px-3 py-1.5 text-xs whitespace-nowrap"
-                      >
-                        Envoyer un message
-                      </Link>
+                      <div className="flex gap-1.5">
+                        <Link
+                          href={`/admin/beta?fil=${t.userId}#messages`}
+                          scroll={false}
+                          className="btn-secondary px-3 py-1.5 text-xs whitespace-nowrap"
+                        >
+                          Messages
+                        </Link>
+                        <Link
+                          href={`/admin/beta?a=${t.userId}#email`}
+                          scroll={false}
+                          className="btn-secondary px-3 py-1.5 text-xs whitespace-nowrap"
+                        >
+                          Email
+                        </Link>
+                      </div>
                       {t.status !== "removed" && <RemoveBetaButton userId={t.userId} email={t.email} />}
                     </td>
                   </tr>
@@ -210,9 +239,78 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
         )}
       </section>
 
-      <section id="message" aria-labelledby="beta-message-title" className="scroll-mt-6 space-y-3">
-        <h2 id="beta-message-title" className="text-lg font-semibold text-slate-900">
-          Envoyer un message
+      {/* Messagerie interne (s'ajoute aux emails) */}
+      <section id="messages" aria-labelledby="beta-messages-title" className="scroll-mt-6 space-y-3">
+        <h2 id="beta-messages-title" className="text-lg font-semibold text-slate-900">
+          Messages
+        </h2>
+        {!threads ? (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+            La messagerie n&apos;est pas encore disponible : applique la migration 0018 (table beta_messages) dans
+            Supabase.
+          </p>
+        ) : testers.length === 0 ? (
+          <p className="text-sm text-slate-500">Aucun beta testeur pour l&apos;instant.</p>
+        ) : (
+          <>
+            <div className="card p-5">
+              <BroadcastMessageForm activeCount={active.length} />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+              <nav aria-label="Fils de discussion" className="card divide-y divide-slate-100 self-start overflow-hidden">
+                {threadList.map(({ tester, messages, lastAt, unread }) => {
+                  const selected = openThread?.tester.userId === tester.userId;
+                  return (
+                    <Link
+                      key={tester.userId}
+                      href={`/admin/beta?fil=${tester.userId}#messages`}
+                      scroll={false}
+                      aria-current={selected ? "true" : undefined}
+                      className={`flex items-center gap-2 px-4 py-3 text-sm ${selected ? "bg-blue-50" : "hover:bg-slate-50"}`}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate ${unread ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+                          {tester.email}
+                        </span>
+                        <span className="block text-xs text-slate-400">
+                          {lastAt
+                            ? `${messages.length} message${messages.length > 1 ? "s" : ""} · ${shortDate.format(new Date(lastAt))}`
+                            : "Aucun message"}
+                        </span>
+                      </span>
+                      {unread > 0 && (
+                        <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+                          {unread}
+                          <span className="sr-only"> non lu{unread > 1 ? "s" : ""}</span>
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+              <div className="card p-5">
+                {openThread ? (
+                  <>
+                    <h3 className="mb-3 text-sm font-medium text-slate-900">{openThread.tester.email}</h3>
+                    <AdminThread
+                      key={openThread.tester.userId}
+                      testerId={openThread.tester.userId}
+                      email={openThread.tester.email}
+                      messages={openThread.messages}
+                    />
+                  </>
+                ) : (
+                  <p className="py-6 text-center text-sm text-slate-500">Choisis un beta testeur pour lui écrire.</p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section id="email" aria-labelledby="beta-email-title" className="scroll-mt-6 space-y-3">
+        <h2 id="beta-email-title" className="text-lg font-semibold text-slate-900">
+          Envoyer un email
         </h2>
         {isEmailConfigured() ? (
           <div className="card p-5">
