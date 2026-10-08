@@ -3,6 +3,7 @@
 import { refresh, revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
+import { getAccountName } from "@/lib/account";
 import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
 import { isLimitReached, LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
 import {
@@ -19,8 +20,9 @@ import {
   type OfferContext,
 } from "@/lib/claude";
 import { readPdfUpload } from "@/lib/cv-file";
-import { CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
+import { blankCvHtml, CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
 import { readCvStyle } from "@/lib/cv-style";
+import { fullName } from "@/lib/person-name";
 import type { CvSuggestions } from "@/lib/cv-types";
 import { getProfileCvFile, getProfileCvHtml, saveProfileCvHtml } from "@/lib/profile";
 import { refineApplicationDocument, type RefineResult } from "@/lib/refine";
@@ -118,10 +120,37 @@ export async function adaptCvAction(
 // 2. Éditeur de CV de la candidature
 // ---------------------------------------------------------------------------
 
+/** PDF (CV du profil ou importé) → HTML de l'éditeur, retranscrit par Claude. */
+async function transcribeToHtml(bytes: Buffer): Promise<{ ok: true; html: string } | { ok: false; state: OpenCvEditorState }> {
+  if (!isClaudeConfigured()) {
+    return { ok: false, state: { status: "error", message: "L'import d'un CV n'est pas disponible sur ce site." } };
+  }
+  if (isLimitReached(await getAiUsageFor("cv_ameliore"))) {
+    return { ok: false, state: { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true } };
+  }
+  try {
+    const cv = await transcribeCv(bytes.toString("base64"));
+    if (!cv) {
+      return {
+        ok: false,
+        state: { status: "error", message: "Ce CV n'a pas pu être lu. Vérifie qu'il s'agit bien d'un PDF de CV." },
+      };
+    }
+    await recordAiUsage("cv_ameliore");
+    return { ok: true, html: sanitizeCvHtml(improvedCvToHtml(cv)) };
+  } catch (error) {
+    return { ok: false, state: { status: "error", message: claudeErrorMessage(error, "transcribeCv") } };
+  }
+}
+
 /**
- * « Ouvrir l'éditeur de CV » : ouvre le CV de la candidature, ou le crée à partir d'un CV
- * du profil. Le PDF n'est retranscrit qu'une fois par CV du profil (version mémorisée
- * ensuite) ; chaque retranscription compte dans la limite « CV ouverts dans l'éditeur ».
+ * « Ouvrir l'éditeur de CV » : le CV de la candidature est (re)créé selon le choix, puis
+ * l'éditeur s'ouvre.
+ *   - actuel : reprendre le CV déjà ouvert pour cette candidature ;
+ *   - profil : un CV du profil, retranscrit une seule fois (version mémorisée ensuite) ;
+ *   - upload : un PDF importé depuis l'ordinateur, retranscrit ;
+ *   - vierge : la structure habituelle avec des exemples à remplacer.
+ * Chaque retranscription compte dans la limite « CV ouverts dans l'éditeur ».
  */
 export async function openCvEditorAction(
   _prev: OpenCvEditorState,
@@ -132,28 +161,34 @@ export async function openCvEditorAction(
   const detail = id ? await getApplicationDetail(id) : null;
   if (!detail) return { status: "error", message: "Candidature introuvable." };
   const app = detail.application;
+  const source = String(formData.get("source") ?? "");
 
-  if (!app.cv_improved_html) {
-    const cvId = String(formData.get("cvId") ?? "");
-    let html = await getProfileCvHtml(cvId);
-    if (!html) {
-      if (!isClaudeConfigured()) {
-        return { status: "error", message: "L'ouverture d'un CV dans l'éditeur n'est pas disponible sur ce site." };
+  if (source !== "actuel" || !app.cv_improved_html) {
+    let html: string;
+    if (source === "vierge") {
+      const name = await getAccountName().catch(() => null);
+      html = sanitizeCvHtml(blankCvHtml(name ? fullName(name) : null));
+    } else if (source === "upload") {
+      const upload = await readPdfUpload(formData.get("cv"));
+      if (!upload.ok) return { status: "error", message: upload.error };
+      const result = await transcribeToHtml(upload.bytes);
+      if (!result.ok) return result.state;
+      html = result.html;
+    } else if (source === "profil") {
+      const cvId = String(formData.get("cvId") ?? "");
+      const cached = await getProfileCvHtml(cvId);
+      if (cached) {
+        html = cached;
+      } else {
+        const profileCv = await getProfileCvFile(cvId);
+        if (!profileCv) return { status: "error", message: "Ce CV n'existe plus dans ton profil. Choisis-en un autre." };
+        const result = await transcribeToHtml(profileCv.bytes);
+        if (!result.ok) return result.state;
+        html = result.html;
+        await saveProfileCvHtml(cvId, html);
       }
-      if (isLimitReached(await getAiUsageFor("cv_ameliore"))) {
-        return { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true };
-      }
-      const profileCv = await getProfileCvFile(cvId);
-      if (!profileCv) return { status: "error", message: "Ce CV n'existe plus dans ton profil. Choisis-en un autre." };
-      try {
-        const cv = await transcribeCv(profileCv.bytes.toString("base64"));
-        if (!cv) return { status: "error", message: "Ce CV n'a pas pu être lu. Vérifie qu'il s'agit bien d'un PDF de CV." };
-        html = sanitizeCvHtml(improvedCvToHtml(cv));
-      } catch (error) {
-        return { status: "error", message: claudeErrorMessage(error, "transcribeCv") };
-      }
-      await recordAiUsage("cv_ameliore");
-      await saveProfileCvHtml(cvId, html);
+    } else {
+      return { status: "error", message: "Choisis comment ouvrir l'éditeur." };
     }
 
     try {

@@ -3,19 +3,15 @@
 import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 
-import {
-  adaptCvAction,
-  openCvEditorAction,
-  type AdaptCvState,
-  type OpenCvEditorState,
-} from "@/app/actions/cv";
+import { adaptCvAction, type AdaptCvState } from "@/app/actions/cv";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
+
+import { CvEditorLauncher } from "./editor-launchers";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
 
 const initialAdaptState: AdaptCvState = { status: "idle" };
-const initialEditorState: OpenCvEditorState = { status: "idle" };
 
 const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -142,7 +138,6 @@ export function CvAdapter({
   resetLabel: string;
 }) {
   const [adaptState, adaptAction, analyzing] = useActionState(adaptCvAction, initialAdaptState);
-  const [editorState, editorAction, opening] = useActionState(openCvEditorAction, initialEditorState);
 
   // Source du CV à analyser (id d'un CV du profil, ou "upload").
   const [source, setSource] = useState<string>(profileCvs[0]?.id ?? UPLOAD);
@@ -151,20 +146,13 @@ export function CvAdapter({
   // Le choix du CV à analyser s'affiche à la demande ; il se referme dès qu'une analyse
   // réussit (l'état de l'action change par rapport à celui de l'ouverture).
   const [pickerOpenedAt, setPickerOpenedAt] = useState<AdaptCvState | null>(null);
-  // CV du profil à ouvrir dans l'éditeur, choisi quand le profil en contient plusieurs.
-  const [editorPickerOpen, setEditorPickerOpen] = useState(false);
-  const [editorCv, setEditorCv] = useState<string>(profileCvs[0]?.id ?? "");
-  const [noProfileCv, setNoProfileCv] = useState(false);
 
   const result = adaptState.status === "success" ? adaptState : null;
   const suggestions = result?.suggestions ?? saved;
   const generatedAt = result?.generatedAt ?? savedAt;
-  const busy = analyzing || opening;
+  const busy = analyzing;
   const limitReached =
     isLimitReached(usage) || (adaptState.status === "error" && adaptState.limitReached === true);
-  const editorLimitReached =
-    !hasImprovedCv &&
-    (isLimitReached(editorUsage) || (editorState.status === "error" && editorState.limitReached === true));
   const selectedProfileCv = profileCvs.find((cv) => cv.id === source) ?? null;
   const sourceReady = source === UPLOAD ? Boolean(file) && !fileError : Boolean(selectedProfileCv);
   const pickerOpen =
@@ -183,21 +171,6 @@ export function CvAdapter({
       formData.set("cvId", source);
     }
     startTransition(() => adaptAction(formData));
-  }
-
-  function openEditor(cvId: string) {
-    if (busy) return;
-    const formData = new FormData();
-    formData.set("id", applicationId);
-    formData.set("cvId", cvId);
-    startTransition(() => editorAction(formData));
-  }
-
-  /** « Ouvrir l'éditeur de CV » sans CV encore ouvert pour cette candidature. */
-  function startEditor() {
-    if (profileCvs.length === 0) setNoProfileCv(true);
-    else if (profileCvs.length === 1) openEditor(profileCvs[0].id);
-    else setEditorPickerOpen(true);
   }
 
   const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700";
@@ -302,88 +275,23 @@ export function CvAdapter({
             {limitReached ? LIMIT_REACHED_LABEL : "Analyser mon CV"}
           </button>
         </OnboardingTip>
-        {hasImprovedCv ? (
-          <Link href={`/candidatures/${applicationId}/cv`} className={editorClass}>
-            Ouvrir l&apos;éditeur de CV
-          </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={startEditor}
-            disabled={busy || editorLimitReached || editorPickerOpen}
-            className={editorClass}
-          >
-            {opening ? "Ouverture…" : editorLimitReached ? LIMIT_REACHED_LABEL : "Ouvrir l'éditeur de CV"}
-          </button>
-        )}
+        <CvEditorLauncher
+          applicationId={applicationId}
+          profileCvs={profileCvs}
+          hasCv={hasImprovedCv}
+          aiEnabled={aiEnabled}
+          limitReached={isLimitReached(editorUsage)}
+          resetLabel={resetLabel}
+          className={editorClass}
+        />
       </div>
 
       {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Analyse non disponible sur ce site.</p>}
 
-      {aiEnabled && (limitReached || editorLimitReached) && !busy && (
+      {aiEnabled && limitReached && !busy && (
         <div className="mt-4">
           <UsageLimitBanner resetLabel={resetLabel} />
         </div>
-      )}
-
-      {noProfileCv && profileCvs.length === 0 && (
-        <p role="status" className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 ring-1 ring-slate-200">
-          Enregistre ton CV dans{" "}
-          <Link href="/profil" className="font-medium text-blue-700 underline underline-offset-2">
-            Mon profil
-          </Link>{" "}
-          pour l&apos;ouvrir dans l&apos;éditeur.
-        </p>
-      )}
-
-      {/* Plusieurs CV dans le profil : lequel ouvrir dans l'éditeur ? */}
-      {editorPickerOpen && !hasImprovedCv && (
-        <div className="mt-4 space-y-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
-          <fieldset className="space-y-2" disabled={opening}>
-            <legend className="text-sm font-medium text-slate-700">Quel CV ouvrir dans l&apos;éditeur ?</legend>
-            {profileCvs.map((cv) => (
-              <label key={cv.id} className={radioClass}>
-                <input
-                  type="radio"
-                  name="editor-cv"
-                  checked={editorCv === cv.id}
-                  onChange={() => setEditorCv(cv.id)}
-                  className="mt-0.5 accent-blue-600"
-                />
-                <span>
-                  {cv.name} <span className="text-slate-500">({cv.fileName})</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => openEditor(editorCv)}
-              disabled={opening || !editorCv}
-              className="btn-primary px-4 py-2 text-sm"
-            >
-              {opening ? "Ouverture…" : "Ouvrir"}
-            </button>
-            {!opening && (
-              <button type="button" onClick={() => setEditorPickerOpen(false)} className="btn-secondary px-4 py-2 text-sm">
-                Annuler
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {opening && (
-        <p role="status" className="mt-3 flex items-center gap-2 text-sm text-slate-500">
-          <Spinner />
-          Préparation de ton CV dans l&apos;éditeur… cela peut prendre jusqu&apos;à une minute la première fois.
-        </p>
-      )}
-      {editorState.status === "error" && !editorState.limitReached && !opening && (
-        <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
-          {editorState.message}
-        </p>
       )}
 
       {pickerOpen && (

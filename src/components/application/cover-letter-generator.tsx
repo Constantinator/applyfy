@@ -5,6 +5,8 @@ import { startTransition, useActionState, useState } from "react";
 
 import { generateCoverLetterAction, type GenerateCoverLetterState } from "@/app/actions/cover-letter";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+
+import { LetterEditorLauncher } from "./editor-launchers";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   CV_MAX_BYTES,
@@ -35,6 +37,7 @@ export function CoverLetterGenerator({
   profileCvs,
   letterSavedAt,
   hasLetter,
+  hasCv,
   signerName,
   usage,
   resetLabel,
@@ -45,6 +48,8 @@ export function CoverLetterGenerator({
   profileCvs: ProfileCv[];
   letterSavedAt: string | null;
   hasLetter: boolean;
+  /** Un CV est disponible pour rédiger la lettre (CV de la candidature ou CV du profil importé). */
+  hasCv: boolean;
   /** Prénom et nom du compte (signature de la lettre), null s'ils ne sont pas renseignés. */
   signerName: string | null;
   /** Lettres générées ce mois-ci. */
@@ -124,12 +129,15 @@ export function CoverLetterGenerator({
         >
           {limitReached ? LIMIT_REACHED_LABEL : "Générer ma lettre"}
         </button>
-        <Link
-          href={`/candidatures/${applicationId}/lettre`}
+        <LetterEditorLauncher
+          applicationId={applicationId}
+          hasLetter={hasLetter}
+          hasCv={hasCv}
+          aiEnabled={aiEnabled}
+          limitReached={limitReached}
+          resetLabel={resetLabel}
           className={`${hasLetter ? "btn-primary" : "btn-secondary"} px-4 py-2 text-sm`}
-        >
-          Ouvrir l&apos;éditeur de lettre
-        </Link>
+        />
       </div>
 
       {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Génération non disponible sur ce site.</p>}

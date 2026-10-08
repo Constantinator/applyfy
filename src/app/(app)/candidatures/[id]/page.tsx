@@ -27,7 +27,7 @@ import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { fullName } from "@/lib/person-name";
 import { readCvSuggestions } from "@/lib/cv-types";
-import { listProfileCvs } from "@/lib/profile";
+import { getLatestProfileCvHtml, listProfileCvs } from "@/lib/profile";
 
 // Analyse de CV, ouverture du CV dans l'éditeur et lettre (Server Actions de cette page) : 30 à 90 s.
 export const maxDuration = 120;
@@ -67,7 +67,7 @@ export default async function ApplicationPage({
 }: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
   const { creee } = await searchParams;
-  const [detail, profileCvs, accountName, usage] = await Promise.all([
+  const [detail, profileCvs, accountName, usage, latestProfileCvHtml] = await Promise.all([
     getApplicationDetail(id),
     // Non bloquant : la fiche reste affichée même si le profil est indisponible
     // (ex. migration 0007 pas encore appliquée).
@@ -81,10 +81,15 @@ export default async function ApplicationPage({
       return null;
     }),
     readAiUsage(),
+    // Sans échec (null si indisponible) : CV du profil déjà importé, utilisable pour la lettre.
+    getLatestProfileCvHtml(),
   ]);
   if (!detail) notFound();
 
   const { application: app, events, source } = detail;
+  // « S'aider du CV en cours » (lettre) : le chat reçoit le CV de la candidature, à défaut
+  // le dernier CV du profil importé dans l'éditeur.
+  const hasCvForLetter = Boolean(app.cv_improved_html || latestProfileCvHtml);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -225,6 +230,7 @@ export default async function ApplicationPage({
             aiEnabled={isClaudeConfigured()}
             profileCvs={profileCvs}
             hasLetter={Boolean(app.cover_letter_html)}
+            hasCv={hasCvForLetter}
             letterSavedAt={app.cover_letter_at ?? null}
             signerName={accountName ? fullName(accountName) : null}
             usage={usage.counts.lettre}

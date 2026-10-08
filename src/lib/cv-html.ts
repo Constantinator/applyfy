@@ -95,6 +95,35 @@ export function improvedCvToHtml(cv: ImprovedCv): string {
 }
 
 /**
+ * CV vierge pour l'éditeur (« Commencer avec un CV vierge ») : la structure habituelle,
+ * remplie d'exemples à remplacer.
+ */
+export function blankCvHtml(name: string | null): string {
+  return improvedCvToHtml({
+    langue: "fr",
+    nom: name?.trim() || "Prénom Nom",
+    coordonnees: { ville: "Ville", email: "email@exemple.fr", telephone: "06 00 00 00 00", linkedin: "" },
+    formation: [
+      { intitule: "Diplôme, spécialité", structure: "École ou université", lieu: "Ville", periode: "2023 – 2026", puces: [] },
+    ],
+    experience: [
+      {
+        intitule: "Intitulé du poste",
+        structure: "Entreprise",
+        lieu: "Ville",
+        periode: "Mois – Mois 2025",
+        puces: ["Réalisation principale, avec un résultat concret", "Autre mission ou réalisation marquante"],
+      },
+    ],
+    competences: [
+      { categorie: "Langues", elements: "Français (langue maternelle), Anglais (courant)" },
+      { categorie: "Outils", elements: "Outils et logiciels maîtrisés" },
+    ],
+    interets: "Centres d'intérêt",
+  });
+}
+
+/**
  * Nettoie du HTML (issu de l'éditeur) : seules des balises de mise en forme sont
  * conservées, SANS aucun attribut (pas de style, onclick, href, src…), sauf le type
  * de liste d'un <ul> limité à des valeurs connues. Tout autre « < » ou « > » est

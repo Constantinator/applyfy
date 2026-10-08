@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CvEditor } from "@/components/application/cv-editor";
+import { ClearSearchParams } from "@/components/clear-search-params";
 import { getAccountName } from "@/lib/account";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
@@ -19,8 +20,15 @@ export const metadata: Metadata = { title: "Ma lettre de motivation — Applyfy"
 // « Affiner avec l'IA » (Server Action de cette page) : jusqu'à une minute.
 export const maxDuration = 120;
 
-export default async function CoverLetterPage({ params }: PageProps<"/candidatures/[id]/lettre">) {
+/** Demande envoyée au chat avec « S'aider du CV en cours ». */
+const WRITE_FROM_CV_PROMPT = "Rédige ma lettre de motivation pour cette offre à partir de mon CV.";
+
+export default async function CoverLetterPage({ params, searchParams }: PageProps<"/candidatures/[id]/lettre">) {
   const { id } = await params;
+  // Point de départ choisi sur la fiche : modèle vierge (« vierge »), ou modèle vierge
+  // rédigé aussitôt par le chat à partir du CV (« cv ») ; sinon, la lettre enregistrée.
+  const { depart } = await searchParams;
+  const fresh = depart === "vierge" || depart === "cv";
   const [detail, usage, accountName] = await Promise.all([
     getApplicationDetail(id),
     readAiUsage(),
@@ -44,18 +52,26 @@ export default async function CoverLetterPage({ params }: PageProps<"/candidatur
         </p>
       </div>
 
+      {fresh && <ClearSearchParams />}
+      {fresh && app.cover_letter_html && (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200 print:hidden">
+          Nouvelle lettre : ta lettre enregistrée ne sera remplacée que si tu cliques sur « Enregistrer ».
+        </p>
+      )}
+
       {/* Renettoyée à l'affichage (défense en profondeur, en plus du nettoyage à
-          l'enregistrement). Sans lettre enregistrée : modèle vierge, enregistré au premier
-          « Enregistrer ». */}
+          l'enregistrement). Modèle vierge (nouvelle lettre ou aucune lettre enregistrée) :
+          enregistré au premier « Enregistrer ». */}
       <CvEditor
+        key={fresh ? String(depart) : "lettre"}
         kind="lettre"
         applicationId={app.id}
         initialHtml={sanitizeCvHtml(
-          app.cover_letter_html ??
+          (!fresh && app.cover_letter_html) ||
             emptyCoverLetterHtml(app.position, app.company, accountName ? fullName(accountName) : null),
         )}
         initialStyle={readCvStyle(app.cover_letter_style, DEFAULT_LETTER_STYLE)}
-        savedAt={app.cover_letter_html ? (app.cover_letter_at ?? null) : null}
+        savedAt={!fresh && app.cover_letter_html ? (app.cover_letter_at ?? null) : null}
         pdfTitle={["Lettre de motivation", firstHeadingText(app.cover_letter_html ?? ""), "-", app.company]
           .filter(Boolean)
           .join(" ")}
@@ -63,6 +79,7 @@ export default async function CoverLetterPage({ params }: PageProps<"/candidatur
           aiEnabled: isClaudeConfigured(),
           usage: usage.counts.affinage_lettre,
           resetLabel: formatResetDate(usage.resetsOn),
+          initialPrompt: depart === "cv" ? WRITE_FROM_CV_PROMPT : undefined,
         }}
       />
     </main>

@@ -65,6 +65,7 @@ export function RefineChat({
   readDocument,
   replaceDocument,
   onPendingChange,
+  initialPrompt,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -80,6 +81,8 @@ export function RefineChat({
   /** Remplace le document de l'éditeur et retourne le HTML précédent. */
   replaceDocument: (html: string) => string;
   onPendingChange: (pending: boolean) => void;
+  /** Demande envoyée automatiquement à l'ouverture (ex. « S'aider du CV en cours »). */
+  initialPrompt?: string;
 }) {
   const texts = DOCUMENTS[document];
   const [messages, setMessages] = useState<Message[]>([]);
@@ -107,8 +110,8 @@ export function RefineChat({
     setMessages((list) => [...list, { ...message, id }]);
   }
 
-  async function send() {
-    const request = input.trim();
+  async function send(text: string = input) {
+    const request = text.trim();
     if (!request || pending || disabled) return;
     const history = messages.filter((m) => !m.error).map(({ role, content }) => ({ role, content }));
     add({ role: "user", content: request });
@@ -132,6 +135,21 @@ export function RefineChat({
       onPendingChange(false);
     }
   }
+
+  // Demande initiale : envoyée une seule fois, juste après l'ouverture de l'éditeur.
+  const initialSent = useRef(false);
+  useEffect(() => {
+    if (!initialPrompt || initialSent.current || disabled) return;
+    // Marqué envoyé dans le minuteur : un effet annulé puis rejoué (mode strict) envoie bien.
+    const timer = setTimeout(() => {
+      if (initialSent.current) return;
+      initialSent.current = true;
+      void send(initialPrompt);
+    }, 0);
+    return () => clearTimeout(timer);
+    // send lit l'état courant au moment de l'appel : inutile de relancer l'effet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt, disabled]);
 
   function undo(message: Message) {
     if (message.previousHtml === undefined) return;

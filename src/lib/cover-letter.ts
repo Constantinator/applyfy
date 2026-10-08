@@ -74,3 +74,37 @@ export function emptyCoverLetterHtml(
     `<p><strong>${inline(signer)}</strong></p>`,
   ].join("\n");
 }
+
+/** Lettre existante retranscrite (import d'un PDF ou d'un .docx). */
+export type TranscribedLetter = {
+  nom: string;
+  coordonnees: string;
+  destinataire: string;
+  lieu_date: string;
+  objet: string;
+  paragraphes: string[];
+};
+
+/**
+ * Lettre importée → HTML de l'éditeur, même structure qu'une lettre générée. Sans nom
+ * dans la lettre : celui du compte ; sans objet : l'objet imposé ; sans date : aujourd'hui.
+ */
+export function transcribedLetterToHtml(
+  letter: TranscribedLetter,
+  position: string,
+  accountName: string | null,
+  date: Date = new Date(),
+): string {
+  const name = letter.nom.trim() || accountName?.trim() || "Prénom Nom";
+  const parts = [`<h1>${inline(name)}</h1>`];
+  if (letter.coordonnees.trim()) parts.push(`<p>${inline(letter.coordonnees)}</p>`);
+  if (letter.destinataire.trim()) parts.push(`<p>${inline(letter.destinataire)}</p>`);
+  parts.push(`<p>${letter.lieu_date.trim() ? inline(letter.lieu_date) : `Le ${letterDate.format(date)}`}</p>`);
+  const subject = letter.objet.trim().replace(/^objet\s*:\s*/i, "") || coverLetterSubject(position, name);
+  parts.push(`<h2>Objet : ${inline(subject)}</h2>`);
+  for (const paragraph of letter.paragraphes) {
+    if (paragraph.trim()) parts.push(`<p>${inline(paragraph)}</p>`);
+  }
+  parts.push(`<p><strong>${inline(name)}</strong></p>`);
+  return parts.join("\n");
+}

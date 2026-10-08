@@ -366,8 +366,8 @@ export function CvEditor({
   savedAt: string | null;
   /** Titre du document pendant l'impression = nom de fichier proposé pour le PDF. */
   pdfTitle: string;
-  /** Chat « Affiner avec l'IA » sous le document. */
-  refine?: { aiEnabled: boolean; usage: AiUsageCount; resetLabel: string };
+  /** Chat « Affiner avec l'IA » sous le document ; `initialPrompt` : demande envoyée à l'ouverture. */
+  refine?: { aiEnabled: boolean; usage: AiUsageCount; resetLabel: string; initialPrompt?: string };
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
@@ -669,6 +669,7 @@ export function CvEditor({
             readDocument={readDocumentForRefine}
             replaceDocument={replaceDocument}
             onPendingChange={setRefining}
+            initialPrompt={refine.initialPrompt}
           />
         )}
       </div>
