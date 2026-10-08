@@ -132,7 +132,7 @@ export default function LandingPage() {
         <section className="relative overflow-hidden">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 -top-40 h-[34rem] bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.14),rgba(6,182,212,0.08)_40%,transparent_70%)]"
+            className="pointer-events-none absolute inset-x-0 -top-40 h-[34rem] bg-[radial-gradient(ellipse_at_top,rgba(30,64,175,0.14),rgba(6,182,212,0.08)_40%,transparent_70%)]"
           />
           <div className="relative mx-auto max-w-5xl px-4 pt-20 pb-24 text-center sm:px-6 sm:pt-28">
             <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 py-1 pr-3 pl-1 text-sm text-slate-600 shadow-sm">

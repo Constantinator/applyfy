@@ -2,12 +2,27 @@
 
 /*
  * Système de design Applyfy.
- * Couleurs = palette Tailwind : primaire blue-600 (#2563EB) → cyan-500 (#06B6D4),
+ * Couleurs alignées sur le logo : primaire blue-600 (#1E40AF) → cyan-500 (#06B6D4),
  * fonds white / slate-50 (#F8FAFC), textes slate-900 (#0F172A) / slate-500 (#64748B),
  * bordures slate-200 (#E2E8F0), succès emerald-500, alerte amber-500, erreur red-500.
  */
 @theme inline {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Bleu de marque : le bleu du logo (#1E40AF) devient blue-600, la nuance principale de
+ * l'interface (boutons, liens, badges). Les nuances foncées sont décalées d'autant pour
+ * garder la hiérarchie (survols et textes en blue-700, plus foncés que blue-600) ; les
+ * nuances claires (fonds, contours 50 → 400) restent celles de Tailwind.
+ */
+@theme {
+  --color-blue-500: #1d4ed8;
+  --color-blue-600: #1e40af;
+  --color-blue-700: #1e3a8a;
+  --color-blue-800: #172554;
+  --color-blue-900: #172554;
+  --color-blue-950: #0f1a3d;
 }
 
 body {
@@ -36,12 +51,12 @@ body {
   color: white;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgb(37 99 235 / 0.2), 0 4px 12px -2px rgb(6 182 212 / 0.25);
+  box-shadow: 0 1px 2px rgb(30 64 175 / 0.2), 0 4px 12px -2px rgb(6 182 212 / 0.25);
   transition: filter 150ms, box-shadow 150ms, transform 150ms;
 
   &:hover {
     filter: brightness(1.06);
-    box-shadow: 0 1px 2px rgb(37 99 235 / 0.25), 0 8px 18px -4px rgb(6 182 212 / 0.35);
+    box-shadow: 0 1px 2px rgb(30 64 175 / 0.25), 0 8px 18px -4px rgb(6 182 212 / 0.35);
   }
   &:active {
     transform: translateY(1px);
@@ -104,7 +119,7 @@ body {
   &:focus {
     outline: none;
     border-color: var(--color-blue-500);
-    box-shadow: 0 0 0 4px rgb(59 130 246 / 0.15);
+    box-shadow: 0 0 0 4px rgb(30 64 175 / 0.15);
   }
   &[aria-invalid="true"] {
     border-color: var(--color-red-400);

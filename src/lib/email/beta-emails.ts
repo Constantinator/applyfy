@@ -18,7 +18,7 @@ function layout({ paragraphs, button }: { paragraphs: string[]; button?: { label
     )
     .join("");
   const cta = button
-    ? `<tr><td style="padding:8px 0 28px;"><a href="${escapeHtml(button.url)}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:8px;">${escapeHtml(button.label)}</a></td></tr>`
+    ? `<tr><td style="padding:8px 0 28px;"><a href="${escapeHtml(button.url)}" style="display:inline-block;background:#1E40AF;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:8px;">${escapeHtml(button.label)}</a></td></tr>`
     : "";
   return `<!doctype html>
 <html lang="fr">
@@ -26,7 +26,7 @@ function layout({ paragraphs, button }: { paragraphs: string[]; button?: { label
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
       <tr><td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:32px;">
-          <tr><td style="font-size:16px;font-weight:bold;color:#4f46e5;padding-bottom:20px;">Applyfy · Beta</td></tr>
+          <tr><td style="font-size:16px;font-weight:bold;color:#1E40AF;padding-bottom:20px;">Applyfy · Beta</td></tr>
           ${body}
           ${cta}
           <tr><td style="font-size:12px;line-height:1.5;color:#64748b;border-top:1px solid #e2e8f0;padding-top:16px;">

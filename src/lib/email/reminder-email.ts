@@ -27,13 +27,13 @@ export function buildReminderEmail(input: {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
       <tr><td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:32px;">
-          <tr><td style="font-size:16px;font-weight:bold;color:#4f46e5;padding-bottom:20px;">Applyfy</td></tr>
+          <tr><td style="font-size:16px;font-weight:bold;color:#1E40AF;padding-bottom:20px;">Applyfy</td></tr>
           <tr><td style="font-size:16px;line-height:1.6;padding-bottom:24px;">
             Tu as postulé chez <strong>${escapeHtml(company)}</strong> pour le poste de
             <strong>${escapeHtml(position)}</strong> il y a ${days}. C'est le bon moment pour relancer !
           </td></tr>
           <tr><td style="padding-bottom:28px;">
-            <a href="${escapeHtml(applicationUrl)}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:8px;">Voir ma candidature</a>
+            <a href="${escapeHtml(applicationUrl)}" style="display:inline-block;background:#1E40AF;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:8px;">Voir ma candidature</a>
           </td></tr>
           <tr><td style="font-size:12px;line-height:1.5;color:#64748b;border-top:1px solid #e2e8f0;padding-top:16px;">
             Tu reçois cet email car les rappels de relance sont activés.
