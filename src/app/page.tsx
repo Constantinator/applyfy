@@ -131,6 +131,8 @@ export default function LandingPage() {
         {/* Hero */}
         <section className="relative overflow-hidden">
           <div className="relative mx-auto max-w-5xl px-4 pt-20 pb-24 text-center sm:px-6 sm:pt-28">
+            {/* Logo complet, centré au-dessus du badge (224 px de large). */}
+            <LogoFull className="mx-auto mb-8 block h-auto w-56" />
             <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 py-1 pr-3 pl-1 text-sm text-slate-600 shadow-sm">
               <span className="bg-brand rounded-full px-2 py-0.5 text-xs font-semibold text-white">
                 Nouveau
