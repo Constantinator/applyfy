@@ -248,7 +248,7 @@ export default function LandingPage() {
         <section aria-labelledby="cta-title" className="px-4 pb-24 sm:px-6">
           <div className="bg-brand relative mx-auto max-w-4xl overflow-hidden rounded-3xl px-6 py-14 text-center shadow-xl shadow-blue-600/20 sm:px-12">
             <h2 id="cta-title" className="relative text-3xl font-bold tracking-tight text-white">
-              Prêt·e à reprendre le contrôle de ta recherche ?
+              Prêt(e) à reprendre le contrôle de ta recherche ?
             </h2>
             <p className="relative mt-3 text-blue-50">
               Crée ton compte en une minute et ajoute ta première candidature.

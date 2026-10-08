@@ -236,7 +236,7 @@ export default async function ApplicationPage({
 
           <FollowUpBox
             applicationId={app.id}
-            defaultMessage={buildFollowUpMessage(app)}
+            defaultMessage={buildFollowUpMessage(app, accountName ? fullName(accountName) : null)}
             contactEmail={app.contact_email}
             subject={`Relance — candidature ${app.position}`}
             highlight={needsFollowUp(app)}
@@ -250,13 +250,7 @@ export default async function ApplicationPage({
 
       <NotesPad applicationId={app.id} initialNotes={app.notes ?? ""} />
 
-      <section
-        aria-label="Supprimer la candidature"
-        className="flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <p className="text-sm text-slate-500">
-          Cette candidature n&apos;est plus d&apos;actualité ? Tu peux la supprimer définitivement.
-        </p>
+      <section aria-label="Supprimer la candidature" className="flex justify-end border-t border-slate-200 pt-6">
         <DeleteApplicationButton applicationId={app.id} company={app.company} />
       </section>
     </main>

@@ -498,8 +498,11 @@ const longDate = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "UTC", // date sans heure, cf. applications-list.tsx
 });
 
-/** Message de relance pré-rempli, modifiable par l'utilisateur. */
-export function buildFollowUpMessage(app: Application): string {
+/**
+ * Message de relance pré-rempli, modifiable par l'utilisateur. `signer` : prénom et nom du
+ * compte (Mon profil) ; sans eux, un repère « [Prénom Nom] » est laissé à compléter.
+ */
+export function buildFollowUpMessage(app: Application, signer?: string | null): string {
   const greeting = app.contact_name ? `Bonjour ${app.contact_name},` : "Bonjour,";
   const sentOn = app.applied_at ? `, envoyée le ${longDate.format(new Date(app.applied_at))}` : "";
   const again = app.status === "relancee" ? "de nouveau " : "";
@@ -514,7 +517,7 @@ export function buildFollowUpMessage(app: Application): string {
     "Je reste disponible pour un appel ou un entretien à votre convenance.",
     "",
     "Bien cordialement,",
-    "[Prénom Nom]",
+    signer?.trim() || "[Prénom Nom]",
   ].join("\n");
 }
 

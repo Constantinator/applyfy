@@ -23,9 +23,16 @@ export function Logo({ size = "md", withName = true }: { size?: "sm" | "md" | "l
   );
 }
 
-/** Logo complet (coche + nom) en image : landing page, connexion, inscription. */
-export function LogoFull({ className = "h-9 w-auto" }: { className?: string }) {
+/** Logo complet (coche + nom) en image : landing page, connexion, inscription, pied de page. */
+export function LogoFull({
+  className = "h-9 w-auto",
+  priority = true,
+}: {
+  className?: string;
+  /** Chargement prioritaire : oui en haut de page, non dans le pied de page. */
+  priority?: boolean;
+}) {
   return (
-    <Image src="/images/applyfy-logo.png" alt="Applyfy" width={900} height={320} priority className={className} />
+    <Image src="/images/applyfy-logo.png" alt="Applyfy" width={900} height={320} priority={priority} className={className} />
   );
 }

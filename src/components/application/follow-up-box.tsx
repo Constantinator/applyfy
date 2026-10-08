@@ -41,7 +41,7 @@ export function FollowUpBox({
     <section
       id="relance"
       aria-labelledby="relance-title"
-      className={`scroll-mt-6 rounded-2xl border bg-white p-5 ${
+      className={`scroll-mt-6 rounded-2xl border bg-white p-4 ${
         highlight ? "border-amber-300 ring-1 ring-amber-200" : "border-slate-200"
       }`}
     >
@@ -67,7 +67,7 @@ export function FollowUpBox({
         )}
       </div>
 
-      <form action={formAction} className="mt-4">
+      <form action={formAction} className="mt-3">
         <input type="hidden" name="id" value={applicationId} />
         <label htmlFor="follow-up-message" className="sr-only">
           Message de relance
@@ -75,7 +75,7 @@ export function FollowUpBox({
         <textarea
           id="follow-up-message"
           name="message"
-          rows={12}
+          rows={7}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="input leading-relaxed"
