@@ -15,7 +15,6 @@ import {
   OfferSourceError,
   type OfferListing,
   type OfferSearch,
-  type OfferSource,
 } from "@/lib/offer-types";
 import {
   findOffer,
@@ -35,12 +34,6 @@ export const metadata: Metadata = { title: "Trouver une offre — Applyfy" };
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 const numberFormatter = new Intl.NumberFormat("fr-FR");
-
-/** Couleurs de la pastille indiquant la source de l'offre. */
-const SOURCE_BADGE: Record<OfferSource, string> = {
-  "france-travail": "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  adzuna: "bg-orange-50 text-orange-700 ring-orange-200",
-};
 
 function publishedLabel(iso: string | null) {
   if (!iso) return null;
@@ -318,48 +311,42 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                   )}
                 </div>
               ) : (
-                <ul className="space-y-3">
+                <ul className="space-y-4">
                   {result.offers.map((offer) => {
                     const isSelected = offer.id === selected?.id;
+                    // Localisation · date · contrat : une ligne discrète sous l'entreprise.
+                    const details = [
+                      offer.location && { icon: IconMapPin, text: offer.location },
+                      offer.publishedAt && { icon: IconClock, text: publishedLabel(offer.publishedAt) },
+                      offer.contract && { icon: IconBriefcase, text: offer.contract },
+                    ].filter((d): d is { icon: typeof IconMapPin; text: string } => Boolean(d && d.text));
                     return (
                       <li key={offer.id}>
                         <OfferLink
                           href={href(page, offer.id)}
                           selected={isSelected}
-                          className={`card block space-y-1.5 p-4 transition ${
+                          className={`card block p-5 transition sm:p-6 ${
                             isSelected ? "bg-blue-50/60 ring-2 ring-blue-500" : "hover:ring-1 hover:ring-blue-300"
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <h3 className="font-semibold text-slate-900">{offer.title}</h3>
-                            <span
-                              className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${SOURCE_BADGE[offer.source]}`}
-                            >
+                          <h3 className="text-lg leading-snug font-bold text-slate-900">{offer.title}</h3>
+                          <p className="mt-1 text-[15px] font-medium text-slate-700">
+                            {offer.company ?? "Entreprise non communiquée"}
+                          </p>
+                          <div className="mt-3 flex items-end justify-between gap-3">
+                            <ul className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                              {details.map(({ icon: Icon, text }) => (
+                                <li key={text} className="inline-flex items-center gap-1">
+                                  <Icon className="h-3.5 w-3.5 text-slate-300" />
+                                  {text}
+                                </li>
+                              ))}
+                            </ul>
+                            <span className="shrink-0 rounded-full bg-[#F9FAFB] px-2 py-0.5 text-[11px] text-[#6B7280] ring-1 ring-slate-200">
                               <span className="sr-only">Source : </span>
                               {OFFER_SOURCES[offer.source]}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-600">{offer.company ?? "Entreprise non communiquée"}</p>
-                          <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                            {offer.location && (
-                              <li className="inline-flex items-center gap-1">
-                                <IconMapPin className="h-3.5 w-3.5 text-slate-400" />
-                                {offer.location}
-                              </li>
-                            )}
-                            {offer.publishedAt && (
-                              <li className="inline-flex items-center gap-1">
-                                <IconClock className="h-3.5 w-3.5 text-slate-400" />
-                                {publishedLabel(offer.publishedAt)}
-                              </li>
-                            )}
-                            {offer.contract && (
-                              <li className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700 ring-1 ring-blue-100">
-                                <IconBriefcase className="h-3 w-3" />
-                                {offer.contract}
-                              </li>
-                            )}
-                          </ul>
                         </OfferLink>
                       </li>
                     );
