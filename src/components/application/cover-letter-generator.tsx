@@ -131,7 +131,7 @@ export function CoverLetterGenerator({
   return (
     <section aria-labelledby="letter-title" className="card p-5">
       <div>
-        <h2 id="letter-title" className="font-semibold text-slate-900">
+        <h2 id="letter-title" className="text-brand-cyan-dark font-semibold">
           Lettre de motivation
         </h2>
         {hasLetter && letterSavedAt && (

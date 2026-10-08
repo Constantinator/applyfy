@@ -47,7 +47,7 @@ export function FollowUpBox({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 id="relance-title" className="font-semibold text-slate-900">
+          <h2 id="relance-title" className="text-brand-cyan-dark font-semibold">
             Relancer
           </h2>
           <p className="mt-1 text-sm text-slate-500">

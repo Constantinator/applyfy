@@ -94,7 +94,7 @@ export function NotesPad({ applicationId, initialNotes }: { applicationId: strin
   return (
     <section aria-labelledby="notes-title" className="rounded-2xl border border-amber-200/70 bg-amber-50/50 p-5 shadow-sm">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="notes-title" className="font-semibold text-slate-900">
+        <h2 id="notes-title" className="text-brand-cyan-dark font-semibold">
           Notes
         </h2>
         <p

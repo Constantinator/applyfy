@@ -2,8 +2,9 @@
 
 /*
  * Système de design Applyfy.
- * Couleurs alignées sur le logo, sans dégradé : primaire blue-600 (#1E40AF) uni (le cyan
- * #06B6D4 n'apparaît que dans le logo),
+ * Couleurs alignées sur le logo, sans dégradé : primaire blue-600 (#1E40AF) uni, accent
+ * brand-cyan (#06B6D4) réservé aux icônes décoratives et brand-cyan-dark (#0891B2) aux
+ * titres de section,
  * fonds white / slate-50 (#F8FAFC), textes slate-900 (#0F172A) / slate-500 (#64748B),
  * bordures slate-200 (#E2E8F0), succès emerald-500, alerte amber-500, erreur red-500.
  */
@@ -24,6 +25,10 @@
   --color-blue-800: #172554;
   --color-blue-900: #172554;
   --color-blue-950: #0f1a3d;
+  /* Cyan du logo : accent décoratif seulement (icônes de navigation et de la landing). */
+  --color-brand-cyan: #06b6d4;
+  /* Cyan foncé pour du texte (titres de section) : meilleur contraste sur fond blanc. */
+  --color-brand-cyan-dark: #0891b2;
 }
 
 body {

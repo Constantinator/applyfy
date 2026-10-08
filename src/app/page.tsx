@@ -175,7 +175,7 @@ export default function LandingPage() {
                 >
                   <feature.preview />
                   <div className="mt-5 flex items-center gap-3">
-                    <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm shadow-blue-600/20">
+                    <span className="bg-brand-cyan/10 text-brand-cyan ring-brand-cyan/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1">
                       <feature.icon className="h-5 w-5" />
                     </span>
                     <h3 className="font-semibold text-slate-900">{feature.title}</h3>
