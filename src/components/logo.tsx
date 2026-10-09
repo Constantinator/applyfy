@@ -4,7 +4,7 @@ import Image from "next/image";
 //   - applyfy-icon.png : la coche seule (512 × 512) ;
 //   - applyfy-logo.png : la coche et le nom (900 × 320).
 
-/** Icône Applyfy + nom en texte (sidebar, pages légales). */
+/** Icône Applyfy + nom en texte, en bleu de marque (blue-600 = #1E40AF) : sidebar, pages légales. */
 export function Logo({ size = "md", withName = true }: { size?: "sm" | "md" | "lg"; withName?: boolean }) {
   const icon = { sm: "h-8 w-8", md: "h-9 w-9", lg: "h-11 w-11" }[size];
   const text = { sm: "text-base", md: "text-lg", lg: "text-xl" }[size];
@@ -18,7 +18,7 @@ export function Logo({ size = "md", withName = true }: { size?: "sm" | "md" | "l
         priority
         className={`${icon} shrink-0`}
       />
-      {withName && <span className={`${text} font-bold tracking-tight text-slate-900`}>Applyfy</span>}
+      {withName && <span className={`${text} font-bold tracking-tight text-blue-600`}>Applyfy</span>}
     </span>
   );
 }
