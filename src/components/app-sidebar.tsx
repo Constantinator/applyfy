@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -194,7 +195,7 @@ export function AppSidebar({
             href="/"
             className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900"
           >
-            <IconHome className="h-5 w-5 text-slate-400" />
+            <IconHome className="text-brand-cyan h-5 w-5" />
             Retour à l&apos;accueil
           </Link>
           {isDemo ? (
@@ -205,9 +206,13 @@ export function AppSidebar({
             </p>
           ) : (
             <div className="flex items-center gap-2 rounded-xl px-3 py-2">
-              <span className="bg-brand flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white uppercase">
-                {email.charAt(0)}
-              </span>
+              <Image
+                src="/images/applyfy-icon.png"
+                alt=""
+                width={32}
+                height={32}
+                className="h-8 w-8 shrink-0 rounded-lg"
+              />
               <span className="min-w-0 flex-1 truncate text-xs text-slate-600" title={email}>
                 {email}
               </span>

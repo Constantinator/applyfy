@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 
 import { loadFeedbackAction, saveFeedbackAction } from "@/app/actions/feedback";
+import { IconStar } from "@/components/icons";
 import {
   FAVORITE_FEATURES,
   IMPROVEMENT_MAX_LENGTH,
@@ -107,9 +108,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
         onClick={open}
         className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 ${className}`}
       >
-        <span aria-hidden="true" className="flex h-5 w-5 items-center justify-center text-base leading-none text-slate-400">
-          ☆
-        </span>
+        <IconStar className="text-brand-cyan h-5 w-5" />
         Donner mon avis
       </button>
 
