@@ -18,6 +18,7 @@ import {
 } from "@/lib/admin-metrics";
 import { AI_USAGE_LABELS } from "@/lib/ai-usage-limits";
 import { betaActivity, listBetaTesters } from "@/lib/beta-admin";
+import { getTrafficMetrics, isTrafficConfigured, type TrafficMetrics } from "@/lib/vercel-analytics";
 
 export const metadata: Metadata = { title: "Admin — Applyfy", robots: { index: false } };
 
@@ -91,6 +92,16 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     getFeedbackMetrics(),
     listBetaTesters(),
   ]);
+  // Trafic (Vercel Web Analytics) du mois choisi ; sans jeton ou en cas d'erreur, la
+  // section l'indique et le reste du tableau de bord s'affiche normalement.
+  const traffic: { data: TrafficMetrics } | { error: string } | null = isTrafficConfigured()
+    ? await getTrafficMetrics(`${m.month}-01`, m.asOf)
+        .then((data) => ({ data }))
+        .catch((error: unknown) => {
+          console.error("[admin] trafic", error);
+          return { error: error instanceof Error ? error.message : "Données de trafic indisponibles." };
+        })
+    : null;
   // Notification beta : rapports soumis ou en retard, et suspensions des 7 derniers jours.
   const weekAgo = new Date(m.generatedAt).getTime() - 7 * 86_400_000;
   const betaNews = betaActivity(betaTesters ?? []).filter((e) => new Date(e.date).getTime() >= weekAgo);
@@ -138,6 +149,69 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           <span className="ml-auto font-medium">Voir les beta testeurs →</span>
         </Link>
       )}
+
+      {/* 0. Trafic (Vercel Web Analytics) */}
+      <Section id="admin-trafic" title={`Trafic ${ofMonth}`}>
+        {!traffic ? (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+            Ajoute la variable VERCEL_API_TOKEN (jeton Vercel en lecture) dans les variables d&apos;environnement
+            Vercel pour afficher le trafic.
+          </p>
+        ) : "error" in traffic ? (
+          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">{traffic.error}</p>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Stat label="Visiteurs uniques" value={integer.format(traffic.data.visitors)} hint={`En ${month}`} />
+              <Stat label="Pages vues" value={integer.format(traffic.data.pageviews)} hint={`En ${month}`} />
+            </div>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <div className="card overflow-x-auto">
+                <table className="w-full">
+                  <caption className="px-3 pt-3 text-left text-sm font-medium text-slate-900">
+                    Pages les plus visitées
+                  </caption>
+                  <thead className="border-b border-slate-200">
+                    <tr>
+                      <th className={th}>Page</th>
+                      <th className={`${th} ${num}`}>Vues</th>
+                      <th className={`${th} ${num}`}>Visiteurs</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {traffic.data.topPages.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className={`${td} text-slate-500`}>
+                          Aucune visite sur la période.
+                        </td>
+                      </tr>
+                    ) : (
+                      traffic.data.topPages.map((page) => (
+                        <tr key={page.route}>
+                          <td className={`${td} font-mono text-xs break-all`}>{page.route}</td>
+                          <td className={`${td} ${num} font-medium`}>{integer.format(page.pageviews)}</td>
+                          <td className={`${td} ${num}`}>{integer.format(page.visitors)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="card space-y-3 p-5">
+                <h3 className="font-medium text-slate-900">
+                  Visiteurs par jour <span className="font-normal text-slate-500">· 30 derniers jours</span>
+                </h3>
+                <DailyChart
+                  points={traffic.data.dailyVisitors}
+                  type="bar"
+                  unit="visiteurs"
+                  label="Visiteurs par jour sur les 30 derniers jours"
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </Section>
 
       {/* 1. Utilisateurs */}
       <Section id="admin-utilisateurs" title="Utilisateurs">
