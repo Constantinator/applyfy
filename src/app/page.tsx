@@ -204,7 +204,7 @@ export default function LandingPage() {
               />
               {STEPS.map((step, index) => (
                 <li key={step.title} className="relative text-center">
-                  <span className="bg-brand relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-md shadow-blue-600/25 ring-4 ring-white">
+                  <span className="bg-brand-cyan shadow-brand-cyan/25 relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-md ring-4 ring-white">
                     {index + 1}
                   </span>
                   <h3 className="mt-5 font-semibold text-slate-900">{step.title}</h3>
@@ -217,22 +217,18 @@ export default function LandingPage() {
 
         {/* Appel à l'action final */}
         <section aria-labelledby="cta-title" className="px-4 pb-24 sm:px-6">
-          <div className="bg-brand relative mx-auto max-w-4xl overflow-hidden rounded-3xl px-6 py-14 text-center shadow-xl shadow-blue-600/20 sm:px-12">
-            <h2 id="cta-title" className="relative text-3xl font-bold tracking-tight text-white">
+          {/* Bloc épuré : fond blanc, bordure fine bleue, bouton principal habituel. */}
+          <div className="mx-auto max-w-4xl rounded-3xl border border-[#1E40AF] bg-white px-6 py-14 text-center sm:px-12">
+            <h2 id="cta-title" className="text-3xl font-bold tracking-tight text-[#1E40AF]">
               Prêt(e) à reprendre le contrôle de ta recherche ?
             </h2>
-            <p className="relative mt-3 text-blue-50">
-              Crée ton compte en une minute et ajoute ta première candidature.
-            </p>
-            <Link
-              href="/signup"
-              className="relative mt-8 inline-flex rounded-lg bg-white px-6 py-3 font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
-            >
+            <p className="mt-3 text-slate-600">Crée ton compte en une minute et ajoute ta première candidature.</p>
+            <Link href="/signup" className="btn-primary mt-8 px-6 py-3 text-base">
               Créer mon compte
             </Link>
-            <p className="relative mt-5 text-sm text-blue-50">
+            <p className="mt-5 text-sm text-slate-500">
               J&apos;ai déjà un compte →{" "}
-              <Link href="/login" className="font-semibold text-white underline-offset-4 hover:underline">
+              <Link href="/login" className="font-semibold text-blue-600 underline-offset-4 hover:underline">
                 Se connecter
               </Link>
             </p>
