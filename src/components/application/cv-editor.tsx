@@ -31,13 +31,7 @@ import {
 import { FontCombobox } from "./font-combobox";
 import { RefineChat } from "./refine-chat";
 
-const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "long",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Europe/Paris",
-});
+const hourFormatter = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
 // Géométrie identique à l'écran et à l'impression : page A4 (@page margin 0 dans
 // globals.css) avec une marge intérieure (16 mm pour le CV, 20 mm pour la lettre) →
@@ -358,6 +352,7 @@ export function CvEditor({
   savedAt: initialSavedAt,
   pdfTitle,
   refine,
+  autosaveAfterManualSave = false,
 }: {
   kind?: EditorKind;
   applicationId: string;
@@ -368,12 +363,18 @@ export function CvEditor({
   pdfTitle: string;
   /** Chat « Affiner avec l'IA » sous le document ; `initialPrompt` : demande envoyée à l'ouverture. */
   refine?: { aiEnabled: boolean; usage: AiUsageCount; resetLabel: string; initialPrompt?: string };
+  /**
+   * Sauvegarde automatique seulement après un premier « Enregistrer » : nouveau document
+   * ouvert à la place d'un document déjà enregistré, qu'il ne doit pas écraser d'office.
+   */
+  autosaveAfterManualSave?: boolean;
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(initialSavedAt);
+  const [autosaveEnabled, setAutosaveEnabled] = useState(!autosaveAfterManualSave);
   const [error, setError] = useState<string | null>(null);
   const [showMarks, setShowMarks] = useState(true);
   const [style, setStyle] = useState<CvStyle>(initialStyle);
@@ -433,13 +434,26 @@ export function CvEditor({
     if (fitTimer.current) clearTimeout(fitTimer.current);
   }, []);
 
-  // Prévient la perte de modifications non enregistrées.
+  // Sauvegarde automatique : toutes les 30 secondes si le contenu a changé, et au départ
+  // de la page (meilleur effort : le navigateur peut interrompre la requête).
+  const autosave = useRef<() => void>(() => {});
   useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+    autosave.current = () => {
+      if (autosaveEnabled && dirty && !saving && !refining) void save();
+    };
+  });
+  useEffect(() => {
+    const timer = setInterval(() => autosave.current(), 30_000);
+    const onLeave = () => autosave.current();
+    const onHidden = () => document.visibilityState === "hidden" && autosave.current();
+    window.addEventListener("beforeunload", onLeave);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("beforeunload", onLeave);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, []);
 
   function updateStyle(patch: Partial<CvStyle>) {
     const next = { ...style, ...patch };
@@ -457,6 +471,7 @@ export function CvEditor({
     setSaving(false);
     if (result.ok) {
       setSavedAt(result.savedAt);
+      setAutosaveEnabled(true);
       setDirty(false);
     } else {
       setError(result.error);
@@ -573,9 +588,11 @@ export function CvEditor({
               {saving
                 ? "Enregistrement…"
                 : dirty
-                  ? "Modifications non enregistrées"
+                  ? autosaveEnabled
+                    ? "Modifications en cours..."
+                    : "Modifications non enregistrées"
                   : savedAt
-                    ? `Enregistré le ${timeFormatter.format(new Date(savedAt))}`
+                    ? `Enregistré à ${hourFormatter.format(new Date(savedAt))}`
                     : ""}
             </span>
             <button

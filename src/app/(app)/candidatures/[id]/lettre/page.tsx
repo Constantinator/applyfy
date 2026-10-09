@@ -56,6 +56,7 @@ export default async function CoverLetterPage({ params, searchParams }: PageProp
       {fresh && app.cover_letter_html && (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200 print:hidden">
           Nouvelle lettre : ta lettre enregistrée ne sera remplacée que si tu cliques sur « Enregistrer ».
+          La sauvegarde automatique démarre ensuite.
         </p>
       )}
 
@@ -64,6 +65,7 @@ export default async function CoverLetterPage({ params, searchParams }: PageProp
           enregistré au premier « Enregistrer ». */}
       <CvEditor
         key={fresh ? String(depart) : "lettre"}
+        autosaveAfterManualSave={fresh && Boolean(app.cover_letter_html)}
         kind="lettre"
         applicationId={app.id}
         initialHtml={sanitizeCvHtml(
