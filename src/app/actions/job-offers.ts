@@ -34,7 +34,8 @@ export async function addOfferToApplicationsAction(
     if (!offer) return { status: "error", message: "Cette offre n'est plus disponible." };
 
     id = await createApplication({
-      company: clip(normalizeCompanyName(offer.company ?? "Entreprise non communiquée"), 120),
+      // Seul un vrai nom est normalisé (pas le texte de remplacement).
+      company: clip(offer.company ? normalizeCompanyName(offer.company) : "Entreprise non communiquée", 120),
       position: clip(offer.title, 160),
       location: offer.location ? clip(offer.location, 120) : null,
       offer_url: offer.url.length <= 2000 ? offer.url : null,
