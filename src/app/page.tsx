@@ -216,9 +216,9 @@ export default function LandingPage() {
         </section>
 
         {/* Appel à l'action final */}
-        <section aria-labelledby="cta-title" className="px-4 pb-24 sm:px-6">
-          {/* Bloc épuré : fond blanc, bordure fine bleue, bouton principal habituel. */}
-          <div className="mx-auto max-w-4xl rounded-3xl border border-[#1E40AF] bg-white px-6 py-14 text-center sm:px-12">
+        <section aria-labelledby="cta-title" className="px-4 py-20 sm:px-6 sm:py-28">
+          {/* Sans cadre : fond blanc de la page, titre bleu et bouton principal habituel. */}
+          <div className="mx-auto max-w-4xl text-center">
             <h2 id="cta-title" className="text-3xl font-bold tracking-tight text-[#1E40AF]">
               Prêt(e) à reprendre le contrôle de ta recherche ?
             </h2>
