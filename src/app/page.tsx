@@ -149,8 +149,8 @@ export default function LandingPage() {
               <Image
                 src="/images/dashboard-preview.png"
                 alt="Le dashboard Applyfy : compteurs de candidatures, filtres par statut et liste des candidatures avec leur date d'envoi et un bouton Relancer"
-                width={1902}
-                height={911}
+                width={1920}
+                height={1317}
                 sizes="(min-width: 948px) 900px, calc(100vw - 32px)"
                 className="h-auto w-full rounded-xl border border-slate-200 shadow-lg shadow-slate-900/5"
               />
