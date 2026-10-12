@@ -108,6 +108,74 @@ Essaie Applyfy gratuitement sur applyfy.fr — suivi des candidatures, adaptatio
       src: "/images/blog/creer-son-reseau-professionnel.jpg",
       alt: "Des personnes qui discutent debout, un café à la main, lors d'un événement dans un espace de travail",
     },
+    content: `
+On entend souvent dire que "le réseau, c'est tout". Et c'est vrai — une grande majorité des offres de stage et d'emploi ne sont jamais publiées officiellement. Elles se pourvoient par recommandations, cooptations et bouche à oreille.
+
+Bonne nouvelle : construire un réseau, ça s'apprend. Et en tant qu'étudiant, tu as plus d'atouts qu'il n'y paraît.
+
+## Pourquoi le réseau est indispensable
+
+Envoyer des candidatures spontanées dans le vide, c'est épuisant et souvent décourageant. Un contact dans une entreprise change tout : il peut transmettre ton CV directement au bon interlocuteur, te prévenir d'un poste qui n'est pas encore publié, ou simplement donner un avis positif sur ton profil.
+
+Le réseau, c'est ton raccourci vers le marché caché de l'emploi.
+
+## Étape 1 : commence par ce que tu as déjà
+
+Ton réseau existe déjà — tu ne le sais peut-être pas encore.
+
+- **Tes anciens professeurs** — ils connaissent des professionnels dans leur domaine et peuvent faire des introductions
+- **Les alumni de ton école** — les anciens élèves sont souvent ravis d'aider les plus jeunes
+- **Tes parents et leur entourage** — ne sous-estime pas ce réseau familial
+- **Tes camarades de promo** — dans 5 ans, certains seront en position de t'aider (et réciproquement)
+
+Fais d'abord l'inventaire de ces contacts avant de chercher à en créer de nouveaux.
+
+## Étape 2 : optimise ton profil LinkedIn
+
+LinkedIn est la vitrine de ton réseau professionnel. Avant de contacter qui que ce soit, assure-toi que ton profil est complet :
+
+- Une photo professionnelle
+- Un titre clair : "Étudiant en Master Finance | En recherche de stage"
+- Un résumé court qui explique qui tu es et ce que tu cherches
+- Toutes tes expériences, même les petites (tutorat, associations, projets)
+
+Un profil complet donne envie de te répondre.
+
+## Étape 3 : contacte les alumni de ton école
+
+C'est la technique la plus efficace et la plus sous-utilisée. Les anciens de ton école ont une vraie solidarité envers les plus jeunes.
+
+Le message parfait :
+
+"Bonjour [Prénom], je suis étudiant en [formation] à [école] et je travaille sur mon projet professionnel dans [secteur]. Votre parcours chez [entreprise] m'intéresse beaucoup. Seriez-vous disponible pour un échange de 20 minutes pour me partager votre expérience ?"
+
+Trois règles : sois court, sois précis, ne demande pas de stage directement.
+
+## Étape 4 : assiste aux événements
+
+Les forums entreprises, les conférences, les afterworks étudiants — ce sont des mines d'or pour rencontrer des professionnels en face à face.
+
+Avant chaque événement :
+- Identifie 3 personnes ou entreprises que tu veux absolument rencontrer
+- Prépare une présentation de toi en 30 secondes
+- Note tes contacts sur LinkedIn directement depuis ton téléphone
+
+Après l'événement, envoie un message LinkedIn dans les 24h à chaque personne rencontrée.
+
+## Étape 5 : entretiens tes relations
+
+Construire un réseau, c'est entretenir des relations dans la durée.
+
+- Félicite tes contacts quand ils changent de poste
+- Partage des articles qui pourraient les intéresser
+- Donne avant de recevoir : si tu peux aider quelqu'un, fais-le
+
+## En résumé
+
+Créer son réseau, ça commence par activer ce qu'on a déjà, optimiser sa présence LinkedIn, contacter les alumni et assister aux événements. Pas besoin d'être extraverti — juste d'être curieux et sincère.
+
+Tu cherches un stage ? Organise tes candidatures et tes relances sur applyfy.fr — gratuit et simple à utiliser.
+`,
   },
   {
     slug: "erreurs-cv-rejet-automatique",
