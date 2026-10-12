@@ -178,11 +178,57 @@ Tu cherches un stage ? Organise tes candidatures et tes relances sur applyfy.fr 
 `,
   },
   {
-    slug: "erreurs-cv-rejet-automatique",
-    title: "Les erreurs qui font rejeter un CV automatiquement",
+    slug: "ats-cv-recrutement",
+    title: "ATS : c'est quoi et comment ne pas se faire éliminer avant même d'être lu",
     date: "2026-10-11",
     description:
-      "Mise en page, mots-clés, format de fichier : ce qui fait écarter un CV par les logiciels de recrutement avant même d'être lu.",
+      "Les ATS filtrent automatiquement les CV avant qu'un recruteur les lise. Voici comment optimiser ton CV pour passer ce filtre invisible.",
+    cover: {
+      src: "/images/blog/ats-cv-recrutement.jpg",
+      alt: "Un CV vierge sur un porte-documents, à côté d'un stylo plume et d'un ordinateur portable",
+    },
+    content: `
+Les ATS (Applicant Tracking System) sont des logiciels utilisés par les entreprises pour filtrer automatiquement les CV avant qu'un recruteur humain les lise. En clair : ton CV peut être rejeté par une machine, sans que personne ne l'ait jamais ouvert.
+
+## Ce qu'est un ATS concrètement
+
+Quand tu postules en ligne sur le site d'une grande entreprise, ton CV ne va pas directement dans la boîte mail du recruteur. Il passe d'abord par un logiciel qui :
+- Extrait les informations (nom, expériences, compétences, formations)
+- Compare ton profil aux mots-clés de l'offre
+- Attribue un score à ta candidature
+- Filtre les candidats en dessous d'un certain seuil
+
+Les grandes entreprises reçoivent des centaines de candidatures par poste — sans ATS, c'est ingérable.
+
+## Pourquoi ton CV peut être rejeté à tort
+
+Un CV mal formaté peut tromper l'ATS et te faire éliminer même si tu es le candidat parfait.
+
+Les erreurs les plus fréquentes :
+- **Tableaux et colonnes** — les ATS lisent mal les mises en page complexes
+- **En-têtes et pieds de page** — les informations qu'ils contiennent sont souvent ignorées
+- **Fichier image** — un CV scanné ou en image JPG est illisible pour un ATS
+- **Polices exotiques** — certains caractères ne sont pas reconnus
+- **Abréviations non expliquées** — "BDE" ou "IEP" ne sont pas forcément compris
+
+## Comment optimiser son CV pour les ATS
+
+1. **Utilise les mots-clés de l'offre** — si l'offre parle de "gestion de projet", utilise exactement ces mots dans ton CV, pas "pilotage de projets"
+2. **Format simple** — une colonne, pas de tableaux, police standard (Arial, Calibri, Georgia)
+3. **PDF ou Word** — ces formats sont bien lus par les ATS
+4. **Sections claires** — "Expériences professionnelles", "Formation", "Compétences" — des titres que l'ATS reconnaît
+5. **Compétences explicites** — liste tes compétences clairement, avec les outils et logiciels maîtrisés
+
+## ATS ne veut pas dire sans personnalité
+
+Optimiser pour les ATS ne signifie pas écrire un CV robotique. Une fois passé le filtre automatique, un humain lira ton CV. Il faut donc trouver l'équilibre : assez de mots-clés pour passer l'ATS, assez de personnalité pour convaincre le recruteur.
+
+## En résumé
+
+Les ATS éliminent jusqu'à 75% des candidatures avant qu'un humain ne les lise. Adapter ton CV aux mots-clés de chaque offre n'est pas de la triche — c'est de la stratégie.
+
+Tu cherches un stage ? Applyfy analyse ton CV face à chaque offre et te dit exactement quels mots-clés tu dois ajouter. Essaie gratuitement sur applyfy.fr.
+`,
   },
 ];
 

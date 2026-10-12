@@ -31,10 +31,16 @@ function inline(text: string) {
   );
 }
 
+/** Listes à puces « - » et numérotées « 1. ». */
+const LISTS = [
+  { item: /^- /, tag: "ul", className: "list-disc" },
+  { item: /^\d+\. /, tag: "ol", className: "list-decimal marker:font-semibold" },
+] as const;
+
 /**
  * Corps d'un article du blog, à partir d'un Markdown simple : paragraphes (séparés par une
- * ligne vide), titres « ## », listes « - », **gras** et « applyfy.fr » en lien. Rendu en
- * éléments React, sans HTML brut.
+ * ligne vide), titres « ## », listes « - » et « 1. », **gras** et « applyfy.fr » en lien.
+ * Rendu en éléments React, sans HTML brut.
  */
 export function ArticleBody({ content }: { content: string }) {
   const blocks = content.trim().split(/\n\s*\n/);
@@ -53,16 +59,20 @@ export function ArticleBody({ content }: { content: string }) {
         }
 
         // Une liste peut suivre directement une phrase d'introduction (« Ça te permet de : »).
-        const listStart = lines.findIndex((line) => line.startsWith("- "));
-        if (listStart !== -1 && lines.slice(listStart).every((line) => line.startsWith("- "))) {
+        for (const list of LISTS) {
+          const listStart = lines.findIndex((line) => list.item.test(line));
+          if (listStart === -1 || !lines.slice(listStart).every((line) => list.item.test(line))) {
+            continue;
+          }
+          const List = list.tag;
           return (
             <Fragment key={index}>
               {listStart > 0 && <p>{inline(lines.slice(0, listStart).join(" "))}</p>}
-              <ul className="list-disc space-y-2 pl-6 marker:text-blue-600">
+              <List className={`${list.className} space-y-2 pl-6 marker:text-blue-600`}>
                 {lines.slice(listStart).map((line, item) => (
-                  <li key={item}>{inline(line.slice(2))}</li>
+                  <li key={item}>{inline(line.replace(list.item, ""))}</li>
                 ))}
-              </ul>
+              </List>
             </Fragment>
           );
         }

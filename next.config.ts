@@ -25,10 +25,15 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // Article du blog remplacé (l'ancienne adresse a été publiée et indexée).
+      // Articles du blog remplacés (les anciennes adresses ont été publiées et indexées).
       {
         source: "/blog/relancer-recruteur-sans-etre-intrusif",
         destination: "/blog/creer-son-reseau-professionnel",
+        permanent: true,
+      },
+      {
+        source: "/blog/erreurs-cv-rejet-automatique",
+        destination: "/blog/ats-cv-recrutement",
         permanent: true,
       },
     ];
