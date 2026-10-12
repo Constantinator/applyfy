@@ -3,8 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { refresh } from "next/cache";
 
-import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
-import { isLimitReached, LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
+import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
 import { requireUser } from "@/lib/auth";
 import { isClaudeConfigured, summarizeOffer, type OfferSummary } from "@/lib/claude";
 import { OfferImportError, importOfferFromUrl, type ImportedOffer } from "@/lib/offer-import";
@@ -66,9 +65,8 @@ export async function summarizeOfferAction(description: string): Promise<Summari
     return { ok: false, error: "Description trop longue (20 000 caractères max)." };
   }
 
-  if (isLimitReached(await getAiUsageFor("resume_offre"))) {
-    return { ok: false, error: LIMIT_REACHED_MESSAGE, limitReached: true };
-  }
+  const gate = await checkAiAccess("resume_offre");
+  if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };
 
   try {
     const summary = await summarizeOffer(text);

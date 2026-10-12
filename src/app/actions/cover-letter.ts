@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
-import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
-import { isLimitReached, LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
+import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
 import { getApplicationDetail, MissingMigrationError, saveEditedDocument } from "@/lib/applications";
 import {
   claudeErrorMessage,
@@ -73,9 +72,8 @@ export async function generateCoverLetterAction(
   const app = detail.application;
 
   // Génération et regénération comptent toutes deux dans la limite mensuelle.
-  if (isLimitReached(await getAiUsageFor("lettre"))) {
-    return { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true };
-  }
+  const gate = await checkAiAccess("lettre");
+  if (!gate.ok) return { status: "error", message: gate.message, limitReached: gate.limitReached };
 
   // Prénom et nom du compte : signature et objet de la lettre.
   const accountName = await getAccountName();
@@ -159,9 +157,8 @@ export async function importCoverLetterAction(
     return { status: "error", message: "Choisis un fichier PDF ou Word (.docx)." };
   }
 
-  if (isLimitReached(await getAiUsageFor("lettre"))) {
-    return { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true };
-  }
+  const gate = await checkAiAccess("lettre");
+  if (!gate.ok) return { status: "error", message: gate.message, limitReached: gate.limitReached };
 
   let html: string;
   try {

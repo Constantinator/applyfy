@@ -4,8 +4,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
-import { getAiUsageFor, recordAiUsage } from "@/lib/ai-usage";
-import { isLimitReached, LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
+import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
 import {
   getApplicationDetail,
   saveCvSuggestions,
@@ -92,9 +91,8 @@ export async function adaptCvAction(
   const prepared = await prepare(formData);
   if (!prepared.ok) return { status: "error", message: prepared.message };
 
-  if (isLimitReached(await getAiUsageFor("adaptation_cv"))) {
-    return { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true };
-  }
+  const gate = await checkAiAccess("adaptation_cv");
+  if (!gate.ok) return { status: "error", message: gate.message, limitReached: gate.limitReached };
 
   let suggestions: CvSuggestions | null;
   try {
@@ -125,8 +123,9 @@ async function transcribeToHtml(bytes: Buffer): Promise<{ ok: true; html: string
   if (!isClaudeConfigured()) {
     return { ok: false, state: { status: "error", message: "L'import d'un CV n'est pas disponible sur ce site." } };
   }
-  if (isLimitReached(await getAiUsageFor("cv_ameliore"))) {
-    return { ok: false, state: { status: "error", message: LIMIT_REACHED_MESSAGE, limitReached: true } };
+  const gate = await checkAiAccess("cv_ameliore");
+  if (!gate.ok) {
+    return { ok: false, state: { status: "error", message: gate.message, limitReached: gate.limitReached } };
   }
   try {
     const cv = await transcribeCv(bytes.toString("base64"));

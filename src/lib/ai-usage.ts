@@ -2,8 +2,13 @@ import "server-only";
 
 import { requireUser } from "./auth";
 import {
+  AI_DAILY_LIMIT,
   AI_MONTHLY_LIMITS,
   AI_USAGE_KINDS,
+  DAILY_LIMIT_MESSAGE,
+  isLimitReached,
+  LIMIT_REACHED_MESSAGE,
+  RATE_LIMIT_MESSAGE,
   type AiUsage,
   type AiUsageCount,
   type AiUsageKind,
@@ -14,13 +19,21 @@ import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 // Compteurs d'utilisation de l'IA (table "usage", migrations 0011 et 0013). Une ligne par
 // action réussie, rattachée au mois en cours (heure de Paris) : le changement de mois
-// remet les compteurs à zéro sans traitement planifié.
+// remet les compteurs à zéro sans traitement planifié. Limite du jour et anti-rafale :
+// migration 0020.
 
 const periodFormatter = new Intl.DateTimeFormat("en-CA", {
   year: "numeric",
   month: "2-digit",
   timeZone: "Europe/Paris",
 });
+
+const dayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" });
+
+/** Jour (heure de Paris) d'un instant, au format YYYY-MM-DD. */
+function parisDay(date: Date) {
+  return dayFormatter.format(date);
+}
 
 /** Mois en cours (heure de Paris) et 1er du mois suivant, au format YYYY-MM-DD. */
 function currentPeriod(now = new Date()) {
@@ -40,11 +53,21 @@ function zeroCounts(): Record<AiUsageKind, number> {
 }
 
 /** Compteurs + limites du plan (aucune limite en Premium). */
-function toUsage(counts: Record<AiUsageKind, number>, resetsOn: string, premium: boolean): AiUsage {
+function toUsage(
+  counts: Record<AiUsageKind, number>,
+  resetsOn: string,
+  premium: boolean,
+  usedToday = 0,
+): AiUsage {
   const entries = AI_USAGE_KINDS.map(
     (kind) => [kind, { used: counts[kind] ?? 0, limit: premium ? null : AI_MONTHLY_LIMITS[kind] }] as const,
   );
-  return { premium, counts: Object.fromEntries(entries) as Record<AiUsageKind, AiUsageCount>, resetsOn };
+  return {
+    premium,
+    counts: Object.fromEntries(entries) as Record<AiUsageKind, AiUsageCount>,
+    usedToday,
+    resetsOn,
+  };
 }
 
 /** Compteurs du mode démo (en mémoire), remis à zéro quand le mois change. */
@@ -58,6 +81,7 @@ export async function getAiUsage(): Promise<AiUsage> {
   const { period, resetsOn } = currentPeriod();
   const counts = zeroCounts();
   let premium = false;
+  let usedToday = 0;
 
   if (!isSupabaseConfigured()) {
     Object.assign(counts, demoCounts(period));
@@ -65,17 +89,19 @@ export async function getAiUsage(): Promise<AiUsage> {
     const user = await requireUser();
     const supabase = await createClient();
     const [{ data, error }, userIsPremium] = await Promise.all([
-      supabase.from("usage").select("kind").eq("user_id", user.id).eq("period", period),
+      supabase.from("usage").select("kind, created_at").eq("user_id", user.id).eq("period", period),
       isPremium(),
     ]);
     premium = userIsPremium;
     if (error) throw new Error(`Lecture de l'utilisation impossible : ${error.message}`);
-    for (const row of data as { kind: AiUsageKind }[]) {
+    const today = parisDay(new Date());
+    for (const row of data as { kind: AiUsageKind; created_at: string }[]) {
       if (row.kind in counts) counts[row.kind] += 1;
+      if (parisDay(new Date(row.created_at)) === today) usedToday += 1;
     }
   }
 
-  return toUsage(counts, resetsOn, premium);
+  return toUsage(counts, resetsOn, premium, usedToday);
 }
 
 /**
@@ -91,9 +117,45 @@ export async function readAiUsage(): Promise<AiUsage> {
   }
 }
 
-/** Utilisation d'un type d'action ce mois-ci (voir readAiUsage). */
-export async function getAiUsageFor(kind: AiUsageKind): Promise<AiUsageCount> {
-  return (await readAiUsage()).counts[kind];
+/** Résultat d'une vérification avant un appel à Claude. */
+export type AiGate = { ok: true } | AiRefusal;
+type AiRefusal = { ok: false; message: string; limitReached: boolean };
+
+/**
+ * Anti-rafale (10 requêtes par minute, check_ai_rate_limit) : à appeler juste avant chaque
+ * requête à Claude, qu'elle soit comptée dans « usage » ou non (import d'offre). Si la
+ * vérification échoue (migration 0020 non appliquée…), la requête est autorisée.
+ */
+export async function checkAiRateLimit(): Promise<AiGate> {
+  if (!isSupabaseConfigured()) return { ok: true };
+
+  await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("check_ai_rate_limit");
+  if (!error) return { ok: true };
+  if (error.code === "P0002") return { ok: false, message: RATE_LIMIT_MESSAGE, limitReached: false };
+  console.error("[aiUsage] anti-rafale", error.message);
+  return { ok: true };
+}
+
+/**
+ * Vérifications avant une action IA comptée : limite mensuelle du plan gratuit
+ * (`limitReached` : l'interface propose alors le Premium), limite du jour, puis anti-rafale.
+ * Si l'action est autorisée, renvoie l'utilisation de ce type d'action avant l'appel.
+ */
+export async function checkAiAccess(
+  kind: AiUsageKind,
+): Promise<{ ok: true; count: AiUsageCount } | AiRefusal> {
+  const usage = await readAiUsage();
+  const count = usage.counts[kind];
+  if (isLimitReached(count)) {
+    return { ok: false, message: LIMIT_REACHED_MESSAGE, limitReached: true };
+  }
+  if (usage.usedToday >= AI_DAILY_LIMIT) {
+    return { ok: false, message: DAILY_LIMIT_MESSAGE, limitReached: false };
+  }
+  const rate = await checkAiRateLimit();
+  return rate.ok ? { ok: true, count } : rate;
 }
 
 /**

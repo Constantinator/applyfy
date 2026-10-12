@@ -3,6 +3,7 @@ import "server-only";
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 
+import { checkAiRateLimit } from "./ai-usage";
 import { extractOfferFields, isClaudeConfigured } from "./claude";
 import { decodeEntities, formatOfferDescription } from "./format-offer";
 
@@ -287,6 +288,8 @@ export async function importOfferFromUrl(rawUrl: string): Promise<ImportedOffer>
   // 2. Extraction par Claude à partir du texte visible de la page
   const pageText = htmlToText(html.replace(/<head[\s\S]*?<\/head>/i, " "));
   if (isClaudeConfigured() && pageText.length > 200) {
+    const gate = await checkAiRateLimit();
+    if (!gate.ok) throw new OfferImportError(gate.message);
     const title = meta(html, "og:title") || (html.match(/<title[^>]*>([^<]*)/i)?.[1] ?? "");
     const fields = await extractOfferFields(
       `Titre de la page : ${decodeEntities(title)}\n\n${pageText.slice(0, AI_PAGE_TEXT_LIMIT)}`,

@@ -1,7 +1,7 @@
 import "server-only";
 
-import { getAiUsageFor, recordAiUsage } from "./ai-usage";
-import { isLimitReached, LIMIT_REACHED_MESSAGE, type AiUsageCount } from "./ai-usage-limits";
+import { checkAiAccess, recordAiUsage } from "./ai-usage";
+import { type AiUsageCount } from "./ai-usage-limits";
 import { getApplicationDetail } from "./applications";
 import {
   claudeErrorMessage,
@@ -87,8 +87,8 @@ export async function refineApplicationDocument(
   const app = detail.application;
 
   const kind = USAGE_KIND[document];
-  const usage = await getAiUsageFor(kind);
-  if (isLimitReached(usage)) return { ok: false, error: LIMIT_REACHED_MESSAGE, limitReached: true };
+  const gate = await checkAiAccess(kind);
+  if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };
 
   // Surlignages précédents retirés : seules les modifications de cette demande le seront.
   const current = sanitizeCvHtml(html).replace(/<\/?mark>/g, "");
@@ -123,6 +123,6 @@ export async function refineApplicationDocument(
     ok: true,
     reply: refined.reponse.trim() || LABELS[document].done,
     html: updated,
-    usage: { used: usage.used + 1, limit: usage.limit },
+    usage: { used: gate.count.used + 1, limit: gate.count.limit },
   };
 }

@@ -1,7 +1,7 @@
 // Limites mensuelles d'utilisation de l'IA (plan gratuit), partagées entre les pages
 // (serveur) et les composants (client). Elles sont aussi appliquées par la base
-// (record_ai_usage, migrations 0013 et 0014) : garder les deux définitions alignées.
-// Les utilisateurs Premium n'ont aucune limite.
+// (record_ai_usage, migrations 0013, 0014 et 0020) : garder les deux définitions alignées.
+// Les utilisateurs Premium n'ont pas de limite mensuelle, seulement la limite quotidienne.
 
 /** Types d'action IA, dans l'ordre d'affichage de « Mon utilisation ». */
 export const AI_USAGE_KINDS = [
@@ -39,6 +39,8 @@ export type AiUsageCount = { used: number; limit: number | null };
 export type AiUsage = {
   premium: boolean;
   counts: Record<AiUsageKind, AiUsageCount>;
+  /** Actions IA du jour, tous types confondus (depuis minuit, heure de Paris). */
+  usedToday: number;
   /** Date de remise à zéro (YYYY-MM-DD) : le 1er du mois prochain. */
   resetsOn: string;
 };
@@ -49,6 +51,18 @@ export const LIMIT_REACHED_LABEL = "Limite mensuelle atteinte";
 
 /** Message commun à toutes les actions IA quand la limite du mois est atteinte. */
 export const LIMIT_REACHED_MESSAGE = `Tu as atteint ta limite mensuelle gratuite. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour un accès illimité.`;
+
+/**
+ * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,
+ * heure de Paris) et requêtes à Claude par minute (migration 0020).
+ */
+export const AI_DAILY_LIMIT = 50;
+export const AI_RATE_LIMIT_PER_MINUTE = 10;
+
+export const DAILY_LIMIT_MESSAGE =
+  "Tu as atteint ta limite quotidienne d'actions IA. Elle se remet à zéro à minuit.";
+
+export const RATE_LIMIT_MESSAGE = "Trop de requêtes, attends quelques secondes.";
 
 export function isLimitReached({ used, limit }: AiUsageCount) {
   return limit !== null && used >= limit;
