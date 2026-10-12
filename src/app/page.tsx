@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -13,6 +12,7 @@ import {
   TrackingPreview,
 } from "@/components/landing/feature-previews";
 import { CountUp } from "@/components/landing/count-up";
+import { ImageLightbox } from "@/components/landing/image-lightbox";
 import { Reveal } from "@/components/landing/reveal";
 import { LogoFull } from "@/components/logo";
 import { SiteHeader } from "@/components/site/site-header";
@@ -144,9 +144,9 @@ export default function LandingPage() {
               />
             </p>
 
-            {/* Capture du dashboard : centrée, 900 px de large au plus. */}
+            {/* Capture du dashboard : centrée, 900 px de large au plus, agrandie au clic. */}
             <figure className="mx-auto mt-16 max-w-[900px]">
-              <Image
+              <ImageLightbox
                 src="/images/dashboard-preview.png"
                 alt="Le dashboard Applyfy : compteurs de candidatures, filtres par statut et liste des candidatures avec leur date d'envoi et un bouton Relancer"
                 width={1920}
