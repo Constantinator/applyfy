@@ -55,7 +55,7 @@ function Card({
 }) {
   return (
     <section className={`card p-5 ${className}`}>
-      <h2 className="text-brand-cyan-dark mb-4 font-semibold">{title}</h2>
+      <h2 className="text-blue-600 mb-4 font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -180,7 +180,7 @@ export default async function ApplicationPage({
                   <span className="bg-brand flex h-9 w-9 items-center justify-center rounded-xl text-white">
                     <IconSparkles className="h-5 w-5" />
                   </span>
-                  <h2 id="summary-title" className="text-brand-cyan-dark text-lg font-semibold">
+                  <h2 id="summary-title" className="text-blue-600 text-lg font-semibold">
                     Résumé de l&apos;offre
                   </h2>
                 </div>
@@ -191,7 +191,7 @@ export default async function ApplicationPage({
 
           <section aria-labelledby="description-title" className="card p-5">
             <div className="mb-4">
-              <h2 id="description-title" className="text-brand-cyan-dark font-semibold">
+              <h2 id="description-title" className="text-blue-600 font-semibold">
                 {app.offer_summary ? "Description complète" : "Description de l'offre"}
               </h2>
               {app.offer_summary && (

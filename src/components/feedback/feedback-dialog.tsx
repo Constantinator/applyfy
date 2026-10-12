@@ -108,7 +108,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
         onClick={open}
         className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 ${className}`}
       >
-        <IconStar className="text-brand-cyan h-5 w-5" />
+        <IconStar className="text-blue-600 h-5 w-5" />
         Donner mon avis
       </button>
 

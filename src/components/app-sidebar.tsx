@@ -148,7 +148,7 @@ export function AppSidebar({
                   active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <item.icon className={`h-4 w-4 ${active ? "text-blue-600" : "text-brand-cyan"}`} />
+                <item.icon className={`h-4 w-4 ${active ? "text-blue-600" : "text-blue-600"}`} />
                 {item.shortLabel}
                 {badge(item.href)}
               </Link>
@@ -180,7 +180,7 @@ export function AppSidebar({
                 }`}
               >
                 <item.icon
-                  className={`h-5 w-5 ${active ? "text-blue-600" : "text-brand-cyan"}`}
+                  className={`h-5 w-5 ${active ? "text-blue-600" : "text-blue-600"}`}
                 />
                 {item.label}
                 {badge(item.href)}
@@ -195,7 +195,7 @@ export function AppSidebar({
             href="/"
             className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900"
           >
-            <IconHome className="text-brand-cyan h-5 w-5" />
+            <IconHome className="text-blue-600 h-5 w-5" />
             Retour à l&apos;accueil
           </Link>
           {isDemo ? (

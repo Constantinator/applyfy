@@ -251,7 +251,7 @@ export function CvAdapter({
   return (
     <section aria-labelledby="cv-title" className="card p-5">
       <div>
-        <h2 id="cv-title" className="text-brand-cyan-dark font-semibold">
+        <h2 id="cv-title" className="text-blue-600 font-semibold">
           Adapter mon CV
         </h2>
         {suggestions && generatedAt && (
