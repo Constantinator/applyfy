@@ -8,7 +8,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata({
   title: "Notre histoire — Applyfy",
   description:
-    "Applyfy est né d'une frustration simple : gérer des dizaines de candidatures entre Excel, Word et Gmail. Voici son histoire.",
+    "Applyfy est né d'une frustration simple : gérer des dizaines de candidatures entre Excel, Word et PDF. Voici son histoire.",
   path: "/about",
 });
 
@@ -24,13 +24,12 @@ export default function AboutPage() {
           <div className="mt-10 space-y-6 text-lg leading-relaxed text-slate-600">
             <p>
               Applyfy est né d&apos;une frustration simple : gérer des dizaines et des dizaines de
-              candidatures en jonglant entre Excel, Word et Gmail, c&apos;est épuisant.
+              candidatures en jonglant entre Excel, Word et PDF, c&apos;est épuisant.
             </p>
             <p>
               Je m&apos;appelle Constantin, j&apos;ai 21 ans, je suis étudiant à Berkeley et
               Audencia. En octobre 2026, j&apos;ai décidé de construire l&apos;outil que
-              j&apos;aurais voulu avoir — et je l&apos;ai fait en quelques semaines, sans écrire une
-              seule ligne de code moi-même.
+              j&apos;aurais voulu avoir — et je l&apos;ai fait en quelques semaines.
             </p>
             <p>
               Aujourd&apos;hui Applyfy aide les chercheurs d&apos;emploi — étudiants, jeunes
