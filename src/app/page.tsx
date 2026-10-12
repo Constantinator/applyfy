@@ -389,8 +389,9 @@ export default function LandingPage() {
                         return (
                           <td
                             key={COMPARISON_TOOLS[index].name}
-                            className={`px-4 py-3.5 text-center text-lg font-bold ${display.className} ${
-                              index === 0 ? "bg-blue-50/60" : ""
+                            // Colonne Applyfy mise en avant : fond vert léger, symbole plus grand.
+                            className={`px-4 py-3.5 text-center ${display.className} ${
+                              index === 0 ? "bg-green-50 text-2xl font-black" : "text-lg font-bold"
                             }`}
                           >
                             <span aria-hidden="true">{display.symbol}</span>
