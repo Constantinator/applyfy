@@ -63,6 +63,12 @@ const FEATURES = [
   },
 ];
 
+/**
+ * Témoignages de bêta-testeurs (« Ce qu'ils en disent »). Uniquement de vrais avis, publiés
+ * avec l'accord de leur auteur : tant que la liste est vide, la section n'est pas affichée.
+ */
+const TESTIMONIALS: { quote: string; name: string; context: string }[] = [];
+
 const STEPS = [
   {
     title: "Crée ton profil",
@@ -242,6 +248,49 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* Ce qu'ils en disent : masqué tant qu'aucun témoignage réel n'a été ajouté. */}
+        {TESTIMONIALS.length > 0 && (
+          <section
+            aria-labelledby="testimonials-title"
+            className="border-t border-slate-100 bg-white"
+          >
+            <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+              <Reveal>
+                <p className="text-center text-sm font-semibold tracking-wide text-blue-600 uppercase">
+                  Témoignages
+                </p>
+                <h2
+                  id="testimonials-title"
+                  className="mt-2 text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl"
+                >
+                  Ce qu&apos;ils en disent
+                </h2>
+              </Reveal>
+              <ul className="mt-14 grid gap-6 md:grid-cols-3">
+                {TESTIMONIALS.map((testimonial, index) => (
+                  <li key={testimonial.name} className="flex">
+                    <Reveal delay={index * 150} className="flex w-full">
+                      <figure className="card flex w-full flex-col p-6">
+                        <blockquote className="flex-1 text-sm leading-relaxed text-slate-600">
+                          « {testimonial.quote} »
+                        </blockquote>
+                        <figcaption className="mt-5 text-sm">
+                          <span className="font-semibold text-slate-900">
+                            {testimonial.name}
+                          </span>
+                          <span className="block text-slate-500">
+                            {testimonial.context}
+                          </span>
+                        </figcaption>
+                      </figure>
+                    </Reveal>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
         {/* Comment ça marche */}
         <section
