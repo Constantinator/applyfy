@@ -20,6 +20,9 @@ export function SiteHeader() {
           <Link href="/blog" className="text-slate-600 hover:text-slate-900">
             Blog
           </Link>
+          <Link href="/about" className="hidden text-slate-600 hover:text-slate-900 sm:block">
+            Notre histoire
+          </Link>
           <Link href="/login" className="text-slate-600 hover:text-slate-900">
             Se connecter
           </Link>

@@ -8,7 +8,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata({
   title: "Notre histoire — Applyfy",
   description:
-    "Applyfy est né d'une frustration simple : gérer des dizaines de candidatures de stage entre Excel, Word et Gmail. Voici son histoire.",
+    "Applyfy est né d'une frustration simple : gérer des dizaines de candidatures entre Excel, Word et Gmail. Voici son histoire.",
   path: "/about",
 });
 
@@ -23,19 +23,19 @@ export default function AboutPage() {
           </h1>
           <div className="mt-10 space-y-6 text-lg leading-relaxed text-slate-600">
             <p>
-              Applyfy est né d&apos;une frustration simple : gérer 40 candidatures de stage en
-              jonglant entre Excel, Word et Gmail, c&apos;est épuisant.
+              Applyfy est né d&apos;une frustration simple : gérer des dizaines et des dizaines de
+              candidatures en jonglant entre Excel, Word et Gmail, c&apos;est épuisant.
             </p>
             <p>
-              Je m&apos;appelle Constantin, j&apos;ai 20 ans, je suis étudiant à Berkeley et
+              Je m&apos;appelle Constantin, j&apos;ai 21 ans, je suis étudiant à Berkeley et
               Audencia. En octobre 2026, j&apos;ai décidé de construire l&apos;outil que
-              j&apos;aurais voulu avoir — et je l&apos;ai fait en 3 jours avec l&apos;IA, sans
-              écrire une seule ligne de code moi-même.
+              j&apos;aurais voulu avoir — et je l&apos;ai fait en quelques semaines, sans écrire une
+              seule ligne de code moi-même.
             </p>
             <p>
-              Aujourd&apos;hui Applyfy aide des étudiants et jeunes actifs à organiser leur
-              recherche d&apos;emploi, adapter leurs candidatures et ne plus jamais oublier de
-              relancer.
+              Aujourd&apos;hui Applyfy aide les chercheurs d&apos;emploi — étudiants, jeunes
+              diplômés et demandeurs d&apos;emploi — à organiser leur recherche, adapter leurs
+              candidatures et ne plus jamais oublier de relancer.
             </p>
             <p>
               Le produit est encore jeune, mais il grandit chaque jour grâce aux retours de ses
