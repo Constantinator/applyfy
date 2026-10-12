@@ -16,6 +16,7 @@ import { ImageLightbox } from "@/components/landing/image-lightbox";
 import { Reveal } from "@/components/landing/reveal";
 import { LogoFull } from "@/components/logo";
 import { SiteHeader } from "@/components/site/site-header";
+import { PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -82,7 +83,11 @@ const TESTIMONIALS: { quote: string; name: string; context: string }[] = [];
  */
 type Support = "yes" | "no" | "partial";
 
-const COMPARISON_TOOLS = ["Applyfy", "Huntr (Pro : 40 $/mois)", "Excel / Word"] as const;
+const COMPARISON_TOOLS = [
+  { name: "Applyfy", price: `Gratuit · ${PREMIUM_PRICE_LABEL}` },
+  { name: "Huntr", price: "Pro : 40 $/mois" },
+  { name: "Excel / Word", price: null },
+] as const;
 
 const COMPARISON: { feature: string; values: [Support, Support, Support] }[] = [
   { feature: "Interface en français", values: ["yes", "no", "yes"] },
@@ -353,13 +358,22 @@ export default function LandingPage() {
                     </th>
                     {COMPARISON_TOOLS.map((tool, index) => (
                       <th
-                        key={tool}
+                        key={tool.name}
                         scope="col"
                         className={`px-4 py-4 text-center font-semibold ${
-                          index === 0 ? "bg-[#1E40AF] text-white" : "text-slate-700"
+                          index === 0 ? "rounded-t-xl bg-[#1E40AF] text-white" : "text-slate-700"
                         }`}
                       >
-                        {tool}
+                        {tool.name}
+                        {tool.price && (
+                          <span
+                            className={`mt-0.5 block text-xs font-normal ${
+                              index === 0 ? "text-white/75" : "text-slate-500"
+                            }`}
+                          >
+                            {tool.price}
+                          </span>
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -374,7 +388,7 @@ export default function LandingPage() {
                         const display = SUPPORT_DISPLAY[value];
                         return (
                           <td
-                            key={COMPARISON_TOOLS[index]}
+                            key={COMPARISON_TOOLS[index].name}
                             className={`px-4 py-3.5 text-center text-lg font-bold ${display.className} ${
                               index === 0 ? "bg-blue-50/60" : ""
                             }`}
