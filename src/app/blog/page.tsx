@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BLOG_POSTS, formatBlogDate } from "@/lib/blog";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Blog — Applyfy",
-  description: "Conseils et astuces pour réussir ta recherche d'emploi.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Blog Applyfy — Conseils pour ta recherche d'emploi",
+  description:
+    "Astuces, conseils et guides pour organiser ta recherche de stage ou d'emploi et décrocher le poste que tu mérites.",
+  path: "/blog",
+});
 
 export default function BlogPage() {
   return (
@@ -22,10 +25,7 @@ export default function BlogPage() {
         {BLOG_POSTS.map((post) => (
           <li key={post.slug} className="flex">
             <article className="card flex w-full flex-col p-6 transition-transform duration-200 hover:-translate-y-0.5">
-              <time
-                dateTime={post.date}
-                className="text-xs font-medium text-slate-500"
-              >
+              <time dateTime={post.date} className="text-xs font-medium text-slate-500">
                 {formatBlogDate(post.date)}
               </time>
               <h2 className="mt-2 text-lg leading-snug font-semibold text-slate-900">

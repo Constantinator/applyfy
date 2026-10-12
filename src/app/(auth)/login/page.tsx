@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 
 import { LoginForm } from "@/components/auth/login-form";
 import { safeRedirectPath } from "@/lib/auth";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Connexion — Applyfy" };
+export const metadata: Metadata = pageMetadata({
+  title: "Connexion — Applyfy",
+  description: "Connecte-toi à Applyfy pour retrouver tes candidatures, tes CV et tes rappels de relance.",
+  path: "/login",
+});
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next, erreur } = await searchParams;

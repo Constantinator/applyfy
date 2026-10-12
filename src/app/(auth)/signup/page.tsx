@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 
 import { SignupForm } from "@/components/auth/signup-form";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Créer un compte — Applyfy" };
+export const metadata: Metadata = pageMetadata({
+  title: "Créer un compte — Applyfy",
+  description: "Crée ton compte Applyfy gratuitement et organise ta recherche de stage ou d'emploi.",
+  path: "/signup",
+});
 
 export default function SignupPage() {
   return (

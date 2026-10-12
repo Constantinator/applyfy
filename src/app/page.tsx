@@ -1,14 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { AccountDeletedNotice } from "@/components/account-deleted-notice";
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
-import {
-  IconActivity,
-  IconBell,
-  IconDocument,
-  IconFolder,
-} from "@/components/icons";
+import { IconActivity, IconBell, IconDocument, IconFolder } from "@/components/icons";
 import {
   CvPreview,
   DocumentsPreview,
@@ -19,6 +15,14 @@ import { CountUp } from "@/components/landing/count-up";
 import { Reveal } from "@/components/landing/reveal";
 import { LogoFull } from "@/components/logo";
 import { SiteHeader } from "@/components/site/site-header";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Applyfy — Gère tes candidatures et décroche ton job",
+  description:
+    "Applyfy centralise tes candidatures, adapte ton CV et ta lettre pour chaque offre, et te rappelle quand relancer. Gratuit.",
+  path: "/",
+});
 
 // « Les chiffres qui font mal » : chiffre mis en avant, puis sa description.
 const PAIN_STATS = [
@@ -78,18 +82,15 @@ const STEPS = [
   },
   {
     title: "Ajoute une offre",
-    description:
-      "Colle l'annonce qui t'intéresse. Applyfy en extrait l'essentiel pour toi.",
+    description: "Colle l'annonce qui t'intéresse. Applyfy en extrait l'essentiel pour toi.",
   },
   {
     title: "Rédige avec l'assistant",
-    description:
-      "Génère un CV et une lettre adaptés à l'offre, puis ajuste-les à ta façon.",
+    description: "Génère un CV et une lettre adaptés à l'offre, puis ajuste-les à ta façon.",
   },
   {
     title: "Relance au bon moment",
-    description:
-      "Suis les réponses depuis ton dashboard et relance en un clic quand il le faut.",
+    description: "Suis les réponses depuis ton dashboard et relance en un clic quand il le faut.",
   },
 ];
 
@@ -111,22 +112,17 @@ export default function LandingPage() {
             <LogoFull className="mx-auto mb-10 block h-auto w-80" />
             <h1 className="text-4xl font-extrabold tracking-tight text-balance text-slate-900 sm:text-6xl sm:leading-[1.05]">
               Trouve ton job.{" "}
-              <span className="text-blue-600">
-                Sans te noyer dans les candidatures.
-              </span>
+              <span className="text-blue-600">Sans te noyer dans les candidatures.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-slate-500">
-              Applyfy centralise tes candidatures, t&apos;aide à construire des
-              CV et lettres qui te ressemblent, et te rappelle quand relancer.
+              Applyfy centralise tes candidatures, t&apos;aide à construire des CV et lettres qui te
+              ressemblent, et te rappelle quand relancer.
             </p>
             <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/signup" className="btn-primary px-6 py-3 text-base">
                 Créer mon compte
               </Link>
-              <a
-                href="#comment-ca-marche"
-                className="btn-secondary px-6 py-3 text-base"
-              >
+              <a href="#comment-ca-marche" className="btn-secondary px-6 py-3 text-base">
                 Voir comment ça marche
               </a>
             </div>
@@ -140,8 +136,7 @@ export default function LandingPage() {
               </Link>
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Programme beta : Premium offert jusqu&apos;au 31 décembre 2026 (30
-              places) →{" "}
+              Programme beta : Premium offert jusqu&apos;au 31 décembre 2026 (30 places) →{" "}
               <BetaJoinDialog
                 mode="link"
                 triggerClassName="font-medium text-blue-600 underline-offset-4 hover:underline"
@@ -151,10 +146,7 @@ export default function LandingPage() {
         </section>
 
         {/* Les chiffres qui font mal */}
-        <section
-          aria-labelledby="stats-title"
-          className="border-t border-slate-100 bg-white"
-        >
+        <section aria-labelledby="stats-title" className="border-t border-slate-100 bg-white">
           <Reveal className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
             <p className="text-center text-sm font-semibold tracking-wide text-blue-600 uppercase">
               La réalité du marché
@@ -167,10 +159,7 @@ export default function LandingPage() {
             </h2>
             <ul className="mt-14 grid gap-12 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-slate-200">
               {PAIN_STATS.map((stat) => (
-                <li
-                  key={stat.value}
-                  className="flex flex-col items-center px-6 text-center"
-                >
+                <li key={stat.value} className="flex flex-col items-center px-6 text-center">
                   <CountUp
                     value={stat.value}
                     className="text-brand text-6xl font-extrabold tracking-tight whitespace-nowrap sm:text-5xl lg:text-7xl"
@@ -185,10 +174,7 @@ export default function LandingPage() {
         </section>
 
         {/* Fonctionnalités */}
-        <section
-          aria-labelledby="features-title"
-          className="border-t border-slate-100 bg-slate-50"
-        >
+        <section aria-labelledby="features-title" className="border-t border-slate-100 bg-slate-50">
           <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
             <Reveal>
               <p className="text-center text-sm font-semibold tracking-wide text-blue-600 uppercase">
@@ -205,20 +191,14 @@ export default function LandingPage() {
             <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-2">
               {FEATURES.map((feature, index) => (
                 // Les cartes apparaissent l'une après l'autre (150 ms d'écart).
-                <Reveal
-                  key={feature.title}
-                  delay={index * 150}
-                  className="flex"
-                >
+                <Reveal key={feature.title} delay={index * 150} className="flex">
                   <article className="card w-full p-5 transition-transform duration-200 hover:-translate-y-0.5 sm:p-6">
                     <feature.preview />
                     <div className="mt-5 flex items-center gap-3">
                       <span className="bg-blue-600/10 text-blue-600 ring-blue-600/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1">
                         <feature.icon className="h-5 w-5" />
                       </span>
-                      <h3 className="font-semibold text-slate-900">
-                        {feature.title}
-                      </h3>
+                      <h3 className="font-semibold text-slate-900">{feature.title}</h3>
                     </div>
                     <p className="mt-2 text-sm leading-relaxed text-slate-500">
                       {feature.description}
@@ -257,12 +237,8 @@ export default function LandingPage() {
                           « {testimonial.quote} »
                         </blockquote>
                         <figcaption className="mt-5 text-sm">
-                          <span className="font-semibold text-slate-900">
-                            {testimonial.name}
-                          </span>
-                          <span className="block text-slate-500">
-                            {testimonial.context}
-                          </span>
+                          <span className="font-semibold text-slate-900">{testimonial.name}</span>
+                          <span className="block text-slate-500">{testimonial.context}</span>
                         </figcaption>
                       </figure>
                     </Reveal>
@@ -300,12 +276,8 @@ export default function LandingPage() {
                   <span className="bg-blue-600 shadow-blue-600/25 relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-md ring-4 ring-white">
                     {index + 1}
                   </span>
-                  <h3 className="mt-5 font-semibold text-slate-900">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                    {step.description}
-                  </p>
+                  <h3 className="mt-5 font-semibold text-slate-900">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500">{step.description}</p>
                 </li>
               ))}
             </ol>
@@ -313,25 +285,16 @@ export default function LandingPage() {
         </section>
 
         {/* Appel à l'action final */}
-        <section
-          aria-labelledby="cta-title"
-          className="px-4 py-20 sm:px-6 sm:py-28"
-        >
+        <section aria-labelledby="cta-title" className="px-4 py-20 sm:px-6 sm:py-28">
           {/* Sans cadre : fond blanc de la page, titre bleu et bouton principal habituel. */}
           <Reveal className="mx-auto max-w-4xl text-center">
-            <h2
-              id="cta-title"
-              className="text-3xl font-bold tracking-tight text-[#1E40AF]"
-            >
+            <h2 id="cta-title" className="text-3xl font-bold tracking-tight text-[#1E40AF]">
               Prêt(e) à reprendre le contrôle de ta recherche ?
             </h2>
             <p className="mt-3 text-slate-600">
               Crée ton compte en une minute et ajoute ta première candidature.
             </p>
-            <Link
-              href="/signup"
-              className="btn-primary mt-8 px-6 py-3 text-base"
-            >
+            <Link href="/signup" className="btn-primary mt-8 px-6 py-3 text-base">
               Créer mon compte
             </Link>
             <p className="mt-5 text-sm text-slate-500">

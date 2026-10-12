@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import { SiteFooter } from "@/components/site-footer";
+import { pageMetadata, SITE_URL } from "@/lib/seo";
 
 import "./globals.css";
 
@@ -13,9 +14,15 @@ const inter = Inter({
   display: "swap",
 });
 
+// Valeurs par défaut (pages sans métadonnées propres) ; metadataBase rend absolues les URL
+// de partage et canoniques.
 export const metadata: Metadata = {
-  title: "Applyfy — Suivi de candidatures pour ta recherche d'emploi",
-  description: "Suis tes candidatures pour ton futur job, rédige et relance au bon moment.",
+  metadataBase: new URL(SITE_URL),
+  ...pageMetadata({
+    title: "Applyfy — Gère tes candidatures et décroche ton job",
+    description:
+      "Applyfy centralise tes candidatures, adapte ton CV et ta lettre pour chaque offre, et te rappelle quand relancer. Gratuit.",
+  }),
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
