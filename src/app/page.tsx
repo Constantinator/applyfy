@@ -18,6 +18,7 @@ import {
 import { CountUp } from "@/components/landing/count-up";
 import { Reveal } from "@/components/landing/reveal";
 import { LogoFull } from "@/components/logo";
+import { SiteHeader } from "@/components/site/site-header";
 
 // « Les chiffres qui font mal » : chiffre mis en avant, puis sa description.
 const PAIN_STATS = [
@@ -95,27 +96,7 @@ const STEPS = [
 export default function LandingPage() {
   return (
     <div className="flex flex-1 flex-col bg-white">
-      <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" aria-label="Applyfy, accueil">
-            <LogoFull className="h-10 w-auto" />
-          </Link>
-          <nav className="flex items-center gap-2 text-sm font-medium sm:gap-6">
-            <a
-              href="#comment-ca-marche"
-              className="hidden text-slate-600 hover:text-slate-900 sm:block"
-            >
-              Comment ça marche
-            </a>
-            <Link href="/login" className="text-slate-600 hover:text-slate-900">
-              Se connecter
-            </Link>
-            <Link href="/signup" className="btn-primary px-4 py-2 text-sm">
-              Créer mon compte
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1">
         {/* Suspense : la page d'accueil reste statique, le message est lu côté navigateur. */}

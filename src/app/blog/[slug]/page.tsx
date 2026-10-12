@@ -1,0 +1,54 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { BLOG_POSTS, formatBlogDate, getBlogPost } from "@/lib/blog";
+
+// Une page générée au build par article ; toute autre adresse renvoie une 404.
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return BLOG_POSTS.map((post) => ({ slug: post.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/blog/[slug]">): Promise<Metadata> {
+  const post = getBlogPost((await params).slug);
+  return post
+    ? { title: `${post.title} — Applyfy`, description: post.description }
+    : {};
+}
+
+export default async function BlogPostPage({
+  params,
+}: PageProps<"/blog/[slug]">) {
+  const post = getBlogPost((await params).slug);
+  if (!post) notFound();
+
+  return (
+    <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20">
+      <Link
+        href="/blog"
+        className="text-sm text-slate-500 hover:text-slate-900"
+      >
+        ← Tous les articles
+      </Link>
+      <time
+        dateTime={post.date}
+        className="mt-8 block text-sm font-medium text-slate-500"
+      >
+        {formatBlogDate(post.date)}
+      </time>
+      <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-balance text-slate-900 sm:text-4xl">
+        {post.title}
+      </h1>
+      <p className="mt-4 text-lg leading-relaxed text-slate-500">
+        {post.description}
+      </p>
+      <div className="mt-10 rounded-xl border border-slate-200 bg-slate-50 px-6 py-10 text-center text-slate-500">
+        Article à venir
+      </div>
+    </article>
+  );
+}
