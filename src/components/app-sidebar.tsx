@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -206,13 +205,6 @@ export function AppSidebar({
             </p>
           ) : (
             <div className="flex items-center gap-2 rounded-xl px-3 py-2">
-              <Image
-                src="/images/applyfy-icon.png"
-                alt=""
-                width={32}
-                height={32}
-                className="h-8 w-8 shrink-0 rounded-lg"
-              />
               <span className="min-w-0 flex-1 truncate text-xs text-slate-600" title={email}>
                 {email}
               </span>
