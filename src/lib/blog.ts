@@ -99,11 +99,15 @@ Essaie Applyfy gratuitement sur applyfy.fr — suivi des candidatures, adaptatio
 `,
   },
   {
-    slug: "relancer-recruteur-sans-etre-intrusif",
-    title: "Comment relancer un recruteur sans être intrusif",
+    slug: "creer-son-reseau-professionnel",
+    title: "Comment créer son réseau professionnel quand on est étudiant",
     date: "2026-10-11",
     description:
-      "Quand relancer, sur quel ton et avec quel message : les bons réflexes pour se rappeler au bon souvenir d'un recruteur.",
+      "Le réseau, c'est la clé pour décrocher un stage. Voici comment le construire efficacement quand on est étudiant.",
+    cover: {
+      src: "/images/blog/creer-son-reseau-professionnel.jpg",
+      alt: "Des personnes qui discutent debout, un café à la main, lors d'un événement dans un espace de travail",
+    },
   },
   {
     slug: "erreurs-cv-rejet-automatique",

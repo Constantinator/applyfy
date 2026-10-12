@@ -23,6 +23,16 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  async redirects() {
+    return [
+      // Article du blog remplacé (l'ancienne adresse a été publiée et indexée).
+      {
+        source: "/blog/relancer-recruteur-sans-etre-intrusif",
+        destination: "/blog/creer-son-reseau-professionnel",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
