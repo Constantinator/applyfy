@@ -136,13 +136,14 @@ export default function LandingPage() {
                 Se connecter
               </Link>
             </p>
-            <p className="mt-2 text-sm text-slate-500">
+            {/* Bloc et non paragraphe : le lien ouvre une fenêtre (<dialog>), interdite dans un <p>. */}
+            <div className="mt-2 text-sm text-slate-500">
               Programme beta : Premium offert jusqu&apos;au 31 décembre 2026 (30 places) →{" "}
               <BetaJoinDialog
                 mode="link"
                 triggerClassName="font-medium text-blue-600 underline-offset-4 hover:underline"
               />
-            </p>
+            </div>
 
             {/* Capture du dashboard : centrée, 900 px de large au plus, agrandie au clic. */}
             <figure className="mx-auto mt-16 max-w-[900px]">
