@@ -77,21 +77,24 @@ const TESTIMONIALS: { quote: string; name: string; context: string }[] = [];
 
 const STEPS = [
   {
-    title: "Crée ton profil",
-    description:
-      "Ta formation, tes compétences, tes expériences : une seule fois, pour toutes tes candidatures.",
-  },
-  {
     title: "Ajoute une offre",
-    description: "Colle l'annonce qui t'intéresse. Applyfy en extrait l'essentiel pour toi.",
+    description:
+      "Colle le lien d'une offre ou trouve-en une directement depuis Applyfy. Ta fiche candidature est créée en quelques secondes.",
   },
   {
-    title: "Rédige avec l'assistant",
-    description: "Génère un CV et une lettre adaptés à l'offre, puis ajuste-les à ta façon.",
+    title: "Prépare ta candidature",
+    description:
+      "Adapte ton CV et génère une lettre de motivation personnalisée pour chaque offre.",
   },
   {
-    title: "Relance au bon moment",
-    description: "Suis les réponses depuis ton dashboard et relance en un clic quand il le faut.",
+    title: "Suis l'évolution",
+    description:
+      "Suis le statut de chaque candidature depuis ton dashboard et relance au bon moment.",
+  },
+  {
+    title: "Retrouve tes documents",
+    description:
+      "Tous tes CV et lettres de motivation sont sauvegardés par candidature, prêts pour tes entretiens.",
   },
 ];
 
