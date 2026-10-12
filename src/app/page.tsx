@@ -75,6 +75,30 @@ const FEATURES = [
  */
 const TESTIMONIALS: { quote: string; name: string; context: string }[] = [];
 
+/**
+ * « Pourquoi Applyfy ? » : yes = oui, no = non, partial = partiel ou plan payant uniquement.
+ * Comparatif nominatif : chaque case doit rester exacte et vérifiable (Huntr : huntr.co/pricing,
+ * vérifié le 12 octobre 2026). À revoir si Huntr ou Applyfy changent leurs offres.
+ */
+type Support = "yes" | "no" | "partial";
+
+const COMPARISON_TOOLS = ["Applyfy", "Huntr (Pro : 40 $/mois)", "Excel / Word"] as const;
+
+const COMPARISON: { feature: string; values: [Support, Support, Support] }[] = [
+  { feature: "Interface en français", values: ["yes", "no", "yes"] },
+  { feature: "Suivi des candidatures", values: ["yes", "yes", "no"] },
+  { feature: "Recherche d'offres intégrée", values: ["yes", "no", "no"] },
+  { feature: "CV adapté à l'offre (IA)", values: ["yes", "partial", "no"] },
+  { feature: "Lettre de motivation IA", values: ["yes", "partial", "no"] },
+  { feature: "Rappels de relance", values: ["yes", "partial", "no"] },
+];
+
+const SUPPORT_DISPLAY: Record<Support, { symbol: string; label: string; className: string }> = {
+  yes: { symbol: "✓", label: "Oui", className: "text-emerald-600" },
+  no: { symbol: "✕", label: "Non", className: "text-red-500" },
+  partial: { symbol: "~", label: "Partiel", className: "text-amber-500" },
+};
+
 const STEPS = [
   {
     title: "Ajoute une offre",
@@ -304,82 +328,70 @@ export default function LandingPage() {
           </Reveal>
         </section>
 
-        {/* Tableau comparatif */}
-        <section aria-labelledby="comparison-title" className="px-4 py-20 sm:px-6 sm:py-24 bg-slate-50">
-          <Reveal className="mx-auto max-w-5xl">
-            <div className="text-center mb-12">
-              <p className="text-sm font-semibold uppercase tracking-widest text-[#1E40AF] mb-3">Comparaison</p>
-              <h2 id="comparison-title" className="text-3xl font-bold tracking-tight text-slate-900">
-                Pourquoi Applyfy ?
-              </h2>
-              <p className="mt-3 text-slate-500 text-lg">Ce que les autres outils ne font pas (ou font payer très cher).</p>
-            </div>
-
-            <div className="overflow-x-auto rounded-2xl shadow-sm border border-slate-200">
-              <table className="w-full text-sm">
+        {/* Pourquoi Applyfy ? */}
+        <section aria-labelledby="why-title" className="border-t border-slate-100 bg-slate-50">
+          <Reveal className="mx-auto max-w-4xl px-4 py-24 sm:px-6">
+            <h2
+              id="why-title"
+              className="text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl"
+            >
+              Pourquoi Applyfy ?
+            </h2>
+            <p className="mt-3 text-center text-lg text-slate-500">
+              Ce que les autres outils ne font pas (ou font payer très cher).
+            </p>
+            {/* Défilement horizontal sur très petit écran plutôt qu'un tableau écrasé. */}
+            <div className="card mt-12 overflow-x-auto">
+              <table className="w-full min-w-[34rem] border-collapse text-sm">
+                <caption className="sr-only">
+                  Comparatif d&apos;Applyfy avec Huntr et Excel / Word
+                </caption>
                 <thead>
                   <tr>
-                    <th className="bg-white px-6 py-4 text-left font-semibold text-slate-700 w-2/5 border-b border-slate-200">Fonctionnalité</th>
-                    <th className="bg-[#1E40AF] px-4 py-4 text-center font-bold text-white border-b border-[#1e3a8a]">
-                      <span className="flex flex-col items-center gap-1">
-                        <span>Applyfy</span>
-                        <span className="text-xs font-normal text-blue-200">Gratuit · 8€/mois</span>
-                      </span>
+                    <th scope="col" className="px-4 py-4 text-left font-semibold text-slate-500">
+                      <span className="sr-only">Fonctionnalité</span>
                     </th>
-                    <th className="bg-white px-4 py-4 text-center font-semibold text-slate-700 border-b border-slate-200">
-                      <span className="flex flex-col items-center gap-1">
-                        <span>Huntr</span>
-                        <span className="text-xs font-normal text-slate-400">40$/mois</span>
-                      </span>
-                    </th>
-                    <th className="bg-white px-4 py-4 text-center font-semibold text-slate-700 border-b border-slate-200">
-                      <span className="flex flex-col items-center gap-1">
-                        <span>Excel / Word</span>
-                        <span className="text-xs font-normal text-slate-400">Gratuit</span>
-                      </span>
-                    </th>
+                    {COMPARISON_TOOLS.map((tool, index) => (
+                      <th
+                        key={tool}
+                        scope="col"
+                        className={`px-4 py-4 text-center font-semibold ${
+                          index === 0 ? "bg-[#1E40AF] text-white" : "text-slate-700"
+                        }`}
+                      >
+                        {tool}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { feature: "Interface en français", applyfy: true, huntr: false, excel: true },
-                    { feature: "Suivi des candidatures", applyfy: true, huntr: true, excel: false },
-                    { feature: "Recherche d'offres intégrée", applyfy: true, huntr: false, excel: false },
-                    { feature: "CV adapté à l'offre (IA)", applyfy: true, huntr: false, excel: false },
-                    { feature: "Lettre de motivation IA", applyfy: true, huntr: false, excel: false },
-                    { feature: "Rappels de relance", applyfy: true, huntr: "partial", excel: false },
-                    { feature: "Données hébergées en Europe", applyfy: true, huntr: false, excel: true },
-                    { feature: "Accessible sans CB", applyfy: true, huntr: false, excel: true },
-                  ].map((row, i) => (
-                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
-                      <td className="px-6 py-3.5 font-medium text-slate-700">{row.feature}</td>
-                      <td className="px-4 py-3.5 text-center bg-blue-50/40">
-                        <span className="text-green-600 text-lg font-bold">✓</span>
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        {row.huntr === true ? (
-                          <span className="text-green-600 text-lg font-bold">✓</span>
-                        ) : row.huntr === "partial" ? (
-                          <span className="text-amber-500 text-base font-semibold">~</span>
-                        ) : (
-                          <span className="text-red-400 text-lg font-bold">✕</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        {row.excel === true ? (
-                          <span className="text-green-600 text-lg font-bold">✓</span>
-                        ) : row.excel === "partial" ? (
-                          <span className="text-amber-500 text-base font-semibold">~</span>
-                        ) : (
-                          <span className="text-red-400 text-lg font-bold">✕</span>
-                        )}
-                      </td>
+                  {COMPARISON.map((row) => (
+                    <tr key={row.feature} className="border-t border-slate-100">
+                      <th scope="row" className="px-4 py-3.5 text-left font-medium text-slate-700">
+                        {row.feature}
+                      </th>
+                      {row.values.map((value, index) => {
+                        const display = SUPPORT_DISPLAY[value];
+                        return (
+                          <td
+                            key={COMPARISON_TOOLS[index]}
+                            className={`px-4 py-3.5 text-center text-lg font-bold ${display.className} ${
+                              index === 0 ? "bg-blue-50/60" : ""
+                            }`}
+                          >
+                            <span aria-hidden="true">{display.symbol}</span>
+                            <span className="sr-only">{display.label}</span>
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-center text-xs text-slate-400 mt-4">~ = fonctionnalité partielle ou disponible uniquement sur plan payant</p>
+            <p className="mt-4 text-center text-xs text-slate-500">
+              ~ = fonctionnalité partielle ou disponible uniquement sur plan payant
+            </p>
           </Reveal>
         </section>
 
