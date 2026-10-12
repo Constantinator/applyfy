@@ -98,10 +98,19 @@ const COMPARISON: { feature: string; values: [Support, Support, Support] }[] = [
   { feature: "Rappels de relance", values: ["yes", "partial", "no"] },
 ];
 
-const SUPPORT_DISPLAY: Record<Support, { symbol: string; label: string; className: string }> = {
-  yes: { symbol: "✓", label: "Oui", className: "text-emerald-600" },
-  no: { symbol: "✕", label: "Non", className: "text-red-500" },
-  partial: { symbol: "~", label: "Partiel", className: "text-amber-500" },
+// `size` : taille et graisse du symbole (hors colonne Applyfy, mise en avant à part).
+const SUPPORT_DISPLAY: Record<
+  Support,
+  { symbol: string; label: string; className: string; size: string }
+> = {
+  yes: { symbol: "✓", label: "Oui", className: "text-emerald-600", size: "text-lg font-bold" },
+  no: { symbol: "✕", label: "Non", className: "text-red-500", size: "text-xl font-black" },
+  partial: {
+    symbol: "~",
+    label: "Partiel",
+    className: "text-amber-500",
+    size: "text-xl font-semibold",
+  },
 };
 
 const STEPS = [
@@ -391,7 +400,7 @@ export default function LandingPage() {
                             key={COMPARISON_TOOLS[index].name}
                             // Colonne Applyfy mise en avant : fond vert léger, symbole plus grand.
                             className={`px-4 py-3.5 text-center ${display.className} ${
-                              index === 0 ? "bg-green-50 text-2xl font-black" : "text-lg font-bold"
+                              index === 0 ? "bg-green-50 text-2xl font-black" : display.size
                             }`}
                           >
                             <span aria-hidden="true">{display.symbol}</span>
