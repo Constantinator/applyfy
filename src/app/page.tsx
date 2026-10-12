@@ -304,6 +304,85 @@ export default function LandingPage() {
           </Reveal>
         </section>
 
+        {/* Tableau comparatif */}
+        <section aria-labelledby="comparison-title" className="px-4 py-20 sm:px-6 sm:py-24 bg-slate-50">
+          <Reveal className="mx-auto max-w-5xl">
+            <div className="text-center mb-12">
+              <p className="text-sm font-semibold uppercase tracking-widest text-[#1E40AF] mb-3">Comparaison</p>
+              <h2 id="comparison-title" className="text-3xl font-bold tracking-tight text-slate-900">
+                Pourquoi Applyfy ?
+              </h2>
+              <p className="mt-3 text-slate-500 text-lg">Ce que les autres outils ne font pas (ou font payer très cher).</p>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl shadow-sm border border-slate-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="bg-white px-6 py-4 text-left font-semibold text-slate-700 w-2/5 border-b border-slate-200">Fonctionnalité</th>
+                    <th className="bg-[#1E40AF] px-4 py-4 text-center font-bold text-white border-b border-[#1e3a8a]">
+                      <span className="flex flex-col items-center gap-1">
+                        <span>Applyfy</span>
+                        <span className="text-xs font-normal text-blue-200">Gratuit · 8€/mois</span>
+                      </span>
+                    </th>
+                    <th className="bg-white px-4 py-4 text-center font-semibold text-slate-700 border-b border-slate-200">
+                      <span className="flex flex-col items-center gap-1">
+                        <span>Huntr</span>
+                        <span className="text-xs font-normal text-slate-400">40$/mois</span>
+                      </span>
+                    </th>
+                    <th className="bg-white px-4 py-4 text-center font-semibold text-slate-700 border-b border-slate-200">
+                      <span className="flex flex-col items-center gap-1">
+                        <span>Excel / Word</span>
+                        <span className="text-xs font-normal text-slate-400">Gratuit</span>
+                      </span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { feature: "Interface en français", applyfy: true, huntr: false, excel: true },
+                    { feature: "Suivi des candidatures", applyfy: true, huntr: true, excel: false },
+                    { feature: "Recherche d'offres intégrée", applyfy: true, huntr: false, excel: false },
+                    { feature: "CV adapté à l'offre (IA)", applyfy: true, huntr: false, excel: false },
+                    { feature: "Lettre de motivation IA", applyfy: true, huntr: false, excel: false },
+                    { feature: "Rappels de relance", applyfy: true, huntr: "partial", excel: false },
+                    { feature: "Données hébergées en Europe", applyfy: true, huntr: false, excel: true },
+                    { feature: "Accessible sans CB", applyfy: true, huntr: false, excel: true },
+                  ].map((row, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                      <td className="px-6 py-3.5 font-medium text-slate-700">{row.feature}</td>
+                      <td className="px-4 py-3.5 text-center bg-blue-50/40">
+                        <span className="text-green-600 text-lg font-bold">✓</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        {row.huntr === true ? (
+                          <span className="text-green-600 text-lg font-bold">✓</span>
+                        ) : row.huntr === "partial" ? (
+                          <span className="text-amber-500 text-base font-semibold">~</span>
+                        ) : (
+                          <span className="text-red-400 text-lg font-bold">✕</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        {row.excel === true ? (
+                          <span className="text-green-600 text-lg font-bold">✓</span>
+                        ) : row.excel === "partial" ? (
+                          <span className="text-amber-500 text-base font-semibold">~</span>
+                        ) : (
+                          <span className="text-red-400 text-lg font-bold">✕</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-center text-xs text-slate-400 mt-4">~ = fonctionnalité partielle ou disponible uniquement sur plan payant</p>
+          </Reveal>
+        </section>
+
         {/* Appel à l'action final */}
         <section aria-labelledby="cta-title" className="px-4 py-20 sm:px-6 sm:py-28">
           {/* Sans cadre : fond blanc de la page, titre bleu et bouton principal habituel. */}
