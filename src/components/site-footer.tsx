@@ -17,7 +17,10 @@ export function SiteFooter() {
           <LogoFull className="h-7 w-auto" priority={false} />
           <p>© {new Date().getFullYear()} — Tous droits réservés</p>
         </div>
-        <nav aria-label="Informations légales" className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+        <nav aria-label="Liens du site" className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+          <Link href="/about" className="hover:text-slate-900">
+            Notre histoire
+          </Link>
           {LEGAL_LINKS.map((link) => (
             <Link key={link.href} href={link.href} className="hover:text-slate-900">
               {link.label}
