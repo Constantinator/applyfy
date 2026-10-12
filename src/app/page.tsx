@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -142,6 +143,21 @@ export default function LandingPage() {
                 triggerClassName="font-medium text-blue-600 underline-offset-4 hover:underline"
               />
             </p>
+
+            {/* Capture du dashboard : centrée, 900 px de large au plus. */}
+            <figure className="mx-auto mt-16 max-w-[900px]">
+              <Image
+                src="/images/dashboard-preview.png"
+                alt="Le dashboard Applyfy : compteurs de candidatures, filtres par statut et liste des candidatures avec leur date d'envoi et un bouton Relancer"
+                width={1885}
+                height={846}
+                sizes="(min-width: 948px) 900px, calc(100vw - 32px)"
+                className="h-auto w-full rounded-xl border border-slate-200 shadow-lg shadow-slate-900/5"
+              />
+              <figcaption className="mt-4 text-sm text-slate-500">
+                Le dashboard Applyfy — toutes tes candidatures au même endroit
+              </figcaption>
+            </figure>
           </div>
         </section>
 
