@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ArticleBody } from "@/components/blog/article-body";
 import { BLOG_POSTS, formatBlogDate, getBlogPost } from "@/lib/blog";
 
 // Une page générée au build par article ; toute autre adresse renvoie une 404.
@@ -46,9 +47,15 @@ export default async function BlogPostPage({
       <p className="mt-4 text-lg leading-relaxed text-slate-500">
         {post.description}
       </p>
-      <div className="mt-10 rounded-xl border border-slate-200 bg-slate-50 px-6 py-10 text-center text-slate-500">
-        Article à venir
-      </div>
+      {post.content ? (
+        <div className="mt-10">
+          <ArticleBody content={post.content} />
+        </div>
+      ) : (
+        <div className="mt-10 rounded-xl border border-slate-200 bg-slate-50 px-6 py-10 text-center text-slate-500">
+          Article à venir
+        </div>
+      )}
     </article>
   );
 }

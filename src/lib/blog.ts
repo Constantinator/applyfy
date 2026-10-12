@@ -1,11 +1,13 @@
-// Articles du blog (/blog). Le contenu complet arrivera plus tard : chaque page d'article
-// affiche pour l'instant « Article à venir ».
+// Articles du blog (/blog). Contenu en Markdown simple (voir ArticleBody) ; un article sans
+// contenu affiche « Article à venir ».
 export type BlogPost = {
   slug: string;
   title: string;
   /** Date au format AAAA-MM-JJ. */
   date: string;
   description: string;
+  /** Texte complet en Markdown : paragraphes, titres « ## », listes « - » et **gras**. */
+  content?: string;
 };
 
 export const BLOG_POSTS: BlogPost[] = [
@@ -15,6 +17,80 @@ export const BLOG_POSTS: BlogPost[] = [
     date: "2026-10-11",
     description:
       "Tableau de suivi, priorités, relances : une méthode simple pour ne plus perdre le fil quand les candidatures s'accumulent.",
+    content: `
+Envoyer des candidatures de stage, c'est facile. Les organiser, c'est une autre histoire. Entre les offres sauvegardées dans 10 onglets, les emails envoyés il y a 3 semaines dont tu ne sais plus si tu as relancé, et le CV "version finale (2)" qui traîne sur ton bureau — la recherche de stage peut vite devenir un chaos.
+
+Pourtant, quelques réflexes simples suffisent à reprendre le contrôle.
+
+## Pourquoi l'organisation fait la différence
+
+Un recruteur qui reçoit ta relance au bon moment est bien plus susceptible de te répondre. Un CV adapté à chaque offre multiplie tes chances d'être sélectionné. Et savoir exactement où en est chaque candidature te permet de te concentrer sur ce qui compte vraiment : préparer tes entretiens.
+
+## Le cauchemar des fichiers en tout genre
+
+Si tu cherches un stage, tu connais sûrement cette situation : un dossier "Candidatures 2026" sur ton bureau, avec à l'intérieur :
+
+- CV_final.docx
+- CV_final_v2.docx
+- CV_final_VRAI_FINAL.pdf
+- LM_Spotify.docx
+- LM_Spotify_modifiée.docx
+- LM_BlaBlaCar_adaptée_depuis_Spotify.docx
+
+Et par-dessus ça, un tableau Excel pour "suivre" tes candidatures, qui n'a pas été mis à jour depuis 2 semaines.
+
+Jongler entre Word pour écrire, PDF pour envoyer, Excel pour suivre et Gmail pour relancer — c'est épuisant. Et surtout, c'est une source d'erreurs : envoyer la mauvaise lettre de motivation, oublier de relancer, perdre du temps à retrouver quelle version du CV tu avais envoyé à quelle entreprise.
+
+## Étape 1 : centralise tout au même endroit
+
+La première erreur des candidats, c'est de disperser leurs candidatures entre leur boîte mail, un tableau Excel, des notes sur le téléphone et quelques favoris dans leur navigateur.
+
+Choisis un seul endroit pour tout suivre. Chaque candidature doit avoir à portée de main : l'offre, le CV envoyé, la lettre de motivation, la date d'envoi et le statut actuel.
+
+L'important, c'est la constance : chaque nouvelle candidature doit être ajoutée immédiatement, pas "plus tard".
+
+## Étape 2 : garde une version de chaque document par candidature
+
+C'est là que la plupart des candidats perdent du temps. Tu adaptes ton CV pour Spotify, puis pour BlaBlaCar, puis pour Doctolib — et au bout d'un moment tu ne sais plus quelle version tu as envoyée à qui.
+
+La bonne pratique : **une candidature = un CV + une lettre de motivation**. Ces documents doivent être associés à la candidature, pas flotter dans un dossier au nom cryptique.
+
+Ça te permet de :
+- Retrouver immédiatement ce que tu avais envoyé si un recruteur te rappelle
+- Éviter d'envoyer la lettre de motivation d'une entreprise à une autre
+- Voir en un coup d'œil si tu as adapté ton dossier ou si tu as envoyé un dossier générique
+
+## Étape 3 : utilise des statuts clairs
+
+Pour chaque candidature, tu dois savoir en un coup d'œil où tu en es :
+
+- **Brouillon** — l'offre t'intéresse, tu prépares ton dossier
+- **Envoyée** — ta candidature est partie
+- **En attente** — tu attends une réponse
+- **Relancée** — tu as relancé le recruteur
+- **Entretien** — tu as décroché un entretien
+- **Offre reçue / Refusée** — la décision est tombée
+
+## Étape 4 : adapte ton CV et ta lettre à chaque offre
+
+Un CV générique envoyé à 50 entreprises donne de moins bons résultats qu'un CV ciblé envoyé à 10. Lis attentivement l'offre, identifie les compétences recherchées, et mets en avant les expériences qui y correspondent.
+
+## Étape 5 : relance au bon moment
+
+Si tu n'as pas de réponse après 10-15 jours, relance le recruteur. Un message court suffit :
+
+"Bonjour, je me permets de revenir vers vous au sujet de ma candidature au poste de [X], envoyée le [date]. Ce poste m'intéresse toujours vivement et je reste disponible pour un entretien à votre convenance."
+
+## Étape 6 : fais le bilan chaque semaine
+
+Prends 10 minutes chaque lundi pour faire le point : quelles candidatures nécessitent une relance, quels entretiens préparer, quelles nouvelles offres explorer.
+
+## En résumé
+
+Organiser ses candidatures, c'est arrêter de jongler entre Excel, Word, PDF et Gmail — et tout regrouper au même endroit. Une candidature, un CV, une lettre, un statut. Simple, mais efficace.
+
+Essaie Applyfy gratuitement sur applyfy.fr — suivi des candidatures, adaptation du CV et rappels de relance au même endroit.
+`,
   },
   {
     slug: "relancer-recruteur-sans-etre-intrusif",
