@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 import { BLOG_POSTS, formatBlogDate } from "@/lib/blog";
@@ -24,23 +25,37 @@ export default function BlogPage() {
       <ul className="mt-14 grid gap-6 md:grid-cols-3">
         {BLOG_POSTS.map((post) => (
           <li key={post.slug} className="flex">
-            <article className="card flex w-full flex-col p-6 transition-transform duration-200 hover:-translate-y-0.5">
-              <time dateTime={post.date} className="text-xs font-medium text-slate-500">
-                {formatBlogDate(post.date)}
-              </time>
-              <h2 className="mt-2 text-lg leading-snug font-semibold text-slate-900">
-                {post.title}
-              </h2>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
-                {post.description}
-              </p>
-              <Link
-                href={`/blog/${post.slug}`}
-                className="mt-6 text-sm font-semibold text-blue-600 underline-offset-4 hover:underline"
-                aria-label={`Lire l'article : ${post.title}`}
-              >
-                Lire l&apos;article →
-              </Link>
+            <article className="card flex w-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-0.5">
+              {/* Couverture 16:9 (fond gris clair pour un article sans image). */}
+              <div className="relative aspect-video bg-slate-100">
+                {post.cover && (
+                  <Image
+                    src={post.cover.src}
+                    alt={post.cover.alt}
+                    fill
+                    sizes="(min-width: 1152px) 360px, (min-width: 768px) 33vw, 100vw"
+                    className="object-cover"
+                  />
+                )}
+              </div>
+              <div className="flex flex-1 flex-col p-6">
+                <time dateTime={post.date} className="text-xs font-medium text-slate-500">
+                  {formatBlogDate(post.date)}
+                </time>
+                <h2 className="mt-2 text-lg leading-snug font-semibold text-slate-900">
+                  {post.title}
+                </h2>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
+                  {post.description}
+                </p>
+                <Link
+                  href={`/blog/${post.slug}`}
+                  className="mt-6 text-sm font-semibold text-blue-600 underline-offset-4 hover:underline"
+                  aria-label={`Lire l'article : ${post.title}`}
+                >
+                  Lire l&apos;article →
+                </Link>
+              </div>
             </article>
           </li>
         ))}

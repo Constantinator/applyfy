@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -33,6 +34,18 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
       <Link href="/blog" className="text-sm text-slate-500 hover:text-slate-900">
         ← Tous les articles
       </Link>
+      {post.cover && (
+        <div className="relative mt-8 aspect-video overflow-hidden rounded-2xl bg-slate-100">
+          <Image
+            src={post.cover.src}
+            alt={post.cover.alt}
+            fill
+            priority
+            sizes="(min-width: 768px) 720px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      )}
       <time dateTime={post.date} className="mt-8 block text-sm font-medium text-slate-500">
         {formatBlogDate(post.date)}
       </time>

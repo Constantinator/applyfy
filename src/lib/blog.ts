@@ -6,6 +6,8 @@ export type BlogPost = {
   /** Date au format AAAA-MM-JJ. */
   date: string;
   description: string;
+  /** Image de couverture (16:9, dans public/) et son texte alternatif. */
+  cover?: { src: string; alt: string };
   /** Texte complet en Markdown : paragraphes, titres « ## », listes « - » et **gras**. */
   content?: string;
 };
@@ -17,6 +19,10 @@ export const BLOG_POSTS: BlogPost[] = [
     date: "2026-10-11",
     description:
       "Tableau de suivi, priorités, relances : une méthode simple pour ne plus perdre le fil quand les candidatures s'accumulent.",
+    cover: {
+      src: "/images/blog/organiser-candidatures-stage.jpg",
+      alt: "Feuilles de travail imprimées étalées sur une table, avec un stylo et une paire de lunettes",
+    },
     content: `
 Envoyer des candidatures de stage, c'est facile. Les organiser, c'est une autre histoire. Entre les offres sauvegardées dans 10 onglets, les emails envoyés il y a 3 semaines dont tu ne sais plus si tu as relancé, et le CV "version finale (2)" qui traîne sur ton bureau — la recherche de stage peut vite devenir un chaos.
 
