@@ -29,7 +29,8 @@ import {
 } from "@/lib/cv-style";
 
 import { FontCombobox } from "./font-combobox";
-import { RefineChat } from "./refine-chat";
+import { MissingPointsPanel } from "./missing-points-panel";
+import { RefineChat, type RefineChatHandle } from "./refine-chat";
 
 const hourFormatter = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
@@ -353,6 +354,7 @@ export function CvEditor({
   pdfTitle,
   refine,
   autosaveAfterManualSave = false,
+  missingPoints = [],
 }: {
   kind?: EditorKind;
   applicationId: string;
@@ -368,6 +370,8 @@ export function CvEditor({
    * ouvert à la place d'un document déjà enregistré, qu'il ne doit pas écraser d'office.
    */
   autosaveAfterManualSave?: boolean;
+  /** Points « Ce qui manque » de l'analyse du CV pour cette candidature (CV uniquement). */
+  missingPoints?: string[];
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
@@ -530,6 +534,7 @@ export function CvEditor({
   // Affinage par l'IA : le document est verrouillé pendant la demande (une saisie faite
   // entre-temps serait écrasée par la réponse).
   const [refining, setRefining] = useState(false);
+  const chatRef = useRef<RefineChatHandle>(null);
 
   /** Document affiché, remis en une colonne (structure attendue par l'assistant). */
   function readDocumentForRefine() {
@@ -687,6 +692,7 @@ export function CvEditor({
             replaceDocument={replaceDocument}
             onPendingChange={setRefining}
             initialPrompt={refine.initialPrompt}
+            controlRef={chatRef}
           />
         )}
       </div>
@@ -702,6 +708,12 @@ export function CvEditor({
           listType={listType}
           onListType={changeListType}
         />
+        {missingPoints.length > 0 && (
+          <MissingPointsPanel
+            points={missingPoints}
+            onInsert={refine ? (text) => chatRef.current?.insert(text) : undefined}
+          />
+        )}
       </div>
     </div>
   );

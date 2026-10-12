@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
@@ -39,6 +39,9 @@ const DOCUMENTS = {
   },
 } as const;
 
+/** Commandes du chat utilisables par l'éditeur (ex. panneau « Ce qui manque »). */
+export type RefineChatHandle = { insert: (text: string) => void };
+
 type Message = {
   id: number;
   role: "user" | "assistant";
@@ -66,6 +69,7 @@ export function RefineChat({
   replaceDocument,
   onPendingChange,
   initialPrompt,
+  controlRef,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -83,6 +87,8 @@ export function RefineChat({
   onPendingChange: (pending: boolean) => void;
   /** Demande envoyée automatiquement à l'ouverture (ex. « S'aider du CV en cours »). */
   initialPrompt?: string;
+  /** Accès aux commandes du chat (insérer un texte dans le champ de saisie). */
+  controlRef?: React.Ref<RefineChatHandle>;
 }) {
   const texts = DOCUMENTS[document];
   const [messages, setMessages] = useState<Message[]>([]);
@@ -94,6 +100,17 @@ export function RefineChat({
   const nextId = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Insertion depuis l'éditeur : ajouté au texte déjà saisi, puis le champ prend le focus.
+  useImperativeHandle(controlRef, () => ({
+    insert(text: string) {
+      setInput((current) =>
+        (current.trim() ? `${current.trimEnd()}\n${text}` : text).slice(0, REFINE_MESSAGE_MAX_LENGTH),
+      );
+      inputRef.current?.focus();
+      inputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    },
+  }));
 
   const limitReached = limitHit || isLimitReached({ used, limit: usage.limit });
   const disabled = !aiEnabled || limitReached;

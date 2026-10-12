@@ -10,6 +10,7 @@ import { isClaudeConfigured } from "@/lib/claude";
 import { cvFontVariables } from "@/lib/cv-fonts";
 import { firstHeadingText, sanitizeCvHtml } from "@/lib/cv-html";
 import { readCvStyle } from "@/lib/cv-style";
+import { readCvSuggestions } from "@/lib/cv-types";
 
 export const metadata: Metadata = { title: "Mon CV — Applyfy" };
 
@@ -44,6 +45,8 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
         // Renettoyé à l'affichage (défense en profondeur, en plus du nettoyage à l'enregistrement).
         <CvEditor
           applicationId={app.id}
+          // Panneau « Ce qui manque » si une analyse a été faite pour cette candidature.
+          missingPoints={readCvSuggestions(app.cv_suggestions)?.ce_qui_manque ?? []}
           initialHtml={sanitizeCvHtml(app.cv_improved_html)}
           initialStyle={readCvStyle(app.cv_improved_style)}
           savedAt={app.cv_improved_at ?? null}
