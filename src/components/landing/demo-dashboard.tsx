@@ -19,8 +19,8 @@ import { STATUS_LABELS, type ApplicationStatus } from "@/lib/types";
 // Dashboard Applyfy simulé (données fictives), en thème sombre : destiné à remplacer la
 // capture d'écran de la landing. Reprend la structure du vrai dashboard (sidebar, cartes de
 // statistiques, liste des candidatures) et, dans le panneau de détail, celle de la fiche
-// candidature (en-tête, résumé de l'offre, Adapter mon CV, Lettre de motivation, Relancer,
-// Historique, Notes), avec les vrais statuts de l'app.
+// candidature (en-tête et statuts, résumé de l'offre, Adapter mon CV, Lettre de motivation,
+// Relancer, Historique, Notes), avec les vrais statuts de l'app.
 
 type DemoEvent = {
   label: string;
@@ -40,7 +40,6 @@ type DemoApplication = {
   summary: string[];
   matches: string[];
   missing: string[];
-  letter: string;
   followUp: boolean;
   events: DemoEvent[];
   note: string;
@@ -63,8 +62,6 @@ const APPLICATIONS: DemoApplication[] = [
     ],
     matches: ["API à fort trafic (2 M requêtes/jour)", "TypeScript en production"],
     missing: ["Go : à mettre en avant", "Systèmes distribués"],
-    letter:
-      "Votre équipe Cloud construit des outils utilisés par des millions de développeurs : c'est précisément ce type d'impact que je recherche. En cinq ans, j'ai conçu une API de paiement traitant plus de 2 millions de requêtes par jour…",
     followUp: false,
     events: [
       { label: "Candidature envoyée", date: "8 oct.", tone: "blue" },
@@ -88,8 +85,6 @@ const APPLICATIONS: DemoApplication[] = [
     ],
     matches: ["Lancement d'un parcours de paiement", "Pilotage d'équipes pluridisciplinaires"],
     missing: ["Réglementation des paiements (DSP2)"],
-    letter:
-      "Ce qui me motive chez Stripe, c'est votre manière de rendre simples des problèmes très complexes. J'ai mené le lancement d'un parcours de remboursement qui a réduit les délais de 40 %…",
     followUp: false,
     events: [
       { label: "Statut modifié : Entretien", date: "11 oct.", tone: "violet" },
@@ -114,8 +109,6 @@ const APPLICATIONS: DemoApplication[] = [
     ],
     matches: ["Recherche utilisateur", "Portfolio d'applications mobiles"],
     missing: ["Design system à grande échelle"],
-    letter:
-      "Votre application est la preuve qu'une assurance santé peut être agréable à utiliser. Je souhaite mettre mes compétences en recherche utilisateur au service de vos membres…",
     followUp: true,
     events: [
       { label: "Relance", date: "10 oct.", tone: "amber" },
@@ -139,8 +132,6 @@ const APPLICATIONS: DemoApplication[] = [
     ],
     matches: ["SQL et tableaux de bord", "Suivi d'indicateurs produit"],
     missing: ["dbt", "Looker"],
-    letter:
-      "Améliorer l'accès aux soins grâce à la donnée : c'est ce qui m'attire chez Doctolib. Lors de mon dernier stage, j'ai automatisé le suivi de 30 indicateurs produit…",
     followUp: false,
     events: [
       { label: "Statut modifié : Refusée", date: "3 oct.", tone: "red" },
@@ -164,8 +155,6 @@ const APPLICATIONS: DemoApplication[] = [
     ],
     matches: ["React et TypeScript", "Accessibilité (RGAA)"],
     missing: ["Tests de bout en bout (Playwright)"],
-    letter:
-      "Utilisateur de BlaBlaCar depuis mes études, je mesure chaque semaine l'importance d'une interface fluide. Je souhaite contribuer à votre application web…",
     followUp: false,
     events: [
       { label: "Candidature envoyée", date: "12 oct.", tone: "blue" },
@@ -188,6 +177,15 @@ const STATUS_STYLES: Record<ApplicationStatus, { badge: string; dot: string }> =
   offre: { badge: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30", dot: "bg-emerald-400" },
   refusee: { badge: "bg-red-500/15 text-red-300 ring-red-400/30", dot: "bg-red-400" },
 };
+
+/** Statuts proposés sous « Statut de la candidature » (dans cet ordre). */
+const STATUS_CHOICES: ApplicationStatus[] = [
+  "en_attente",
+  "envoyee",
+  "entretien",
+  "relancee",
+  "refusee",
+];
 
 const EVENT_DOTS: Record<DemoEvent["tone"], string> = {
   slate: "bg-slate-500",
@@ -506,6 +504,31 @@ export function DemoDashboard() {
                       <div className="mt-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200">
                         {STATUS_LABELS[shown.status]} ▾
                       </div>
+                      {/* Statuts disponibles, défilement horizontal ; l'actuel est mis en avant. */}
+                      <div
+                        role="group"
+                        aria-label="Changer le statut"
+                        className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1"
+                      >
+                        {STATUS_CHOICES.map((status) => {
+                          const current = status === shown.status;
+                          return (
+                            <button
+                              key={status}
+                              type="button"
+                              aria-pressed={current}
+                              onClick={() => showToast(TOAST_FEATURE)}
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ring-1 ring-inset transition ${
+                                current
+                                  ? STATUS_STYLES[status].badge
+                                  : "text-slate-400 ring-white/10 hover:bg-white/5 hover:text-slate-200"
+                              }`}
+                            >
+                              {STATUS_LABELS[status]}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -564,14 +587,9 @@ export function DemoDashboard() {
                       </div>
                     </PanelCard>
 
+                    {/* Comme dans l'app : la lettre s'ouvre depuis l'éditeur, pas affichée ici. */}
                     <PanelCard title="Lettre de motivation">
-                      <p className="text-xs text-slate-500">
-                        Générée avec l&apos;IA, puis personnalisée.
-                      </p>
-                      <blockquote className="mt-2 rounded-xl border border-white/10 bg-slate-950/60 p-3 leading-relaxed text-slate-300">
-                        {shown.letter}
-                      </blockquote>
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => showToast(TOAST_FEATURE)}
@@ -589,14 +607,28 @@ export function DemoDashboard() {
                       </div>
                     </PanelCard>
 
-                    {shown.followUp && (
-                      <PanelCard title="Relancer" className="border-amber-400/30">
-                        <p className="text-slate-400">
-                          Pas de nouvelles depuis un moment : c&apos;est le bon moment pour
-                          relancer.
-                        </p>
-                      </PanelCard>
-                    )}
+                    {/* Toutes les candidatures ; mise en avant quand une relance est due. */}
+                    <PanelCard
+                      title="Relancer"
+                      className={
+                        shown.followUp ? "border-amber-400/40 ring-1 ring-amber-400/20" : ""
+                      }
+                    >
+                      <p className="text-slate-400">
+                        {shown.followUp
+                          ? "Pas de nouvelles depuis un moment : c'est le bon moment pour relancer."
+                          : "Personnalise le message avant de l'envoyer."}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => showToast(TOAST_FEATURE)}
+                          className={PRIMARY_BUTTON}
+                        >
+                          Envoyer une relance
+                        </button>
+                      </div>
+                    </PanelCard>
                   </div>
 
                   <PanelCard title="Historique" className="h-fit">
