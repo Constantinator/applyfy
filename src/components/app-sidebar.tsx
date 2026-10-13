@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
 import {
   IconActivity,
+  IconDocument,
   IconGrid,
   IconHome,
   IconLogout,
@@ -74,7 +75,7 @@ const ADMIN_ITEMS: NavItem[] = [
     label: "Admin",
     shortLabel: "Admin",
     icon: IconActivity,
-    isActive: (p) => p.startsWith("/admin") && !p.startsWith("/admin/beta"),
+    isActive: (p) => p.startsWith("/admin") && !p.startsWith("/admin/beta") && !p.startsWith("/admin/roadmap"),
   },
   {
     href: "/admin/beta",
@@ -82,6 +83,13 @@ const ADMIN_ITEMS: NavItem[] = [
     shortLabel: "Testeurs",
     icon: IconUsers,
     isActive: (p) => p.startsWith("/admin/beta"),
+  },
+  {
+    href: "/admin/roadmap",
+    label: "Roadmap",
+    shortLabel: "Roadmap",
+    icon: IconDocument,
+    isActive: (p) => p.startsWith("/admin/roadmap"),
   },
 ];
 
@@ -103,7 +111,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const isDemo = email === null;
-  // Ordre : … Mon profil, Beta testing, Admin, Beta testeurs.
+  // Ordre : … Mon profil, Beta testing, Admin, Beta testeurs, Roadmap.
   const nav = [...NAV, ...(isBetaTester ? [BETA_ITEM] : []), ...(isAdmin ? ADMIN_ITEMS : [])];
   // Messages non lus de la messagerie beta : badge rouge sur l'onglet concerné.
   const badges: Record<string, number> = { "/beta": unreadBeta, "/admin/beta": unreadAdmin };
