@@ -186,15 +186,20 @@ export default function LandingPage() {
               />
             </div>
 
-            {/* Capture du dashboard : centrée, 900 px de large au plus, agrandie au clic. */}
-            <figure className="mx-auto mt-16 max-w-[900px]">
+            {/*
+              Capture du dashboard, mise en avant façon linear.app : elle sort du conteneur du
+              hero pour occuper ~84 % de la largeur de l'écran (pleine largeur moins les marges
+              sur mobile, 1 600 px au plus pour ne pas agrandir l'image), ombre portée marquée.
+              Agrandie au clic.
+            */}
+            <figure className="relative left-1/2 mt-20 w-[calc(100vw-2rem)] max-w-[1600px] -translate-x-1/2 sm:mt-24 sm:w-[84vw]">
               <ImageLightbox
                 src="/images/dashboard-preview.png"
                 alt="Le dashboard Applyfy : compteurs de candidatures, filtres par statut et liste des candidatures avec leur date d'envoi et un bouton Relancer"
                 width={1920}
                 height={1317}
-                sizes="(min-width: 948px) 900px, calc(100vw - 32px)"
-                className="h-auto w-full rounded-xl border border-slate-200 shadow-lg shadow-slate-900/5"
+                sizes="(min-width: 1905px) 1600px, (min-width: 640px) 84vw, calc(100vw - 32px)"
+                className="h-auto w-full rounded-2xl border border-slate-200/80 shadow-[0_50px_100px_-20px_rgba(15,23,42,0.35),0_30px_60px_-30px_rgba(15,23,42,0.4)]"
               />
               <figcaption className="mt-4 text-sm text-slate-500">
                 Le dashboard Applyfy — toutes tes candidatures au même endroit
