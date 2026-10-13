@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { ApplicationsView } from "@/components/dashboard/applications-view";
 import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
+import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversion";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { IconPlus, IconSparkles } from "@/components/icons";
 import { StatsCards } from "@/components/dashboard/stats-cards";
@@ -54,6 +56,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           Mode démo : configure Supabase dans <code>.env.local</code> pour utiliser tes vraies
           données.
         </p>
+      )}
+
+      {/* Conversion Google Ads (abonnement Premium) au retour de Stripe Checkout. */}
+      {welcomePremium && (
+        <Suspense fallback={null}>
+          <GoogleAdsConversion />
+        </Suspense>
       )}
 
       {welcomePremium && (
