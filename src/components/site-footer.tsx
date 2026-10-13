@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ConsentSettingsLink } from "@/components/consent/meta-pixel";
 import { LogoFull } from "@/components/logo";
 
 export const LEGAL_LINKS = [
@@ -26,6 +27,7 @@ export function SiteFooter() {
               {link.label}
             </Link>
           ))}
+          <ConsentSettingsLink className="hover:text-slate-900" />
         </nav>
       </div>
     </footer>

@@ -22,6 +22,11 @@ const PROCESSORS = [
   },
   { name: "Brevo", role: "Envoi des emails (rappels de relance)", url: "https://www.brevo.com/fr/legal/privacypolicy/" },
   {
+    name: "Meta",
+    role: "Mesure de l'efficacité des publicités (Meta Pixel), uniquement si tu as accepté les cookies publicitaires",
+    url: "https://www.facebook.com/privacy/policy/",
+  },
+  {
     name: "Stripe",
     role: "Traitement des paiements de l'abonnement Premium (carte bancaire, facturation, gestion de l'abonnement)",
     url: "https://stripe.com/fr/privacy",
@@ -141,9 +146,17 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="Cookies, stockage local et mesure d'audience">
         <p>
-          Applyfy n&apos;utilise aucun cookie publicitaire. Seuls sont utilisés des cookies strictement
-          nécessaires (maintien de ta connexion) et le stockage local de ton navigateur, pour mémoriser
-          les bulles d&apos;aide déjà vues.
+          Sans ton accord, Applyfy n&apos;utilise que des cookies strictement nécessaires (maintien de ta
+          connexion) et le stockage local de ton navigateur, pour mémoriser les bulles d&apos;aide déjà
+          vues et ton choix concernant les cookies.
+        </p>
+        <p>
+          <strong>Cookies publicitaires (Meta Pixel) :</strong> si tu les acceptes dans le bandeau
+          affiché lors de ta première visite, Applyfy charge le pixel de Meta (Facebook, Instagram)
+          pour mesurer l&apos;efficacité de ses publicités. Meta reçoit alors les pages que tu visites
+          sur Applyfy et dépose un cookie (_fbp) dans ton navigateur. Sans acceptation, rien n&apos;est
+          chargé ni envoyé à Meta. Ton choix est conservé 6 mois ; tu peux le modifier à tout moment
+          avec le lien « Gestion des cookies » en bas de chaque page.
         </p>
         <p>
           Pour comprendre comment le site est utilisé (pages vues, provenance des visites, type
