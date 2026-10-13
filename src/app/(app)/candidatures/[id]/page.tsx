@@ -55,7 +55,7 @@ function Card({
 }) {
   return (
     <section className={`card p-5 ${className}`}>
-      <h2 className="text-blue-600 mb-4 font-semibold">{title}</h2>
+      <h2 className="text-blue-600 dark:text-blue-400 mb-4 font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -93,7 +93,7 @@ export default async function ApplicationPage({
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900">
+      <Link href="/dashboard" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
         ← Retour au dashboard
       </Link>
 
@@ -107,7 +107,7 @@ export default async function ApplicationPage({
       {creee === "1" && (
         <p
           role="status"
-          className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200"
+          className="rounded-lg bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
         >
           ✓ Candidature créée en brouillon.
         </p>
@@ -118,22 +118,22 @@ export default async function ApplicationPage({
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{app.company}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{app.company}</h1>
               <StatusBadge status={app.status} />
             </div>
-            <p className="mt-1 text-slate-600">
+            <p className="mt-1 text-slate-600 dark:text-slate-300">
               {app.position}
               {app.location && <span className="text-slate-400"> · {app.location}</span>}
             </p>
 
             <dl className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
               <div>
-                <dt className="text-slate-500">Date d&apos;envoi</dt>
-                <dd className="mt-0.5 font-medium text-slate-900">{formatDate(app.applied_at)}</dd>
+                <dt className="text-slate-500 dark:text-slate-400">Date d&apos;envoi</dt>
+                <dd className="mt-0.5 font-medium text-slate-900 dark:text-white">{formatDate(app.applied_at)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Contact</dt>
-                <dd className="mt-0.5 min-w-0 font-medium text-slate-900">
+                <dt className="text-slate-500 dark:text-slate-400">Contact</dt>
+                <dd className="mt-0.5 min-w-0 font-medium text-slate-900 dark:text-white">
                   <ContactEditor
                     applicationId={app.id}
                     initialName={app.contact_name}
@@ -143,13 +143,13 @@ export default async function ApplicationPage({
               </div>
               {app.offer_url && (
                 <div>
-                  <dt className="text-slate-500">Annonce</dt>
+                  <dt className="text-slate-500 dark:text-slate-400">Annonce</dt>
                   <dd className="mt-0.5">
                     <a
                       href={app.offer_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-blue-600 hover:text-blue-500"
+                      className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
                     >
                       Voir l&apos;offre ↗
                     </a>
@@ -175,12 +175,12 @@ export default async function ApplicationPage({
               aria-labelledby="summary-title"
               className="bg-brand rounded-2xl p-[1.5px] shadow-md shadow-blue-500/10"
             >
-              <div className="rounded-[calc(1rem-1.5px)] bg-white p-5 sm:p-6">
+              <div className="rounded-[calc(1rem-1.5px)] bg-white dark:bg-slate-900 p-5 sm:p-6">
                 <div className="mb-4 flex flex-wrap items-center gap-3">
                   <span className="bg-brand flex h-9 w-9 items-center justify-center rounded-xl text-white">
                     <IconSparkles className="h-5 w-5" />
                   </span>
-                  <h2 id="summary-title" className="text-blue-600 text-lg font-semibold">
+                  <h2 id="summary-title" className="text-blue-600 dark:text-blue-400 text-lg font-semibold">
                     Résumé de l&apos;offre
                   </h2>
                 </div>
@@ -191,11 +191,11 @@ export default async function ApplicationPage({
 
           <section aria-labelledby="description-title" className="card p-5">
             <div className="mb-4">
-              <h2 id="description-title" className="text-blue-600 font-semibold">
+              <h2 id="description-title" className="text-blue-600 dark:text-blue-400 font-semibold">
                 {app.offer_summary ? "Description complète" : "Description de l'offre"}
               </h2>
               {app.offer_summary && (
-                <p className="mt-0.5 text-xs text-slate-500">Texte de l&apos;annonce, tel qu&apos;importé.</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Texte de l&apos;annonce, tel qu&apos;importé.</p>
               )}
             </div>
             {/* Extrait seulement (site d'origine bloqué) : l'utilisateur peut coller l'offre complète. */}
@@ -204,10 +204,10 @@ export default async function ApplicationPage({
             )}
             {app.offer_description ? (
               <CollapsibleBox label="Description de l'offre">
-                <FormattedText text={app.offer_description} className="text-slate-600" />
+                <FormattedText text={app.offer_description} className="text-slate-600 dark:text-slate-300" />
               </CollapsibleBox>
             ) : (
-              <p className="text-sm text-slate-500">Aucune description enregistrée.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Aucune description enregistrée.</p>
             )}
           </section>
 
@@ -253,7 +253,7 @@ export default async function ApplicationPage({
 
       <NotesPad applicationId={app.id} initialNotes={app.notes ?? ""} />
 
-      <section aria-label="Supprimer la candidature" className="flex justify-end border-t border-slate-200 pt-6">
+      <section aria-label="Supprimer la candidature" className="flex justify-end border-t border-slate-200 dark:border-slate-800 pt-6">
         <DeleteApplicationButton applicationId={app.id} company={app.company} />
       </section>
     </main>

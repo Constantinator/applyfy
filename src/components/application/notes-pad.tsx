@@ -92,14 +92,14 @@ export function NotesPad({ applicationId, initialNotes }: { applicationId: strin
   const nearLimit = value.length > NOTES_MAX_LENGTH * 0.9;
 
   return (
-    <section aria-labelledby="notes-title" className="rounded-2xl border border-amber-200/70 bg-amber-50/50 p-5 shadow-sm">
+    <section aria-labelledby="notes-title" className="rounded-2xl border border-amber-200/70 dark:border-amber-400/20 bg-amber-50/50 dark:bg-amber-400/5 p-5 shadow-sm">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="notes-title" className="text-blue-600 font-semibold">
+        <h2 id="notes-title" className="text-blue-600 dark:text-blue-400 font-semibold">
           Notes
         </h2>
         <p
           aria-live="polite"
-          className={`text-xs ${status.kind === "error" ? "font-medium text-red-600" : "text-slate-500"}`}
+          className={`text-xs ${status.kind === "error" ? "font-medium text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}
         >
           {statusText}
         </p>
@@ -118,7 +118,7 @@ export function NotesPad({ applicationId, initialNotes }: { applicationId: strin
         rows={8}
         spellCheck
         placeholder="Impressions après l'entretien, nom du recruteur, points à préparer…"
-        className="block w-full resize-y border-0 bg-transparent px-1 text-[15px] text-slate-800 placeholder:text-slate-400 focus:ring-0 focus:outline-none"
+        className="block w-full resize-y border-0 bg-transparent px-1 text-[15px] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:ring-0 focus:outline-none"
         style={{
           lineHeight: LINE,
           // Lignes du bloc-notes, alignées sur le texte et qui défilent avec lui.
@@ -127,7 +127,7 @@ export function NotesPad({ applicationId, initialNotes }: { applicationId: strin
         }}
       />
       {nearLimit && (
-        <p className="mt-2 text-right text-xs text-amber-700">
+        <p className="mt-2 text-right text-xs text-amber-700 dark:text-amber-300">
           {value.length.toLocaleString("fr-FR")} / {NOTES_MAX_LENGTH.toLocaleString("fr-FR")} caractères
         </p>
       )}

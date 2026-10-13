@@ -76,7 +76,7 @@ export function RecommendationsToggle({
         role="switch"
         aria-checked={enabled}
         onClick={toggle}
-        className="group inline-flex items-center gap-3 text-sm font-medium text-slate-700"
+        className="group inline-flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-200"
       >
         <span
           aria-hidden="true"
@@ -85,7 +85,7 @@ export function RecommendationsToggle({
           }`}
         >
           <span
-            className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+            className={`h-5 w-5 rounded-full bg-white dark:bg-slate-900 shadow-sm transition-transform ${
               enabled ? "translate-x-5.5" : "translate-x-0.5"
             }`}
           />

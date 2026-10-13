@@ -18,7 +18,7 @@ export function Logo({ size = "md", withName = true }: { size?: "sm" | "md" | "l
         priority
         className={`${icon} shrink-0`}
       />
-      {withName && <span className={`${text} font-bold tracking-tight text-blue-600`}>Applyfy</span>}
+      {withName && <span className={`${text} font-bold tracking-tight text-blue-600 dark:text-white`}>Applyfy</span>}
     </span>
   );
 }

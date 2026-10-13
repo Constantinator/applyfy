@@ -81,7 +81,7 @@ export function ApplicationsView({
           }}
         />
         <div className="flex shrink-0 items-center gap-2">
-          <label htmlFor="sort" className="text-sm whitespace-nowrap text-slate-500">
+          <label htmlFor="sort" className="text-sm whitespace-nowrap text-slate-500 dark:text-slate-400">
             Trier par
           </label>
           <select

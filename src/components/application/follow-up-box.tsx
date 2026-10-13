@@ -41,16 +41,16 @@ export function FollowUpBox({
     <section
       id="relance"
       aria-labelledby="relance-title"
-      className={`scroll-mt-6 rounded-2xl border bg-white p-4 ${
-        highlight ? "border-amber-300 ring-1 ring-amber-200" : "border-slate-200"
+      className={`scroll-mt-6 rounded-2xl border bg-white dark:bg-slate-900 p-4 ${
+        highlight ? "border-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30" : "border-slate-200 dark:border-slate-800"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 id="relance-title" className="text-blue-600 font-semibold">
+          <h2 id="relance-title" className="text-blue-600 dark:text-blue-400 font-semibold">
             Relancer
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {highlight
               ? "Pas de nouvelles depuis un moment : c'est le bon moment pour relancer."
               : "Personnalise le message avant de l'envoyer."}
@@ -60,7 +60,7 @@ export function FollowUpBox({
           <button
             type="button"
             onClick={() => setMessage(defaultMessage)}
-            className="text-sm whitespace-nowrap text-slate-500 hover:text-slate-900"
+            className="text-sm whitespace-nowrap text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           >
             Réinitialiser
           </button>
@@ -109,7 +109,7 @@ export function FollowUpBox({
         {state.status !== "idle" && (
           <p
             role={state.status === "error" ? "alert" : "status"}
-            className={`mt-2 text-sm ${state.status === "error" ? "text-red-600" : "text-emerald-700"}`}
+            className={`mt-2 text-sm ${state.status === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-300"}`}
           >
             {state.message}
           </p>

@@ -26,7 +26,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <div className="flex flex-1 flex-col lg:flex-row print:block">
+    // data-theme-scope : zone concernée par le mode sombre (cf. globals.css).
+    <div data-theme-scope className="flex flex-1 flex-col lg:flex-row print:block">
       <AppSidebar
         email={user?.email ?? null}
         isAdmin={isAdmin}

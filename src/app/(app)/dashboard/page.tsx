@@ -68,7 +68,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       {welcomePremium && (
         <p
           role="status"
-          className="rounded-lg bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 ring-1 ring-emerald-200"
+          className="rounded-lg bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
         >
           🎉 Bienvenue en Premium ! Toutes les fonctionnalités IA sont maintenant illimitées.
         </p>
@@ -77,7 +77,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       {ajout === "ok" && (
         <p
           role="status"
-          className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200"
+          className="rounded-lg bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
         >
           ✓ Candidature ajoutée.
         </p>
@@ -85,7 +85,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       {suppression === "ok" && (
         <p
           role="status"
-          className="rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-700 ring-1 ring-slate-200"
+          className="rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 ring-1 ring-slate-200 dark:ring-slate-700"
         >
           Candidature supprimée.
         </p>
@@ -93,8 +93,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Mes candidatures</h1>
-          <p className="mt-1.5 text-slate-500">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Mes candidatures</h1>
+          <p className="mt-1.5 text-slate-500 dark:text-slate-400">
             Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
           </p>
         </div>
@@ -104,7 +104,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           )}
           {source !== "demo" && !premium && (
             <Link href="/premium" className="btn-secondary px-4 py-2.5 text-sm">
-              <IconSparkles className="h-4 w-4 text-blue-600" />
+              <IconSparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               Passer au Premium
             </Link>
           )}

@@ -70,10 +70,10 @@ export function OfferDescriptionCompleter({
             maxLength={OFFER_DESCRIPTION_MAX_LENGTH}
             autoFocus
             placeholder="Colle ici la description complète copiée depuis le site de l'offre…"
-            className="input bg-white leading-relaxed"
+            className="input bg-white dark:bg-slate-900 leading-relaxed"
           />
           {error && (
-            <p role="alert" className="text-sm text-red-700">
+            <p role="alert" className="text-sm text-red-700 dark:text-red-300">
               {error}
             </p>
           )}

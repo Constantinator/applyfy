@@ -13,7 +13,7 @@ export function MarkAsSent({ applicationId, today }: { applicationId: string; to
   return (
     <section
       aria-labelledby="mark-sent-title"
-      className="rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6"
+      className="rounded-2xl border border-blue-200 dark:border-blue-400/30 bg-blue-50 dark:bg-blue-500/15 p-5 sm:p-6"
     >
       <form action={formAction} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <input type="hidden" name="id" value={applicationId} />
@@ -51,7 +51,7 @@ export function MarkAsSent({ applicationId, today }: { applicationId: string; to
         </div>
       </form>
       {state.status === "error" && (
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-300">
           {state.message}
         </p>
       )}

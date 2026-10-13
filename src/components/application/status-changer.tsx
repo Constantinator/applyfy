@@ -41,7 +41,7 @@ export function StatusChanger({
       className="flex flex-col gap-2"
     >
       <input type="hidden" name="id" value={applicationId} />
-      <label htmlFor="status" className="text-sm font-medium text-slate-700">
+      <label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-200">
         Statut de la candidature
       </label>
       <div className="flex gap-2">
@@ -76,7 +76,7 @@ export function StatusChanger({
       {state.status !== "idle" && (
         <p
           role={state.status === "error" ? "alert" : "status"}
-          className={`text-sm ${state.status === "error" ? "text-red-600" : "text-emerald-700"}`}
+          className={`text-sm ${state.status === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-300"}`}
         >
           {state.message}
         </p>

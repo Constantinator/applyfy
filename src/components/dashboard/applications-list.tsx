@@ -32,7 +32,7 @@ function FollowUpButton({ app, now }: { app: Application; now: Date }) {
       href={`/candidatures/${app.id}#relance`}
       className={`relative z-10 ${
         due
-          ? "inline-flex items-center justify-center rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
+          ? "inline-flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-500/15 px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30 hover:bg-amber-100"
           : "btn-secondary px-3 py-1.5 text-sm"
       }`}
     >
@@ -51,9 +51,9 @@ export function ApplicationsList({
 }) {
   if (applications.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-        <p className="font-medium text-slate-900">Aucune candidature ici</p>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center">
+        <p className="font-medium text-slate-900 dark:text-white">Aucune candidature ici</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Ajoute ta première candidature pour commencer le suivi.
         </p>
         <Link
@@ -80,15 +80,15 @@ export function ApplicationsList({
                 href={`/candidatures/${app.id}`}
                 className="min-w-0 after:absolute after:inset-0 after:rounded-2xl focus:outline-none"
               >
-                <p className="truncate font-medium text-slate-900">{app.company}</p>
-                <p className="truncate text-sm text-slate-500">{app.position}</p>
+                <p className="truncate font-medium text-slate-900 dark:text-white">{app.company}</p>
+                <p className="truncate text-sm text-slate-500 dark:text-slate-400">{app.position}</p>
               </Link>
               <StatusBadge status={app.status} />
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 dark:text-slate-400">
                 <p>Envoyée : {formatDate(app.applied_at)}</p>
-                <p className={needsFollowUp(app, now) ? "font-medium text-amber-700" : ""}>
+                <p className={needsFollowUp(app, now) ? "font-medium text-amber-700 dark:text-amber-300" : ""}>
                   Dernier contact : {lastContactLabel(app, now)}
                 </p>
               </div>
@@ -100,8 +100,8 @@ export function ApplicationsList({
 
       {/* Desktop : tableau */}
       <div className="hidden card overflow-hidden md:block">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50/80 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+          <thead className="bg-slate-50/80 dark:bg-slate-800/60 text-left text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
             <tr>
               <th scope="col" className="px-5 py-3.5">Entreprise / Poste</th>
               <th scope="col" className="px-5 py-3.5">Statut</th>
@@ -112,7 +112,7 @@ export function ApplicationsList({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {applications.map((app) => (
               <tr
                 key={app.id}
@@ -125,15 +125,15 @@ export function ApplicationsList({
                   >
                     <span
                       aria-hidden="true"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700 ring-1 ring-blue-100"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/15 text-sm font-bold text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-500/20"
                     >
                       {app.company.charAt(0).toUpperCase()}
                     </span>
                     <span className="min-w-0">
-                      <span className="block font-semibold text-slate-900 group-hover:text-blue-600">
+                      <span className="block font-semibold text-slate-900 dark:text-white group-hover:text-blue-600">
                         {app.company}
                       </span>
-                      <span className="block text-slate-500">
+                      <span className="block text-slate-500 dark:text-slate-400">
                         {app.position}
                         {app.location && <span className="text-slate-400"> · {app.location}</span>}
                       </span>
@@ -143,10 +143,10 @@ export function ApplicationsList({
                 <td className="px-5 py-4">
                   <StatusBadge status={app.status} />
                 </td>
-                <td className="px-5 py-4 text-slate-600">{formatDate(app.applied_at)}</td>
+                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(app.applied_at)}</td>
                 <td
                   className={`px-5 py-4 ${
-                    needsFollowUp(app, now) ? "font-medium text-amber-700" : "text-slate-600"
+                    needsFollowUp(app, now) ? "font-medium text-amber-700 dark:text-amber-300" : "text-slate-600 dark:text-slate-300"
                   }`}
                 >
                   {lastContactLabel(app, now)}

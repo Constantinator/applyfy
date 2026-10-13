@@ -92,7 +92,7 @@ export function CoverLetterGenerator({
     startTransition(() => generate(formData));
   }
 
-  const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700";
+  const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700 dark:text-slate-200";
   const radio = (value: string, label: React.ReactNode) => (
     <label className={radioClass}>
       <input
@@ -131,11 +131,11 @@ export function CoverLetterGenerator({
   return (
     <section aria-labelledby="letter-title" className="card p-5">
       <div>
-        <h2 id="letter-title" className="text-blue-600 font-semibold">
+        <h2 id="letter-title" className="text-blue-600 dark:text-blue-400 font-semibold">
           Lettre de motivation
         </h2>
         {hasLetter && letterSavedAt && (
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Dernière modification le {dateTimeFormatter.format(new Date(letterSavedAt))}.
           </p>
         )}
@@ -157,7 +157,7 @@ export function CoverLetterGenerator({
         )}
       </div>
 
-      {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Génération non disponible sur ce site.</p>}
+      {!aiEnabled && <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Génération non disponible sur ce site.</p>}
 
       {aiEnabled && limitReached && !generating && (
         <div className="mt-4">
@@ -166,15 +166,15 @@ export function CoverLetterGenerator({
       )}
 
       {pickerOpen && aiEnabled && !limitReached && (
-        <div className="mt-4 space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+        <div className="mt-4 space-y-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-200 dark:ring-slate-700">
           <fieldset className="space-y-2" disabled={generating}>
-            <legend className="mb-1 text-sm font-medium text-slate-700">Sur quel profil s&apos;appuyer ?</legend>
+            <legend className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-200">Sur quel profil s&apos;appuyer ?</legend>
             {profileCvs.map((cv) => (
               <div key={cv.id}>
                 {radio(
                   cv.id,
                   <>
-                    {cv.name} <span className="text-slate-500">({cv.fileName})</span>
+                    {cv.name} <span className="text-slate-500 dark:text-slate-400">({cv.fileName})</span>
                   </>,
                 )}
               </div>
@@ -197,17 +197,17 @@ export function CoverLetterGenerator({
                     else if (selected.size > CV_MAX_BYTES) setFileError(`Ce fichier dépasse ${CV_MAX_LABEL}.`);
                     else setFileError(null);
                   }}
-                  className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
+                  className="block w-full text-sm text-slate-700 dark:text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
                 />
-                <p className="mt-1 text-xs text-slate-500">PDF, {CV_MAX_LABEL} max.</p>
-                {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">PDF, {CV_MAX_LABEL} max.</p>
+                {fileError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileError}</p>}
               </div>
             )}
             {radio(RESUME, "Décrire mon profil en quelques lignes")}
             {source === RESUME && (
               <div className="space-y-3 pl-6">
                 <div>
-                  <label htmlFor="letter-summary" className="text-xs font-medium text-slate-600">
+                  <label htmlFor="letter-summary" className="text-xs font-medium text-slate-600 dark:text-slate-300">
                     Ton profil : formation, expériences, compétences, ce que tu cherches
                   </label>
                   <textarea
@@ -219,16 +219,16 @@ export function CoverLetterGenerator({
                     placeholder="Ex. Master en marketing digital (2025). 2 stages en e-commerce chez… Maîtrise de Google Analytics, SEO…"
                     className="input mt-1 py-2 text-sm"
                   />
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Seuls les éléments que tu indiques seront utilisés : rien n&apos;est inventé.
                   </p>
                 </div>
               </div>
             )}
             {profileCvs.length === 0 && (
-              <p className="pt-1 text-xs text-slate-500">
+              <p className="pt-1 text-xs text-slate-500 dark:text-slate-400">
                 Astuce : enregistre ton CV dans{" "}
-                <Link href="/profil" className="font-medium text-blue-700 underline underline-offset-2">
+                <Link href="/profil" className="font-medium text-blue-700 dark:text-blue-300 underline underline-offset-2">
                   Mon profil
                 </Link>{" "}
                 pour l&apos;utiliser directement.
@@ -237,11 +237,11 @@ export function CoverLetterGenerator({
           </fieldset>
 
           {signerName ? (
-            <p className="text-xs text-slate-600">
-              Lettre signée <strong className="font-medium text-slate-900">{signerName}</strong> (nom de ton compte).
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Lettre signée <strong className="font-medium text-slate-900 dark:text-white">{signerName}</strong> (nom de ton compte).
             </p>
           ) : (
-            <p className="text-xs text-amber-800">
+            <p className="text-xs text-amber-800 dark:text-amber-200">
               Ajoute ton prénom et ton nom dans{" "}
               <Link href="/profil" className="font-medium underline underline-offset-2">
                 Mon profil
@@ -251,7 +251,7 @@ export function CoverLetterGenerator({
             </p>
           )}
           {!hasOfferDescription && (
-            <p className="text-xs text-amber-800">
+            <p className="text-xs text-amber-800 dark:text-amber-200">
               Cette candidature n&apos;a pas de description d&apos;offre : la lettre sera moins
               personnalisée. Ajoute la description pour un meilleur résultat.
             </p>
@@ -281,16 +281,16 @@ export function CoverLetterGenerator({
           </div>
 
           {generating && (
-            <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+            <p role="status" className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <span
                 aria-hidden="true"
-                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
+                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 dark:border-slate-700 border-t-blue-600"
               />
               Rédaction de ta lettre… cela peut prendre jusqu&apos;à une minute.
             </p>
           )}
           {state.status === "error" && !generating && (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+            <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
               {state.message}
             </p>
           )}

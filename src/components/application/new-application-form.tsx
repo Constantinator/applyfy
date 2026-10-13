@@ -51,16 +51,16 @@ function isHttpUrl(value: string) {
 function StatusLine({ status, loadingText }: { status: AsyncStatus; loadingText: string }) {
   if (status.state === "idle") return null;
   const styles = {
-    loading: "text-slate-500",
-    success: "text-emerald-700",
-    error: "text-amber-800",
+    loading: "text-slate-500 dark:text-slate-400",
+    success: "text-emerald-700 dark:text-emerald-300",
+    error: "text-amber-800 dark:text-amber-200",
   }[status.state];
   return (
     <p role="status" className={`flex items-center gap-2 text-sm ${styles}`}>
       {status.state === "loading" && (
         <span
           aria-hidden="true"
-          className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
+          className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 dark:border-slate-700 border-t-blue-600"
         />
       )}
       {status.state === "loading" ? loadingText : status.message}
@@ -83,16 +83,16 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={name} className="text-sm font-medium text-slate-700">
+      <label htmlFor={name} className="text-sm font-medium text-slate-700 dark:text-slate-200">
         {label}
       </label>
       {children}
       {error ? (
-        <p id={`${name}-error`} className="text-sm text-red-600">
+        <p id={`${name}-error`} className="text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       ) : (
-        hint && <div className="text-xs text-slate-500">{hint}</div>
+        hint && <div className="text-xs text-slate-500 dark:text-slate-400">{hint}</div>
       )}
     </div>
   );
@@ -241,14 +241,14 @@ export function NewApplicationForm({
       {state.status === "error" && state.message && (
         <p
           role="alert"
-          className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200"
+          className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30"
         >
           {state.message}
         </p>
       )}
 
       <section className="space-y-4 card p-5 sm:p-6">
-        <h2 className="font-semibold text-slate-900">L&apos;offre</h2>
+        <h2 className="font-semibold text-slate-900 dark:text-white">L&apos;offre</h2>
 
         <Field
           name="offer_url"
@@ -278,7 +278,7 @@ export function NewApplicationForm({
                   lastImportedUrl.current = "";
                   void importFromUrl(offerUrl);
                 }}
-                className="rounded-lg px-3 text-sm font-medium whitespace-nowrap text-blue-600 ring-1 ring-blue-200 hover:bg-blue-50"
+                className="rounded-lg px-3 text-sm font-medium whitespace-nowrap text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-400/30 hover:bg-blue-50"
               >
                 Récupérer les infos
               </button>
@@ -294,7 +294,7 @@ export function NewApplicationForm({
             data-import-alert={importAlert.kind}
             className={`flex gap-3 rounded-xl border p-4 text-sm ${
               importAlert.kind === "failed"
-                ? "border-orange-300 bg-orange-50 text-orange-900"
+                ? "border-orange-300 bg-orange-50 dark:bg-orange-500/15 text-orange-900"
                 : "border-yellow-400 bg-yellow-100 text-yellow-950"
             }`}
           >
@@ -379,11 +379,11 @@ export function NewApplicationForm({
                   : "Générer un résumé"}
             </button>
             {!aiEnabled ? (
-              <span className="text-xs text-slate-500">Résumé automatique non activé.</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Résumé automatique non activé.</span>
             ) : (
               !summaryLimitReached &&
               description.trim().length < SUMMARY_MIN_LENGTH && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   Colle la description complète pour pouvoir la résumer.
                 </span>
               )
@@ -414,7 +414,7 @@ export function NewApplicationForm({
         )}
       </section>
 
-      <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">
+      <p className="rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-3 text-sm text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700">
         La candidature sera créée en <strong>brouillon</strong>. Une fois ta candidature envoyée,
         clique sur « Marquer comme envoyée » depuis sa fiche.
       </p>

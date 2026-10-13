@@ -111,11 +111,11 @@ export function ContactEditor({
           />
         </label>
         {error && (
-          <p role="alert" className="text-xs font-normal text-red-600">
+          <p role="alert" className="text-xs font-normal text-red-600 dark:text-red-400">
             {error}
           </p>
         )}
-        <p className="text-xs font-normal text-slate-500">
+        <p className="text-xs font-normal text-slate-500 dark:text-slate-400">
           {pending ? "Enregistrement…" : "Entrée pour enregistrer · Échap pour annuler"}
         </p>
       </div>
@@ -123,14 +123,14 @@ export function ContactEditor({
   }
 
   const editable =
-    "-mx-1.5 block max-w-full truncate rounded-md px-1.5 py-0.5 text-left transition hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:outline-none";
+    "-mx-1.5 block max-w-full truncate rounded-md px-1.5 py-0.5 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:outline-none";
   return (
     <div className="space-y-0.5">
       <button
         type="button"
         onClick={() => startEditing("name")}
         title="Cliquer pour modifier"
-        className={`${editable} ${saved.name ? "text-slate-900" : "font-normal text-slate-400"}`}
+        className={`${editable} ${saved.name ? "text-slate-900 dark:text-white" : "font-normal text-slate-400"}`}
       >
         {saved.name || "Ajouter un nom"}
       </button>
@@ -138,14 +138,14 @@ export function ContactEditor({
         type="button"
         onClick={() => startEditing("email")}
         title="Cliquer pour modifier"
-        className={`${editable} font-normal ${saved.email ? "text-blue-600" : "text-slate-400"}`}
+        className={`${editable} font-normal ${saved.email ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`}
       >
         {saved.email || "Ajouter un email"}
       </button>
       {saved.email && (
         <a
           href={`mailto:${saved.email}`}
-          className="inline-block text-xs font-normal text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline"
+          className="inline-block text-xs font-normal text-slate-500 dark:text-slate-400 underline-offset-2 hover:text-slate-900 dark:hover:text-white hover:underline"
         >
           Écrire un email ↗
         </a>

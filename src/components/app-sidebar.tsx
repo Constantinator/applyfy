@@ -17,6 +17,7 @@ import {
   IconUsers,
 } from "@/components/icons";
 import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Logo } from "@/components/logo";
 
 type NavItem = {
@@ -126,22 +127,25 @@ export function AppSidebar({
   return (
     <>
       {/* Mobile : barre supérieure compacte */}
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur lg:hidden print:hidden">
+      <header className="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur lg:hidden print:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/dashboard" aria-label="Applyfy, tableau de bord">
             <Logo size="sm" />
           </Link>
-          {isDemo ? (
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
-              Démo
-            </span>
-          ) : (
-            <form action={logoutAction}>
-              <button type="submit" className="btn-secondary px-3 py-1.5 text-xs">
-                Se déconnecter
-              </button>
-            </form>
-          )}
+          <div className="flex items-center gap-1">
+            <ThemeToggle compact className="p-2" />
+            {isDemo ? (
+              <span className="rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30">
+                Démo
+              </span>
+            ) : (
+              <form action={logoutAction}>
+                <button type="submit" className="btn-secondary px-3 py-1.5 text-xs">
+                  Se déconnecter
+                </button>
+              </form>
+            )}
+          </div>
         </div>
         <nav aria-label="Navigation principale" className="flex gap-1 overflow-x-auto px-3 pb-2">
           {nav.map((item) => {
@@ -152,10 +156,10 @@ export function AppSidebar({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"
+                  active ? "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
-                <item.icon className={`h-4 w-4 ${active ? "text-blue-600" : "text-blue-600"}`} />
+                <item.icon className={`h-4 w-4 ${active ? "text-blue-600 dark:text-blue-400" : "text-blue-600 dark:text-blue-400"}`} />
                 {item.shortLabel}
                 {badge(item.href)}
               </Link>
@@ -165,7 +169,7 @@ export function AppSidebar({
       </header>
 
       {/* Desktop : sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex print:hidden">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 lg:flex print:hidden">
         <div className="px-5 pt-6 pb-8">
           <Link href="/dashboard" aria-label="Applyfy, tableau de bord">
             <Logo />
@@ -182,12 +186,12 @@ export function AppSidebar({
                 aria-current={active ? "page" : undefined}
                 className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-500/20"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <item.icon
-                  className={`h-5 w-5 ${active ? "text-blue-600" : "text-blue-600"}`}
+                  className={`h-5 w-5 ${active ? "text-blue-600 dark:text-blue-400" : "text-blue-600 dark:text-blue-400"}`}
                 />
                 {item.label}
                 {badge(item.href)}
@@ -196,24 +200,25 @@ export function AppSidebar({
           })}
         </nav>
 
-        <div className="space-y-1 border-t border-slate-200 p-3">
+        <div className="space-y-1 border-t border-slate-200 dark:border-slate-800 p-3">
           {!isDemo && <FeedbackDialog />}
           <Link
             href="/"
-            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
           >
-            <IconHome className="text-blue-600 h-5 w-5" />
+            <IconHome className="text-blue-600 dark:text-blue-400 h-5 w-5" />
             Retour à l&apos;accueil
           </Link>
+          <ThemeToggle className="w-full px-3 py-2" />
           {isDemo ? (
             <p className="px-3 py-2">
-              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+              <span className="rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30">
                 Mode démo
               </span>
             </p>
           ) : (
             <div className="flex items-center gap-2 rounded-xl px-3 py-2">
-              <span className="min-w-0 flex-1 truncate text-xs text-slate-600" title={email}>
+              <span className="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300" title={email}>
                 {email}
               </span>
               <form action={logoutAction}>
@@ -221,7 +226,7 @@ export function AppSidebar({
                   type="submit"
                   title="Se déconnecter"
                   aria-label="Se déconnecter"
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
                 >
                   <IconLogout className="h-4 w-4" />
                 </button>

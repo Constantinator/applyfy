@@ -26,10 +26,18 @@ export const metadata: Metadata = {
   }),
 };
 
+// Thème appliqué avant l'affichage (pas de flash clair) : choix enregistré (« theme »),
+// sinon réglage du système. N'a d'effet que sur les pages de l'app (cf. globals.css).
+const THEME_SCRIPT = `try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
+    // suppressHydrationWarning : la classe « dark » est ajoutée par THEME_SCRIPT avant React.
+    <html lang="fr" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {children}
         <SiteFooter />
         {/* Meta Pixel et Google Ads : chargés seulement après acceptation dans le bandeau. */}

@@ -43,14 +43,14 @@ export function DeleteAccount() {
         className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-xl backdrop:bg-slate-900/50"
       >
         <div className="space-y-4 p-6">
-          <h2 id="delete-account-title" className="text-lg font-semibold text-slate-900">
+          <h2 id="delete-account-title" className="text-lg font-semibold text-slate-900 dark:text-white">
             Es-tu sûr ?
           </h2>
-          <p id="delete-account-description" className="text-sm text-slate-600">
+          <p id="delete-account-description" className="text-sm text-slate-600 dark:text-slate-300">
             Cette action est irréversible et supprimera toutes tes candidatures, CV et données.
           </p>
           {error && (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+            <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
               {error}
             </p>
           )}

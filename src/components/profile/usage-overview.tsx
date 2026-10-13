@@ -12,12 +12,12 @@ import {
 export function UsageOverview({ usage }: { usage: AiUsage }) {
   if (usage.premium) {
     return (
-      <ul className="divide-y divide-slate-100 text-sm">
+      <ul className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
         {AI_USAGE_KINDS.map((kind) => (
           <li key={kind} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
-            <span className="font-medium text-slate-700">{AI_USAGE_LABELS[kind].title}</span>
-            <span className="text-slate-500">
-              {usageLabel(kind, usage.counts[kind])} · <span className="text-emerald-700">illimité</span>
+            <span className="font-medium text-slate-700 dark:text-slate-200">{AI_USAGE_LABELS[kind].title}</span>
+            <span className="text-slate-500 dark:text-slate-400">
+              {usageLabel(kind, usage.counts[kind])} · <span className="text-emerald-700 dark:text-emerald-300">illimité</span>
             </span>
           </li>
         ))}
@@ -40,10 +40,10 @@ export function UsageOverview({ usage }: { usage: AiUsage }) {
           return (
             <li key={kind} className="space-y-1.5">
               <div className="flex items-baseline justify-between gap-3 text-sm">
-                <span id={labelId} className="font-medium text-slate-700">
+                <span id={labelId} className="font-medium text-slate-700 dark:text-slate-200">
                   {title}
                 </span>
-                <span className={reached ? "font-medium text-amber-800" : "text-slate-500"}>
+                <span className={reached ? "font-medium text-amber-800 dark:text-amber-200" : "text-slate-500 dark:text-slate-400"}>
                   {usageLabel(kind, { used, limit })}
                 </span>
               </div>
@@ -54,7 +54,7 @@ export function UsageOverview({ usage }: { usage: AiUsage }) {
                 aria-valuemax={limit}
                 aria-valuenow={shown}
                 aria-valuetext={`${shown} sur ${limit}`}
-                className="h-2 overflow-hidden rounded-full bg-slate-100"
+                className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
               >
                 <div
                   className={`h-full rounded-full transition-[width] ${
@@ -68,7 +68,7 @@ export function UsageOverview({ usage }: { usage: AiUsage }) {
         })}
       </ul>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         Tes compteurs repartent à zéro le {formatResetDate(usage.resetsOn)}.
       </p>
 

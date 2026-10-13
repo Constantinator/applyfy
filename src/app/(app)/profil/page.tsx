@@ -64,40 +64,40 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900">
+      <Link href="/dashboard" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
         ← Retour au dashboard
       </Link>
 
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon profil</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Mon profil</h1>
           {beta?.status === "active" && (
             <span className="bg-brand rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm">
               Beta testeur
             </span>
           )}
         </div>
-        {user?.email && <p className="mt-1 text-sm text-slate-500">{user.email}</p>}
+        {user?.email && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{user.email}</p>}
       </div>
 
       <section aria-labelledby="abonnement-title" className="space-y-4 card p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 id="abonnement-title" className="font-semibold text-slate-900">
+            <h2 id="abonnement-title" className="font-semibold text-slate-900 dark:text-white">
               Mon abonnement
             </h2>
-            <p className="mt-1 text-sm text-slate-500">{planDescription}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{planDescription}</p>
           </div>
           <span
             className={`rounded-full px-3 py-1 text-sm font-semibold ring-1 ${
-              premium ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-slate-100 text-slate-700 ring-slate-200"
+              premium ? "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-blue-200 dark:ring-blue-400/30" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 ring-slate-200 dark:ring-slate-700"
             }`}
           >
             {premium ? "Premium" : "Gratuit"}
           </span>
         </div>
         {abonnement === "indisponible" && (
-          <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+          <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-500/15 px-4 py-3 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
             La gestion de l&apos;abonnement n&apos;a pas pu s&apos;ouvrir. Réessaie dans un instant.
           </p>
         )}
@@ -118,10 +118,10 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
 
       <section aria-labelledby="identite-title" className="space-y-4 card p-5 sm:p-6">
         <div>
-          <h2 id="identite-title" className="font-semibold text-slate-900">
+          <h2 id="identite-title" className="font-semibold text-slate-900 dark:text-white">
             Prénom et nom
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Utilisés pour signer tes lettres de motivation et remplir leur objet.
           </p>
         </div>
@@ -133,16 +133,16 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
         className="space-y-4 card p-5 sm:p-6"
       >
         <div>
-          <h2 id="profil-cv-title" className="font-semibold text-slate-900">
+          <h2 id="profil-cv-title" className="font-semibold text-slate-900 dark:text-white">
             Mes CV
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Enregistre jusqu&apos;à {PROFILE_CV_LIMIT} CV (ex. « CV Data », « CV Marketing ») : tu
             choisiras lequel utiliser dans « Adapter mon CV » sur chaque candidature.
           </p>
         </div>
         <ProfileCvs cvs={cvs} />
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Tes CV sont stockés de façon privée : toi seul·e y as accès. Lors d&apos;une analyse, le CV
           choisi est transmis à Claude (Anthropic).
         </p>
@@ -150,10 +150,10 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
 
       <section aria-labelledby="utilisation-title" className="space-y-4 card p-5 sm:p-6">
         <div>
-          <h2 id="utilisation-title" className="font-semibold text-slate-900">
+          <h2 id="utilisation-title" className="font-semibold text-slate-900 dark:text-white">
             Mon utilisation
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {premium ? (
               "Premium : toutes les fonctionnalités IA sont illimitées."
             ) : (
@@ -172,10 +172,10 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
         className="space-y-4 card p-5 sm:p-6"
       >
         <div>
-          <h2 id="rappels-title" className="font-semibold text-slate-900">
+          <h2 id="rappels-title" className="font-semibold text-slate-900 dark:text-white">
             Rappels de relance
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Reçois un email quand il est temps de relancer une candidature restée sans réponse
             {user?.email ? ` (envoyé à ${user.email})` : ""}.
           </p>
@@ -185,13 +185,13 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
 
       <section
         aria-labelledby="danger-title"
-        className="space-y-4 rounded-2xl border border-red-200 bg-red-50/40 p-5 sm:p-6"
+        className="space-y-4 rounded-2xl border border-red-200 dark:border-red-400/30 bg-red-50/40 p-5 sm:p-6"
       >
         <div>
-          <h2 id="danger-title" className="font-semibold text-red-700">
+          <h2 id="danger-title" className="font-semibold text-red-700 dark:text-red-300">
             Zone dangereuse
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             Supprime définitivement ton compte Applyfy et toutes tes données : candidatures,
             historique, CV, lettres et préférences. Cette action est irréversible.
           </p>

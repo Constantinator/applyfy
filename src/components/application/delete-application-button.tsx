@@ -21,7 +21,7 @@ export function DeleteApplicationButton({
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
-        className="rounded-lg px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-300 hover:bg-red-50"
+        className="rounded-lg px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 ring-1 ring-red-300 hover:bg-red-50"
       >
         Supprimer la candidature
       </button>
@@ -34,19 +34,19 @@ export function DeleteApplicationButton({
       >
         <form action={formAction} className="space-y-4 p-6">
           <input type="hidden" name="id" value={applicationId} />
-          <h2 id="delete-title" className="text-lg font-semibold text-slate-900">
+          <h2 id="delete-title" className="text-lg font-semibold text-slate-900 dark:text-white">
             Supprimer la candidature {company} ?
           </h2>
-          <p id="delete-description" className="text-sm text-slate-600">
+          <p id="delete-description" className="text-sm text-slate-600 dark:text-slate-300">
             Es-tu sûr de vouloir supprimer cette candidature ? Cette action est irréversible.
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             L&apos;historique, le résumé et les documents associés seront aussi supprimés.
           </p>
           {state.status === "error" && (
             <p
               role="alert"
-              className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200"
+              className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30"
             >
               {state.message}
             </p>

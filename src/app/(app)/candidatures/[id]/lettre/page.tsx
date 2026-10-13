@@ -39,7 +39,9 @@ export default async function CoverLetterPage({ params, searchParams }: PageProp
   const { application: app } = detail;
 
   return (
+    // data-theme-off : l'éditeur reste en clair même en mode sombre (feuille blanche).
     <main
+      data-theme-off
       className={`${cvFontVariables} mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
     >
       <div className="space-y-1 print:hidden">

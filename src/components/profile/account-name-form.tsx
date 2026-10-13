@@ -36,7 +36,7 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <label htmlFor="account-first-name" className="text-sm font-medium text-slate-700">
+          <label htmlFor="account-first-name" className="text-sm font-medium text-slate-700 dark:text-slate-200">
             Prénom
           </label>
           <input
@@ -49,7 +49,7 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
           />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="account-last-name" className="text-sm font-medium text-slate-700">
+          <label htmlFor="account-last-name" className="text-sm font-medium text-slate-700 dark:text-slate-200">
             Nom
           </label>
           <input
@@ -74,7 +74,7 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
         {feedback && !pending && (
           <p
             role={feedback.ok ? "status" : "alert"}
-            className={`text-sm ${feedback.ok ? "text-emerald-700" : "text-red-600"}`}
+            className={`text-sm ${feedback.ok ? "text-emerald-700 dark:text-emerald-300" : "text-red-600 dark:text-red-400"}`}
           >
             {feedback.text}
           </p>

@@ -7,7 +7,7 @@ export function EmptyDashboard() {
   return (
     <section
       aria-labelledby="empty-title"
-      className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm sm:py-20"
+      className="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-14 text-center shadow-sm sm:py-20"
     >
       {/* Halo décoratif */}
       <div
@@ -21,14 +21,14 @@ export function EmptyDashboard() {
           <div className="bg-brand flex h-24 w-24 items-center justify-center rounded-[1.75rem] text-white shadow-xl shadow-blue-500/25">
             <IconBriefcase className="h-11 w-11" />
           </div>
-          <IconSparkles className="absolute -top-3 -right-4 h-7 w-7 text-blue-600" />
+          <IconSparkles className="absolute -top-3 -right-4 h-7 w-7 text-blue-600 dark:text-blue-400" />
           <span className="absolute -bottom-2 -left-3 h-4 w-4 rounded-full bg-blue-200" />
         </div>
 
-        <h2 id="empty-title" className="mt-8 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        <h2 id="empty-title" className="mt-8 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
           Commence ta recherche d&apos;emploi
         </h2>
-        <p className="mx-auto mt-3 max-w-md text-slate-500">
+        <p className="mx-auto mt-3 max-w-md text-slate-500 dark:text-slate-400">
           Ajoute ta première candidature et laisse Applyfy t&apos;aider à décrocher le job idéal
         </p>
 

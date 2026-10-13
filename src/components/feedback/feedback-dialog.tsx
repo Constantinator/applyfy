@@ -37,10 +37,10 @@ function Star({ filled }: { filled: boolean }) {
   );
 }
 
-const legend = "text-sm font-semibold text-slate-900";
+const legend = "text-sm font-semibold text-slate-900 dark:text-white";
 const choice = (selected: boolean) =>
   `cursor-pointer rounded-xl px-3 py-2 text-sm ring-1 transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 ${
-    selected ? "bg-blue-50 font-medium text-blue-700 ring-blue-300" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+    selected ? "bg-blue-50 dark:bg-blue-500/15 font-medium text-blue-700 dark:text-blue-300 ring-blue-300" : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 ring-slate-200 dark:ring-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
   }`;
 
 /**
@@ -106,23 +106,23 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
       <button
         type="button"
         onClick={open}
-        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 ${className}`}
+        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white ${className}`}
       >
-        <IconStar className="text-blue-600 h-5 w-5" />
+        <IconStar className="text-blue-600 dark:text-blue-400 h-5 w-5" />
         Donner mon avis
       </button>
 
       <dialog
         ref={dialogRef}
         aria-labelledby="feedback-title"
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl bg-white p-0 shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 p-0 shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 px-6 py-5">
           <div>
-            <h2 id="feedback-title" className="text-lg font-bold tracking-tight text-slate-900">
+            <h2 id="feedback-title" className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
               Donner mon avis
             </h2>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
               {hasExisting ? "Tu peux modifier ton avis à tout moment." : "1 minute pour nous aider à améliorer Applyfy."}
             </p>
           </div>
@@ -130,7 +130,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
             type="button"
             onClick={close}
             aria-label="Fermer"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
           >
             ✕
           </button>
@@ -141,16 +141,16 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
             <p className="text-3xl" aria-hidden="true">
               🙏
             </p>
-            <p role="status" className="font-semibold text-slate-900">
+            <p role="status" className="font-semibold text-slate-900 dark:text-white">
               Merci pour ton avis !
             </p>
-            <p className="text-sm text-slate-500">Il nous aide à choisir les prochaines améliorations.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Il nous aide à choisir les prochaines améliorations.</p>
             <button type="button" onClick={close} className="btn-primary px-5 py-2.5 text-sm">
               Fermer
             </button>
           </div>
         ) : loading ? (
-          <p role="status" className="px-6 py-10 text-center text-sm text-slate-500">
+          <p role="status" className="px-6 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
             Chargement…
           </p>
         ) : (
@@ -178,7 +178,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
                   );
                 })}
                 {draft.rating > 0 && (
-                  <span className="ml-2 text-sm text-slate-500">{STAR_LABELS[draft.rating - 1]}</span>
+                  <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">{STAR_LABELS[draft.rating - 1]}</span>
                 )}
               </div>
             </fieldset>
@@ -204,7 +204,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
 
             <fieldset>
               <legend className={legend}>
-                Ce qui manque <span className="font-normal text-slate-500">(plusieurs choix possibles)</span>
+                Ce qui manque <span className="font-normal text-slate-500 dark:text-slate-400">(plusieurs choix possibles)</span>
               </legend>
               <div className="mt-2 flex flex-wrap gap-2">
                 {Object.entries(MISSING_FEATURES).map(([value, label]) => {
@@ -227,7 +227,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
 
             <div>
               <label htmlFor="feedback-improvement" className={legend}>
-                Une chose à améliorer <span className="font-normal text-slate-500">(optionnel)</span>
+                Une chose à améliorer <span className="font-normal text-slate-500 dark:text-slate-400">(optionnel)</span>
               </label>
               <textarea
                 id="feedback-improvement"
@@ -260,7 +260,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
             </fieldset>
 
             {error && (
-              <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+              <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
                 {error}
               </p>
             )}
@@ -273,7 +273,7 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
                 Annuler
               </button>
               {!complete && (
-                <p className="text-xs text-slate-500">Note, fonctionnalité préférée et recommandation requises.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Note, fonctionnalité préférée et recommandation requises.</p>
               )}
             </div>
           </form>

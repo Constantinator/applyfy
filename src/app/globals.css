@@ -7,6 +7,16 @@
  * fonds white / slate-50 (#F8FAFC), textes slate-900 (#0F172A) / slate-500 (#64748B),
  * bordures slate-200 (#E2E8F0), succès emerald-500, alerte amber-500, erreur red-500.
  */
+/*
+ * Mode sombre (classe « dark » sur <html>, choisie dans la sidebar ; voir ThemeToggle et le
+ * script du layout racine). Limité aux pages de l'app, marquées par data-theme-scope : la
+ * landing, le blog et les pages légales restent en clair, comme les éditeurs de CV et de
+ * lettre (data-theme-off : la feuille reste blanche, comme à l'impression).
+ */
+@custom-variant dark (&:where(.dark:has([data-theme-scope]):not(:has([data-theme-off])), .dark:has([data-theme-scope]):not(:has([data-theme-off])) *));
+/* Choix de l'utilisateur, même là où le thème sombre ne s'applique pas (bouton de bascule). */
+@custom-variant theme-dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
@@ -28,6 +38,11 @@
 
 body {
   font-family: var(--font-sans);
+}
+
+/* Contrôles natifs (champs, listes, barres de défilement) assortis au thème sombre. */
+.dark:has([data-theme-scope]):not(:has([data-theme-off])) {
+  color-scheme: dark;
 }
 
 /* Couleur de marque unie (aucun dégradé dans l'interface) */
@@ -99,6 +114,17 @@ body {
     cursor: not-allowed;
     opacity: 0.5;
   }
+
+  @variant dark {
+    border-color: var(--color-slate-700);
+    background-color: var(--color-slate-900);
+    color: var(--color-slate-200);
+
+    &:hover {
+      background-color: var(--color-slate-800);
+      border-color: var(--color-slate-600);
+    }
+  }
 }
 
 /* Champs de formulaire : coins arrondis, focus bleu */
@@ -128,6 +154,20 @@ body {
     color: var(--color-slate-400);
     cursor: not-allowed;
   }
+
+  @variant dark {
+    border-color: var(--color-slate-700);
+    background-color: var(--color-slate-900);
+    color: var(--color-slate-100);
+
+    &::placeholder {
+      color: var(--color-slate-500);
+    }
+    &:disabled {
+      background-color: var(--color-slate-800);
+      color: var(--color-slate-500);
+    }
+  }
 }
 
 /* Carte : fond blanc, coins arrondis, ombre légère */
@@ -136,6 +176,12 @@ body {
   border: 1px solid var(--color-slate-200);
   background-color: white;
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px -8px rgb(15 23 42 / 0.08);
+
+  @variant dark {
+    border-color: var(--color-slate-800);
+    background-color: var(--color-slate-900);
+    box-shadow: none;
+  }
 }
 
 /* Apparition des bulles d'aide (onboarding). */

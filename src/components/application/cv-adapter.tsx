@@ -28,7 +28,7 @@ function Spinner() {
   return (
     <span
       aria-hidden="true"
-      className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
+      className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 dark:border-slate-700 border-t-blue-600"
     />
   );
 }
@@ -63,17 +63,17 @@ function SuggestionList({
   const styles =
     tone === "match"
       ? { box: "border-[#BFDBFE] bg-[#F0F7FF]", title: "text-[#1E40AF]", marker: "text-[#1E40AF]/60" }
-      : { box: "border-[#E2E8F0] bg-[#F8FAFC]", title: "text-[#374151]", marker: "text-[#9CA3AF]" };
+      : { box: "border-[#E2E8F0] dark:border-slate-700 bg-[#F8FAFC]", title: "text-[#374151] dark:text-slate-200", marker: "text-[#9CA3AF]" };
 
   return (
     <section className={`rounded-xl border p-4 ${styles.box}`}>
       <h3 className={`flex items-center gap-2 font-semibold ${styles.title}`}>
         {tone === "match" ? <CheckIcon className="h-4 w-4" /> : <DashIcon className="h-4 w-4" />}
         {title}
-        <span className="text-sm font-normal text-slate-500">({items.length})</span>
+        <span className="text-sm font-normal text-slate-500 dark:text-slate-400">({items.length})</span>
       </h3>
       {items.length > 0 ? (
-        <ul className="mt-3 space-y-1.5 text-sm text-[#374151]">
+        <ul className="mt-3 space-y-1.5 text-sm text-[#374151] dark:text-slate-200">
           {items.map((item, i) => (
             <li key={`${i}-${item}`} className="flex gap-2">
               <span aria-hidden="true" className={styles.marker}>
@@ -84,7 +84,7 @@ function SuggestionList({
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-slate-500">{empty}</p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{empty}</p>
       )}
     </section>
   );
@@ -173,11 +173,11 @@ export function CvAdapter({
     startTransition(() => adaptAction(formData));
   }
 
-  const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700";
+  const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700 dark:text-slate-200";
 
   const sourcePicker = (
     <fieldset className="space-y-3" disabled={busy}>
-      <legend className="text-sm font-medium text-slate-700">Quel CV analyser ?</legend>
+      <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">Quel CV analyser ?</legend>
 
       {profileCvs.length > 0 ? (
         <div className="space-y-2">
@@ -191,15 +191,15 @@ export function CvAdapter({
                 className="mt-0.5 accent-blue-600"
               />
               <span>
-                {cv.name} <span className="text-slate-500">({cv.fileName})</span>
+                {cv.name} <span className="text-slate-500 dark:text-slate-400">({cv.fileName})</span>
               </span>
             </label>
           ))}
         </div>
       ) : (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Astuce : enregistre tes CV dans{" "}
-          <Link href="/profil" className="font-medium text-blue-700 underline underline-offset-2">
+          <Link href="/profil" className="font-medium text-blue-700 dark:text-blue-300 underline underline-offset-2">
             Mon profil
           </Link>{" "}
           pour ne plus avoir à les importer.
@@ -237,10 +237,10 @@ export function CvAdapter({
                 else if (selected.size > CV_MAX_BYTES) setFileError(`Ce fichier dépasse ${CV_MAX_LABEL}.`);
                 else setFileError(null);
               }}
-              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
+              className="block w-full text-sm text-slate-700 dark:text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
             />
-            <p className="mt-1 text-xs text-slate-500">PDF, {CV_MAX_LABEL} max.</p>
-            {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">PDF, {CV_MAX_LABEL} max.</p>
+            {fileError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileError}</p>}
           </div>
         )}
       </div>
@@ -251,11 +251,11 @@ export function CvAdapter({
   return (
     <section aria-labelledby="cv-title" className="card p-5">
       <div>
-        <h2 id="cv-title" className="text-blue-600 font-semibold">
+        <h2 id="cv-title" className="text-blue-600 dark:text-blue-400 font-semibold">
           Adapter mon CV
         </h2>
         {suggestions && generatedAt && (
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Analyse du {dateTimeFormatter.format(new Date(generatedAt))}.
           </p>
         )}
@@ -284,7 +284,7 @@ export function CvAdapter({
         </OnboardingTip>
       </div>
 
-      {!aiEnabled && <p className="mt-3 text-xs text-slate-500">Analyse non disponible sur ce site.</p>}
+      {!aiEnabled && <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Analyse non disponible sur ce site.</p>}
 
       {aiEnabled && limitReached && !busy && (
         <div className="mt-4">
@@ -293,10 +293,10 @@ export function CvAdapter({
       )}
 
       {pickerOpen && (
-        <div className="mt-4 space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+        <div className="mt-4 space-y-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-200 dark:ring-slate-700">
           {sourcePicker}
           {!hasOfferDescription && (
-            <p className="text-xs text-amber-800">
+            <p className="text-xs text-amber-800 dark:text-amber-200">
               Cette candidature n&apos;a pas de description d&apos;offre : l&apos;analyse se basera sur
               l&apos;intitulé du poste et sera moins précise.
             </p>
@@ -321,13 +321,13 @@ export function CvAdapter({
             )}
           </div>
           {analyzing && (
-            <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+            <p role="status" className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <Spinner />
               Analyse de ton CV et de l&apos;offre… cela prend généralement 30 à 60 secondes.
             </p>
           )}
           {adaptState.status === "error" && !adaptState.limitReached && !analyzing && (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+            <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
               {adaptState.message}
             </p>
           )}

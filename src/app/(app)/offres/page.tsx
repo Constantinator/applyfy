@@ -126,14 +126,14 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   // Sur mobile, l'offre sélectionnée s'affiche seule (page dédiée) : le reste est masqué.
   const mobileHidden = selected ? "max-lg:hidden" : "";
 
-  const label = "text-sm font-medium text-slate-700";
+  const label = "text-sm font-medium text-slate-700 dark:text-slate-200";
   return (
     <main
       className={`mx-auto w-full ${result || selected ? "max-w-7xl" : "max-w-5xl"} flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10`}
     >
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Trouver une offre</h1>
-        <p className="mt-1.5 text-slate-500">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Trouver une offre</h1>
+        <p className="mt-1.5 text-slate-500 dark:text-slate-400">
           Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
         </p>
         <p className="mt-1 text-xs text-slate-400">
@@ -146,7 +146,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         <div className={mobileHidden}>
           <RecommendationsToggle active={recommending} canAutoOpen={!hasManualSearch && !selectedId}>
             {basis && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Basées sur tes candidatures : « {basis.keywords} »
                 {department ? ` · ${department.name}` : basis.place ? ` · ${basis.place}` : " · toute la France"}
                 {basis.contract ? ` · ${CONTRACT_FILTERS[basis.contract]}` : ""}
@@ -241,7 +241,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       )}
 
       {error && (
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+        <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-500/15 px-4 py-3 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
           {error}
         </p>
       )}
@@ -259,11 +259,11 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       )}
 
       {recommending && !basis && !selected && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="font-medium text-slate-900">
+        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center">
+          <p className="font-medium text-slate-900 dark:text-white">
             Ajoute des candidatures pour recevoir des recommandations personnalisées
           </p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Les offres recommandées s&apos;appuient sur les postes et les villes de tes candidatures
             envoyées (les brouillons ne sont pas pris en compte).
           </p>
@@ -274,9 +274,9 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       )}
 
       {configured && !hasSearch && !recommending && !selected && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="font-medium text-slate-900">Lance ta recherche</p>
-          <p className="mt-1 text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center">
+          <p className="font-medium text-slate-900 dark:text-white">Lance ta recherche</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Indique un poste, une ville ou un type de contrat pour voir les offres correspondantes.
           </p>
         </div>
@@ -286,8 +286,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           {result && (
             <section aria-labelledby="offres-resultats" className={`space-y-4 ${mobileHidden}`}>
-              <h2 id="offres-resultats" className="text-sm text-slate-600">
-                <strong className="font-semibold text-slate-900">
+              <h2 id="offres-resultats" className="text-sm text-slate-600 dark:text-slate-300">
+                <strong className="font-semibold text-slate-900 dark:text-white">
                   {numberFormatter.format(result.total)} offre{result.total > 1 ? "s" : ""}
                 </strong>
                 {department && <> · {department.name}</>}
@@ -295,20 +295,20 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
               </h2>
 
               {result.offers.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+                <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center">
                   {recommending ? (
                     <>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-slate-900 dark:text-white">
                         Aucune recommandation trouvée — essaie une recherche manuelle
                       </p>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         Utilise le formulaire ci-dessus avec d&apos;autres mots-clés ou une autre ville.
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="font-medium text-slate-900">Aucune offre ne correspond</p>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="font-medium text-slate-900 dark:text-white">Aucune offre ne correspond</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         Essaie d&apos;autres mots-clés ou retire un filtre.
                       </p>
                     </>
@@ -333,8 +333,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                             isSelected ? "bg-blue-50/60 ring-2 ring-blue-500" : "hover:ring-1 hover:ring-blue-300"
                           }`}
                         >
-                          <h3 className="text-lg leading-snug font-bold text-slate-900">{offer.title}</h3>
-                          <p className="mt-1 text-[15px] font-medium text-slate-700">
+                          <h3 className="text-lg leading-snug font-bold text-slate-900 dark:text-white">{offer.title}</h3>
+                          <p className="mt-1 text-[15px] font-medium text-slate-700 dark:text-slate-200">
                             {offer.company ?? "Entreprise non communiquée"}
                           </p>
                           <div className="mt-3 flex items-end justify-between gap-3">
@@ -346,7 +346,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                                 </li>
                               ))}
                             </ul>
-                            <span className="shrink-0 rounded-full bg-[#F9FAFB] px-2 py-0.5 text-[11px] text-[#6B7280] ring-1 ring-slate-200">
+                            <span className="shrink-0 rounded-full bg-[#F9FAFB] dark:bg-slate-800 px-2 py-0.5 text-[11px] text-[#6B7280] dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700">
                               <span className="sr-only">Source : </span>
                               {OFFER_SOURCES[offer.source]}
                             </span>
@@ -367,7 +367,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                   ) : (
                     <span />
                   )}
-                  <span className="text-slate-500">
+                  <span className="text-slate-500 dark:text-slate-400">
                     Page {page} sur {numberFormatter.format(pageCount)}
                   </span>
                   {page < pageCount ? (
@@ -394,9 +394,9 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           ) : (
             result &&
             result.offers.length > 0 && (
-              <div className="hidden rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center lg:sticky lg:top-6 lg:block">
-                <p className="font-medium text-slate-900">Sélectionne une offre</p>
-                <p className="mt-1 text-sm text-slate-500">
+              <div className="hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center lg:sticky lg:top-6 lg:block">
+                <p className="font-medium text-slate-900 dark:text-white">Sélectionne une offre</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Ses détails s&apos;afficheront ici : description, salaire, profil recherché.
                 </p>
               </div>
