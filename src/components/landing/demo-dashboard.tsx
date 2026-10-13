@@ -227,6 +227,15 @@ function PanelCard({
   );
 }
 
+// Boutons de la fiche, équivalents sombres de btn-primary et btn-secondary.
+const PRIMARY_BUTTON =
+  "inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700";
+const SECONDARY_BUTTON =
+  "inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10";
+
+const TOAST_CREATE = "Inscris-toi pour créer ta première candidature →";
+const TOAST_FEATURE = "Inscris-toi pour accéder à cette fonctionnalité →";
+
 const NAV = [
   { label: "Tableau de bord", icon: IconGrid, active: true },
   { label: "Trouver une offre", icon: IconSearch, active: false },
@@ -238,10 +247,19 @@ export function DemoDashboard() {
   const [openId, setOpenId] = useState<string | null>(null);
   // Dernière candidature ouverte : reste affichée pendant l'animation de fermeture.
   const [shownId, setShownId] = useState<string | null>(null);
-  const [toast, setToast] = useState(false);
+  // Message « Inscris-toi » : texte selon le bouton cliqué ; id relance le minuteur à chaque clic.
+  const [toast, setToast] = useState({ text: TOAST_CREATE, id: 0, visible: false });
   const open = APPLICATIONS.find((app) => app.id === openId) ?? null;
   const shown = APPLICATIONS.find((app) => app.id === shownId) ?? null;
   const closeRef = useRef<HTMLButtonElement>(null);
+
+  function showToast(text: string) {
+    setToast((current) => ({ text, id: current.id + 1, visible: true }));
+  }
+
+  function hideToast() {
+    setToast((current) => ({ ...current, visible: false }));
+  }
 
   function openApplication(id: string) {
     setOpenId(id);
@@ -261,10 +279,10 @@ export function DemoDashboard() {
 
   // Message « Inscris-toi » : disparaît seul après quelques secondes.
   useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(false), 5000);
+    if (!toast.visible) return;
+    const timer = window.setTimeout(hideToast, 5000);
     return () => window.clearTimeout(timer);
-  }, [toast]);
+  }, [toast.id, toast.visible]);
 
   const stats = [
     {
@@ -339,7 +357,7 @@ export function DemoDashboard() {
             </div>
             <button
               type="button"
-              onClick={() => setToast(true)}
+              onClick={() => showToast(TOAST_CREATE)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/40 transition hover:bg-blue-700"
             >
               <IconPlus className="h-4 w-4" />
@@ -528,6 +546,22 @@ export function DemoDashboard() {
                           </ul>
                         </div>
                       </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => showToast(TOAST_FEATURE)}
+                          className={PRIMARY_BUTTON}
+                        >
+                          Ouvrir l&apos;éditeur de CV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => showToast(TOAST_FEATURE)}
+                          className={SECONDARY_BUTTON}
+                        >
+                          Analyser mon CV
+                        </button>
+                      </div>
                     </PanelCard>
 
                     <PanelCard title="Lettre de motivation">
@@ -537,6 +571,22 @@ export function DemoDashboard() {
                       <blockquote className="mt-2 rounded-xl border border-white/10 bg-slate-950/60 p-3 leading-relaxed text-slate-300">
                         {shown.letter}
                       </blockquote>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => showToast(TOAST_FEATURE)}
+                          className={PRIMARY_BUTTON}
+                        >
+                          Ouvrir l&apos;éditeur de lettre
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => showToast(TOAST_FEATURE)}
+                          className={SECONDARY_BUTTON}
+                        >
+                          Générer ma lettre de motivation
+                        </button>
+                      </div>
                     </PanelCard>
 
                     {shown.followUp && (
@@ -577,23 +627,25 @@ export function DemoDashboard() {
         </aside>
       </div>
 
-      {/* Message au clic sur « Nouvelle candidature » */}
+      {/* Message au clic sur « Nouvelle candidature » et sur les boutons de la fiche */}
       <div
         role="status"
         aria-live="polite"
-        inert={!toast}
+        inert={!toast.visible}
         className={`fixed inset-x-4 bottom-6 z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-slate-100 shadow-2xl transition duration-300 ${
-          toast ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
+          toast.visible
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-4 opacity-0"
         }`}
       >
         {/* Contenu toujours présent : il reste visible pendant que le message s'efface. */}
         <>
           <Link href="/login" className="font-medium text-white underline-offset-4 hover:underline">
-            Inscris-toi pour créer ta première candidature →
+            {toast.text}
           </Link>
           <button
             type="button"
-            onClick={() => setToast(false)}
+            onClick={hideToast}
             aria-label="Fermer le message"
             className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
           >
