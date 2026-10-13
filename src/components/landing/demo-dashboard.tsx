@@ -8,7 +8,9 @@ import {
   IconBell,
   IconBriefcase,
   IconChat,
+  IconClock,
   IconGrid,
+  IconMapPin,
   IconPlus,
   IconSearch,
   IconSparkles,
@@ -203,14 +205,198 @@ const SECONDARY_BUTTON = "btn-secondary px-4 py-2 text-sm";
 const TOAST_CREATE = "Inscris-toi pour créer ta première candidature →";
 const TOAST_FEATURE = "Inscris-toi pour accéder à cette fonctionnalité →";
 
-const NAV = [
-  { label: "Tableau de bord", icon: IconGrid, active: true },
-  { label: "Trouver une offre", icon: IconSearch, active: false },
-  { label: "Nouvelle candidature", icon: IconPlus, active: false },
-  { label: "Mon profil", icon: IconUser, active: false },
+type Screen = "dashboard" | "offres";
+
+// Navigation de la démo : « Tableau de bord » et « Trouver une offre » changent d'écran,
+// les autres liens affichent le message d'inscription.
+const NAV: { label: string; icon: typeof IconGrid; screen: Screen | null }[] = [
+  { label: "Tableau de bord", icon: IconGrid, screen: "dashboard" },
+  { label: "Trouver une offre", icon: IconSearch, screen: "offres" },
+  { label: "Nouvelle candidature", icon: IconPlus, screen: null },
+  { label: "Mon profil", icon: IconUser, screen: null },
 ];
 
+const SCREEN_URLS: Record<Screen, string> = {
+  dashboard: "applyfy.fr/dashboard",
+  offres: "applyfy.fr/offres",
+};
+
+type DemoOffer = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  contract: string;
+  published: string;
+  source: "France Travail" | "Adzuna";
+};
+
+const OFFERS: DemoOffer[] = [
+  {
+    id: "qonto",
+    title: "Product Manager Junior",
+    company: "Qonto",
+    location: "Paris",
+    contract: "CDI",
+    published: "Il y a 2 jours",
+    source: "France Travail",
+  },
+  {
+    id: "swile",
+    title: "Business Developer — Stage 6 mois",
+    company: "Swile",
+    location: "Montpellier",
+    contract: "Stage",
+    published: "Hier",
+    source: "Adzuna",
+  },
+  {
+    id: "decathlon",
+    title: "Data Analyst en alternance",
+    company: "Decathlon",
+    location: "Lille",
+    contract: "Alternance",
+    published: "Il y a 3 jours",
+    source: "France Travail",
+  },
+  {
+    id: "ledger",
+    title: "Customer Success Manager",
+    company: "Ledger",
+    location: "Paris · Hybride",
+    contract: "CDD",
+    published: "Aujourd'hui",
+    source: "Adzuna",
+  },
+];
+
+/** Faux champ de la recherche d'offres (style « input ») : un clic affiche le message. */
+function FakeField({
+  label,
+  value,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  icon?: typeof IconSearch;
+  onClick: () => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <button
+        type="button"
+        onClick={onClick}
+        className="input flex items-center gap-2 py-2.5 text-left text-slate-500"
+      >
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
+        <span className="truncate">{value}</span>
+        {!Icon && <span className="ml-auto text-slate-400">▾</span>}
+      </button>
+    </div>
+  );
+}
+
+/** Écran « Trouver une offre » de la démo (calqué sur /offres). */
+function DemoOffers({ onFeature }: { onFeature: () => void }) {
+  return (
+    <div className="min-w-0 flex-1 space-y-6 p-5 sm:p-7">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Trouver une offre</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onFeature}
+        className="inline-flex items-center gap-3 text-sm font-medium text-slate-700"
+      >
+        <span className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-slate-200">
+          <span className="h-5 w-5 translate-x-0.5 rounded-full bg-white shadow-sm" />
+        </span>
+        Recommandations personnalisées
+      </button>
+
+      <div role="search" className="card animate-demo-in space-y-4 p-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FakeField
+            label="Mot-clé"
+            value="Product, data, business…"
+            icon={IconSearch}
+            onClick={onFeature}
+          />
+          <FakeField
+            label="Localisation"
+            value="Paris, Lille, Montpellier"
+            icon={IconMapPin}
+            onClick={onFeature}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <FakeField label="Type de contrat" value="Tous les contrats" onClick={onFeature} />
+          <FakeField label="Secteur" value="Tous les secteurs" onClick={onFeature} />
+          <button type="button" onClick={onFeature} className="btn-primary px-6 py-2.5 text-sm">
+            <IconSearch className="h-4 w-4" />
+            Rechercher
+          </button>
+        </div>
+      </div>
+
+      <section className="space-y-3">
+        <p className="text-sm text-slate-600">
+          <strong className="font-semibold text-slate-900">{OFFERS.length} offres</strong>
+        </p>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {OFFERS.map((offer, index) => (
+            <li
+              key={offer.id}
+              style={{ animationDelay: `${150 + index * 110}ms` }}
+              className="animate-demo-in"
+            >
+              <button
+                type="button"
+                onClick={onFeature}
+                className="card block h-full w-full p-5 text-left transition hover:ring-1 hover:ring-blue-300"
+              >
+                <span className="block text-base leading-snug font-bold text-slate-900">
+                  {offer.title}
+                </span>
+                <span className="mt-1 block text-sm font-medium text-slate-700">
+                  {offer.company}
+                </span>
+                <span className="mt-3 flex items-end justify-between gap-3">
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                    <span className="inline-flex items-center gap-1">
+                      <IconMapPin className="h-3.5 w-3.5 text-slate-300" />
+                      {offer.location}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <IconClock className="h-3.5 w-3.5 text-slate-300" />
+                      {offer.published}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <IconBriefcase className="h-3.5 w-3.5 text-slate-300" />
+                      {offer.contract}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-[#F9FAFB] px-2 py-0.5 text-[11px] text-[#6B7280] ring-1 ring-slate-200">
+                    {offer.source}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
 export function DemoDashboard() {
+  const [screen, setScreen] = useState<Screen>("dashboard");
   const [openId, setOpenId] = useState<string | null>(null);
   // Dernière candidature ouverte : reste affichée pendant l'animation de fermeture.
   const [shownId, setShownId] = useState<string | null>(null);
@@ -226,6 +412,16 @@ export function DemoDashboard() {
 
   function hideToast() {
     setToast((current) => ({ ...current, visible: false }));
+  }
+
+  /** Lien de navigation : change d'écran, ou message d'inscription (liens sans écran). */
+  function navigate(target: Screen | null) {
+    if (!target) {
+      showToast(TOAST_FEATURE);
+      return;
+    }
+    setOpenId(null);
+    setScreen(target);
   }
 
   function openApplication(id: string) {
@@ -282,7 +478,7 @@ export function DemoDashboard() {
           <span className="h-3 w-3 rounded-full bg-emerald-400" />
         </div>
         <div className="mx-auto w-full max-w-xs rounded-md bg-white px-3 py-1 text-center text-xs text-slate-500 ring-1 ring-slate-200">
-          applyfy.fr/dashboard
+          {SCREEN_URLS[screen]}
         </div>
         <span aria-hidden="true" className="w-[52px]" />
       </div>
@@ -300,112 +496,152 @@ export function DemoDashboard() {
             />
             <span className="font-bold tracking-tight text-slate-900">Applyfy</span>
           </div>
-          {NAV.map((item) => (
-            <span
-              key={item.label}
-              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm whitespace-nowrap ${
-                item.active ? "bg-slate-100 font-medium text-slate-900" : "text-slate-600"
-              }`}
-            >
-              <item.icon
-                className={`h-4 w-4 ${item.active ? "text-slate-900" : "text-slate-400"}`}
-              />
-              {item.label}
-            </span>
-          ))}
+          {NAV.map((item) => {
+            const active = item.screen === screen;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => navigate(item.screen)}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm whitespace-nowrap transition ${
+                  active
+                    ? "bg-slate-100 font-medium text-slate-900"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <item.icon className={`h-4 w-4 ${active ? "text-slate-900" : "text-slate-400"}`} />
+                {item.label}
+              </button>
+            );
+          })}
         </aside>
 
-        {/* Contenu principal */}
-        <div className="min-w-0 flex-1 space-y-6 p-5 sm:p-7">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900">Mes candidatures</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Navigation compacte sur mobile (la sidebar est masquée) */}
+          <nav
+            aria-label="Navigation de la démo"
+            className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 md:hidden"
+          >
+            {NAV.map((item) => {
+              const active = item.screen === screen;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => navigate(item.screen)}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    active ? "bg-slate-100 text-slate-900" : "text-slate-600"
+                  }`}
+                >
+                  <item.icon className="h-4 w-4 text-slate-400" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+          {screen === "offres" ? (
+            <DemoOffers key="offres" onFeature={() => showToast(TOAST_FEATURE)} />
+          ) : (
+            <div key="dashboard" className="min-w-0 flex-1 space-y-6 p-5 sm:p-7">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                    Mes candidatures
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => showToast(TOAST_CREATE)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700"
+                >
+                  <IconPlus className="h-4 w-4" />
+                  Nouvelle candidature
+                </button>
+              </div>
+
+              <dl className="grid grid-cols-3 gap-3 sm:gap-4">
+                {stats.map((stat, index) => (
+                  <div
+                    key={stat.label}
+                    style={{ animationDelay: `${index * 80}ms` }}
+                    className="animate-demo-in card p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <dt className="text-xs font-medium text-slate-500 sm:text-sm">
+                        {stat.label}
+                      </dt>
+                      <span
+                        className={`hidden h-8 w-8 items-center justify-center rounded-lg sm:flex ${stat.tone}`}
+                      >
+                        <stat.icon className="h-4 w-4" />
+                      </span>
+                    </div>
+                    <dd className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                      {stat.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+
+              <div className="card overflow-hidden">
+                <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-500 uppercase sm:grid">
+                  <span>Entreprise / poste</span>
+                  <span>Statut</span>
+                  <span>Envoi</span>
+                  <span>Dernier contact</span>
+                </div>
+                <ul>
+                  {APPLICATIONS.map((app, index) => (
+                    <li
+                      key={app.id}
+                      // Les lignes arrivent une à une après les statistiques.
+                      style={{ animationDelay: `${300 + index * 110}ms` }}
+                      className="animate-demo-in border-b border-slate-100 last:border-b-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => openApplication(app.id)}
+                        className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] ${
+                          openId === app.id ? "bg-slate-100" : ""
+                        }`}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-700">
+                            {app.company[0]}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-slate-900">
+                              {app.company}
+                            </span>
+                            <span className="block truncate text-xs text-slate-500">
+                              {app.position} · {app.location}
+                            </span>
+                          </span>
+                        </span>
+                        <span>
+                          <StatusBadge status={app.status} />
+                        </span>
+                        <span className="hidden text-sm text-slate-700 sm:block">
+                          {app.sentAt.replace(/ \d{4}$/, "")}
+                        </span>
+                        <span className="hidden text-sm text-slate-600 sm:block">
+                          {app.lastContact}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <p className="text-xs text-slate-500">
+                Clique sur une candidature pour voir sa fiche.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => showToast(TOAST_CREATE)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700"
-            >
-              <IconPlus className="h-4 w-4" />
-              Nouvelle candidature
-            </button>
-          </div>
-
-          <dl className="grid grid-cols-3 gap-3 sm:gap-4">
-            {stats.map((stat, index) => (
-              <div
-                key={stat.label}
-                style={{ animationDelay: `${index * 80}ms` }}
-                className="animate-demo-in card p-4"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <dt className="text-xs font-medium text-slate-500 sm:text-sm">{stat.label}</dt>
-                  <span
-                    className={`hidden h-8 w-8 items-center justify-center rounded-lg sm:flex ${stat.tone}`}
-                  >
-                    <stat.icon className="h-4 w-4" />
-                  </span>
-                </div>
-                <dd className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                  {stat.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-
-          <div className="card overflow-hidden">
-            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-500 uppercase sm:grid">
-              <span>Entreprise / poste</span>
-              <span>Statut</span>
-              <span>Envoi</span>
-              <span>Dernier contact</span>
-            </div>
-            <ul>
-              {APPLICATIONS.map((app, index) => (
-                <li
-                  key={app.id}
-                  // Les lignes arrivent une à une après les statistiques.
-                  style={{ animationDelay: `${300 + index * 110}ms` }}
-                  className="animate-demo-in border-b border-slate-100 last:border-b-0"
-                >
-                  <button
-                    type="button"
-                    onClick={() => openApplication(app.id)}
-                    className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] ${
-                      openId === app.id ? "bg-slate-100" : ""
-                    }`}
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-700">
-                        {app.company[0]}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-slate-900">
-                          {app.company}
-                        </span>
-                        <span className="block truncate text-xs text-slate-500">
-                          {app.position} · {app.location}
-                        </span>
-                      </span>
-                    </span>
-                    <span>
-                      <StatusBadge status={app.status} />
-                    </span>
-                    <span className="hidden text-sm text-slate-700 sm:block">
-                      {app.sentAt.replace(/ \d{4}$/, "")}
-                    </span>
-                    <span className="hidden text-sm text-slate-600 sm:block">
-                      {app.lastContact}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <p className="text-xs text-slate-500">Clique sur une candidature pour voir sa fiche.</p>
+          )}
         </div>
 
         {/* Fiche candidature (panneau latéral) */}
