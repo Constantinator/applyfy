@@ -241,7 +241,7 @@ export function CoverLetterGenerator({
               Lettre signée <strong className="font-medium text-slate-900">{signerName}</strong> (nom de ton compte).
             </p>
           ) : (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-800">
               Ajoute ton prénom et ton nom dans{" "}
               <Link href="/profil" className="font-medium underline underline-offset-2">
                 Mon profil
@@ -251,7 +251,7 @@ export function CoverLetterGenerator({
             </p>
           )}
           {!hasOfferDescription && (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-800">
               Cette candidature n&apos;a pas de description d&apos;offre : la lettre sera moins
               personnalisée. Ajoute la description pour un meilleur résultat.
             </p>

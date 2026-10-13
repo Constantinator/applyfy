@@ -296,7 +296,7 @@ export function CvAdapter({
         <div className="mt-4 space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
           {sourcePicker}
           {!hasOfferDescription && (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-800">
               Cette candidature n&apos;a pas de description d&apos;offre : l&apos;analyse se basera sur
               l&apos;intitulé du poste et sera moins précise.
             </p>

@@ -43,7 +43,7 @@ export function UsageOverview({ usage }: { usage: AiUsage }) {
                 <span id={labelId} className="font-medium text-slate-700">
                   {title}
                 </span>
-                <span className={reached ? "font-medium text-amber-700" : "text-slate-500"}>
+                <span className={reached ? "font-medium text-amber-800" : "text-slate-500"}>
                   {usageLabel(kind, { used, limit })}
                 </span>
               </div>

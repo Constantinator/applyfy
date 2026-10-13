@@ -52,7 +52,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       {source === "demo" && (
-        <p className="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+        <p className="rounded-lg bg-amber-100 px-4 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
           Mode démo : configure Supabase dans <code>.env.local</code> pour utiliser tes vraies
           données.
         </p>

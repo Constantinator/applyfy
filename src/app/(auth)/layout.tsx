@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <div className="card relative w-full max-w-md p-6 sm:p-8">
         {!isSupabaseConfigured() && (
-          <p className="mb-6 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p className="mb-6 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
             Supabase n&apos;est pas configuré : les comptes sont désactivés.{" "}
             <Link href="/dashboard" className="font-medium underline">
               Voir le dashboard de démo

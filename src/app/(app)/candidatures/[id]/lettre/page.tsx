@@ -54,7 +54,7 @@ export default async function CoverLetterPage({ params, searchParams }: PageProp
 
       {fresh && <ClearSearchParams />}
       {fresh && app.cover_letter_html && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200 print:hidden">
+        <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400 print:hidden">
           Nouvelle lettre : ta lettre enregistrée ne sera remplacée que si tu cliques sur « Enregistrer ».
           La sauvegarde automatique démarre ensuite.
         </p>

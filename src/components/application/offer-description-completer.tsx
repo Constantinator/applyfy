@@ -33,7 +33,7 @@ export function OfferDescriptionCompleter({
   }
 
   return (
-    <div role="status" className="mb-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
+    <div role="status" className="mb-4 space-y-3 rounded-xl border border-amber-400 bg-amber-100 p-4 text-sm">
       <div className="flex gap-3">
         <span aria-hidden="true" className="text-base leading-5">
           ⚠️
@@ -48,7 +48,7 @@ export function OfferDescriptionCompleter({
                 href={offerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700"
+                className="font-medium text-amber-900 underline underline-offset-2 hover:text-amber-800"
               >
                 Voir l&apos;offre complète ↗
               </a>

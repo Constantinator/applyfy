@@ -157,7 +157,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       )}
 
       {!configured ? (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+        <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
           La recherche d&apos;offres n&apos;est pas encore configurée sur ce site (identifiants des
           API France Travail et Adzuna manquants).
         </p>
@@ -247,13 +247,13 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       )}
 
       {result?.warning && (
-        <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+        <p role="status" className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
           {result.warning}
         </p>
       )}
 
       {selectedMissing && (
-        <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+        <p role="status" className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
           Cette offre n&apos;est plus disponible.
         </p>
       )}

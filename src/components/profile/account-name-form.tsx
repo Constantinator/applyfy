@@ -30,7 +30,7 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
   return (
     <div className="space-y-4">
       {!initial && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
+        <p className="rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-400">
           Renseigne ton prénom et ton nom : ils signent tes lettres de motivation.
         </p>
       )}

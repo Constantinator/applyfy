@@ -98,7 +98,7 @@ export default async function ApplicationPage({
       </Link>
 
       {source === "demo" && (
-        <p className="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+        <p className="rounded-lg bg-amber-100 px-4 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
           Mode démo : tes modifications sont gardées en mémoire jusqu&apos;au redémarrage du
           serveur.
         </p>

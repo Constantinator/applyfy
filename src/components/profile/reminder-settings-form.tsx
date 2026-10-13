@@ -106,7 +106,7 @@ export function ReminderSettingsForm({
       </div>
 
       {!emailEnabled && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
+        <p className="rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-400">
           L&apos;envoi d&apos;emails n&apos;est pas encore configuré sur ce site : tes préférences sont
           enregistrées mais aucun rappel ne partira pour l&apos;instant.
         </p>

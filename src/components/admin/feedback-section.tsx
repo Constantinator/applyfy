@@ -42,7 +42,7 @@ function Breakdown({ title, rows, total }: { title: string; rows: { label: strin
 export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null }) {
   if (!feedback) {
     return (
-      <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+      <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
         Les avis ne sont pas encore disponibles : applique la migration 0016 (table feedback) dans Supabase.
       </p>
     );

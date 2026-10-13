@@ -58,7 +58,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
           ← Retour à l&apos;admin
         </Link>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Beta testeurs</h1>
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+        <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
           Le programme beta n&apos;est pas encore disponible : applique la migration 0017 (tables beta_testers et
           beta_reports) dans Supabase.
         </p>
@@ -245,7 +245,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
           Messages
         </h2>
         {!threads ? (
-          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
             La messagerie n&apos;est pas encore disponible : applique la migration 0018 (table beta_messages) dans
             Supabase.
           </p>
@@ -321,7 +321,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
             />
           </div>
         ) : (
-          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
             L&apos;envoi d&apos;emails n&apos;est pas configuré (BREVO_API_KEY, BREVO_SENDER_EMAIL).
           </p>
         )}

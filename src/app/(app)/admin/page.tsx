@@ -153,7 +153,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       {/* 0. Trafic (Vercel Web Analytics) */}
       <Section id="admin-trafic" title={`Trafic ${ofMonth}`}>
         {!traffic ? (
-          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
             Ajoute la variable VERCEL_API_TOKEN (jeton Vercel en lecture) dans les variables d&apos;environnement
             Vercel pour afficher le trafic.
           </p>
@@ -436,7 +436,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           </table>
         </div>
         {projectedYearRevenue > VAT_FRANCHISE_THRESHOLD && (
-          <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p role="status" className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
             Au rythme projeté, le CA des 12 prochains mois ({euros.format(projectedYearRevenue)}) dépasserait le
             plafond de la franchise en base de TVA ({euros.format(VAT_FRANCHISE_THRESHOLD)}) : la TVA deviendrait
             applicable. La projection ci-dessous n&apos;en tient pas compte.

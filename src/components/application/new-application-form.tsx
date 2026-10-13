@@ -53,7 +53,7 @@ function StatusLine({ status, loadingText }: { status: AsyncStatus; loadingText:
   const styles = {
     loading: "text-slate-500",
     success: "text-emerald-700",
-    error: "text-amber-700",
+    error: "text-amber-800",
   }[status.state];
   return (
     <p role="status" className={`flex items-center gap-2 text-sm ${styles}`}>
@@ -233,7 +233,7 @@ export function NewApplicationForm({
     alertVisible && missingNow.includes(field)
       ? importAlert.kind === "failed"
         ? " ring-2 ring-orange-300"
-        : " ring-2 ring-yellow-300"
+        : " ring-2 ring-yellow-400"
       : "";
 
   return (
@@ -295,7 +295,7 @@ export function NewApplicationForm({
             className={`flex gap-3 rounded-xl border p-4 text-sm ${
               importAlert.kind === "failed"
                 ? "border-orange-300 bg-orange-50 text-orange-900"
-                : "border-yellow-300 bg-yellow-50 text-yellow-900"
+                : "border-yellow-400 bg-yellow-100 text-yellow-950"
             }`}
           >
             <span aria-hidden="true" className="text-lg leading-none">

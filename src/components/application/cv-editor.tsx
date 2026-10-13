@@ -199,7 +199,7 @@ function StylePanel({
           <span>{px(CV_FONT_SIZE_MAX)}</span>
         </div>
         {appliedSize < style.fontSize && (
-          <p className="text-xs text-amber-700">
+          <p className="text-xs text-amber-800">
             Réduite à {px(appliedSize)} pour tenir sur 1 page.
           </p>
         )}
