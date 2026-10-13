@@ -18,6 +18,7 @@ import {
 } from "@/components/icons";
 import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { DARK_MODE_ENABLED } from "@/lib/theme";
 import { Logo } from "@/components/logo";
 
 type NavItem = {
@@ -133,7 +134,7 @@ export function AppSidebar({
             <Logo size="sm" />
           </Link>
           <div className="flex items-center gap-1">
-            <ThemeToggle compact className="p-2" />
+            {DARK_MODE_ENABLED && <ThemeToggle compact className="p-2" />}
             {isDemo ? (
               <span className="rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30">
                 Démo
@@ -209,7 +210,7 @@ export function AppSidebar({
             <IconHome className="text-blue-600 dark:text-blue-400 h-5 w-5" />
             Retour à l&apos;accueil
           </Link>
-          <ThemeToggle className="w-full px-3 py-2" />
+          {DARK_MODE_ENABLED && <ThemeToggle className="w-full px-3 py-2" />}
           {isDemo ? (
             <p className="px-3 py-2">
               <span className="rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30">
