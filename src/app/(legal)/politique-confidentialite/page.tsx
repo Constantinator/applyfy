@@ -27,6 +27,11 @@ const PROCESSORS = [
     url: "https://www.facebook.com/privacy/policy/",
   },
   {
+    name: "Google",
+    role: "Mesure de l'efficacité des publicités (Google Ads), uniquement si tu as accepté les cookies publicitaires",
+    url: "https://policies.google.com/privacy",
+  },
+  {
     name: "Stripe",
     role: "Traitement des paiements de l'abonnement Premium (carte bancaire, facturation, gestion de l'abonnement)",
     url: "https://stripe.com/fr/privacy",
@@ -151,11 +156,12 @@ export default function PrivacyPolicyPage() {
           vues et ton choix concernant les cookies.
         </p>
         <p>
-          <strong>Cookies publicitaires (Meta Pixel) :</strong> si tu les acceptes dans le bandeau
-          affiché lors de ta première visite, Applyfy charge le pixel de Meta (Facebook, Instagram)
-          pour mesurer l&apos;efficacité de ses publicités. Meta reçoit alors les pages que tu visites
-          sur Applyfy et dépose un cookie (_fbp) dans ton navigateur. Sans acceptation, rien n&apos;est
-          chargé ni envoyé à Meta. Ton choix est conservé 6 mois ; tu peux le modifier à tout moment
+          <strong>Cookies publicitaires (Meta Pixel, Google Ads) :</strong> si tu les acceptes dans le
+          bandeau affiché lors de ta première visite, Applyfy charge le pixel de Meta (Facebook,
+          Instagram) et la balise Google Ads pour mesurer l&apos;efficacité de ses publicités. Meta et
+          Google reçoivent alors les pages que tu visites sur Applyfy et déposent des cookies dans ton
+          navigateur (par exemple _fbp pour Meta, _gcl_au pour Google). Sans acceptation, rien
+          n&apos;est chargé ni envoyé à Meta ou à Google. Ton choix est conservé 6 mois ; tu peux le modifier à tout moment
           avec le lien « Gestion des cookies » en bas de chaque page.
         </p>
         <p>

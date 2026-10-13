@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ConsentSettingsLink } from "@/components/consent/meta-pixel";
+import { ConsentSettingsLink } from "@/components/consent/ad-trackers";
 import { LogoFull } from "@/components/logo";
 
 export const LEGAL_LINKS = [

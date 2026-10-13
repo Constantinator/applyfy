@@ -8,17 +8,22 @@ import { useEffect, useRef, useState } from "react";
 import { OPEN_CONSENT_EVENT, readConsent, saveConsent, type Consent } from "./consent";
 
 const META_PIXEL_ID = "1738090957248394";
+const GOOGLE_ADS_ID = "AW-18509978707";
 
 // Code officiel du Meta Pixel : chargé uniquement après acceptation des cookies.
 const META_PIXEL_SNIPPET = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${META_PIXEL_ID}');fbq('track','PageView');`;
 
+// Balise Google Ads (gtag.js) : chargée elle aussi uniquement après acceptation.
+const GOOGLE_ADS_SNIPPET = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GOOGLE_ADS_ID}');`;
+
 type Fbq = (command: "track", event: "PageView") => void;
 
 /**
- * Bandeau de consentement + Meta Pixel. Tant que le visiteur n'a pas accepté, aucun script
- * Meta n'est chargé et aucun cookie publicitaire n'est déposé.
+ * Bandeau de consentement + traceurs publicitaires (Meta Pixel, Google Ads). Tant que le
+ * visiteur n'a pas accepté, aucun de ces scripts n'est chargé et aucun cookie publicitaire
+ * n'est déposé.
  */
-export function MetaPixel() {
+export function AdTrackers() {
   // undefined : pas encore lu (rendu serveur et premier rendu) ; null : choix à faire.
   const [consent, setConsent] = useState<Consent | null | undefined>(undefined);
   const pathname = usePathname();
@@ -35,8 +40,8 @@ export function MetaPixel() {
     };
   }, []);
 
-  // Navigation entre pages sans rechargement : une page vue par changement d'adresse (la
-  // première est envoyée par le code du Pixel lui-même).
+  // Navigation entre pages sans rechargement : une page vue Meta par changement d'adresse (la
+  // première est envoyée par le code du Pixel lui-même ; gtag.js suit seul l'historique).
   useEffect(() => {
     if (consent !== "granted") return;
     if (lastPath.current !== null && lastPath.current !== pathname) {
@@ -48,7 +53,7 @@ export function MetaPixel() {
   function choose(value: Consent) {
     const wasGranted = readConsent() === "granted";
     saveConsent(value);
-    // Retrait du consentement : recharger pour décharger le Pixel déjà présent.
+    // Retrait du consentement : recharger pour décharger les traceurs déjà présents.
     if (wasGranted && value === "denied") {
       window.location.reload();
       return;
@@ -59,11 +64,22 @@ export function MetaPixel() {
   return (
     <>
       {consent === "granted" && (
-        <Script
-          id="meta-pixel"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{ __html: META_PIXEL_SNIPPET }}
-        />
+        <>
+          <Script
+            id="meta-pixel"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{ __html: META_PIXEL_SNIPPET }}
+          />
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script
+            id="google-ads"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{ __html: GOOGLE_ADS_SNIPPET }}
+          />
+        </>
       )}
       {consent === null && (
         <div
@@ -75,9 +91,9 @@ export function MetaPixel() {
             Cookies publicitaires
           </p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            Avec ton accord, Applyfy utilise le pixel de Meta (Facebook, Instagram) pour mesurer
-            l&apos;efficacité de ses publicités. Tu peux changer d&apos;avis à tout moment depuis le
-            pied de page.{" "}
+            Avec ton accord, Applyfy utilise le pixel de Meta (Facebook, Instagram) et la balise
+            Google Ads pour mesurer l&apos;efficacité de ses publicités. Tu peux changer d&apos;avis
+            à tout moment depuis le pied de page.{" "}
             <Link
               href="/politique-confidentialite"
               className="font-medium text-blue-600 underline-offset-4 hover:underline"

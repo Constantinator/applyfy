@@ -2,7 +2,7 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
-import { MetaPixel } from "@/components/consent/meta-pixel";
+import { AdTrackers } from "@/components/consent/ad-trackers";
 import { SiteFooter } from "@/components/site-footer";
 import { pageMetadata, SITE_URL } from "@/lib/seo";
 
@@ -32,8 +32,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
         {children}
         <SiteFooter />
-        {/* Meta Pixel : chargé seulement après acceptation dans le bandeau de consentement. */}
-        <MetaPixel />
+        {/* Meta Pixel et Google Ads : chargés seulement après acceptation dans le bandeau. */}
+        <AdTrackers />
         {/* Mesure d'audience Vercel : sans cookie, actif seulement une fois déployé sur Vercel. */}
         <Analytics />
       </body>

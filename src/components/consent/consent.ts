@@ -1,4 +1,4 @@
-// Consentement aux traceurs publicitaires (Meta Pixel), mémorisé dans le navigateur.
+// Consentement aux traceurs publicitaires (Meta Pixel, Google Ads), mémorisé dans le navigateur.
 // Recommandation CNIL : choix redemandé au bout de 6 mois, refus aussi simple que
 // l'acceptation, et modifiable à tout moment (lien « Gestion des cookies » du pied de page).
 
