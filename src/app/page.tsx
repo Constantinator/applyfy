@@ -12,7 +12,7 @@ import {
   TrackingPreview,
 } from "@/components/landing/feature-previews";
 import { CountUp } from "@/components/landing/count-up";
-import { ImageLightbox } from "@/components/landing/image-lightbox";
+import { DemoDashboard } from "@/components/landing/demo-dashboard";
 import { Reveal } from "@/components/landing/reveal";
 import { LogoFull } from "@/components/logo";
 import { SiteHeader } from "@/components/site/site-header";
@@ -187,21 +187,16 @@ export default function LandingPage() {
             </div>
 
             {/*
-              Capture du dashboard, mise en avant façon linear.app : elle sort du conteneur du
+              Dashboard de démonstration, mis en avant façon linear.app : il sort du conteneur du
               hero pour occuper 70 % de la largeur de l'écran (pleine largeur moins les marges
-              sur mobile, 1 600 px au plus pour ne pas agrandir l'image), ombre portée légère
-              qui ne déborde pas sur la légende.
-              Agrandie au clic.
+              sur mobile, 1 600 px au plus), ombre portée légère qui ne déborde pas sur la
+              légende.
             */}
             <figure className="relative left-1/2 mt-20 w-[calc(100vw-2rem)] max-w-[1600px] -translate-x-1/2 sm:mt-24 sm:w-[70vw]">
-              <ImageLightbox
-                src="/images/dashboard-preview.png"
-                alt="Le dashboard Applyfy : compteurs de candidatures, filtres par statut et liste des candidatures avec leur date d'envoi et un bouton Relancer"
-                width={1920}
-                height={1317}
-                sizes="(min-width: 2286px) 1600px, (min-width: 640px) 70vw, calc(100vw - 32px)"
-                className="h-auto w-full rounded-2xl border border-slate-200/80 shadow-[0_20px_40px_-16px_rgba(15,23,42,0.18),0_8px_16px_-8px_rgba(15,23,42,0.1)]"
-              />
+              {/* Dashboard interactif (données fictives), dans le cadre et l'ombre d'origine. */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 shadow-[0_20px_40px_-16px_rgba(15,23,42,0.18),0_8px_16px_-8px_rgba(15,23,42,0.1)]">
+                <DemoDashboard />
+              </div>
               <figcaption className="mt-4 text-sm text-slate-500">
                 Le dashboard Applyfy — toutes tes candidatures au même endroit
               </figcaption>
@@ -360,8 +355,12 @@ export default function LandingPage() {
             <p className="mt-3 text-center text-lg text-slate-500">
               Ce que les autres outils ne font pas (ou font payer très cher).
             </p>
-            {/* Défilement horizontal sur très petit écran plutôt qu'un tableau écrasé. */}
-            <div className="card mt-12 overflow-x-auto">
+            {/*
+              Défilement horizontal sur très petit écran plutôt qu'un tableau écrasé. relative :
+              les textes sr-only (position absolue) restent dans la zone défilante au lieu de
+              faire déborder la page.
+            */}
+            <div className="card relative mt-12 overflow-x-auto">
               <table className="w-full min-w-[34rem] border-collapse text-sm">
                 <caption className="sr-only">
                   Comparatif d&apos;Applyfy avec Huntr et Excel / Word
