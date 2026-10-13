@@ -159,6 +159,26 @@ body {
   }
 }
 
+/* Dashboard de démonstration (landing) : cartes et lignes qui arrivent une à une. */
+@keyframes demo-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-demo-in {
+  animation: demo-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 /*
  * Types de liste du CV (attribut data-list posé par l'éditeur, cf. lib/cv-html).
  * Hors @layer : prime sur les utilitaires list-disc du conteneur.
