@@ -14,6 +14,7 @@ import {
   IconSparkles,
   IconUser,
 } from "@/components/icons";
+import { StatusBadge } from "@/components/status-badge";
 import {
   APPLICATION_STATUSES,
   RESPONSE_STATUSES,
@@ -21,8 +22,8 @@ import {
   type ApplicationStatus,
 } from "@/lib/types";
 
-// Dashboard Applyfy simulé (données fictives), en thème sombre : destiné à remplacer la
-// capture d'écran de la landing. Reprend la structure du vrai dashboard (sidebar, cartes de
+// Dashboard Applyfy simulé (données fictives), en thème clair comme l'app, affiché sur la
+// landing. Reprend la structure du vrai dashboard (sidebar, cartes de
 // statistiques, liste des candidatures) et, dans le panneau de détail, celle de la fiche
 // candidature (en-tête et statuts, résumé de l'offre, Adapter mon CV, Lettre de motivation,
 // Relancer, Historique, Notes), avec les vrais statuts de l'app.
@@ -169,41 +170,15 @@ const APPLICATIONS: DemoApplication[] = [
   },
 ];
 
-/** Badges de statut, déclinés pour le thème sombre (mêmes teintes que l'app). */
-const STATUS_STYLES: Record<ApplicationStatus, { badge: string; dot: string }> = {
-  brouillon: { badge: "bg-slate-500/15 text-slate-300 ring-slate-500/30", dot: "bg-slate-400" },
-  envoyee: { badge: "bg-blue-500/15 text-blue-300 ring-blue-400/30", dot: "bg-blue-400" },
-  en_attente: {
-    badge: "bg-indigo-500/15 text-indigo-300 ring-indigo-400/30",
-    dot: "bg-indigo-400",
-  },
-  relancee: { badge: "bg-amber-500/15 text-amber-300 ring-amber-400/30", dot: "bg-amber-400" },
-  entretien: { badge: "bg-violet-500/15 text-violet-300 ring-violet-400/30", dot: "bg-violet-400" },
-  offre: { badge: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30", dot: "bg-emerald-400" },
-  refusee: { badge: "bg-red-500/15 text-red-300 ring-red-400/30", dot: "bg-red-400" },
-};
-
 const EVENT_DOTS: Record<DemoEvent["tone"], string> = {
-  slate: "bg-slate-500",
-  blue: "bg-blue-400",
-  amber: "bg-amber-400",
-  violet: "bg-violet-400",
-  red: "bg-red-400",
+  slate: "bg-slate-400",
+  blue: "bg-blue-500",
+  amber: "bg-amber-500",
+  violet: "bg-violet-500",
+  red: "bg-red-500",
 };
 
-function DemoStatusBadge({ status }: { status: ApplicationStatus }) {
-  const style = STATUS_STYLES[status];
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ring-1 ring-inset ${style.badge}`}
-    >
-      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-      {STATUS_LABELS[status]}
-    </span>
-  );
-}
-
-/** Carte de la fiche candidature (équivalent sombre de la classe « card »). */
+/** Carte de la fiche candidature (classe « card » de l'app). */
 function PanelCard({
   title,
   children,
@@ -214,18 +189,16 @@ function PanelCard({
   className?: string;
 }) {
   return (
-    <section className={`rounded-2xl border border-white/10 bg-white/[0.03] p-4 ${className}`}>
-      <h3 className="mb-3 font-semibold text-white">{title}</h3>
+    <section className={`card p-4 ${className}`}>
+      <h3 className="mb-3 font-semibold text-slate-900">{title}</h3>
       {children}
     </section>
   );
 }
 
-// Boutons de la fiche, équivalents sombres de btn-primary et btn-secondary.
-const PRIMARY_BUTTON =
-  "inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700";
-const SECONDARY_BUTTON =
-  "inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10";
+// Boutons de la fiche : mêmes classes que dans l'app.
+const PRIMARY_BUTTON = "btn-primary px-4 py-2 text-sm";
+const SECONDARY_BUTTON = "btn-secondary px-4 py-2 text-sm";
 
 const TOAST_CREATE = "Inscris-toi pour créer ta première candidature →";
 const TOAST_FEATURE = "Inscris-toi pour accéder à cette fonctionnalité →";
@@ -283,32 +256,32 @@ export function DemoDashboard() {
       label: "Candidatures",
       value: APPLICATIONS.length,
       icon: IconBriefcase,
-      tone: "bg-white/10 text-slate-200",
+      tone: "bg-slate-100 text-slate-600",
     },
     {
       label: "Entretiens",
       value: APPLICATIONS.filter((a) => a.status === "entretien").length,
       icon: IconChat,
-      tone: "bg-violet-500/15 text-violet-300",
+      tone: "bg-violet-50 text-violet-600",
     },
     {
       label: "Relances",
       value: APPLICATIONS.filter((a) => a.status === "relancee").length,
       icon: IconBell,
-      tone: "bg-amber-500/15 text-amber-300",
+      tone: "bg-amber-50 text-amber-600",
     },
   ];
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-slate-950 text-left text-slate-100 ring-1 ring-white/10">
+    <div className="overflow-hidden rounded-2xl bg-slate-50 text-left text-slate-900">
       {/* Barre de fenêtre du navigateur */}
-      <div className="flex items-center gap-3 border-b border-white/10 bg-slate-900/80 px-4 py-2.5">
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-100 px-4 py-2.5">
         <div aria-hidden="true" className="flex gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-red-400/80" />
-          <span className="h-3 w-3 rounded-full bg-amber-400/80" />
-          <span className="h-3 w-3 rounded-full bg-emerald-400/80" />
+          <span className="h-3 w-3 rounded-full bg-red-400" />
+          <span className="h-3 w-3 rounded-full bg-amber-400" />
+          <span className="h-3 w-3 rounded-full bg-emerald-400" />
         </div>
-        <div className="mx-auto w-full max-w-xs rounded-md bg-white/5 px-3 py-1 text-center text-xs text-slate-400">
+        <div className="mx-auto w-full max-w-xs rounded-md bg-white px-3 py-1 text-center text-xs text-slate-500 ring-1 ring-slate-200">
           applyfy.fr/dashboard
         </div>
         <span aria-hidden="true" className="w-[52px]" />
@@ -316,7 +289,7 @@ export function DemoDashboard() {
 
       <div className="relative flex min-h-[560px]">
         {/* Sidebar */}
-        <aside className="hidden w-56 shrink-0 flex-col gap-1 border-r border-white/10 bg-slate-900/40 p-3 md:flex">
+        <aside className="hidden w-56 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-3 md:flex">
           <div className="mb-4 flex items-center gap-2 px-2 pt-1">
             <Image
               src="/images/applyfy-icon.png"
@@ -325,16 +298,18 @@ export function DemoDashboard() {
               height={512}
               className="h-7 w-7"
             />
-            <span className="font-bold tracking-tight text-white">Applyfy</span>
+            <span className="font-bold tracking-tight text-slate-900">Applyfy</span>
           </div>
           {NAV.map((item) => (
             <span
               key={item.label}
               className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm whitespace-nowrap ${
-                item.active ? "bg-white/10 font-medium text-white" : "text-slate-400"
+                item.active ? "bg-slate-100 font-medium text-slate-900" : "text-slate-600"
               }`}
             >
-              <item.icon className={`h-4 w-4 ${item.active ? "text-white" : "text-slate-500"}`} />
+              <item.icon
+                className={`h-4 w-4 ${item.active ? "text-slate-900" : "text-slate-400"}`}
+              />
               {item.label}
             </span>
           ))}
@@ -344,15 +319,15 @@ export function DemoDashboard() {
         <div className="min-w-0 flex-1 space-y-6 p-5 sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight text-white">Mes candidatures</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900">Mes candidatures</h2>
+              <p className="mt-1 text-sm text-slate-500">
                 Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
               </p>
             </div>
             <button
               type="button"
               onClick={() => showToast(TOAST_CREATE)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/40 transition hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700"
             >
               <IconPlus className="h-4 w-4" />
               Nouvelle candidature
@@ -364,25 +339,25 @@ export function DemoDashboard() {
               <div
                 key={stat.label}
                 style={{ animationDelay: `${index * 80}ms` }}
-                className="animate-demo-in rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                className="animate-demo-in card p-4"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <dt className="text-xs font-medium text-slate-400 sm:text-sm">{stat.label}</dt>
+                  <dt className="text-xs font-medium text-slate-500 sm:text-sm">{stat.label}</dt>
                   <span
                     className={`hidden h-8 w-8 items-center justify-center rounded-lg sm:flex ${stat.tone}`}
                   >
                     <stat.icon className="h-4 w-4" />
                   </span>
                 </div>
-                <dd className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                <dd className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                   {stat.value}
                 </dd>
               </div>
             ))}
           </dl>
 
-          <div className="overflow-hidden rounded-xl border border-white/10">
-            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] gap-4 border-b border-white/10 bg-white/[0.02] px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-500 uppercase sm:grid">
+          <div className="card overflow-hidden">
+            <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-500 uppercase sm:grid">
               <span>Entreprise / poste</span>
               <span>Statut</span>
               <span>Envoi</span>
@@ -394,35 +369,35 @@ export function DemoDashboard() {
                   key={app.id}
                   // Les lignes arrivent une à une après les statistiques.
                   style={{ animationDelay: `${300 + index * 110}ms` }}
-                  className="animate-demo-in border-b border-white/5 last:border-b-0"
+                  className="animate-demo-in border-b border-slate-100 last:border-b-0"
                 >
                   <button
                     type="button"
                     onClick={() => openApplication(app.id)}
-                    className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition hover:bg-white/[0.04] focus-visible:bg-white/[0.04] focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] ${
-                      openId === app.id ? "bg-white/[0.06]" : ""
+                    className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] ${
+                      openId === app.id ? "bg-slate-100" : ""
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-slate-200">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-700">
                         {app.company[0]}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-white">
+                        <span className="block truncate text-sm font-semibold text-slate-900">
                           {app.company}
                         </span>
-                        <span className="block truncate text-xs text-slate-400">
+                        <span className="block truncate text-xs text-slate-500">
                           {app.position} · {app.location}
                         </span>
                       </span>
                     </span>
                     <span>
-                      <DemoStatusBadge status={app.status} />
+                      <StatusBadge status={app.status} />
                     </span>
-                    <span className="hidden text-sm text-slate-300 sm:block">
+                    <span className="hidden text-sm text-slate-700 sm:block">
                       {app.sentAt.replace(/ \d{4}$/, "")}
                     </span>
-                    <span className="hidden text-sm text-slate-400 sm:block">
+                    <span className="hidden text-sm text-slate-600 sm:block">
                       {app.lastContact}
                     </span>
                   </button>
@@ -437,7 +412,7 @@ export function DemoDashboard() {
         <div
           aria-hidden="true"
           onClick={() => setOpenId(null)}
-          className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
+          className={`absolute inset-0 bg-slate-900/20 transition-opacity duration-300 ${
             open ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
         />
@@ -446,20 +421,20 @@ export function DemoDashboard() {
           aria-label={shown ? `${shown.company} — ${shown.position}` : undefined}
           aria-hidden={!open}
           inert={!open}
-          className={`absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l border-white/10 bg-slate-900 shadow-2xl transition-transform duration-300 ease-out ${
+          className={`absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l border-slate-200 bg-slate-50 shadow-2xl transition-transform duration-300 ease-out ${
             open ? "translate-x-0" : "translate-x-full"
           }`}
         >
           {shown && (
             <>
-              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
-                <span className="text-sm text-slate-400">← Retour au dashboard</span>
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
+                <span className="text-sm text-slate-500">← Retour au dashboard</span>
                 <button
                   ref={closeRef}
                   type="button"
                   onClick={() => setOpenId(null)}
                   aria-label="Fermer"
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
                 >
                   ✕
                 </button>
@@ -467,38 +442,38 @@ export function DemoDashboard() {
 
               <div className="flex-1 space-y-4 overflow-y-auto p-5 text-sm">
                 {/* En-tête : entreprise, statut, informations, changement de statut */}
-                <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <section className="card p-4">
                   {/* Empilé, comme la fiche sous la largeur lg (le panneau est plus étroit). */}
                   <div className="flex flex-col gap-5">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2.5">
-                        <p className="text-xl font-bold tracking-tight text-white">
+                        <p className="text-xl font-bold tracking-tight text-slate-900">
                           {shown.company}
                         </p>
-                        <DemoStatusBadge status={shown.status} />
+                        <StatusBadge status={shown.status} />
                       </div>
-                      <p className="mt-1 text-slate-300">
+                      <p className="mt-1 text-slate-600">
                         {shown.position}
-                        <span className="text-slate-500"> · {shown.location}</span>
+                        <span className="text-slate-400"> · {shown.location}</span>
                       </p>
                       <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                         <div>
                           <dt className="text-slate-500">Date d&apos;envoi</dt>
-                          <dd className="mt-0.5 font-medium text-slate-200">{shown.sentAt}</dd>
+                          <dd className="mt-0.5 font-medium text-slate-900">{shown.sentAt}</dd>
                         </div>
                         <div>
                           <dt className="text-slate-500">Contact</dt>
-                          <dd className="mt-0.5 font-medium text-slate-200">{shown.contact}</dd>
+                          <dd className="mt-0.5 font-medium text-slate-900">{shown.contact}</dd>
                         </div>
                         <div>
                           <dt className="text-slate-500">Annonce</dt>
-                          <dd className="mt-0.5 font-medium text-slate-200">Voir l&apos;offre ↗</dd>
+                          <dd className="mt-0.5 font-medium text-blue-600">Voir l&apos;offre ↗</dd>
                         </div>
                       </dl>
                     </div>
                     {/* Comme StatusChanger : menu déroulant + « Changer le statut ». */}
                     <div className="flex flex-col gap-2">
-                      <label htmlFor="demo-status" className="text-sm font-medium text-slate-300">
+                      <label htmlFor="demo-status" className="text-sm font-medium text-slate-700">
                         Statut de la candidature
                       </label>
                       <div className="flex gap-2">
@@ -507,18 +482,18 @@ export function DemoDashboard() {
                           // Reste sur le statut actuel : la démo ne modifie rien.
                           value={shown.status}
                           onChange={() => showToast(TOAST_FEATURE)}
-                          className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:border-white/30 focus:outline-none"
+                          className="input min-w-0 flex-1 py-2"
                         >
                           {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map(
                             (status) => (
-                              <option key={status} value={status} className="bg-slate-900">
+                              <option key={status} value={status}>
                                 {STATUS_LABELS[status]}
                               </option>
                             ),
                           )}
-                          <optgroup label="Réponse reçue" className="bg-slate-900">
+                          <optgroup label="Réponse reçue">
                             {RESPONSE_STATUSES.map((status) => (
-                              <option key={status} value={status} className="bg-slate-900">
+                              <option key={status} value={status}>
                                 {STATUS_LABELS[status]}
                               </option>
                             ))}
@@ -541,12 +516,12 @@ export function DemoDashboard() {
                     <PanelCard
                       title={
                         <span className="flex items-center gap-2">
-                          <IconSparkles className="h-4 w-4 text-slate-300" />
+                          <IconSparkles className="h-4 w-4 text-slate-500" />
                           Résumé de l&apos;offre
                         </span>
                       }
                     >
-                      <ul className="list-disc space-y-1 pl-5 text-slate-300 marker:text-slate-500">
+                      <ul className="list-disc space-y-1 pl-5 text-slate-700 marker:text-slate-400">
                         {shown.summary.map((line) => (
                           <li key={line}>{line}</li>
                         ))}
@@ -556,16 +531,16 @@ export function DemoDashboard() {
                     <PanelCard title="Adapter mon CV">
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div>
-                          <p className="text-xs font-semibold text-emerald-300">Ce qui matche</p>
-                          <ul className="mt-1.5 space-y-1 text-slate-300">
+                          <p className="text-xs font-semibold text-emerald-700">Ce qui matche</p>
+                          <ul className="mt-1.5 space-y-1 text-slate-700">
                             {shown.matches.map((item) => (
                               <li key={item}>✓ {item}</li>
                             ))}
                           </ul>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-amber-300">Ce qui manque</p>
-                          <ul className="mt-1.5 space-y-1 text-slate-300">
+                          <p className="text-xs font-semibold text-amber-800">Ce qui manque</p>
+                          <ul className="mt-1.5 space-y-1 text-slate-700">
                             {shown.missing.map((item) => (
                               <li key={item}>+ {item}</li>
                             ))}
@@ -613,11 +588,9 @@ export function DemoDashboard() {
                     {/* Toutes les candidatures ; mise en avant quand une relance est due. */}
                     <PanelCard
                       title="Relancer"
-                      className={
-                        shown.followUp ? "border-amber-400/40 ring-1 ring-amber-400/20" : ""
-                      }
+                      className={shown.followUp ? "border-amber-300 ring-1 ring-amber-200" : ""}
                     >
-                      <p className="text-slate-400">
+                      <p className="text-slate-500">
                         {shown.followUp
                           ? "Pas de nouvelles depuis un moment : c'est le bon moment pour relancer."
                           : "Personnalise le message avant de l'envoyer."}
@@ -643,7 +616,7 @@ export function DemoDashboard() {
                             className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${EVENT_DOTS[event.tone]}`}
                           />
                           <span>
-                            <span className="block text-slate-200">{event.label}</span>
+                            <span className="block text-slate-800">{event.label}</span>
                             <span className="block text-xs text-slate-500">{event.date}</span>
                           </span>
                         </li>
@@ -652,9 +625,9 @@ export function DemoDashboard() {
                   </PanelCard>
                 </div>
 
-                <section className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-4">
-                  <h3 className="mb-2 font-semibold text-white">Notes</h3>
-                  <p className="leading-relaxed text-amber-100">{shown.note}</p>
+                <section className="rounded-2xl border border-amber-200/70 bg-amber-50/50 p-4 shadow-sm">
+                  <h3 className="mb-2 font-semibold text-slate-900">Notes</h3>
+                  <p className="leading-relaxed text-slate-700">{shown.note}</p>
                 </section>
               </div>
             </>
@@ -667,7 +640,7 @@ export function DemoDashboard() {
         role="status"
         aria-live="polite"
         inert={!toast.visible}
-        className={`fixed inset-x-4 bottom-6 z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-slate-100 shadow-2xl transition duration-300 ${
+        className={`fixed inset-x-4 bottom-6 z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-xl shadow-slate-900/10 transition duration-300 ${
           toast.visible
             ? "translate-y-0 opacity-100"
             : "pointer-events-none translate-y-4 opacity-0"
@@ -675,14 +648,17 @@ export function DemoDashboard() {
       >
         {/* Contenu toujours présent : il reste visible pendant que le message s'efface. */}
         <>
-          <Link href="/login" className="font-medium text-white underline-offset-4 hover:underline">
+          <Link
+            href="/login"
+            className="font-semibold text-blue-600 underline-offset-4 hover:underline"
+          >
             {toast.text}
           </Link>
           <button
             type="button"
             onClick={hideToast}
             aria-label="Fermer le message"
-            className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
           >
             ✕
           </button>
