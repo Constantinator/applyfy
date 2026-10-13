@@ -4,7 +4,8 @@ import { safeRedirectPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 // Retour de « Continuer avec Google » (OAuth Supabase, PKCE) : ?code=… échangé contre une
-// session. Refus ou erreur chez Google (?error=…) : retour à la connexion avec un message.
+// session, puis /dashboard (ou la page demandée avant la connexion, ?next=…). Refus ou erreur
+// chez Google (?error=…), ou échange impossible : /login?error=auth, avec un message.
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const next = safeRedirectPath(searchParams.get("next"));
@@ -23,5 +24,5 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(new URL(ok ? next : "/login?erreur=google", request.url));
+  return NextResponse.redirect(new URL(ok ? next : "/login?error=auth", request.url));
 }

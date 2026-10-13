@@ -13,7 +13,7 @@ export const metadata: Metadata = pageMetadata({
 });
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { next, erreur } = await searchParams;
+  const { next, erreur, error } = await searchParams;
 
   return (
     <>
@@ -30,7 +30,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         notice={
           erreur === "lien"
             ? "Ce lien de confirmation est invalide ou a expiré. Connecte-toi ou recrée ton compte."
-            : erreur === "google"
+            : error === "auth"
               ? "La connexion avec Google n'a pas abouti. Réessaie, ou utilise ton email et ton mot de passe."
               : undefined
         }
