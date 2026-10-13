@@ -22,11 +22,15 @@ export function validateAccountName(
   return { ok: true, name: { firstName: first, lastName: last } };
 }
 
-/** Métadonnées Supabase Auth (user_metadata) → prénom et nom, ou null s'ils manquent. */
+/**
+ * Métadonnées Supabase Auth (user_metadata) → prénom et nom, ou null s'ils manquent. Comptes
+ * créés avec Google : given_name / family_name, tant que first_name / last_name n'ont pas été
+ * renseignés dans « Mon profil ».
+ */
 export function readAccountName(metadata: unknown): AccountName | null {
   const value = (metadata && typeof metadata === "object" ? metadata : {}) as Record<string, unknown>;
-  const firstName = cleanNamePart(value.first_name);
-  const lastName = cleanNamePart(value.last_name);
+  const firstName = cleanNamePart(value.first_name) || cleanNamePart(value.given_name);
+  const lastName = cleanNamePart(value.last_name) || cleanNamePart(value.family_name);
   return firstName && lastName ? { firstName, lastName } : null;
 }
 
