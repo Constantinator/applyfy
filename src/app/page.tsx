@@ -188,18 +188,19 @@ export default function LandingPage() {
 
             {/*
               Capture du dashboard, mise en avant façon linear.app : elle sort du conteneur du
-              hero pour occuper ~84 % de la largeur de l'écran (pleine largeur moins les marges
-              sur mobile, 1 600 px au plus pour ne pas agrandir l'image), ombre portée marquée.
+              hero pour occuper 70 % de la largeur de l'écran (pleine largeur moins les marges
+              sur mobile, 1 600 px au plus pour ne pas agrandir l'image), ombre portée légère
+              qui ne déborde pas sur la légende.
               Agrandie au clic.
             */}
-            <figure className="relative left-1/2 mt-20 w-[calc(100vw-2rem)] max-w-[1600px] -translate-x-1/2 sm:mt-24 sm:w-[84vw]">
+            <figure className="relative left-1/2 mt-20 w-[calc(100vw-2rem)] max-w-[1600px] -translate-x-1/2 sm:mt-24 sm:w-[70vw]">
               <ImageLightbox
                 src="/images/dashboard-preview.png"
                 alt="Le dashboard Applyfy : compteurs de candidatures, filtres par statut et liste des candidatures avec leur date d'envoi et un bouton Relancer"
                 width={1920}
                 height={1317}
-                sizes="(min-width: 1905px) 1600px, (min-width: 640px) 84vw, calc(100vw - 32px)"
-                className="h-auto w-full rounded-2xl border border-slate-200/80 shadow-[0_50px_100px_-20px_rgba(15,23,42,0.35),0_30px_60px_-30px_rgba(15,23,42,0.4)]"
+                sizes="(min-width: 2286px) 1600px, (min-width: 640px) 70vw, calc(100vw - 32px)"
+                className="h-auto w-full rounded-2xl border border-slate-200/80 shadow-[0_20px_40px_-16px_rgba(15,23,42,0.18),0_8px_16px_-8px_rgba(15,23,42,0.1)]"
               />
               <figcaption className="mt-4 text-sm text-slate-500">
                 Le dashboard Applyfy — toutes tes candidatures au même endroit
