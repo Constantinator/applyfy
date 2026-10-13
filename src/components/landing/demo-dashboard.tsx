@@ -14,7 +14,12 @@ import {
   IconSparkles,
   IconUser,
 } from "@/components/icons";
-import { STATUS_LABELS, type ApplicationStatus } from "@/lib/types";
+import {
+  APPLICATION_STATUSES,
+  RESPONSE_STATUSES,
+  STATUS_LABELS,
+  type ApplicationStatus,
+} from "@/lib/types";
 
 // Dashboard Applyfy simulé (données fictives), en thème sombre : destiné à remplacer la
 // capture d'écran de la landing. Reprend la structure du vrai dashboard (sidebar, cartes de
@@ -177,15 +182,6 @@ const STATUS_STYLES: Record<ApplicationStatus, { badge: string; dot: string }> =
   offre: { badge: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30", dot: "bg-emerald-400" },
   refusee: { badge: "bg-red-500/15 text-red-300 ring-red-400/30", dot: "bg-red-400" },
 };
-
-/** Statuts proposés sous « Statut de la candidature » (dans cet ordre). */
-const STATUS_CHOICES: ApplicationStatus[] = [
-  "en_attente",
-  "envoyee",
-  "entretien",
-  "relancee",
-  "refusee",
-];
 
 const EVENT_DOTS: Record<DemoEvent["tone"], string> = {
   slate: "bg-slate-500",
@@ -472,7 +468,8 @@ export function DemoDashboard() {
               <div className="flex-1 space-y-4 overflow-y-auto p-5 text-sm">
                 {/* En-tête : entreprise, statut, informations, changement de statut */}
                 <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  {/* Empilé, comme la fiche sous la largeur lg (le panneau est plus étroit). */}
+                  <div className="flex flex-col gap-5">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2.5">
                         <p className="text-xl font-bold tracking-tight text-white">
@@ -499,35 +496,41 @@ export function DemoDashboard() {
                         </div>
                       </dl>
                     </div>
-                    <div className="sm:w-44 sm:shrink-0">
-                      <p className="text-xs font-medium text-slate-400">Statut de la candidature</p>
-                      <div className="mt-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200">
-                        {STATUS_LABELS[shown.status]} ▾
-                      </div>
-                      {/* Statuts disponibles, défilement horizontal ; l'actuel est mis en avant. */}
-                      <div
-                        role="group"
-                        aria-label="Changer le statut"
-                        className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1"
-                      >
-                        {STATUS_CHOICES.map((status) => {
-                          const current = status === shown.status;
-                          return (
-                            <button
-                              key={status}
-                              type="button"
-                              aria-pressed={current}
-                              onClick={() => showToast(TOAST_FEATURE)}
-                              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ring-1 ring-inset transition ${
-                                current
-                                  ? STATUS_STYLES[status].badge
-                                  : "text-slate-400 ring-white/10 hover:bg-white/5 hover:text-slate-200"
-                              }`}
-                            >
-                              {STATUS_LABELS[status]}
-                            </button>
-                          );
-                        })}
+                    {/* Comme StatusChanger : menu déroulant + « Changer le statut ». */}
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="demo-status" className="text-sm font-medium text-slate-300">
+                        Statut de la candidature
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          id="demo-status"
+                          // Reste sur le statut actuel : la démo ne modifie rien.
+                          value={shown.status}
+                          onChange={() => showToast(TOAST_FEATURE)}
+                          className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:border-white/30 focus:outline-none"
+                        >
+                          {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map(
+                            (status) => (
+                              <option key={status} value={status} className="bg-slate-900">
+                                {STATUS_LABELS[status]}
+                              </option>
+                            ),
+                          )}
+                          <optgroup label="Réponse reçue" className="bg-slate-900">
+                            {RESPONSE_STATUSES.map((status) => (
+                              <option key={status} value={status} className="bg-slate-900">
+                                {STATUS_LABELS[status]}
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => showToast(TOAST_FEATURE)}
+                          className={PRIMARY_BUTTON}
+                        >
+                          Changer le statut
+                        </button>
                       </div>
                     </div>
                   </div>
