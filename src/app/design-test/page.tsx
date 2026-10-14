@@ -710,7 +710,7 @@ export default function DesignTestPage() {
           </Reveal>
         </section>
 
-        {/* Nos tarifs (blanc) : 3 cartes, Premium au centre et mis en avant. */}
+        {/* Nos tarifs (blanc) : Gratuit, Premium (au centre, mis en avant) et offre bêta. */}
         <section
           aria-labelledby="pricing-title"
           className="relative isolate bg-white"
@@ -738,56 +738,61 @@ export default function DesignTestPage() {
                 </Link>
               </article>
 
-              {/* Premium : bordure bleue, fond bleuté, un peu plus grande sur desktop. */}
+              {/* Premium : bordure bleue, fond bleuté, un peu plus haute sur desktop. */}
               <article className="flex h-full flex-col rounded-[12px] border border-blue-500 bg-blue-50/50 p-8 ring-1 ring-blue-500 md:-my-4 md:py-12">
                 <span className="self-start rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
-                  Bêta : offert jusqu&apos;au 31/12/2026
+                  {PREMIUM_PRICE_LABEL}
                 </span>
                 <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Premium</h3>
-                <p className="mt-1 flex items-baseline gap-3">
-                  <span className={`text-4xl text-slate-900 ${H1}`}>0 €</span>
-                  <s className="text-lg text-slate-400">
-                    <span className="sr-only">au lieu de </span>
-                    {PREMIUM_PRICE_LABEL}
-                  </s>
+                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>
+                  {PREMIUM_PRICE_LABEL.replace("/mois", "")}
+                  <span className="text-base font-medium tracking-normal text-slate-500">
+                    {" "}
+                    / mois
+                  </span>
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Pour les {BETA_MAX_TESTERS} bêta-testeurs · puis{" "}
-                  {PREMIUM_PRICE_LABEL} sans engagement
+                  Sans engagement, résiliable à tout moment.
                 </p>
                 <div className="mt-6 flex-1">
                   <PlanFeatures items={PLAN_FEATURES.premium} />
                 </div>
+                <Link href="/signup" className={`mt-8 w-full ${BTN_PRIMARY}`}>
+                  Obtenir le Premium
+                </Link>
+              </article>
+
+              {/* Bêta testeur : bordure ambrée pour la distinguer. */}
+              <article className="flex h-full flex-col rounded-[12px] border border-amber-400 bg-amber-50/50 p-8 ring-1 ring-amber-400">
+                <span className="self-start rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+                  Offre limitée · {BETA_MAX_TESTERS} places
+                </span>
+                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>
+                  Bêta testeur
+                </h3>
+                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Jusqu&apos;au 31/12/2026, puis plan Gratuit, ou Premium à{" "}
+                  {PREMIUM_PRICE_LABEL} si tu veux le garder.
+                </p>
+                {/* Engagement réel du programme (conditions de BetaJoinDialog). */}
+                <p className="mt-5 rounded-[8px] bg-white/70 px-3 py-2.5 text-sm leading-relaxed font-medium text-amber-900 ring-1 ring-amber-200">
+                  En échange, tu nous envoies 3 courts rapports sur ton
+                  expérience : à 1 semaine, 2 semaines et 1 mois.
+                </p>
+                <div className="mt-6 flex-1">
+                  <PlanFeatures
+                    items={["Accès complet au Premium jusqu'au 31/12/2026"]}
+                  />
+                </div>
                 {/*
-                  Ouvre les conditions du programme beta, qui mène à l'inscription ou à la
-                  connexion puis inscrit au programme (un simple lien /signup n'y inscrirait pas).
+                  Ouvre les conditions du programme, puis mène à l'inscription ou à la connexion et
+                  inscrit au programme (un simple lien /signup n'y inscrirait pas).
                 */}
                 <BetaJoinDialog
                   mode="link"
-                  triggerClassName={`mt-8 w-full ${BTN_PRIMARY}`}
+                  triggerClassName={`mt-8 w-full ${BTN_SECONDARY} border-amber-400!`}
                 />
-              </article>
-
-              {/* Équipe : offre future, grisée, sans action. */}
-              <article className="flex h-full flex-col rounded-[12px] border border-dashed border-[#e5e7eb] bg-slate-50 p-8 text-slate-500">
-                <span className="self-start rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                  Bientôt disponible
-                </span>
-                <h3 className={`mt-5 text-lg text-slate-700 ${H3}`}>Équipe</h3>
-                <p className={`mt-1 text-4xl text-slate-500 ${H1}`}>
-                  Sur devis
-                </p>
-                <p className="mt-6 flex-1 text-sm leading-relaxed">
-                  Pour les cabinets de recrutement et les écoles. Accès
-                  multi-utilisateurs, tableau de bord partagé.
-                </p>
-                <button
-                  type="button"
-                  disabled
-                  className={`mt-8 w-full ${BTN_SECONDARY}`}
-                >
-                  Nous contacter
-                </button>
               </article>
             </div>
           </div>
