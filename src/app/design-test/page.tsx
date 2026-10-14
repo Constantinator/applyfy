@@ -762,9 +762,9 @@ export default function DesignTestPage() {
                 </Link>
               </article>
 
-              {/* Bêta testeur : bordure ambrée pour la distinguer. */}
-              <article className="flex h-full flex-col rounded-[12px] border border-amber-400 bg-amber-50/50 p-8 ring-1 ring-amber-400">
-                <span className="self-start rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+              {/* Bêta testeur : bordure et fond cyan (couleur d'Applyfy) pour la distinguer. */}
+              <article className="flex h-full flex-col rounded-[12px] border border-cyan-400 bg-cyan-50/60 p-8 ring-1 ring-cyan-400">
+                <span className="self-start rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800">
                   Offre limitée · {BETA_MAX_TESTERS} places
                 </span>
                 <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>
@@ -772,18 +772,19 @@ export default function DesignTestPage() {
                 </h3>
                 <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Jusqu&apos;au 31/12/2026, puis plan Gratuit, ou Premium à{" "}
-                  {PREMIUM_PRICE_LABEL} si tu veux le garder.
+                  Gratuit jusqu&apos;au 31/12/2026
                 </p>
-                {/* Engagement réel du programme (conditions de BetaJoinDialog). */}
-                <p className="mt-5 rounded-[8px] bg-white/70 px-3 py-2.5 text-sm leading-relaxed font-medium text-amber-900 ring-1 ring-amber-200">
-                  En échange, tu nous envoies 3 courts rapports sur ton
-                  expérience : à 1 semaine, 2 semaines et 1 mois.
-                </p>
-                <div className="mt-6 flex-1">
+                <div className="mt-6">
                   <PlanFeatures
                     items={["Accès complet au Premium jusqu'au 31/12/2026"]}
                   />
+                </div>
+                {/* Engagement réel du programme (conditions de BetaJoinDialog). flex-1 : bouton en bas. */}
+                <div className="mt-5 flex-1">
+                  <p className="rounded-[8px] bg-white/70 px-3 py-2.5 text-sm leading-relaxed font-medium text-cyan-900 ring-1 ring-cyan-200">
+                    En échange, tu nous envoies 3 courts rapports sur ton
+                    expérience : à 1 semaine, 2 semaines et 1 mois.
+                  </p>
                 </div>
                 {/*
                   Ouvre les conditions du programme, puis mène à l'inscription ou à la connexion et
@@ -791,7 +792,7 @@ export default function DesignTestPage() {
                 */}
                 <BetaJoinDialog
                   mode="link"
-                  triggerClassName={`mt-8 w-full ${BTN_SECONDARY} border-amber-400!`}
+                  triggerClassName={`mt-8 w-full ${BTN_SECONDARY} border-cyan-400!`}
                 />
               </article>
             </div>
