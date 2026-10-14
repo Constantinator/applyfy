@@ -285,7 +285,8 @@ const CARDS = [
   },
   {
     title: "Ajoute une candidature",
-    description: "Ajoute une candidature en 30 secondes. Entreprise, poste, date d'envoi.",
+    description:
+      "Colle l'URL de l'offre et Applyfy extrait automatiquement l'entreprise, le poste et les infos clés. En 10 secondes.",
     Scene: AddApplicationScene,
   },
   {
