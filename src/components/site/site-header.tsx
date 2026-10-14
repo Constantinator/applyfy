@@ -26,8 +26,9 @@ export function SiteHeader() {
           <Link href="/login" className="text-slate-600 hover:text-slate-900">
             Se connecter
           </Link>
+          {/* « gratuitement » masqué sous 360 px : le bouton tient sur les plus petits écrans. */}
           <Link href="/signup" className="btn-primary px-4 py-2 text-sm">
-            Créer mon compte
+            Commencer<span className="max-[359px]:hidden">&nbsp;gratuitement</span>
           </Link>
         </nav>
       </div>

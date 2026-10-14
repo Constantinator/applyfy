@@ -18,7 +18,6 @@ import {
 import { CountUp } from "@/components/landing/count-up";
 import { DemoDashboard } from "@/components/landing/demo-dashboard";
 import { Reveal } from "@/components/landing/reveal";
-import { LogoFull } from "@/components/logo";
 import { SiteHeader } from "@/components/site/site-header";
 import { AI_MONTHLY_LIMITS, PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
 import { BETA_MAX_TESTERS } from "@/lib/beta-rules";
@@ -398,8 +397,6 @@ export default function DesignTestPage() {
           </svg>
           <div className="relative z-10 mx-auto max-w-7xl px-4 pt-[120px] pb-24 sm:px-6 lg:pt-40">
             <div className="mx-auto max-w-4xl text-center">
-              {/* Logo masqué sur mobile (déjà dans l'en-tête) : titre et CTA remontent. */}
-              <LogoFull className="mx-auto mb-12 hidden h-auto w-72 sm:block" />
               {/* Offre beta en pastille : seule vraie rareté de la page, mise en avant. */}
               <div className="mb-8 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-blue-200 bg-white/70 px-4 py-1.5 text-sm text-slate-600 backdrop-blur">
                 <span className="font-medium text-blue-700">✦ Beta</span>
