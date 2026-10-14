@@ -46,6 +46,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Politique de confidentialité"
+      updatedOn="14 octobre 2026"
       intro="Applyfy t'aide à suivre ta recherche d'emploi. Cette page explique quelles données sont collectées, pourquoi, combien de temps elles sont conservées et comment exercer tes droits, conformément au Règlement général sur la protection des données (RGPD)."
     >
       <LegalSection title="Responsable du traitement">
@@ -85,7 +86,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="Finalités et base légale">
         <ul>
-          <li>Suivi de tes candidatures et rappels de relance par email ;</li>
+          <li>Suivi de tes candidatures, rappels de relance et email de bienvenue à l&apos;inscription par email ;</li>
           <li>
             Génération de documents par intelligence artificielle (résumé d&apos;offre, analyse et
             adaptation de CV, lettre de motivation), uniquement à ta demande ;
