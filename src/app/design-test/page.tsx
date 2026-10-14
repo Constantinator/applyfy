@@ -720,23 +720,26 @@ export default function DesignTestPage() {
               Nos tarifs
             </h2>
 
-            <div className="mt-12 grid items-center gap-6 md:grid-cols-3">
-              <article className="flex h-full flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-8">
+            <div className="mt-12 grid gap-6 md:grid-cols-3">
+              <article className="flex h-full flex-col justify-between rounded-[12px] border border-[#e5e7eb] bg-white p-8">
                 <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
                   Gratuit pour toujours
                 </span>
                 <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Gratuit</h3>
                 <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
-                <div className="mt-6 flex-1">
+                <div className="mt-6 mb-8">
                   <PlanFeatures items={PLAN_FEATURES.free} />
                 </div>
-                <Link href="/signup" className={`mt-8 w-full ${BTN_SECONDARY}`}>
+                <Link
+                  href="/signup"
+                  className={`mt-auto w-full ${BTN_SECONDARY}`}
+                >
                   Commencer gratuitement
                 </Link>
               </article>
 
-              {/* Premium : bordure bleue, fond bleuté, un peu plus haute sur desktop. */}
-              <article className="flex h-full flex-col rounded-[12px] border border-blue-500 bg-blue-50/50 p-8 ring-1 ring-blue-500 md:-my-4 md:py-12">
+              {/* Premium : bordure bleue de 2 px, fond bleuté et ombre (même hauteur que les autres : boutons alignés). */}
+              <article className="flex h-full flex-col justify-between rounded-[12px] border-2 border-blue-500 bg-blue-50/50 p-8 shadow-lg shadow-blue-600/10">
                 <span className="self-start rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
                   {PREMIUM_PRICE_LABEL}
                 </span>
@@ -751,17 +754,20 @@ export default function DesignTestPage() {
                 <p className="mt-1 text-sm text-slate-500">
                   Sans engagement, résiliable à tout moment.
                 </p>
-                <div className="mt-6 flex-1">
+                <div className="mt-6 mb-8">
                   <PlanFeatures items={PLAN_FEATURES.premium} />
                 </div>
-                <Link href="/signup" className={`mt-8 w-full ${BTN_PRIMARY}`}>
+                <Link
+                  href="/signup"
+                  className={`mt-auto w-full ${BTN_PRIMARY}`}
+                >
                   Obtenir le Premium
                 </Link>
               </article>
 
               {/* Bêta testeur : bordure et fond cyan (couleur d'Applyfy) pour la distinguer. */}
-              <article className="flex h-full flex-col rounded-[12px] border border-cyan-400 bg-cyan-50/60 p-8 ring-1 ring-cyan-400">
-                <span className="self-start rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800">
+              <article className="flex h-full flex-col justify-between rounded-[12px] border-2 border-cyan-400 bg-cyan-50 p-8">
+                <span className="self-start rounded-full bg-cyan-200 px-3 py-1 text-xs font-medium text-cyan-900">
                   Offre limitée · {BETA_MAX_TESTERS} places
                 </span>
                 <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>
@@ -776,8 +782,8 @@ export default function DesignTestPage() {
                     items={["Accès complet au Premium jusqu'au 31/12/2026"]}
                   />
                 </div>
-                {/* Engagement réel du programme (conditions de BetaJoinDialog). flex-1 : bouton en bas. */}
-                <div className="mt-5 flex-1">
+                {/* Engagement réel du programme (conditions de BetaJoinDialog). */}
+                <div className="mt-5 mb-8">
                   <p className="rounded-[8px] bg-white/70 px-3 py-2.5 text-sm leading-relaxed font-medium text-cyan-900 ring-1 ring-cyan-200">
                     En échange, tu nous envoies 3 courts rapports sur ton
                     expérience : à 1 semaine, 2 semaines et 1 mois.
@@ -789,7 +795,7 @@ export default function DesignTestPage() {
                 */}
                 <BetaJoinDialog
                   mode="link"
-                  triggerClassName={`mt-8 w-full ${BTN_SECONDARY} border-cyan-400!`}
+                  triggerClassName={`mt-auto w-full ${BTN_SECONDARY} border-cyan-400!`}
                 />
               </article>
             </div>
