@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { IconBell, IconSparkles } from "@/components/icons";
+import { IconBell, IconBriefcase, IconDocument, IconSparkles } from "@/components/icons";
 import { Logo } from "@/components/logo";
 import { StatusBadge } from "@/components/status-badge";
 import { ONBOARDING_OPEN_ATTRIBUTE, notifyOnboardingChange } from "@/lib/onboarding-tips";
@@ -72,6 +72,10 @@ const ANIMATIONS_CSS = `
   95%, 100% { opacity: 0; transform: translateX(120%) }
 }
 @keyframes oa-ring { 0%, 18%, 33%, 100% { transform: rotate(0) } 21% { transform: rotate(16deg) } 24% { transform: rotate(-14deg) } 27% { transform: rotate(10deg) } 30% { transform: rotate(-6deg) } }
+
+/* Carte 6 — documents prêts pour l'entretien (cycle de 6 s, décalé par document) */
+@keyframes oa-doc { 0% { opacity: 0; transform: translateY(8px) } 10%, 85% { opacity: 1; transform: none } 95%, 100% { opacity: 0 } }
+@keyframes oa-check { 0%, 40% { opacity: 0; transform: scale(.4) } 48% { opacity: 1; transform: scale(1.15) } 52%, 85% { opacity: 1; transform: none } 95%, 100% { opacity: 0 } }
 
 @media (prefers-reduced-motion: reduce) {
   .oa-scene, .oa-scene * { animation: none !important; }
@@ -276,6 +280,51 @@ function FollowUpScene() {
   );
 }
 
+const INTERVIEW_DOCUMENTS = [
+  { label: "CV", Icon: IconDocument },
+  { label: "Lettre", Icon: IconDocument },
+  { label: "Fiche poste", Icon: IconBriefcase },
+];
+
+function InterviewPrepScene() {
+  return (
+    <div className="flex h-full items-center justify-center p-5">
+      {/* Faux écran de dashboard : barre de titre puis les trois documents. */}
+      <div className="w-full max-w-xs rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500 text-[10px] font-bold text-white">
+            S
+          </span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-white">Entretien Spotify</span>
+          <span className="ml-auto h-2 w-10 rounded-full bg-slate-200 dark:bg-slate-700" />
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {INTERVIEW_DOCUMENTS.map(({ label, Icon }, i) => (
+            <div
+              key={label}
+              className="relative flex flex-col items-center gap-1.5 rounded-lg bg-slate-50 px-2 pt-3 pb-2 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700"
+              style={{ animation: `oa-doc 6s ease-out ${i * 0.5}s infinite both` }}
+            >
+              <Icon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <span className="space-y-1 self-stretch">
+                <span className="block h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                <span className="block h-1 w-2/3 rounded-full bg-slate-200 dark:bg-slate-700" />
+              </span>
+              <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">{label}</span>
+              <span
+                className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white ring-2 ring-white dark:ring-slate-900"
+                style={{ animation: `oa-check 6s ease-out ${i * 0.5}s infinite both` }}
+              >
+                ✓
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const CARDS = [
   {
     title: "Bienvenue sur Applyfy",
@@ -304,9 +353,15 @@ const CARDS = [
     description: "Applyfy te prévient quand il est temps de relancer. Ne laisse plus passer une opportunité.",
     Scene: FollowUpScene,
   },
+  {
+    title: "Prépare ton entretien",
+    description:
+      "Retrouve ton CV adapté, ta lettre de motivation et toutes les infos sur le poste au même endroit. Rien à chercher le jour J.",
+    Scene: InterviewPrepScene,
+  },
 ];
 
-/** Présentation en 5 cartes animées, affichée une seule fois (mémoire dans le navigateur). */
+/** Présentation en 6 cartes animées, affichée une seule fois (mémoire dans le navigateur). */
 export function OnboardingModal() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   // Côté serveur : jamais de modal (la mémoire est dans le navigateur).
