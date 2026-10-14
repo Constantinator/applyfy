@@ -9,6 +9,7 @@ import { safeRedirectPath } from "@/lib/auth";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/password";
 import { validateAccountName } from "@/lib/person-name";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { queueWelcomeEmail } from "@/lib/welcome-email";
 
 export type AuthFormState =
   | { status: "idle" }
@@ -99,10 +100,14 @@ export async function signupAction(
   });
   if (error) return { status: "error", message: authErrorMessage(error) };
 
-  // Confirmation d'email désactivée dans Supabase : session ouverte, direction le dashboard.
-  if (data.session) redirect("/dashboard");
+  // Confirmation d'email désactivée dans Supabase : session ouverte, email de bienvenue, direction le dashboard.
+  if (data.session) {
+    await queueWelcomeEmail(supabase, data.user);
+    redirect("/dashboard");
+  }
 
-  // Sinon, l'utilisateur doit cliquer sur le lien reçu par email (→ /auth/confirm → /dashboard).
+  // Sinon, l'utilisateur doit cliquer sur le lien reçu par email (→ /auth/confirm → /dashboard),
+  // qui déclenche l'email de bienvenue (adresse vérifiée).
   return { status: "check-email", email };
 }
 

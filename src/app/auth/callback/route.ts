@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { safeRedirectPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { queueWelcomeEmail } from "@/lib/welcome-email";
 
 // Retour de « Continuer avec Google » (OAuth Supabase, PKCE) : ?code=… échangé contre une
 // session, puis /dashboard (ou la page demandée avant la connexion, ?next=…). Refus ou erreur
@@ -14,9 +15,11 @@ export async function GET(request: NextRequest) {
   let ok = false;
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) console.error("[auth/callback] Google", error.message);
     ok = !error;
+    // Première connexion Google = inscription : email de bienvenue (une seule fois).
+    if (ok) await queueWelcomeEmail(supabase, data.user);
   } else if (searchParams.get("error")) {
     console.error(
       "[auth/callback] Google",

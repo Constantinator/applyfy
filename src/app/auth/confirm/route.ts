@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { safeRedirectPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { queueWelcomeEmail } from "@/lib/welcome-email";
 
 // Lien de confirmation d'email envoyé par Supabase après l'inscription.
 // Gère les deux formats : ?code=… (PKCE, par défaut) et ?token_hash=…&type=… (template personnalisé).
@@ -17,11 +18,13 @@ export async function GET(request: NextRequest) {
   let ok = false;
 
   if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
     ok = !error;
+    if (ok) await queueWelcomeEmail(supabase, data.user);
   } else if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     ok = !error;
+    if (ok) await queueWelcomeEmail(supabase, data.user);
   }
 
   const destination = ok ? next : "/login?erreur=lien";
