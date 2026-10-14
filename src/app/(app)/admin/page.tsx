@@ -100,10 +100,10 @@ const td = "px-3 py-2 text-sm text-slate-700";
 const num = "text-right tabular-nums";
 
 /** « +2 vs hier » (vert), « -1 vs hier » (rouge), « 0 vs hier » (gris). */
-function versusYesterday(today: number, yesterday: number) {
+function versusYesterday(today: number, yesterday: number, reference = "hier") {
   const diff = today - yesterday;
   return {
-    hint: `${diff > 0 ? "+" : ""}${integer.format(diff)} vs hier`,
+    hint: `${diff > 0 ? "+" : ""}${integer.format(diff)} vs ${reference}`,
     hintTone: diff > 0 ? ("good" as const) : diff < 0 ? ("bad" as const) : undefined,
   };
 }
@@ -145,6 +145,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     p.projection.reduce((sum, row) => sum + row[key], 0);
   const projectedYearRevenue = sumOf("revenue");
   const { today: signupsToday, yesterday: signupsYesterday } = m.newSignups;
+  const newApps = m.newApplications;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -278,6 +279,18 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             label="Nouveaux Premium aujourd'hui"
             value={integer.format(signupsToday.premium)}
             {...versusYesterday(signupsToday.premium, signupsYesterday.premium)}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Stat
+            label="Candidatures ajoutées aujourd'hui"
+            value={integer.format(newApps.today)}
+            {...versusYesterday(newApps.today, newApps.yesterday)}
+          />
+          <Stat
+            label="Candidatures ajoutées hier"
+            value={integer.format(newApps.yesterday)}
+            {...versusYesterday(newApps.yesterday, newApps.dayBefore, "avant-hier")}
           />
         </div>
         <div className="card space-y-3 p-5">

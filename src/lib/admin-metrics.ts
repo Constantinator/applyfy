@@ -105,6 +105,29 @@ const dayFormatter = new Intl.DateTimeFormat("en-CA", {
 /** « 2026-10-06 » (jour à Paris). */
 const parisDay = (date: Date | string) => dayFormatter.format(new Date(date));
 
+/** Jour précédent (YYYY-MM-DD), sur le calendrier : juste aux changements d'heure. */
+const previousDay = (day: string) =>
+  new Date(Date.parse(`${day}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+
+const parisClock = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "Europe/Paris",
+});
+
+/** Minuit (heure de Paris) du jour donné, en instant UTC. */
+function parisMidnight(day: string): Date {
+  const utc = Date.parse(`${day}T00:00:00Z`);
+  const p = Object.fromEntries(parisClock.formatToParts(new Date(utc)).map((part) => [part.type, part.value]));
+  // Décalage de Paris (1 h ou 2 h) : identique à minuit UTC et à minuit à Paris (les changements d'heure ont lieu à 1 h UTC).
+  const offset = Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:00Z`) - utc;
+  return new Date(utc - offset);
+}
+
 /** Les `count` derniers jours (YYYY-MM-DD), aujourd'hui compris, du plus ancien au plus récent. */
 function lastDays(count: number, now: Date): string[] {
   const days: string[] = [];
@@ -224,6 +247,8 @@ export type AdminMetrics = {
   latestSignups: { email: string; createdAt: string; premium: boolean; actionsInMonth: number }[];
   /** Nouveaux inscrits d'aujourd'hui et d'hier (jours de Paris), quel que soit le mois sélectionné. */
   newSignups: { today: SignupCounts; yesterday: SignupCounts };
+  /** Candidatures créées aujourd'hui (jusqu'à maintenant), hier et avant-hier (jours de Paris). */
+  newApplications: { today: number; yesterday: number; dayBefore: number };
 };
 
 /** Inscrits d'un jour, répartis selon leur plan actuel. */
@@ -253,9 +278,29 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
   const asOf = isCurrentMonth ? today : lastDayOf(month);
   const dayBeforeMonth = lastDayOf(shiftMonth(month, -1));
 
-  const usage = await selectAll<UsageRow>((from, to) =>
-    supabase.from("usage").select("user_id, kind").eq("period", monthStart).order("id").range(from, to),
+  // Candidatures créées entre deux instants (comptage seul, sans charger les lignes).
+  const countApplications = async (from: Date, to: Date) => {
+    const { count, error } = await supabase
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", from.toISOString())
+      .lt("created_at", to.toISOString());
+    if (error) throw new Error(error.message);
+    return count ?? 0;
+  };
+  const yesterdayDay = previousDay(today);
+  const [todayStart, yesterdayStart, dayBeforeStart] = [today, yesterdayDay, previousDay(yesterdayDay)].map(
+    parisMidnight,
   );
+
+  const [usage, applicationsToday, applicationsYesterday, applicationsDayBefore] = await Promise.all([
+    selectAll<UsageRow>((from, to) =>
+      supabase.from("usage").select("user_id, kind").eq("period", monthStart).order("id").range(from, to),
+    ),
+    countApplications(todayStart, now),
+    countApplications(yesterdayStart, todayStart),
+    countApplications(dayBeforeStart, yesterdayStart),
+  ]);
 
   // --- Abonnés à une date ----------------------------------------------------
   // Un abonnement compte du jour de sa création jusqu'à sa fin. Pour un abonnement
@@ -359,8 +404,6 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
     }));
 
   // --- Nouveaux inscrits du jour et de la veille ------------------------------
-  // Veille calculée sur le calendrier (et non « maintenant − 24 h ») : juste aux changements d'heure.
-  const yesterday = new Date(Date.parse(`${today}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
   const premiumToday = subscribersOn(today);
   const signupsOn = (day: string): SignupCounts => {
     const created = users.filter((u) => parisDay(u.createdAt) === day);
@@ -390,7 +433,8 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
     costs: { byKind, total: totalCost, avgPerFreeUser, avgPerPremiumUser, topUsers },
     profitability: { ...profit(premiumCount, totalCost), growth, projection },
     latestSignups,
-    newSignups: { today: signupsOn(today), yesterday: signupsOn(yesterday) },
+    newSignups: { today: signupsOn(today), yesterday: signupsOn(yesterdayDay) },
+    newApplications: { today: applicationsToday, yesterday: applicationsYesterday, dayBefore: applicationsDayBefore },
   };
 }
 
