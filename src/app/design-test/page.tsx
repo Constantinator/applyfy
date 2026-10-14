@@ -317,7 +317,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
   {
     question: "Puis-je résilier à tout moment ?",
     answer:
-      "Oui, le Premium est sans engagement. Et si tu n'es pas satisfait(e), tu es remboursé(e) intégralement dans les 14 jours suivant ton premier abonnement, sauf si tu as renoncé à ton droit de rétractation pour accéder immédiatement au service.",
+      "Oui. Tu peux annuler ton abonnement à tout moment depuis ton espace personnel, sans engagement.",
   },
   {
     question: "Est-ce que ça marche avec Indeed ou Welcome to the Jungle ?",
