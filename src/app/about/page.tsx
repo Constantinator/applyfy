@@ -19,7 +19,7 @@ export default function AboutPage() {
       <SiteHeader />
       <main className="flex-1">
         <article className="mx-auto max-w-3xl px-4 py-20 sm:px-6 sm:py-24">
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
             Notre histoire
           </h1>
           <div className="mt-10 space-y-6 text-lg leading-relaxed text-slate-600">
