@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "skills": {
+    "brand-copywriter": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/brand-copywriter/SKILL.md",
+      "computedHash": "2d2699da05226c6f34462607af8313f3c39316e47ff916b9777653274b3bcf3b"
+    },
+    "competitor-intel": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/competitor-intel/SKILL.md",
+      "computedHash": "8f4b5ab49dae41d2863cef5e48742e46f47e6af6473a0d0358a9eb41b7e77b8f"
+    },
+    "cro-optimization": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/cro-optimization/SKILL.md",
+      "computedHash": "e43ddcf2c807653a5a25e020b688e2b8f55f5412e50bcf98110aa424a6532448"
+    },
+    "go-to-market-plan": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/go-to-market-plan/SKILL.md",
+      "computedHash": "41d6885143e4d93d0016910673c8a6d6acb58a1525db6debae34b6a3d2a9adc4"
+    },
+    "lead-magnet-generator": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/lead-magnet-generator/SKILL.md",
+      "computedHash": "46bb045d5de3db4080d7b4b4ceb6cfd5a3694c6ce32afc77447725c1da2af24a"
+    },
+    "linkedin-writer": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/linkedin-writer/SKILL.md",
+      "computedHash": "c7d0da0bf5d0033dd8947449546bf937c6ac0632f2c31c4ad7bcedaa6650543d"
+    },
+    "marketing-ideas": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/marketing-ideas/SKILL.md",
+      "computedHash": "8f487d368aa72bb5f90a671d90a766b233726c857c6756bcc94cb4e8d79e3fb8"
+    },
+    "outreach-specialist": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/outreach-specialist/SKILL.md",
+      "computedHash": "d1c128776bbbdfcbb09381293f3e45cc4448d75cdae326b9e8d1484b975fd9a9"
+    },
+    "prd-generator": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/prd-generator/SKILL.md",
+      "computedHash": "93f1b31becba19db4bdbb13c1752a09c0d71d6882dd5f1d93eb9868440d4464e"
+    },
+    "pricing-strategist": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/pricing-strategist/SKILL.md",
+      "computedHash": "074926a9868349057a963fae364a98836e6c4fcd18df75e8a6c1e9cc39d64eb7"
+    },
+    "product-hunt-launch-plan": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/product-hunt-launch-plan/SKILL.md",
+      "computedHash": "00938ec28cc0856055f814b7f0fe9beaaca326ddb2cb69b55bf2d41e0e2a0147"
+    },
+    "sop-creator": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sop-creator/SKILL.md",
+      "computedHash": "783720c93ca151e3fdff58eb0091ed5d86449bce06f7e466b574227e7a7862c8"
+    },
+    "strategic-planning": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/strategic-planning/SKILL.md",
+      "computedHash": "26a83e326a40dac90a7b07e968ef5b83d8422baf9a3f681de00cea5dc4dc1866"
+    },
+    "viral-hook-creator": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/viral-hook-creator/SKILL.md",
+      "computedHash": "667464c1583ba51d5e2ff55e0c6872da250ab4fa2edb824ef6be1ac722e01a6e"
+    },
+    "x-writer": {
+      "source": "ognjengt/founder-skills",
+      "sourceType": "github",
+      "skillPath": "skills/x-writer/SKILL.md",
+      "computedHash": "5ffb046e5a8a359167fc2e068e7e6b24a77e0eb537a7112f9afcc9edb178e45a"
+    }
+  }
+}
