@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
@@ -368,6 +369,44 @@ export default function DesignTestPage() {
               </figcaption>
             </figure>
           </div>
+        </section>
+
+        {/*
+          Preuve sociale fondateur : en attendant de vrais témoignages, un visage et une histoire
+          réels. Fond blanc pour se détacher du dégradé du hero, 48px de part et d'autre.
+        */}
+        <section
+          aria-label="Le mot du fondateur"
+          className="relative isolate bg-white"
+        >
+          <figure
+            className={`mx-auto flex max-w-3xl flex-col items-center gap-8 px-4 py-12 text-center sm:flex-row sm:px-6 sm:text-left ${CONTENT}`}
+          >
+            <Image
+              src="/images/founder.jpg"
+              alt="Constantin, fondateur d'Applyfy"
+              width={200}
+              height={200}
+              className="h-[200px] w-[200px] shrink-0 rounded-2xl object-cover grayscale"
+            />
+            <div>
+              <blockquote className="text-lg leading-relaxed text-pretty text-slate-700 italic">
+                « J&apos;ai créé Applyfy après avoir postulé à de nombreuses
+                offres. Je me perdais vite et cela me frustrait. Je voulais un
+                outil simple qui m&apos;aide à candidater, je l&apos;ai donc
+                créé. »
+              </blockquote>
+              <figcaption className="mt-4 text-sm text-slate-500">
+                — Constantin, fondateur d&apos;Applyfy
+              </figcaption>
+              <Link
+                href="/about"
+                className="mt-2 inline-block text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
+              >
+                Notre histoire →
+              </Link>
+            </div>
+          </figure>
         </section>
 
         {/* Les chiffres qui font mal (gris) : 80px de part et d'autre, chiffres agrandis. */}
