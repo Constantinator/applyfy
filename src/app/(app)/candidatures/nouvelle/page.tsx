@@ -19,7 +19,7 @@ export default async function NewApplicationPage() {
       </Link>
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Nouvelle candidature</h1>
       <p className="mt-1 mb-6 text-sm text-slate-500 dark:text-slate-400">
-        Ajoute une candidature pour suivre son avancement et être prévenu·e quand relancer.
+        Ajoute une candidature sur ton dashboard
       </p>
       <NewApplicationForm
         aiEnabled={isClaudeConfigured()}

@@ -350,7 +350,6 @@ export function NewApplicationForm({
         <Field
           name="offer_description"
           label="Description de l'offre"
-          hint="Facultatif : colle la description complète pour la garder même si l'annonce est retirée."
           error={errors.offer_description}
         >
           <textarea
