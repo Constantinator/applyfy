@@ -19,7 +19,7 @@ export function LegalDocument({ title, intro, children }: { title: string; intro
 export function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
+      <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
       <div className="space-y-3 leading-relaxed text-slate-700 [&_a]:font-medium [&_a]:text-blue-600 [&_a:hover]:text-blue-500 [&_li]:pl-1 [&_strong]:font-semibold [&_strong]:text-slate-900 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:marker:text-slate-400">
         {children}
       </div>

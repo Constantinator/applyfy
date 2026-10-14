@@ -15,10 +15,10 @@ export const metadata: Metadata = pageMetadata({
 export default function BlogPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
-      <h1 className="text-center text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+      <h1 className="text-center text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
         Blog <span className="text-blue-600">Applyfy</span>
       </h1>
-      <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-slate-500">
+      <p className="mx-auto mt-4 max-w-2xl text-center text-lg tracking-tight text-slate-500">
         Conseils et astuces pour réussir ta recherche d&apos;emploi
       </p>
 
@@ -42,7 +42,7 @@ export default function BlogPage() {
                 <time dateTime={post.date} className="text-xs font-medium text-slate-500">
                   {formatBlogDate(post.date)}
                 </time>
-                <h2 className="mt-2 text-lg leading-snug font-semibold text-slate-900">
+                <h2 className="mt-2 text-lg leading-snug font-semibold tracking-tight text-slate-900">
                   {post.title}
                 </h2>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
