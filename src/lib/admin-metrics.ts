@@ -249,6 +249,8 @@ export type AdminMetrics = {
   newSignups: { today: SignupCounts; yesterday: SignupCounts };
   /** Candidatures créées aujourd'hui (jusqu'à maintenant), hier et avant-hier (jours de Paris). */
   newApplications: { today: number; yesterday: number; dayBefore: number };
+  /** Toutes les candidatures, sans filtre de date. */
+  totalApplications: number;
 };
 
 /** Inscrits d'un jour, répartis selon leur plan actuel. */
@@ -278,13 +280,11 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
   const asOf = isCurrentMonth ? today : lastDayOf(month);
   const dayBeforeMonth = lastDayOf(shiftMonth(month, -1));
 
-  // Candidatures créées entre deux instants (comptage seul, sans charger les lignes).
-  const countApplications = async (from: Date, to: Date) => {
-    const { count, error } = await supabase
-      .from("applications")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", from.toISOString())
-      .lt("created_at", to.toISOString());
+  // Candidatures créées entre deux instants, ou toutes sans bornes (comptage seul, sans charger les lignes).
+  const countApplications = async (from?: Date, to?: Date) => {
+    let query = supabase.from("applications").select("id", { count: "exact", head: true });
+    if (from && to) query = query.gte("created_at", from.toISOString()).lt("created_at", to.toISOString());
+    const { count, error } = await query;
     if (error) throw new Error(error.message);
     return count ?? 0;
   };
@@ -293,13 +293,14 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
     parisMidnight,
   );
 
-  const [usage, applicationsToday, applicationsYesterday, applicationsDayBefore] = await Promise.all([
+  const [usage, applicationsToday, applicationsYesterday, applicationsDayBefore, totalApplications] = await Promise.all([
     selectAll<UsageRow>((from, to) =>
       supabase.from("usage").select("user_id, kind").eq("period", monthStart).order("id").range(from, to),
     ),
     countApplications(todayStart, now),
     countApplications(yesterdayStart, todayStart),
     countApplications(dayBeforeStart, yesterdayStart),
+    countApplications(),
   ]);
 
   // --- Abonnés à une date ----------------------------------------------------
@@ -435,6 +436,7 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
     latestSignups,
     newSignups: { today: signupsOn(today), yesterday: signupsOn(yesterdayDay) },
     newApplications: { today: applicationsToday, yesterday: applicationsYesterday, dayBefore: applicationsDayBefore },
+    totalApplications,
   };
 }
 

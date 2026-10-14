@@ -281,7 +281,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             {...versusYesterday(signupsToday.premium, signupsYesterday.premium)}
           />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Stat
             label="Candidatures ajoutées aujourd'hui"
             value={integer.format(newApps.today)}
@@ -292,6 +292,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             value={integer.format(newApps.yesterday)}
             {...versusYesterday(newApps.yesterday, newApps.dayBefore, "avant-hier")}
           />
+          <Stat label="Total candidatures" value={integer.format(m.totalApplications)} />
         </div>
         <div className="card space-y-3 p-5">
           <h3 className="font-medium text-slate-900">
