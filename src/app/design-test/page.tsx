@@ -337,15 +337,15 @@ export default function DesignTestPage() {
               <h1
                 className={`text-5xl leading-[1.08] text-balance text-slate-900 sm:text-6xl lg:text-7xl ${H1}`}
               >
-                Trouve ton job.{" "}
+                Toutes tes candidatures au même endroit.{" "}
                 <span className="text-blue-600">
-                  Sans te noyer dans les candidatures.
+                  Un CV adapté à chaque offre.
                 </span>
               </h1>
               <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-pretty text-slate-500 sm:text-xl">
-                Applyfy centralise tes candidatures, t&apos;aide à construire
-                des CV et lettres qui te ressemblent, et te rappelle quand
-                relancer.
+                Applyfy suit tes candidatures, adapte ton CV et ta lettre à
+                chacune d&apos;entre elles, et te dit quand relancer. Pour
+                trouver ton job sans t&apos;y noyer.
               </p>
               <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link href="/signup" className={BTN_PRIMARY}>
