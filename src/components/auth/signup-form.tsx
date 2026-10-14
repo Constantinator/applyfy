@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { signupAction, type AuthFormState } from "@/app/actions/auth";
+import { IconEye, IconEyeOff } from "@/components/icons";
 import { PASSWORD_MAX_LENGTH, PASSWORD_RULES, isPasswordValid } from "@/lib/password";
 import { PERSON_NAME_MAX_LENGTH } from "@/lib/person-name";
 
@@ -32,7 +33,7 @@ export function SignupForm() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   if (state.status === "check-email") {
     return (
@@ -55,10 +56,8 @@ export function SignupForm() {
   const touched = password.length > 0;
   const tooLong = password.length > PASSWORD_MAX_LENGTH;
   const passwordOk = isPasswordValid(password);
-  const confirmationOk = confirmation.length > 0 && confirmation === password;
   const canSubmit =
     passwordOk &&
-    confirmationOk &&
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     email.length > 0 &&
@@ -123,18 +122,30 @@ export function SignupForm() {
         <label htmlFor="password" className="text-sm font-medium text-slate-700">
           Mot de passe
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          aria-invalid={touched && !passwordOk}
-          aria-describedby="password-rules"
-          className={inputClassName}
-        />
+        {/* Bouton œil à la place d'un champ de confirmation : on vérifie ce qu'on a tapé. */}
+        <div className="relative">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-invalid={touched && !passwordOk}
+            aria-describedby="password-rules"
+            className={`${inputClassName} pr-11`}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((shown) => !shown)}
+            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            aria-controls="password"
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-slate-400 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-600"
+          >
+            {showPassword ? <IconEyeOff className="h-5 w-5" /> : <IconEye className="h-5 w-5" />}
+          </button>
+        </div>
         <ul id="password-rules" aria-live="polite" className="space-y-1 pt-1">
           {PASSWORD_RULES.map((rule) => (
             <RuleItem key={rule.id} ok={rule.test(password)} touched={touched} label={rule.label} />
@@ -142,31 +153,6 @@ export function SignupForm() {
           {tooLong && (
             <RuleItem ok={false} touched label={`${PASSWORD_MAX_LENGTH} caractères maximum`} />
           )}
-        </ul>
-      </div>
-
-      <div className="space-y-1.5">
-        <label htmlFor="confirmation" className="text-sm font-medium text-slate-700">
-          Confirmation du mot de passe
-        </label>
-        <input
-          id="confirmation"
-          name="confirmation"
-          type="password"
-          required
-          autoComplete="new-password"
-          value={confirmation}
-          onChange={(e) => setConfirmation(e.target.value)}
-          aria-invalid={confirmation.length > 0 && !confirmationOk}
-          aria-describedby="confirmation-status"
-          className={inputClassName}
-        />
-        <ul id="confirmation-status" aria-live="polite">
-          <RuleItem
-            ok={confirmationOk}
-            touched={confirmation.length > 0}
-            label="Les deux mots de passe correspondent"
-          />
         </ul>
       </div>
 

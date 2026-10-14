@@ -67,7 +67,6 @@ export async function signupAction(
   const name = validateAccountName(formData.get("firstName"), formData.get("lastName"));
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const confirmation = String(formData.get("confirmation") ?? "");
 
   if (!name.ok) return { status: "error", message: name.error };
   if (!EMAIL_PATTERN.test(email)) {
@@ -82,9 +81,6 @@ export async function signupAction(
           ? `Le mot de passe ne doit pas dépasser ${PASSWORD_MAX_LENGTH} caractères.`
           : "Le mot de passe ne respecte pas toutes les règles.",
     };
-  }
-  if (password !== confirmation) {
-    return { status: "error", message: "Les deux mots de passe ne correspondent pas." };
   }
 
   // Les Server Actions sont toujours appelées avec un en-tête Origin (contrôle CSRF de Next.js).
