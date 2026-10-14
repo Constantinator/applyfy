@@ -20,7 +20,11 @@ const PROCESSORS = [
     role: "Intelligence artificielle (Claude) : résumés d'offres, analyse et adaptation de CV, lettres de motivation",
     url: "https://www.anthropic.com/legal/privacy",
   },
-  { name: "Brevo", role: "Envoi des emails (rappels de relance)", url: "https://www.brevo.com/fr/legal/privacypolicy/" },
+  {
+    name: "Brevo",
+    role: "Envoi des emails (rappels de relance et email de bienvenue à l'inscription)",
+    url: "https://www.brevo.com/fr/legal/privacypolicy/",
+  },
   {
     name: "Meta",
     role: "Mesure de l'efficacité des publicités (Meta Pixel), uniquement si tu as accepté les cookies publicitaires",
