@@ -222,7 +222,12 @@ export type AdminMetrics = {
     projection: (ProfitBreakdown & { month: number; subscribers: number; users: number })[];
   };
   latestSignups: { email: string; createdAt: string; premium: boolean; actionsInMonth: number }[];
+  /** Nouveaux inscrits d'aujourd'hui et d'hier (jours de Paris), quel que soit le mois sélectionné. */
+  newSignups: { today: SignupCounts; yesterday: SignupCounts };
 };
+
+/** Inscrits d'un jour, répartis selon leur plan actuel. */
+export type SignupCounts = { total: number; free: number; premium: number };
 
 /** `requestedMonth` (« YYYY-MM ») : mois à afficher ; par défaut (ou si invalide), le mois en cours. */
 export async function getAdminMetrics(requestedMonth?: string, now = new Date()): Promise<AdminMetrics> {
@@ -353,6 +358,16 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
       actionsInMonth: perUser.get(u.id)?.actions ?? 0,
     }));
 
+  // --- Nouveaux inscrits du jour et de la veille ------------------------------
+  // Veille calculée sur le calendrier (et non « maintenant − 24 h ») : juste aux changements d'heure.
+  const yesterday = new Date(Date.parse(`${today}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const premiumToday = subscribersOn(today);
+  const signupsOn = (day: string): SignupCounts => {
+    const created = users.filter((u) => parisDay(u.createdAt) === day);
+    const premium = created.filter((u) => premiumToday.has(u.id)).length;
+    return { total: created.length, free: created.length - premium, premium };
+  };
+
   return {
     generatedAt: now.toISOString(),
     month,
@@ -375,6 +390,7 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
     costs: { byKind, total: totalCost, avgPerFreeUser, avgPerPremiumUser, topUsers },
     profitability: { ...profit(premiumCount, totalCost), growth, projection },
     latestSignups,
+    newSignups: { today: signupsOn(today), yesterday: signupsOn(yesterday) },
   };
 }
 

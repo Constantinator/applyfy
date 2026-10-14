@@ -36,7 +36,19 @@ const dateTime = new Intl.DateTimeFormat("fr-FR", {
 const monthName = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
 const dayName = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
-function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "good" | "bad" }) {
+function Stat({
+  label,
+  value,
+  hint,
+  tone,
+  hintTone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "good" | "bad";
+  hintTone?: "good" | "bad";
+}) {
   return (
     <div className="card p-4">
       <p className="text-sm text-slate-500">{label}</p>
@@ -47,7 +59,15 @@ function Stat({ label, value, hint, tone }: { label: string; value: string; hint
       >
         {value}
       </p>
-      {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
+      {hint && (
+        <p
+          className={`mt-0.5 text-xs ${
+            hintTone === "good" ? "text-emerald-700" : hintTone === "bad" ? "text-red-700" : "text-slate-500"
+          }`}
+        >
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
@@ -78,6 +98,15 @@ function PlanBadge({ premium }: { premium: boolean }) {
 const th = "px-3 py-2 text-left text-xs font-medium tracking-wide text-slate-500 uppercase";
 const td = "px-3 py-2 text-sm text-slate-700";
 const num = "text-right tabular-nums";
+
+/** « +2 vs hier » (vert), « -1 vs hier » (rouge), « 0 vs hier » (gris). */
+function versusYesterday(today: number, yesterday: number) {
+  const diff = today - yesterday;
+  return {
+    hint: `${diff > 0 ? "+" : ""}${integer.format(diff)} vs hier`,
+    hintTone: diff > 0 ? ("good" as const) : diff < 0 ? ("bad" as const) : undefined,
+  };
+}
 
 // Montant signé : « +5,54 € », « -0,37 € », « 0,00 € » (jamais « -0,00 € »).
 const signed = (value: number) =>
@@ -115,6 +144,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const sumOf = (key: "revenue" | "stripeFees" | "aiCost" | "urssaf" | "net") =>
     p.projection.reduce((sum, row) => sum + row[key], 0);
   const projectedYearRevenue = sumOf("revenue");
+  const { today: signupsToday, yesterday: signupsYesterday } = m.newSignups;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -231,6 +261,23 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             label="Premium"
             value={integer.format(m.users.premium)}
             hint={m.users.total ? `${percent.format(m.users.premium / m.users.total)} des inscrits` : undefined}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Stat
+            label="Nouveaux inscrits aujourd'hui"
+            value={integer.format(signupsToday.total)}
+            {...versusYesterday(signupsToday.total, signupsYesterday.total)}
+          />
+          <Stat
+            label="Nouveaux gratuits aujourd'hui"
+            value={integer.format(signupsToday.free)}
+            {...versusYesterday(signupsToday.free, signupsYesterday.free)}
+          />
+          <Stat
+            label="Nouveaux Premium aujourd'hui"
+            value={integer.format(signupsToday.premium)}
+            {...versusYesterday(signupsToday.premium, signupsYesterday.premium)}
           />
         </div>
         <div className="card space-y-3 p-5">
