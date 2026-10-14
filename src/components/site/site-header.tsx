@@ -26,9 +26,14 @@ export function SiteHeader() {
           <Link href="/login" className="text-slate-600 hover:text-slate-900">
             Se connecter
           </Link>
-          {/* « gratuitement » masqué sous 360 px : le bouton tient sur les plus petits écrans. */}
+          {/*
+            « gratuitement » masqué sous 360 px : le bouton tient sur les plus petits écrans. Un seul
+            <span> autour du texte : sinon le gap du bouton (inline-flex) s'ajoute à l'espace.
+          */}
           <Link href="/signup" className="btn-primary px-4 py-2 text-sm">
-            Commencer<span className="max-[359px]:hidden">&nbsp;gratuitement</span>
+            <span>
+              Commencer<span className="max-[359px]:hidden"> gratuitement</span>
+            </span>
           </Link>
         </nav>
       </div>
