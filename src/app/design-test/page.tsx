@@ -95,7 +95,7 @@ const PAIN_STATS_SOURCES =
 
 const FEATURES = [
   {
-    title: "Suivi en temps réel",
+    title: "Sache où en est chaque candidature, d'un coup d'œil",
     preview: TrackingPreview,
     description:
       "Toutes tes candidatures au même endroit, avec leur statut à jour : envoyée, relancée, entretien, offre.",
@@ -109,14 +109,14 @@ const FEATURES = [
     icon: IconDocument,
   },
   {
-    title: "Rappels de relance",
+    title: "Ne laisse plus jamais une candidature sans réponse",
     preview: FollowUpPreview,
     description:
       "Applyfy te prévient quand une entreprise tarde à répondre et prépare ton message de relance.",
     icon: IconBell,
   },
   {
-    title: "Tous tes documents",
+    title: "Retrouve le bon CV avant chaque entretien",
     preview: DocumentsPreview,
     description:
       "CV, lettres, offres et échanges : chaque candidature garde son historique complet.",
