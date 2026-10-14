@@ -322,7 +322,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
   {
     question: "Est-ce que ça marche avec Indeed ou Welcome to the Jungle ?",
     answer:
-      "Oui. Colle le lien d'une offre Indeed, Welcome to the Jungle ou de la plupart des sites carrières : Applyfy récupère l'intitulé, l'entreprise et la description. Tu peux aussi chercher des offres directement depuis Applyfy.",
+      "Oui. Colle le lien d'une offre et Applyfy tente de récupérer les informations automatiquement. Si ça ne marche pas, copie-colle le titre, l'entreprise et la description en quelques secondes — Applyfy s'occupe du reste : adaptation du CV, de la lettre et suivi de la candidature. Tu peux aussi chercher des offres directement depuis Applyfy.",
   },
 ];
 
@@ -710,21 +710,21 @@ export default function DesignTestPage() {
           </Reveal>
         </section>
 
-        {/* Tarifs & questions fréquentes (blanc) : 80px de part et d'autre. */}
+        {/* Nos tarifs (blanc) : 3 cartes, Premium au centre et mis en avant. */}
         <section
           aria-labelledby="pricing-title"
           className="relative isolate bg-white"
         >
-          <div className={`mx-auto max-w-4xl px-4 py-20 sm:px-6 ${CONTENT}`}>
+          <div className={`mx-auto max-w-5xl px-4 py-20 sm:px-6 ${CONTENT}`}>
             <h2
               id="pricing-title"
               className={`text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
             >
-              Tarifs &amp; questions fréquentes
+              Nos tarifs
             </h2>
 
-            <div className="mt-12 grid gap-6 md:grid-cols-2">
-              <article className="flex flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-8">
+            <div className="mt-12 grid items-center gap-6 md:grid-cols-3">
+              <article className="flex h-full flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-8">
                 <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
                   Gratuit pour toujours
                 </span>
@@ -738,8 +738,8 @@ export default function DesignTestPage() {
                 </Link>
               </article>
 
-              {/* Premium mis en avant : bordure bleue, fond bleuté. */}
-              <article className="flex flex-col rounded-[12px] border border-blue-500 bg-blue-50/50 p-8 ring-1 ring-blue-500">
+              {/* Premium : bordure bleue, fond bleuté, un peu plus grande sur desktop. */}
+              <article className="flex h-full flex-col rounded-[12px] border border-blue-500 bg-blue-50/50 p-8 ring-1 ring-blue-500 md:-my-4 md:py-12">
                 <span className="self-start rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
                   Bêta : offert jusqu&apos;au 31/12/2026
                 </span>
@@ -752,21 +752,60 @@ export default function DesignTestPage() {
                   </s>
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Pour les {BETA_MAX_TESTERS} bêta-testeurs jusqu&apos;au
-                  31/12/2026, puis {PREMIUM_PRICE_LABEL} sans engagement.
+                  Pour les {BETA_MAX_TESTERS} bêta-testeurs · puis{" "}
+                  {PREMIUM_PRICE_LABEL} sans engagement
                 </p>
                 <div className="mt-6 flex-1">
                   <PlanFeatures items={PLAN_FEATURES.premium} />
                 </div>
-                {/* Ouvre les conditions du programme beta (inscription ou connexion ensuite). */}
+                {/*
+                  Ouvre les conditions du programme beta, qui mène à l'inscription ou à la
+                  connexion puis inscrit au programme (un simple lien /signup n'y inscrirait pas).
+                */}
                 <BetaJoinDialog
                   mode="link"
                   triggerClassName={`mt-8 w-full ${BTN_PRIMARY}`}
                 />
               </article>
-            </div>
 
-            <div className="mt-16 divide-y divide-[#e5e7eb] border-y border-[#e5e7eb]">
+              {/* Équipe : offre future, grisée, sans action. */}
+              <article className="flex h-full flex-col rounded-[12px] border border-dashed border-[#e5e7eb] bg-slate-50 p-8 text-slate-500">
+                <span className="self-start rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
+                  Bientôt disponible
+                </span>
+                <h3 className={`mt-5 text-lg text-slate-700 ${H3}`}>Équipe</h3>
+                <p className={`mt-1 text-4xl text-slate-500 ${H1}`}>
+                  Sur devis
+                </p>
+                <p className="mt-6 flex-1 text-sm leading-relaxed">
+                  Pour les cabinets de recrutement et les écoles. Accès
+                  multi-utilisateurs, tableau de bord partagé.
+                </p>
+                <button
+                  type="button"
+                  disabled
+                  className={`mt-8 w-full ${BTN_SECONDARY}`}
+                >
+                  Nous contacter
+                </button>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        {/* Questions fréquentes (blanc), séparée des tarifs par un filet et 80px d'espace. */}
+        <section
+          aria-labelledby="faq-title"
+          className="relative isolate border-t border-[#e5e7eb] bg-white"
+        >
+          <div className={`mx-auto max-w-3xl px-4 py-20 sm:px-6 ${CONTENT}`}>
+            <h2
+              id="faq-title"
+              className={`text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
+            >
+              Questions fréquentes
+            </h2>
+            <div className="mt-12 divide-y divide-[#e5e7eb] border-y border-[#e5e7eb]">
               {FAQ.map((item) => (
                 <details key={item.question} className="group py-5">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-slate-900 [&::-webkit-details-marker]:hidden">
