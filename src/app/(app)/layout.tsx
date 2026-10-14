@@ -1,6 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
-import { WelcomeDialog } from "@/components/onboarding/welcome-dialog";
-import { getAccountName, needsOnboarding } from "@/lib/account";
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { isAdminEmail } from "@/lib/admin-metrics";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyBeta } from "@/lib/beta";
@@ -12,13 +11,7 @@ import { isAdminConfigured } from "@/lib/supabase/admin";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   const isAdmin = isAdminEmail(user?.email);
-  // Écran de bienvenue à la première connexion. Non bloquant : en cas d'erreur, pas d'écran.
-  const [showWelcome, accountName, beta, unreadBeta, unreadAdmin] = await Promise.all([
-    needsOnboarding().catch((error) => {
-      console.error("[onboarding]", error);
-      return false;
-    }),
-    getAccountName().catch(() => null),
+  const [beta, unreadBeta, unreadAdmin] = await Promise.all([
     getMyBeta(), // sans échec : null si indisponible
     // Badges de la messagerie beta (sans échec : 0 si la table n'existe pas encore).
     countMyUnreadBetaMessages(),
@@ -36,7 +29,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         unreadAdmin={unreadAdmin}
       />
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-      {showWelcome && <WelcomeDialog firstName={accountName?.firstName ?? null} />}
+      {/* Présentation animée à la première connexion (mémorisée dans le navigateur). */}
+      <OnboardingModal />
     </div>
   );
 }
