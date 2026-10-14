@@ -22,22 +22,6 @@ export default function AboutPage() {
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
             Notre histoire
           </h1>
-          <Image
-            src="/images/founder.jpg"
-            alt="Constantin, fondateur d'Applyfy"
-            width={400}
-            height={533}
-            className="mx-auto mt-10 w-full max-w-sm rounded-2xl object-cover object-top"
-          />
-          <figure className="mt-8 border-l-4 border-blue-600 pl-5">
-            <blockquote className="text-xl leading-relaxed text-pretty text-slate-700 italic">
-              « Applyfy, c&apos;est l&apos;outil que j&apos;aurais voulu avoir quand je cherchais
-              mon stage. »
-            </blockquote>
-            <figcaption className="mt-3 text-sm text-slate-500">
-              — Constantin, fondateur d&apos;Applyfy
-            </figcaption>
-          </figure>
           <div className="mt-10 space-y-6 text-lg leading-relaxed text-slate-600">
             <p>
               Applyfy est né d&apos;une frustration simple : gérer des dizaines et des dizaines de
@@ -58,6 +42,30 @@ export default function AboutPage() {
               premiers utilisateurs.
             </p>
           </div>
+
+          {/* Photo et citation côte à côte (l'une sous l'autre sur mobile, photo en premier). */}
+          <div className="mt-12 flex flex-col items-start gap-8 sm:flex-row">
+            <Image
+              src="/images/founder.jpg"
+              alt="Constantin, fondateur d'Applyfy"
+              width={192}
+              height={192}
+              className="h-48 w-48 shrink-0 rounded-2xl object-cover object-top"
+            />
+            <figure>
+              <blockquote className="text-xl leading-relaxed text-pretty text-slate-700 italic">
+                « Applyfy, c&apos;est l&apos;outil que j&apos;aurais voulu avoir quand je
+                cherchais mon stage. »
+              </blockquote>
+              <figcaption className="mt-3 text-sm text-slate-500">
+                — Constantin, fondateur d&apos;Applyfy
+              </figcaption>
+            </figure>
+          </div>
+
+          {/* Emplacement réservé à un texte à venir. */}
+          <div className="min-h-16" />
+
           <div className="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
             <Link href="/signup" className="btn-primary px-6 py-3 text-base">
               Essayer Applyfy gratuitement
