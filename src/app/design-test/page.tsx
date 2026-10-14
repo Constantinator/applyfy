@@ -20,7 +20,8 @@ import { DemoDashboard } from "@/components/landing/demo-dashboard";
 import { Reveal } from "@/components/landing/reveal";
 import { LogoFull } from "@/components/logo";
 import { SiteHeader } from "@/components/site/site-header";
-import { PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
+import { AI_MONTHLY_LIMITS, PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
+import { BETA_MAX_TESTERS } from "@/lib/beta-rules";
 
 /**
  * Page de preview isolée : landing redesignée façon Linear (plus d'air, sections alternées
@@ -260,6 +261,83 @@ function PageRibbons() {
         />
       </svg>
     </>
+  );
+}
+
+/**
+ * Tarifs : uniquement ce que l'app fait aujourd'hui (voir /premium, ai-usage-limits, beta-rules).
+ * Premium « illimité » comme sur /premium (garde-fou de 50 actions IA par jour en interne).
+ */
+const PLAN_FEATURES = {
+  free: [
+    "Suivi illimité des candidatures",
+    "Tableau de bord",
+    "Rappels de relance par e-mail",
+    `${AI_MONTHLY_LIMITS.lettre} actions IA par type et par mois (résumé d'offre, analyse de CV, lettre…)`,
+  ],
+  premium: [
+    "Tout le plan gratuit",
+    "Résumés d'offre et analyses de CV illimités",
+    "Éditeur de CV et lettres de motivation illimités",
+    "Chat « Affiner avec l'IA » illimité",
+  ],
+};
+
+/**
+ * FAQ : chaque réponse doit rester exacte (CGU, politique de confidentialité, prompts de
+ * src/lib/claude.ts, import d'offres de src/lib/offer-import.ts).
+ */
+const FAQ: { question: string; answer: React.ReactNode }[] = [
+  {
+    question: "Qu'est-ce qui est gratuit ?",
+    answer: `Le plan gratuit inclut le suivi illimité de tes candidatures, le tableau de bord, les rappels de relance et ${AI_MONTHLY_LIMITS.lettre} actions IA par type et par mois. Aucune carte bancaire requise.`,
+  },
+  {
+    question: "L'IA invente-t-elle des choses dans mon CV ?",
+    answer:
+      "Non. Applyfy adapte ton CV existant à l'offre ciblée : il reformule et met en avant, sans ajouter d'expériences, de diplômes ou de compétences que tu n'as pas.",
+  },
+  {
+    question: "Mes données sont-elles revendues ?",
+    answer: (
+      <>
+        Non. Tes données ne sont jamais vendues ni utilisées à des fins
+        publicitaires. Elles sont uniquement transmises aux prestataires
+        nécessaires au service (hébergement, IA, paiement), listés dans notre{" "}
+        <Link
+          href="/politique-confidentialite"
+          className="font-medium text-blue-600 underline-offset-4 hover:underline"
+        >
+          politique de confidentialité
+        </Link>
+        .
+      </>
+    ),
+  },
+  {
+    question: "Puis-je résilier à tout moment ?",
+    answer:
+      "Oui, le Premium est sans engagement. Et si tu n'es pas satisfait(e), tu es remboursé(e) intégralement dans les 14 jours suivant ton premier abonnement, sauf si tu as renoncé à ton droit de rétractation pour accéder immédiatement au service.",
+  },
+  {
+    question: "Est-ce que ça marche avec Indeed ou Welcome to the Jungle ?",
+    answer:
+      "Oui. Colle le lien d'une offre Indeed, Welcome to the Jungle ou de la plupart des sites carrières : Applyfy récupère l'intitulé, l'entreprise et la description. Tu peux aussi chercher des offres directement depuis Applyfy.",
+  },
+];
+
+function PlanFeatures({ items }: { items: string[] }) {
+  return (
+    <ul className="space-y-3 text-sm text-slate-700">
+      {items.map((item) => (
+        <li key={item} className="flex gap-2.5">
+          <span aria-hidden="true" className="font-bold text-blue-600">
+            ✓
+          </span>
+          {item}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -630,6 +708,83 @@ export default function DesignTestPage() {
               payant
             </p>
           </Reveal>
+        </section>
+
+        {/* Tarifs & questions fréquentes (blanc) : 80px de part et d'autre. */}
+        <section
+          aria-labelledby="pricing-title"
+          className="relative isolate bg-white"
+        >
+          <div className={`mx-auto max-w-4xl px-4 py-20 sm:px-6 ${CONTENT}`}>
+            <h2
+              id="pricing-title"
+              className={`text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
+            >
+              Tarifs &amp; questions fréquentes
+            </h2>
+
+            <div className="mt-12 grid gap-6 md:grid-cols-2">
+              <article className="flex flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-8">
+                <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                  Gratuit pour toujours
+                </span>
+                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Gratuit</h3>
+                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
+                <div className="mt-6 flex-1">
+                  <PlanFeatures items={PLAN_FEATURES.free} />
+                </div>
+                <Link href="/signup" className={`mt-8 w-full ${BTN_SECONDARY}`}>
+                  Commencer gratuitement
+                </Link>
+              </article>
+
+              {/* Premium mis en avant : bordure bleue, fond bleuté. */}
+              <article className="flex flex-col rounded-[12px] border border-blue-500 bg-blue-50/50 p-8 ring-1 ring-blue-500">
+                <span className="self-start rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
+                  Bêta : offert jusqu&apos;au 31/12/2026
+                </span>
+                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Premium</h3>
+                <p className="mt-1 flex items-baseline gap-3">
+                  <span className={`text-4xl text-slate-900 ${H1}`}>0 €</span>
+                  <s className="text-lg text-slate-400">
+                    <span className="sr-only">au lieu de </span>
+                    {PREMIUM_PRICE_LABEL}
+                  </s>
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Pour les {BETA_MAX_TESTERS} bêta-testeurs jusqu&apos;au
+                  31/12/2026, puis {PREMIUM_PRICE_LABEL} sans engagement.
+                </p>
+                <div className="mt-6 flex-1">
+                  <PlanFeatures items={PLAN_FEATURES.premium} />
+                </div>
+                {/* Ouvre les conditions du programme beta (inscription ou connexion ensuite). */}
+                <BetaJoinDialog
+                  mode="link"
+                  triggerClassName={`mt-8 w-full ${BTN_PRIMARY}`}
+                />
+              </article>
+            </div>
+
+            <div className="mt-16 divide-y divide-[#e5e7eb] border-y border-[#e5e7eb]">
+              {FAQ.map((item) => (
+                <details key={item.question} className="group py-5">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-slate-900 [&::-webkit-details-marker]:hidden">
+                    {item.question}
+                    <span
+                      aria-hidden="true"
+                      className="text-xl leading-none text-slate-400 transition-transform duration-200 group-open:rotate-45"
+                    >
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 pr-8 text-[15px] leading-relaxed text-slate-600">
+                    {item.answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
         </section>
 
         {/* Appel à l'action final (gris) */}
