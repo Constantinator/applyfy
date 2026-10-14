@@ -48,9 +48,9 @@ export default function AboutPage() {
             <Image
               src="/images/founder.jpg"
               alt="Constantin, fondateur d'Applyfy"
-              width={192}
-              height={192}
-              className="h-48 w-48 shrink-0 rounded-2xl object-cover object-top"
+              width={160}
+              height={213}
+              className="w-40 shrink-0 rounded-2xl object-contain"
             />
             <figure>
               <blockquote className="text-xl leading-relaxed text-pretty text-slate-700 italic">
