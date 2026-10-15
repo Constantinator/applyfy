@@ -22,7 +22,7 @@ const PROCESSORS = [
   },
   {
     name: "Brevo",
-    role: "Envoi des emails (rappels de relance et email de bienvenue à l'inscription)",
+    role: "Envoi des emails (rappels de relance, email de bienvenue à l'inscription et email de relance J+2 si aucune candidature ajoutée)",
     url: "https://www.brevo.com/fr/legal/privacypolicy/",
   },
   {
@@ -46,7 +46,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Politique de confidentialité"
-      updatedOn="14 octobre 2026"
+      updatedOn="15 octobre 2026"
       intro="Applyfy t'aide à suivre ta recherche d'emploi. Cette page explique quelles données sont collectées, pourquoi, combien de temps elles sont conservées et comment exercer tes droits, conformément au Règlement général sur la protection des données (RGPD)."
     >
       <LegalSection title="Responsable du traitement">
