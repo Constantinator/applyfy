@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="Finalités et base légale">
         <ul>
-          <li>Suivi de tes candidatures, rappels de relance et email de bienvenue à l&apos;inscription par email ;</li>
+          <li>Suivi de tes candidatures, rappels de relance, email de bienvenue à l&apos;inscription et email de relance J+2 si aucune candidature ajoutée, par email ;</li>
           <li>
             Génération de documents par intelligence artificielle (résumé d&apos;offre, analyse et
             adaptation de CV, lettre de motivation), uniquement à ta demande ;
