@@ -17,7 +17,7 @@ import type { createClient } from "./supabase/server";
 const NEW_ACCOUNT_WINDOW_MS = 48 * 3_600_000;
 
 /** Prénom : celui de l'inscription, sinon celui du compte Google. */
-function firstNameOf(metadata: Record<string, unknown>) {
+export function firstNameOf(metadata: Record<string, unknown>) {
   const fullName = typeof metadata.full_name === "string" ? metadata.full_name.trim().split(/\s+/)[0] : null;
   return cleanNamePart(metadata.first_name) || cleanNamePart(metadata.given_name) || cleanNamePart(fullName);
 }
