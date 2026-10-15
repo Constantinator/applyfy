@@ -3,6 +3,7 @@ import "server-only";
 import { appUrl } from "./app-url";
 import { isEmailConfigured, sendEmail } from "./email/brevo";
 import { buildReminderEmail } from "./email/reminder-email";
+import { isUnsubscribed } from "./email/unsubscribe-token";
 import { MAX_REMINDERS, REMINDER_STATUSES, daysBetween, dueReminder, readReminderSettings } from "./reminders";
 import { createAdminClient } from "./supabase/admin";
 
@@ -55,13 +56,16 @@ export async function runReminderJob({ dryRun = false, now = new Date() } = {}):
   if (profilesError) throw new Error(`Lecture des préférences impossible : ${profilesError.message}`);
   const settingsByUser = new Map(profiles.map((p) => [p.id as string, readReminderSettings(p)]));
 
-  const emails = new Map<string, string | null>();
-  async function emailOf(userId: string) {
-    if (!emails.has(userId)) {
+  const recipients = new Map<string, { email: string | null; unsubscribed: boolean }>();
+  async function recipientOf(userId: string) {
+    if (!recipients.has(userId)) {
       const { data } = await supabase.auth.admin.getUserById(userId);
-      emails.set(userId, data.user?.email ?? null);
+      recipients.set(userId, {
+        email: data.user?.email ?? null,
+        unsubscribed: isUnsubscribed(data.user?.user_metadata),
+      });
     }
-    return emails.get(userId) ?? null;
+    return recipients.get(userId)!;
   }
 
   for (const app of apps as AppRow[]) {
@@ -72,7 +76,8 @@ export async function runReminderJob({ dryRun = false, now = new Date() } = {}):
     if (dryRun) continue;
 
     try {
-      const to = await emailOf(app.user_id);
+      const { email: to, unsubscribed } = await recipientOf(app.user_id);
+      if (unsubscribed) continue; // désinscrit des emails : aucun rappel
       if (!to) throw new Error("Adresse email introuvable.");
 
       // Réservation : ne réussit que si aucun autre passage n'a déjà envoyé ce rappel.
@@ -95,7 +100,7 @@ export async function runReminderJob({ dryRun = false, now = new Date() } = {}):
             position: app.position,
             daysSinceApplied: daysBetween(app.applied_at!, now),
             applicationUrl: `${base}/candidatures/${app.id}`,
-            settingsUrl: `${base}/profil`,
+            userId: app.user_id,
           }),
         );
       } catch (sendError) {

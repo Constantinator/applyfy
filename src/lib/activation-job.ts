@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { appUrl } from "./app-url";
 import { buildActivationEmail } from "./email/activation-email";
 import { isEmailConfigured, sendEmail } from "./email/brevo";
+import { isUnsubscribed } from "./email/unsubscribe-token";
 import { createAdminClient } from "./supabase/admin";
 import { firstNameOf } from "./welcome-email";
 
@@ -40,6 +41,7 @@ export async function runActivationJob({ dryRun = false, now = new Date() } = {}
       const age = now.getTime() - Date.parse(user.created_at);
       if (age < MIN_AGE_MS || age >= MAX_AGE_MS || !user.email) continue;
       if (typeof user.user_metadata?.activation_email_sent_at === "string") continue;
+      if (isUnsubscribed(user.user_metadata)) continue;
       candidates.push(user);
     }
     if (data.users.length < PAGE) break;
@@ -75,7 +77,7 @@ export async function runActivationJob({ dryRun = false, now = new Date() } = {}
             to: user.email!,
             firstName: firstNameOf(metadata),
             dashboardUrl: `${base}/dashboard`,
-            settingsUrl: `${base}/profil`,
+            userId: user.id,
           }),
         );
       } catch (sendError) {

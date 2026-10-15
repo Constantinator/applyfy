@@ -1,5 +1,6 @@
 // Email de bienvenue, envoyé une fois à l'inscription : sobre, compatible avec les clients mail (styles en ligne).
 import type { EmailMessage } from "./brevo";
+import { unsubscribeUrl } from "./unsubscribe-token";
 
 function escapeHtml(text: string) {
   return text
@@ -13,9 +14,10 @@ export function buildWelcomeEmail(input: {
   to: string;
   firstName: string | null;
   dashboardUrl: string;
-  settingsUrl: string;
+  userId: string;
 }): EmailMessage {
-  const { firstName, dashboardUrl, settingsUrl } = input;
+  const { firstName, dashboardUrl } = input;
+  const unsubscribeLink = unsubscribeUrl(input.userId);
   const greeting = firstName ? `Salut ${firstName} !` : "Salut !";
   const intro = "Tu viens de rejoindre Applyfy. Maintenant, ajoute ta première candidature — ça prend 30 secondes.";
   const hint = "Colle juste l'URL de l'offre, Applyfy fait le reste.";
@@ -38,7 +40,7 @@ export function buildWelcomeEmail(input: {
           <tr><td style="font-size:15px;line-height:1.6;padding-bottom:28px;">${escapeHtml(signature)}</td></tr>
           <tr><td style="font-size:12px;line-height:1.5;color:#64748b;border-top:1px solid #e2e8f0;padding-top:16px;">
             ${escapeHtml(footer)}
-            <a href="${escapeHtml(settingsUrl)}" style="color:#64748b;">Se désinscrire des emails</a>
+            <a href="${escapeHtml(unsubscribeLink)}" style="color:#64748b;">Se désinscrire des emails</a>
           </td></tr>
         </table>
       </td></tr>
@@ -46,7 +48,7 @@ export function buildWelcomeEmail(input: {
   </body>
 </html>`;
 
-  const text = `${greeting}\n\n${intro}\n\nAjouter ma première candidature : ${dashboardUrl}\n\n${hint}\n\n${signature}\n\n—\n${footer} Se désinscrire des emails : ${settingsUrl}`;
+  const text = `${greeting}\n\n${intro}\n\nAjouter ma première candidature : ${dashboardUrl}\n\n${hint}\n\n${signature}\n\n—\n${footer} Se désinscrire des emails : ${unsubscribeLink}`;
 
   return { to: input.to, subject: "Bienvenue sur Applyfy", html, text };
 }

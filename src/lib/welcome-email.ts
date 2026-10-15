@@ -5,6 +5,7 @@ import { after } from "next/server";
 
 import { appUrl } from "./app-url";
 import { isEmailConfigured, sendEmail } from "./email/brevo";
+import { isUnsubscribed } from "./email/unsubscribe-token";
 import { buildWelcomeEmail } from "./email/welcome-email";
 import { cleanNamePart } from "./person-name";
 import type { createClient } from "./supabase/server";
@@ -30,7 +31,7 @@ export async function queueWelcomeEmail(supabase: Awaited<ReturnType<typeof crea
   try {
     if (!user?.email || !isEmailConfigured()) return;
     const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-    if (typeof metadata.welcome_email_sent_at === "string") return;
+    if (typeof metadata.welcome_email_sent_at === "string" || isUnsubscribed(metadata)) return;
     if (Date.now() - Date.parse(user.created_at) > NEW_ACCOUNT_WINDOW_MS) return;
 
     // Marqué avant l'envoi : un second clic sur le lien de confirmation ne renvoie rien.
@@ -42,7 +43,7 @@ export async function queueWelcomeEmail(supabase: Awaited<ReturnType<typeof crea
       to: user.email,
       firstName: firstNameOf(metadata),
       dashboardUrl: `${base}/dashboard`,
-      settingsUrl: `${base}/profil`,
+      userId: user.id,
     });
     after(() => sendEmail(message).catch((sendError) => console.error("[welcome-email] envoi", sendError)));
   } catch (error) {

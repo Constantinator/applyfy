@@ -1,5 +1,6 @@
 // Email de rappel de relance : sobre, compatible avec les clients mail (styles en ligne).
 import type { EmailMessage } from "./brevo";
+import { unsubscribeUrl } from "./unsubscribe-token";
 
 function escapeHtml(text: string) {
   return text
@@ -15,9 +16,10 @@ export function buildReminderEmail(input: {
   position: string;
   daysSinceApplied: number;
   applicationUrl: string;
-  settingsUrl: string;
+  userId: string;
 }): EmailMessage {
-  const { company, position, daysSinceApplied, applicationUrl, settingsUrl } = input;
+  const { company, position, daysSinceApplied, applicationUrl } = input;
+  const unsubscribeLink = unsubscribeUrl(input.userId);
   const days = `${daysSinceApplied} jour${daysSinceApplied > 1 ? "s" : ""}`;
   const sentence = `Tu as postulé chez ${company} pour le poste de ${position} il y a ${days}. C'est le bon moment pour relancer !`;
 
@@ -37,7 +39,7 @@ export function buildReminderEmail(input: {
           </td></tr>
           <tr><td style="font-size:12px;line-height:1.5;color:#64748b;border-top:1px solid #e2e8f0;padding-top:16px;">
             Tu reçois cet email car les rappels de relance sont activés.
-            <a href="${escapeHtml(settingsUrl)}" style="color:#64748b;">Gérer mes rappels</a>
+            <a href="${escapeHtml(unsubscribeLink)}" style="color:#64748b;">Se désinscrire des emails</a>
           </td></tr>
         </table>
       </td></tr>
@@ -45,7 +47,7 @@ export function buildReminderEmail(input: {
   </body>
 </html>`;
 
-  const text = `${sentence}\n\nVoir ma candidature : ${applicationUrl}\n\n—\nTu reçois cet email car les rappels de relance sont activés. Gérer mes rappels : ${settingsUrl}`;
+  const text = `${sentence}\n\nVoir ma candidature : ${applicationUrl}\n\n—\nTu reçois cet email car les rappels de relance sont activés. Se désinscrire des emails : ${unsubscribeLink}`;
 
   return { to: input.to, subject: `Il est temps de relancer ${company} 👋`, html, text };
 }
