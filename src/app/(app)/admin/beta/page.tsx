@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
-import { BetaMessageForm, RemoveBetaButton } from "@/components/admin/beta-admin-controls";
+import { BetaMessageForm, ReactivateBetaButton, RemoveBetaButton } from "@/components/admin/beta-admin-controls";
 import { AdminThread, BroadcastMessageForm } from "@/components/beta/beta-messages";
 import { requireAdmin } from "@/lib/admin-metrics";
 import { betaActivity, listBetaTesters, type BetaActivity } from "@/lib/beta-admin";
@@ -229,6 +229,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
                           Email
                         </Link>
                       </div>
+                      {t.status === "suspended" && <ReactivateBetaButton userId={t.userId} email={t.email} />}
                       {t.status !== "removed" && <RemoveBetaButton userId={t.userId} email={t.email} />}
                     </td>
                   </tr>

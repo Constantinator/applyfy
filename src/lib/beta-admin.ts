@@ -2,6 +2,7 @@ import "server-only";
 
 import { listAllUsers } from "./admin-metrics";
 import {
+  BETA_MAX_TESTERS,
   BETA_REPORTS,
   reportDeadline,
   reportStatus,
@@ -132,6 +133,37 @@ export async function removeBetaAccess(userId: string) {
     .select("user_id");
   if (error) throw new Error(`Retrait de l'accès beta impossible : ${error.message}`);
   return (data ?? []).length > 0;
+}
+
+/**
+ * Réactive un testeur suspendu. Le calendrier des rapports repart d'aujourd'hui (joined_at) :
+ * sans cela, le rapport manqué resterait en retard et la tâche quotidienne le suspendrait de
+ * nouveau. Les rapports déjà soumis restent acquis ; les rappels J-2 repartent à zéro.
+ * Retourne « complet » si les places actives sont toutes prises.
+ */
+export async function reactivateBetaTester(userId: string): Promise<"ok" | "pas_suspendu" | "complet"> {
+  const supabase = createAdminClient();
+  const { count, error: countError } = await supabase
+    .from("beta_testers")
+    .select("user_id", { count: "exact", head: true })
+    .eq("status", "active");
+  if (countError) throw new Error(`Lecture des beta testeurs impossible : ${countError.message}`);
+  if ((count ?? 0) >= BETA_MAX_TESTERS) return "complet";
+
+  const { data, error } = await supabase
+    .from("beta_testers")
+    .update({
+      status: "active",
+      joined_at: new Date().toISOString(),
+      reminders_sent: [],
+      suspended_at: null,
+      suspension_reason: null,
+    })
+    .eq("user_id", userId)
+    .eq("status", "suspended")
+    .select("user_id");
+  if (error) throw new Error(`Réactivation impossible : ${error.message}`);
+  return (data ?? []).length > 0 ? "ok" : "pas_suspendu";
 }
 
 /**

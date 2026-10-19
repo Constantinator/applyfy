@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { removeBetaAccessAction, sendBetaMessageAction } from "@/app/actions/beta-admin";
+import { reactivateBetaTesterAction, removeBetaAccessAction, sendBetaMessageAction } from "@/app/actions/beta-admin";
 
 /** Formulaire « Envoyer un message » : à un beta testeur ou à tous les testeurs actifs. */
 export function BetaMessageForm({
@@ -129,6 +129,52 @@ export function RemoveBetaButton({ userId, email }: { userId: string; email: str
           className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-60"
         >
           {pending ? "Retrait…" : "Confirmer"}
+        </button>
+        <button type="button" onClick={() => setConfirming(false)} className="btn-secondary px-3 py-1.5 text-xs">
+          Annuler
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+    </div>
+  );
+}
+
+/** « Réactiver » un testeur suspendu, avec confirmation (le calendrier des rapports repart à zéro). */
+export function ReactivateBetaButton({ userId, email }: { userId: string; email: string }) {
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap text-emerald-700 ring-1 ring-emerald-300 hover:bg-emerald-50"
+      >
+        Réactiver
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs text-slate-600">
+        Réactiver {email} ? Ses rapports non soumis auront de nouvelles dates limites à partir d&apos;aujourd&apos;hui.
+      </p>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const result = await reactivateBetaTesterAction(userId);
+              if (!result.ok) setError(result.error);
+            })
+          }
+          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+        >
+          {pending ? "Réactivation…" : "Confirmer"}
         </button>
         <button type="button" onClick={() => setConfirming(false)} className="btn-secondary px-3 py-1.5 text-xs">
           Annuler

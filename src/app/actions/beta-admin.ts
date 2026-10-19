@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 
 import { requireAdmin } from "@/lib/admin-metrics";
-import { removeBetaAccess, sendBetaMessage } from "@/lib/beta-admin";
+import { reactivateBetaTester, removeBetaAccess, sendBetaMessage } from "@/lib/beta-admin";
 
 export type BetaAdminResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -52,5 +52,22 @@ export async function removeBetaAccessAction(userId: string): Promise<BetaAdminR
     unstable_rethrow(error);
     console.error("[beta-admin] retrait", error);
     return { ok: false, error: "Le retrait a échoué. Réessaie dans un instant." };
+  }
+}
+
+/** « Réactiver » : un testeur suspendu redevient actif, avec un nouveau calendrier de rapports. */
+export async function reactivateBetaTesterAction(userId: string): Promise<BetaAdminResult> {
+  await requireAdmin();
+  if (typeof userId !== "string" || !UUID.test(userId)) return { ok: false, error: "Beta testeur invalide." };
+  try {
+    const outcome = await reactivateBetaTester(userId);
+    revalidatePath("/admin/beta");
+    if (outcome === "complet") return { ok: false, error: "Programme complet : aucune place active disponible." };
+    if (outcome === "pas_suspendu") return { ok: false, error: "Ce testeur n'est plus suspendu." };
+    return { ok: true, message: "Beta testeur réactivé." };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[beta-admin] réactivation", error);
+    return { ok: false, error: "La réactivation a échoué. Réessaie dans un instant." };
   }
 }
