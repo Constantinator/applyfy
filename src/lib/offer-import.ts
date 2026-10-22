@@ -4,7 +4,7 @@ import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 
 import { checkAiRateLimit } from "./ai-usage";
-import { extractOfferFields, isClaudeConfigured } from "./claude";
+import { extractOfferFields, isClaudeConfigured, type OfferFields } from "./claude";
 import { decodeEntities, formatOfferDescription } from "./format-offer";
 
 export type ImportedOffer = {
@@ -12,11 +12,31 @@ export type ImportedOffer = {
   company: string;
   location: string;
   description: string;
-  /** D'où viennent les infos : données structurées de la page, extraction IA ou balises meta. */
-  source: "structured" | "ai" | "meta";
+  /**
+   * D'où viennent les infos : données structurées de la page, extraction IA (page lue
+   * directement, via Jina, ou texte collé par l'utilisateur) ou balises meta.
+   */
+  source: "structured" | "ai" | "jina" | "text" | "meta";
 };
 
-export class OfferImportError extends Error {}
+/** "not_found" : l'offre n'existe plus ; "failed" : page illisible, le texte peut être collé à la main. */
+export type OfferImportErrorKind = "not_found" | "failed";
+
+export class OfferImportError extends Error {
+  constructor(
+    message: string,
+    readonly kind: OfferImportErrorKind = "failed",
+  ) {
+    super(message);
+  }
+}
+
+const NOT_FOUND_MESSAGE = "Cette offre n'existe plus ou a été retirée.";
+
+/** Titre de page d'erreur (certains sites répondent 200 pour une offre supprimée). */
+function isNotFoundTitle(title: string) {
+  return /^\s*(erreur\s*404|error\s*404|404\b|page (introuvable|non trouvée|not found)|not found)/i.test(title);
+}
 
 // ---------------------------------------------------------------------------
 // Récupération de la page — protégée contre le SSRF (le serveur ne doit jamais
@@ -113,6 +133,9 @@ async function fetchHtml(rawUrl: string): Promise<{ html: string; finalUrl: stri
       current = new URL(location, url).toString();
       continue;
     }
+    if (response.status === 404 || response.status === 410) {
+      throw new OfferImportError(NOT_FOUND_MESSAGE, "not_found");
+    }
     if (!response.ok) {
       throw new OfferImportError(
         response.status === 403 || response.status === 429
@@ -144,6 +167,51 @@ async function readLimited(response: Response): Promise<string> {
     chunks.push(value);
   }
   return new TextDecoder("utf-8").decode(Buffer.concat(chunks));
+}
+
+// ---------------------------------------------------------------------------
+// Lecture de secours via Jina Reader (https://jina.ai/reader) : rend la page côté
+// Jina (JavaScript compris) et renvoie son contenu en markdown. Utilisée seulement
+// quand la page n'est pas lisible directement ou ne publie pas de données structurées.
+// ---------------------------------------------------------------------------
+
+const JINA_TIMEOUT_MS = 15_000;
+
+async function fetchViaJina(url: string): Promise<string> {
+  const apiKey = process.env.JINA_API_KEY; // optionnelle : sans clé, débit limité par Jina
+  let response: Response;
+  try {
+    response = await fetch(`https://r.jina.ai/${url}`, {
+      signal: AbortSignal.timeout(JINA_TIMEOUT_MS),
+      headers: {
+        Accept: "text/plain",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+    });
+  } catch {
+    throw new OfferImportError("La page n'a pas répondu à temps.");
+  }
+  if (!response.ok) {
+    console.error(`[offer-import] Jina ${response.status}`);
+    throw new OfferImportError("Impossible de lire cette page.");
+  }
+
+  const markdown = await readLimited(response);
+  const title = markdown.match(/^Title:\s*(.*)$/m)?.[1] ?? "";
+  if (isNotFoundTitle(title) || /^Warning: Target URL returned error 404/m.test(markdown)) {
+    throw new OfferImportError(NOT_FOUND_MESSAGE, "not_found");
+  }
+  return cleanMarkdown(markdown);
+}
+
+/** Retire images et URLs des liens : du bruit (et des tokens) pour l'extraction. */
+function cleanMarkdown(markdown: string) {
+  return markdown
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\]\([^)]*\)/g, "]")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -275,33 +343,99 @@ export async function fetchOfferDescription(rawUrl: string): Promise<string | nu
   }
 }
 
-/** Longueur de texte de page envoyée à Claude : largement suffisante pour l'en-tête d'une offre. */
+/** Longueur de texte envoyée à Claude : largement suffisante pour une offre complète. */
 const AI_PAGE_TEXT_LIMIT = 40_000;
 
+function pageTitle(html: string) {
+  return meta(html, "og:title") || decodeEntities(html.match(/<title[^>]*>([^<]*)/i)?.[1]?.trim() ?? "");
+}
+
+/** Conditions (contrat, télétravail…) en tête, puis description et profil : pas de colonnes dédiées. */
+function composeDescription(fields: OfferFields) {
+  const facts = [
+    fields.contract_type && `Contrat : ${fields.contract_type}`,
+    fields.remote && `Télétravail : ${fields.remote.replace(/^télétravail\s*:?\s*/i, "")}`,
+    fields.salary && `Salaire : ${fields.salary}`,
+    fields.experience && `Expérience : ${fields.experience}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return [
+    facts,
+    fields.description?.trim() && `Descriptif du poste\n${fields.description.trim()}`,
+    fields.profile?.trim() && `Profil recherché\n${fields.profile.trim()}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+async function extractWithAi(
+  text: string,
+  source: "ai" | "jina" | "text",
+  url?: string,
+): Promise<ImportedOffer | null> {
+  const fields = await extractOfferFields(text.slice(0, AI_PAGE_TEXT_LIMIT), url);
+  if (!fields || !(fields.position || fields.company)) return null;
+  return {
+    position: fields.position?.trim() ?? "",
+    company: fields.company?.trim() ?? "",
+    location: fields.location?.trim() ?? "",
+    description: composeDescription(fields),
+    source,
+  };
+}
+
 export async function importOfferFromUrl(rawUrl: string): Promise<ImportedOffer> {
-  const { html, finalUrl } = await fetchHtml(rawUrl);
+  // Lien invalide ou réseau privé : refusé d'emblée, sans passer par Jina.
+  await assertPublicUrl(rawUrl);
 
-  // 1. Données structurées schema.org (Welcome to the Jungle, Indeed, la plupart des ATS…)
-  const structured = findJobPosting(html);
-  if (structured && (structured.position || structured.company)) return structured;
+  // 1. Lecture directe de la page ; en cas d'échec (site qui bloque, trop lent…), Jina prend le relais.
+  let page: { html: string; finalUrl: string } | null = null;
+  try {
+    page = await fetchHtml(rawUrl);
+  } catch (error) {
+    if (error instanceof OfferImportError && error.kind === "not_found") throw error;
+  }
 
-  // 2. Extraction par Claude à partir du texte visible de la page
-  const pageText = htmlToText(html.replace(/<head[\s\S]*?<\/head>/i, " "));
-  if (isClaudeConfigured() && pageText.length > 200) {
+  if (page) {
+    // 2. Données structurées schema.org (Welcome to the Jungle, Indeed, la plupart des ATS…)
+    const structured = findJobPosting(page.html);
+    if (structured && (structured.position || structured.company)) return structured;
+    if (isNotFoundTitle(pageTitle(page.html))) throw new OfferImportError(NOT_FOUND_MESSAGE, "not_found");
+  }
+
+  // 3. Extraction par Claude : contenu rendu par Jina, à défaut texte de la page lue directement
+  if (isClaudeConfigured()) {
     const gate = await checkAiRateLimit();
     if (!gate.ok) throw new OfferImportError(gate.message);
-    const title = meta(html, "og:title") || (html.match(/<title[^>]*>([^<]*)/i)?.[1] ?? "");
-    const fields = await extractOfferFields(
-      `Titre de la page : ${decodeEntities(title)}\n\n${pageText.slice(0, AI_PAGE_TEXT_LIMIT)}`,
-      finalUrl,
-    );
-    if (fields && (fields.position || fields.company)) {
-      return { ...fields, description: "", source: "ai" };
+
+    let jinaText = "";
+    try {
+      jinaText = await fetchViaJina(rawUrl);
+    } catch (error) {
+      if (error instanceof OfferImportError && error.kind === "not_found") throw error;
+      if (!(error instanceof OfferImportError)) console.error("[offer-import] Jina", error);
+    }
+
+    if (jinaText.length > 200) {
+      const offer = await extractWithAi(jinaText, "jina", rawUrl);
+      if (offer) return offer;
+    } else if (page) {
+      const pageText = htmlToText(page.html.replace(/<head[\s\S]*?<\/head>/i, " "));
+      if (pageText.length > 200) {
+        const offer = await extractWithAi(
+          `Titre de la page : ${pageTitle(page.html)}\n\n${pageText}`,
+          "ai",
+          page.finalUrl,
+        );
+        if (offer) return offer;
+      }
     }
   }
 
-  // 3. Dernier recours : balises meta
-  const ogTitle = meta(html, "og:title") || decodeEntities(html.match(/<title[^>]*>([^<]*)/i)?.[1]?.trim() ?? "");
+  // 4. Dernier recours : balises meta
+  if (!page) throw new OfferImportError("Impossible de lire cette page.");
+  const ogTitle = pageTitle(page.html);
   if (!ogTitle) throw new OfferImportError("Aucune information trouvée sur cette page.");
   // og:site_name désigne souvent le site d'emploi, pas l'entreprise : on ne l'utilise pas.
   return {
@@ -311,4 +445,16 @@ export async function importOfferFromUrl(rawUrl: string): Promise<ImportedOffer>
     description: "",
     source: "meta",
   };
+}
+
+/** Texte d'offre collé par l'utilisateur quand la page n'a pas pu être lue. */
+export async function importOfferFromText(text: string): Promise<ImportedOffer> {
+  if (!isClaudeConfigured()) throw new OfferImportError("L'analyse automatique n'est pas activée.");
+  const gate = await checkAiRateLimit();
+  if (!gate.ok) throw new OfferImportError(gate.message);
+
+  const offer = await extractWithAi(text, "text");
+  if (!offer) throw new OfferImportError("Aucune information d'offre trouvée dans ce texte.");
+  // Sans description extraite, le texte collé tient lieu de description.
+  return { ...offer, description: offer.description || text.trim() };
 }

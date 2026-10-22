@@ -6,8 +6,18 @@ import { refresh } from "next/cache";
 import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
 import { requireUser } from "@/lib/auth";
 import { isClaudeConfigured, summarizeOffer, type OfferSummary } from "@/lib/claude";
-import { OfferImportError, importOfferFromUrl, type ImportedOffer } from "@/lib/offer-import";
-import { OFFER_DESCRIPTION_MAX_LENGTH, SUMMARY_MIN_LENGTH } from "@/lib/offer-limits";
+import {
+  OfferImportError,
+  importOfferFromText,
+  importOfferFromUrl,
+  type ImportedOffer,
+  type OfferImportErrorKind,
+} from "@/lib/offer-import";
+import {
+  OFFER_DESCRIPTION_MAX_LENGTH,
+  OFFER_PASTED_TEXT_MAX_LENGTH,
+  SUMMARY_MIN_LENGTH,
+} from "@/lib/offer-limits";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 // Ces actions déclenchent des requêtes sortantes et des appels payants à l'API Claude :
@@ -18,20 +28,42 @@ async function ensureAllowed() {
 
 export type ImportOfferResult =
   | { ok: true; offer: ImportedOffer }
-  | { ok: false; error: string };
+  | { ok: false; error: string; kind: OfferImportErrorKind };
+
+function importFailure(error: unknown, context: string): ImportOfferResult {
+  if (error instanceof OfferImportError) return { ok: false, error: error.message, kind: error.kind };
+  console.error(`[${context}]`, error);
+  return { ok: false, error: "Impossible de lire cette offre.", kind: "failed" };
+}
 
 export async function importOfferAction(url: string): Promise<ImportOfferResult> {
   await ensureAllowed();
   if (typeof url !== "string" || url.length > 2000) {
-    return { ok: false, error: "Lien invalide." };
+    return { ok: false, error: "Lien invalide.", kind: "failed" };
   }
 
   try {
     return { ok: true, offer: await importOfferFromUrl(url.trim()) };
   } catch (error) {
-    if (error instanceof OfferImportError) return { ok: false, error: error.message };
-    console.error("[importOffer]", error);
-    return { ok: false, error: "Impossible de lire cette page." };
+    return importFailure(error, "importOffer");
+  }
+}
+
+/** Repli quand le lien n'a pas pu être lu : l'utilisateur colle le texte de l'offre. */
+export async function importOfferFromTextAction(text: string): Promise<ImportOfferResult> {
+  await ensureAllowed();
+  const trimmed = typeof text === "string" ? text.trim() : "";
+  if (trimmed.length < SUMMARY_MIN_LENGTH) {
+    return { ok: false, error: "Colle le texte complet de l'offre.", kind: "failed" };
+  }
+  if (trimmed.length > OFFER_PASTED_TEXT_MAX_LENGTH) {
+    return { ok: false, error: "Texte trop long (40 000 caractères max).", kind: "failed" };
+  }
+
+  try {
+    return { ok: true, offer: await importOfferFromText(trimmed) };
+  } catch (error) {
+    return importFailure(error, "importOfferFromText");
   }
 }
 

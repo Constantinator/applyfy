@@ -8,12 +8,18 @@ import {
   type NewApplicationField,
   type NewApplicationState,
 } from "@/app/actions/applications";
-import { importOfferAction, summarizeOfferAction } from "@/app/actions/offer";
+import {
+  importOfferAction,
+  importOfferFromTextAction,
+  summarizeOfferAction,
+  type ImportOfferResult,
+} from "@/app/actions/offer";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { normalizeCompanyName } from "@/lib/normalize";
 import {
   OFFER_DESCRIPTION_MAX_LENGTH,
+  OFFER_PASTED_TEXT_MAX_LENGTH,
   OFFER_SUMMARY_MAX_LENGTH,
   SUMMARY_MIN_LENGTH,
 } from "@/lib/offer-limits";
@@ -123,12 +129,16 @@ export function NewApplicationForm({
   const [summaryStatus, setSummaryStatus] = useState<AsyncStatus>({ state: "idle" });
   // Limite signalée par le serveur (compteur de la page éventuellement périmé).
   const [summaryLimitHit, setSummaryLimitHit] = useState(false);
-  // Résultat incomplet de l'import depuis un lien : échec total (site bloqué, LinkedIn,
-  // Indeed…) ou partiel. `missing` = champs que l'import n'a pas pu remplir.
+  // Résultat incomplet de l'import depuis un lien : offre retirée, échec total (site
+  // illisible, LinkedIn…) ou partiel. `missing` = champs que l'import n'a pas pu remplir.
   const [importAlert, setImportAlert] = useState<{
-    kind: "failed" | "partial";
+    kind: "not_found" | "failed" | "partial";
     missing: ImportedField[];
+    message?: string;
   } | null>(null);
+  // Repli après un échec : texte de l'offre collé à la main, analysé par l'IA.
+  const [pastedText, setPastedText] = useState("");
+  const [textImportStatus, setTextImportStatus] = useState<AsyncStatus>({ state: "idle" });
 
   // Valeurs courantes lisibles après un await (évite les closures périmées).
   const current = useRef({ company, position, location, description });
@@ -151,15 +161,35 @@ export function NewApplicationForm({
     lastImportedUrl.current = url;
     setImportStatus({ state: "loading" });
     setImportAlert(null);
+    setTextImportStatus({ state: "idle" });
 
-    const result = await importOfferAction(url);
+    applyImportResult(await importOfferAction(url), "Pré-rempli depuis la page");
+  }
+
+  async function importFromText() {
+    setTextImportStatus({ state: "loading" });
+    const result = await importOfferFromTextAction(pastedText);
+    if (!result.ok) {
+      setTextImportStatus({ state: "error", message: result.error });
+      return;
+    }
+    setTextImportStatus({ state: "idle" });
+    setPastedText("");
+    applyImportResult(result, "Pré-rempli depuis le texte collé");
+  }
+
+  function applyImportResult(result: ImportOfferResult, successPrefix: string) {
     const now = current.current;
     // Seuls les champs encore vides sont signalés comme « à compléter ».
     const stillEmpty = (fields: readonly ImportedField[]) => fields.filter((f) => !now[f].trim());
 
     if (!result.ok) {
       setImportStatus({ state: "idle" }); // le bandeau d'alerte prend le relais
-      setImportAlert({ kind: "failed", missing: stillEmpty(IMPORTED_FIELDS) });
+      setImportAlert(
+        result.kind === "not_found"
+          ? { kind: "not_found", missing: [], message: result.error }
+          : { kind: "failed", missing: stillEmpty(IMPORTED_FIELDS) },
+      );
       return;
     }
 
@@ -197,7 +227,7 @@ export function NewApplicationForm({
         filled.length > 0
           ? {
               state: "success",
-              message: `✓ Pré-rempli depuis la page : ${filled.join(", ")}. Vérifie les informations.`,
+              message: `✓ ${successPrefix} : ${filled.join(", ")}. Vérifie les informations.`,
             }
           : { state: "success", message: "✓ Tous les champs étaient déjà remplis." },
       );
@@ -228,9 +258,11 @@ export function NewApplicationForm({
   // Le bandeau disparaît quand tous les champs signalés ont été complétés.
   const fieldValues: Record<ImportedField, string> = { company, position, location, description };
   const missingNow = importAlert?.missing.filter((f) => !fieldValues[f].trim()) ?? [];
-  const alertVisible = importAlert !== null && missingNow.length > 0;
+  const alertVisible =
+    importAlert !== null && (importAlert.kind === "not_found" || missingNow.length > 0);
+  const showPasteFallback = alertVisible && importAlert.kind === "failed" && aiEnabled;
   const highlight = (field: ImportedField) =>
-    alertVisible && missingNow.includes(field)
+    alertVisible && importAlert.kind !== "not_found" && missingNow.includes(field)
       ? importAlert.kind === "failed"
         ? " ring-2 ring-orange-300"
         : " ring-2 ring-yellow-400"
@@ -293,19 +325,56 @@ export function NewApplicationForm({
             role="alert"
             data-import-alert={importAlert.kind}
             className={`flex gap-3 rounded-xl border p-4 text-sm ${
-              importAlert.kind === "failed"
-                ? "border-orange-300 bg-orange-50 dark:bg-orange-500/15 text-orange-900"
-                : "border-yellow-400 bg-yellow-100 text-yellow-950"
+              importAlert.kind === "partial"
+                ? "border-yellow-400 bg-yellow-100 text-yellow-950"
+                : "border-orange-300 bg-orange-50 dark:bg-orange-500/15 text-orange-900"
             }`}
           >
             <span aria-hidden="true" className="text-lg leading-none">
-              {importAlert.kind === "failed" ? "⛔" : "⚠️"}
+              {importAlert.kind === "partial" ? "⚠️" : "⛔"}
             </span>
             <p className="font-medium">
-              {importAlert.kind === "failed"
-                ? "Ce site bloque l'import automatique. Remplis les informations manuellement ci-dessous."
-                : "Certaines informations n'ont pas pu être récupérées automatiquement. Vérifie et complète les champs ci-dessous."}
+              {importAlert.kind === "not_found"
+                ? `${importAlert.message} Vérifie le lien, ou remplis les informations manuellement ci-dessous.`
+                : importAlert.kind === "failed"
+                  ? aiEnabled
+                    ? "Impossible de lire cette page automatiquement. Colle le texte de l'offre ci-dessous, ou remplis les champs à la main."
+                    : "Impossible de lire cette page automatiquement. Remplis les informations manuellement ci-dessous."
+                  : "Certaines informations n'ont pas pu être récupérées automatiquement. Vérifie et complète les champs ci-dessous."}
             </p>
+          </div>
+        )}
+
+        {showPasteFallback && (
+          <div className="space-y-2">
+            <label htmlFor="pasted_offer_text" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              Texte de l&apos;offre
+            </label>
+            <textarea
+              id="pasted_offer_text"
+              rows={6}
+              maxLength={OFFER_PASTED_TEXT_MAX_LENGTH}
+              placeholder="Sélectionne tout le texte de l'annonce (Ctrl+A), copie-le et colle-le ici."
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              className={inputClassName}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={importFromText}
+                disabled={pastedText.trim().length < SUMMARY_MIN_LENGTH || textImportStatus.state === "loading"}
+                className="btn-primary px-4 py-2 text-sm"
+              >
+                Analyser le texte
+              </button>
+              {pastedText.trim().length < SUMMARY_MIN_LENGTH && (
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Colle le texte complet de l&apos;offre.
+                </span>
+              )}
+            </div>
+            <StatusLine status={textImportStatus} loadingText="Analyse du texte en cours…" />
           </div>
         )}
 
