@@ -141,6 +141,19 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             ]}
           />
 
+          {/* Seulement la candidature exemple créée à l'inscription : invitation à ajouter la vraie. */}
+          {applications.every((app) => app.is_example) && (
+            <div className="flex flex-col gap-3 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between dark:bg-slate-800/60 dark:ring-slate-700">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Ceci est un exemple — ajoute ta première vraie candidature !
+              </p>
+              <Link href="/candidatures/nouvelle" className="btn-primary shrink-0 self-start px-4 py-2 text-sm sm:self-auto">
+                <IconPlus className="h-4 w-4" />
+                Ajouter une candidature
+              </Link>
+            </div>
+          )}
+
           <ApplicationsView
             applications={applications}
             nowIso={now.toISOString()}

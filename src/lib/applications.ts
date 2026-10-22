@@ -23,7 +23,7 @@ export { FOLLOW_UP_AFTER_DAYS, daysSince, needsFollowUp } from "./follow-up";
 
 
 const LIST_COLUMNS =
-  "id, company, position, location, offer_url, contact_name, contact_email, status, applied_at, last_contact_at, created_at";
+  "id, company, position, location, offer_url, contact_name, contact_email, status, applied_at, last_contact_at, created_at, is_example";
 
 export type DataSource = "supabase" | "demo";
 

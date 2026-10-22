@@ -49,11 +49,12 @@ export async function runActivationJob({ dryRun = false, now = new Date() } = {}
   result.checked = candidates.length;
   if (candidates.length === 0) return result;
 
-  // 2. Sans aucune candidature.
+  // 2. Sans aucune vraie candidature (la candidature exemple ne compte pas).
   const { data: apps, error } = await supabase
     .from("applications")
     .select("user_id")
-    .in("user_id", candidates.map((u) => u.id));
+    .in("user_id", candidates.map((u) => u.id))
+    .eq("is_example", false);
   if (error) throw new Error(`Lecture des candidatures impossible : ${error.message}`);
   const withApplications = new Set((apps ?? []).map((a) => a.user_id as string));
 

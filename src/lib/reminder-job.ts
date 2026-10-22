@@ -43,7 +43,8 @@ export async function runReminderJob({ dryRun = false, now = new Date() } = {}):
     .select("id, user_id, company, position, status, applied_at, last_contact_at, reminders_sent, last_reminder_at")
     .in("status", [...REMINDER_STATUSES])
     .not("applied_at", "is", null)
-    .lt("reminders_sent", MAX_REMINDERS);
+    .lt("reminders_sent", MAX_REMINDERS)
+    .eq("is_example", false);
   if (error) throw new Error(`Lecture des candidatures impossible : ${error.message}`);
   result.checked = apps.length;
   if (apps.length === 0) return result;

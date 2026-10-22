@@ -25,6 +25,8 @@ export type Application = {
   applied_at: string | null;
   last_contact_at: string | null;
   created_at: string;
+  /** Candidature exemple créée à l'inscription (migration 0022). */
+  is_example?: boolean;
 };
 
 export type ApplicationDetail = Application & {

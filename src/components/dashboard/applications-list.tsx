@@ -80,7 +80,10 @@ export function ApplicationsList({
                 href={`/candidatures/${app.id}`}
                 className="min-w-0 after:absolute after:inset-0 after:rounded-2xl focus:outline-none"
               >
-                <p className="truncate font-medium text-slate-900 dark:text-white">{app.company}</p>
+                <p className="flex items-center gap-2 font-medium text-slate-900 dark:text-white">
+                  <span className="truncate">{app.company}</span>
+                  {app.is_example && <ExampleBadge />}
+                </p>
                 <p className="truncate text-sm text-slate-500 dark:text-slate-400">{app.position}</p>
               </Link>
               <StatusBadge status={app.status} />
@@ -130,8 +133,9 @@ export function ApplicationsList({
                       {app.company.charAt(0).toUpperCase()}
                     </span>
                     <span className="min-w-0">
-                      <span className="block font-semibold text-slate-900 dark:text-white group-hover:text-blue-600">
+                      <span className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white group-hover:text-blue-600">
                         {app.company}
+                        {app.is_example && <ExampleBadge />}
                       </span>
                       <span className="block text-slate-500 dark:text-slate-400">
                         {app.position}
@@ -160,5 +164,12 @@ export function ApplicationsList({
         </table>
       </div>
     </>
+  );
+}
+
+/** Badge discret de la candidature exemple créée à l'inscription. */
+function ExampleBadge() {
+  return (
+    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">Exemple</span>
   );
 }

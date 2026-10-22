@@ -281,8 +281,9 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
   const dayBeforeMonth = lastDayOf(shiftMonth(month, -1));
 
   // Candidatures créées entre deux instants, ou toutes sans bornes (comptage seul, sans charger les lignes).
+  // Les candidatures exemple (créées à l'inscription) ne comptent pas.
   const countApplications = async (from?: Date, to?: Date) => {
-    let query = supabase.from("applications").select("id", { count: "exact", head: true });
+    let query = supabase.from("applications").select("id", { count: "exact", head: true }).eq("is_example", false);
     if (from && to) query = query.gte("created_at", from.toISOString()).lt("created_at", to.toISOString());
     const { count, error } = await query;
     if (error) throw new Error(error.message);

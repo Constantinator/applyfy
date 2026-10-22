@@ -9,6 +9,7 @@ import { safeRedirectPath } from "@/lib/auth";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/password";
 import { validateAccountName } from "@/lib/person-name";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { createExampleApplication } from "@/lib/example-application";
 import { queueWelcomeEmail } from "@/lib/welcome-email";
 
 export type AuthFormState =
@@ -103,6 +104,7 @@ export async function signupAction(
   // Confirmation d'email désactivée dans Supabase : session ouverte, email de bienvenue, direction le dashboard.
   if (data.session) {
     await queueWelcomeEmail(supabase, data.user);
+    await createExampleApplication(supabase, data.user);
     redirect("/dashboard");
   }
 
