@@ -10,11 +10,13 @@ import {
 } from "@/app/actions/applications";
 import {
   importOfferAction,
+  importOfferFromPageAction,
   importOfferFromTextAction,
   summarizeOfferAction,
   type ImportOfferResult,
 } from "@/app/actions/offer";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import { readOpenTab } from "@/lib/extension-bridge";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { normalizeCompanyName } from "@/lib/normalize";
 import {
@@ -163,7 +165,14 @@ export function NewApplicationForm({
     setImportAlert(null);
     setTextImportStatus({ state: "idle" });
 
-    applyImportResult(await importOfferAction(url), "Pré-rempli depuis la page");
+    // L'offre est ouverte dans un autre onglet et l'extension est installée : on lit
+    // l'onglet (contenu réellement affiché). Sinon, lecture de la page côté serveur.
+    const openTab = await readOpenTab(url);
+    if (openTab) {
+      applyImportResult(await importOfferFromPageAction(openTab), "Pré-rempli depuis l'onglet ouvert");
+    } else {
+      applyImportResult(await importOfferAction(url), "Pré-rempli depuis la page");
+    }
   }
 
   async function importFromText() {

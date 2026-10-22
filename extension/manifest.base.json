@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "Applyfy — Import d'offres",
+  "short_name": "Applyfy",
+  "version": "0.1.0",
+  "description": "Pré-remplit tes candidatures Applyfy à partir de l'offre d'emploi ouverte dans un autre onglet.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Applyfy",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "permissions": ["scripting"],
+  "host_permissions": [
+    "https://www.applyfy.fr/*",
+    "https://applyfy.fr/*",
+    "https://applyfy-six.vercel.app/*",
+    "https://*.indeed.com/*",
+    "https://*.indeed.fr/*",
+    "https://*.linkedin.com/*",
+    "https://*.welcometothejungle.com/*",
+    "https://*.welcomekit.co/*",
+    "https://*.jobteaser.com/*",
+    "https://*.hellowork.com/*",
+    "https://*.apec.fr/*",
+    "https://*.francetravail.fr/*",
+    "https://*.cadremploi.fr/*",
+    "https://*.monster.fr/*",
+    "https://*.meteojob.com/*",
+    "https://*.glassdoor.fr/*",
+    "https://*.glassdoor.com/*",
+    "https://*.adzuna.fr/*",
+    "https://*.lever.co/*",
+    "https://*.greenhouse.io/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.teamtailor.com/*",
+    "https://*.recruitee.com/*",
+    "https://*.ashbyhq.com/*",
+    "https://*.personio.de/*",
+    "https://*.personio.com/*"
+  ],
+  "optional_host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.applyfy.fr/*",
+        "https://applyfy.fr/*",
+        "https://applyfy-six.vercel.app/*"
+      ],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

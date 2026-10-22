@@ -78,6 +78,12 @@ export default function PrivacyPolicyPage() {
             <strong>Préférences :</strong> réglages des rappels de relance.
           </li>
           <li>
+            <strong>Extension navigateur (facultative) :</strong> quand tu colles dans Applyfy le lien
+            d&apos;une offre ouverte dans un autre onglet, l&apos;extension lit le texte de cette page et
+            l&apos;envoie à Applyfy pour pré-remplir ta candidature. Elle ne lit aucun autre onglet et ne
+            conserve aucune donnée.
+          </li>
+          <li>
             <strong>Abonnement Premium :</strong> statut de ton abonnement, dates de la période en cours
             et identifiants client et abonnement Stripe. Tes données de carte bancaire sont saisies et
             traitées directement par Stripe : Applyfy n&apos;y a jamais accès et ne les stocke pas.

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Extension navigateur : JavaScript autonome, hors de l'app Next.
+    "extension/**",
   ]),
 ]);
 

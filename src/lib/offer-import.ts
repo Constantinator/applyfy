@@ -12,8 +12,11 @@ export type ImportedOffer = {
   company: string;
   location: string;
   description: string;
-  /** D'où viennent les infos : données structurées de la page, ou extraction IA (via Jina ou texte collé). */
-  source: "structured" | "jina" | "text";
+  /**
+   * D'où viennent les infos : données structurées de la page, ou extraction IA (via Jina,
+   * texte collé, ou page lue par l'extension navigateur).
+   */
+  source: "structured" | "jina" | "text" | "extension";
 };
 
 /** "not_found" : l'offre n'existe plus ; "failed" : page illisible, le texte peut être collé à la main. */
@@ -264,7 +267,12 @@ function findJobPosting(html: string): ImportedOffer | null {
   const scripts = html.matchAll(
     /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
   );
-  for (const [, raw] of scripts) {
+  return jobPostingFromJsonLd(Array.from(scripts, ([, raw]) => raw));
+}
+
+/** Premier JobPosting trouvé dans des blocs JSON-LD bruts (page lue ou transmise par l'extension). */
+function jobPostingFromJsonLd(blocks: string[]): ImportedOffer | null {
+  for (const raw of blocks) {
     let data: unknown;
     try {
       data = JSON.parse(raw.trim());
@@ -336,11 +344,20 @@ function pageTitle(html: string) {
 
 /** Conditions (contrat, télétravail…) en tête, puis description et profil : pas de colonnes dédiées. */
 function composeDescription(fields: OfferFields) {
+  // Le modèle renvoie parfois « Non spécifié » au lieu de null.
+  const given = (value: string | null) =>
+    value && !/^\s*(non (spécifié|précisé|indiqué|mentionné|communiqué)e?|n\/?a|inconnue?|-)\s*$/i.test(value)
+      ? value
+      : null;
+  const contract = given(fields.contract_type);
+  const remote = given(fields.remote);
+  const salary = given(fields.salary);
+  const experience = given(fields.experience);
   const facts = [
-    fields.contract_type && `Contrat : ${fields.contract_type}`,
-    fields.remote && `Télétravail : ${fields.remote.replace(/^télétravail\s*:?\s*/i, "")}`,
-    fields.salary && `Salaire : ${fields.salary}`,
-    fields.experience && `Expérience : ${fields.experience}`,
+    contract && `Contrat : ${contract}`,
+    remote && `Télétravail : ${remote.replace(/^télétravail\s*:?\s*/i, "")}`,
+    salary && `Salaire : ${salary}`,
+    experience && `Expérience : ${experience}`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -355,7 +372,7 @@ function composeDescription(fields: OfferFields) {
 
 async function extractWithAi(
   text: string,
-  source: "jina" | "text",
+  source: "jina" | "text" | "extension",
   url?: string,
 ): Promise<ImportedOffer | null> {
   const fields = await extractOfferFields(text.slice(0, AI_PAGE_TEXT_LIMIT), url);
@@ -408,14 +425,33 @@ export async function importOfferFromUrl(rawUrl: string): Promise<ImportedOffer>
   return offer;
 }
 
-/** Texte d'offre collé par l'utilisateur quand la page n'a pas pu être lue. */
-export async function importOfferFromText(text: string): Promise<ImportedOffer> {
+async function extractFromText(text: string, source: "text" | "extension", url?: string) {
   if (!isClaudeConfigured()) throw new OfferImportError("L'analyse automatique n'est pas activée.");
   const gate = await checkAiRateLimit();
   if (!gate.ok) throw new OfferImportError(gate.message);
 
-  const offer = await extractWithAi(text, "text");
+  const offer = await extractWithAi(text, source, url);
   if (!offer) throw new OfferImportError("Aucune information d'offre trouvée dans ce texte.");
+  return offer;
+}
+
+/** Texte d'offre collé par l'utilisateur quand la page n'a pas pu être lue. */
+export async function importOfferFromText(text: string): Promise<ImportedOffer> {
+  const offer = await extractFromText(text, "text");
   // Sans description extraite, le texte collé tient lieu de description.
   return { ...offer, description: offer.description || text.trim() };
+}
+
+export type OpenTabPage = { url: string; title: string; text: string; jsonLd: string[] };
+
+/**
+ * Page d'offre lue par l'extension navigateur dans l'onglet ouvert par l'utilisateur
+ * (contenu rendu, connexion comprise) : données structurées si présentes, sinon Claude.
+ */
+export async function importOfferFromPage(page: OpenTabPage): Promise<ImportedOffer> {
+  const structured = jobPostingFromJsonLd(page.jsonLd);
+  if (structured && (structured.position || structured.company)) return structured;
+  if (isNotFoundTitle(page.title)) throw new OfferImportError(NOT_FOUND_MESSAGE, "not_found");
+
+  return extractFromText(`Titre de la page : ${page.title}\n\n${page.text}`, "extension", page.url);
 }

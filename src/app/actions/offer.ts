@@ -8,10 +8,12 @@ import { requireUser } from "@/lib/auth";
 import { isClaudeConfigured, summarizeOffer, type OfferSummary } from "@/lib/claude";
 import {
   OfferImportError,
+  importOfferFromPage,
   importOfferFromText,
   importOfferFromUrl,
   type ImportedOffer,
   type OfferImportErrorKind,
+  type OpenTabPage,
 } from "@/lib/offer-import";
 import {
   OFFER_DESCRIPTION_MAX_LENGTH,
@@ -64,6 +66,34 @@ export async function importOfferFromTextAction(text: string): Promise<ImportOff
     return { ok: true, offer: await importOfferFromText(trimmed) };
   } catch (error) {
     return importFailure(error, "importOfferFromText");
+  }
+}
+
+/** Page lue par l'extension navigateur dans l'onglet de l'offre (données venant du client : revalidées). */
+export async function importOfferFromPageAction(page: OpenTabPage): Promise<ImportOfferResult> {
+  await ensureAllowed();
+  const invalid: ImportOfferResult = { ok: false, error: "Page illisible.", kind: "failed" };
+  if (!page || typeof page !== "object") return invalid;
+
+  const { url, title, text, jsonLd } = page;
+  if (typeof url !== "string" || url.length > 2000 || !/^https?:\/\//i.test(url)) return invalid;
+  if (typeof title !== "string" || title.length > 500) return invalid;
+  if (typeof text !== "string" || text.length > OFFER_PASTED_TEXT_MAX_LENGTH) return invalid;
+  if (
+    !Array.isArray(jsonLd) ||
+    jsonLd.length > 3 ||
+    jsonLd.some((block) => typeof block !== "string" || block.length > 50_000)
+  ) {
+    return invalid;
+  }
+  if (text.trim().length < SUMMARY_MIN_LENGTH && jsonLd.length === 0) {
+    return { ok: false, error: "Aucune information d'offre trouvée sur cette page.", kind: "failed" };
+  }
+
+  try {
+    return { ok: true, offer: await importOfferFromPage({ url, title, text, jsonLd }) };
+  } catch (error) {
+    return importFailure(error, "importOfferFromPage");
   }
 }
 

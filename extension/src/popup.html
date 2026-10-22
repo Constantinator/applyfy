@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Applyfy</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --accent: #2563eb;
+        --ok: #047857;
+        --warn: #b45309;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --text: #f1f5f9;
+          --muted: #94a3b8;
+          --border: #334155;
+          --accent: #60a5fa;
+          --ok: #6ee7b7;
+          --warn: #fcd34d;
+        }
+      }
+      body {
+        width: 300px;
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      header img {
+        width: 24px;
+        height: 24px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 15px;
+      }
+      p {
+        margin: 0 0 10px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      section {
+        border-top: 1px solid var(--border);
+        padding-top: 10px;
+        margin-top: 10px;
+      }
+      .status {
+        font-weight: 600;
+      }
+      .status.ok {
+        color: var(--ok);
+      }
+      .status.warn {
+        color: var(--warn);
+      }
+      button {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 7px 10px;
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--accent);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        color: var(--bg);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="icons/icon-48.png" alt="" />
+      <h1>Applyfy</h1>
+    </header>
+    <p class="muted">
+      Ouvre une offre dans un onglet, puis colle son lien dans le formulaire Applyfy : les champs
+      sont pré-remplis à partir de la page ouverte.
+    </p>
+
+    <section>
+      <p>Sites d'emploi courants : <span id="job-status" class="status"></span></p>
+      <button id="grant-job" class="primary" hidden>Autoriser les sites d'emploi</button>
+    </section>
+
+    <section>
+      <p>Tous les autres sites (pages carrières d'entreprises) : <span id="all-status" class="status"></span></p>
+      <p class="muted">L'extension ne lit une page que lorsque tu colles son lien dans Applyfy.</p>
+      <button id="grant-all" hidden>Autoriser tous les sites</button>
+      <button id="revoke-all" hidden>Retirer l'accès à tous les sites</button>
+    </section>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
