@@ -12,11 +12,8 @@ export type ImportedOffer = {
   company: string;
   location: string;
   description: string;
-  /**
-   * D'où viennent les infos : données structurées de la page, extraction IA (page lue
-   * directement, via Jina, ou texte collé par l'utilisateur) ou balises meta.
-   */
-  source: "structured" | "ai" | "jina" | "text" | "meta";
+  /** D'où viennent les infos : données structurées de la page, ou extraction IA (via Jina ou texte collé). */
+  source: "structured" | "jina" | "text";
 };
 
 /** "not_found" : l'offre n'existe plus ; "failed" : page illisible, le texte peut être collé à la main. */
@@ -228,22 +225,6 @@ function formatJobDescription(raw: string) {
   return formatOfferDescription(html);
 }
 
-/** HTML → texte lisible, pour l'extraction par Claude (listes et paragraphes conservés). */
-function htmlToText(html: string) {
-  return decodeEntities(
-    html
-      .replace(/<(script|style|noscript|svg|template)[\s\S]*?<\/\1>/gi, " ")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<li[^>]*>/gi, "\n• ")
-      .replace(/<\/(p|div|li|ul|ol|h[1-6]|section|tr)>/gi, "\n")
-      .replace(/<[^>]+>/g, " "),
-  )
-    .replace(/[ \t\f\v]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 type JsonLd = Record<string, unknown>;
 
 function* walkJsonLd(node: unknown): Generator<JsonLd> {
@@ -374,7 +355,7 @@ function composeDescription(fields: OfferFields) {
 
 async function extractWithAi(
   text: string,
-  source: "ai" | "jina" | "text",
+  source: "jina" | "text",
   url?: string,
 ): Promise<ImportedOffer | null> {
   const fields = await extractOfferFields(text.slice(0, AI_PAGE_TEXT_LIMIT), url);
@@ -407,47 +388,24 @@ export async function importOfferFromUrl(rawUrl: string): Promise<ImportedOffer>
     if (isNotFoundTitle(pageTitle(page.html))) throw new OfferImportError(NOT_FOUND_MESSAGE, "not_found");
   }
 
-  // 3. Extraction par Claude : contenu rendu par Jina, à défaut texte de la page lue directement
-  if (isClaudeConfigured()) {
-    const gate = await checkAiRateLimit();
-    if (!gate.ok) throw new OfferImportError(gate.message);
+  // 3. Extraction par Claude depuis le contenu rendu par Jina. Tout échec renvoie vers
+  // la saisie manuelle (texte de l'offre collé par l'utilisateur).
+  if (!isClaudeConfigured()) throw new OfferImportError("Impossible de lire cette page.");
+  const gate = await checkAiRateLimit();
+  if (!gate.ok) throw new OfferImportError(gate.message);
 
-    let jinaText = "";
-    try {
-      jinaText = await fetchViaJina(rawUrl);
-    } catch (error) {
-      if (error instanceof OfferImportError && error.kind === "not_found") throw error;
-      if (!(error instanceof OfferImportError)) console.error("[offer-import] Jina", error);
-    }
-
-    if (jinaText.length > 200) {
-      const offer = await extractWithAi(jinaText, "jina", rawUrl);
-      if (offer) return offer;
-    } else if (page) {
-      const pageText = htmlToText(page.html.replace(/<head[\s\S]*?<\/head>/i, " "));
-      if (pageText.length > 200) {
-        const offer = await extractWithAi(
-          `Titre de la page : ${pageTitle(page.html)}\n\n${pageText}`,
-          "ai",
-          page.finalUrl,
-        );
-        if (offer) return offer;
-      }
-    }
+  let jinaText: string;
+  try {
+    jinaText = await fetchViaJina(rawUrl);
+  } catch (error) {
+    if (error instanceof OfferImportError) throw error;
+    console.error("[offer-import] Jina", error);
+    throw new OfferImportError("Impossible de lire cette page.");
   }
 
-  // 4. Dernier recours : balises meta
-  if (!page) throw new OfferImportError("Impossible de lire cette page.");
-  const ogTitle = pageTitle(page.html);
-  if (!ogTitle) throw new OfferImportError("Aucune information trouvée sur cette page.");
-  // og:site_name désigne souvent le site d'emploi, pas l'entreprise : on ne l'utilise pas.
-  return {
-    position: ogTitle,
-    company: "",
-    location: "",
-    description: "",
-    source: "meta",
-  };
+  const offer = jinaText.length > 200 ? await extractWithAi(jinaText, "jina", rawUrl) : null;
+  if (!offer) throw new OfferImportError("Aucune information trouvée sur cette page.");
+  return offer;
 }
 
 /** Texte d'offre collé par l'utilisateur quand la page n'a pas pu être lue. */
