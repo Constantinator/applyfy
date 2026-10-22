@@ -185,6 +185,9 @@ async function fetchViaJina(url: string): Promise<string> {
       signal: AbortSignal.timeout(JINA_TIMEOUT_MS),
       headers: {
         Accept: "text/plain",
+        // Page entière : le mode par défaut ne garde parfois que le corps de l'annonce et
+        // perd l'en-tête (lieu, contrat…), par exemple sur JobTeaser.
+        "X-Return-Format": "markdown",
         "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
