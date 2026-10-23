@@ -62,18 +62,29 @@ function SuggestionList({
 }) {
   const styles =
     tone === "match"
-      ? { box: "border-[#BFDBFE] bg-[#F0F7FF]", title: "text-[#1E40AF]", marker: "text-[#1E40AF]/60" }
-      : { box: "border-[#E2E8F0] dark:border-slate-700 bg-[#F8FAFC]", title: "text-[#374151] dark:text-slate-200", marker: "text-[#9CA3AF]" };
+      ? {
+          box: "border-[#BBF7D0] bg-[#F0FAF4] dark:border-emerald-800 dark:bg-emerald-950/30",
+          title: "text-emerald-700 dark:text-emerald-400",
+          marker: "text-emerald-500",
+        }
+      : {
+          box: "border-[#FED7AA] bg-[#FFF7F0] dark:border-orange-800 dark:bg-orange-950/30",
+          title: "text-orange-700 dark:text-orange-400",
+          marker: "text-orange-400",
+        };
 
   return (
     <section className={`rounded-xl border p-4 ${styles.box}`}>
       <h3 className={`flex items-center gap-2 font-semibold ${styles.title}`}>
         {tone === "match" ? <CheckIcon className="h-4 w-4" /> : <DashIcon className="h-4 w-4" />}
         {title}
-        <span className="text-sm font-normal text-slate-500 dark:text-slate-400">({items.length})</span>
+        {/* Pastille : texte et fond (10 %) reprennent la couleur du titre. */}
+        <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-current/10">
+          {items.length}
+        </span>
       </h3>
       {items.length > 0 ? (
-        <ul className="mt-3 space-y-1.5 text-sm text-[#374151] dark:text-slate-200">
+        <ul className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm text-[#374151] sm:grid-cols-2 dark:text-slate-200">
           {items.map((item, i) => (
             <li key={`${i}-${item}`} className="flex gap-2">
               <span aria-hidden="true" className={styles.marker}>
