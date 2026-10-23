@@ -30,13 +30,36 @@ type Company = {
 };
 
 // Slugs vérifiés le 23/10/2026 sur les API des trois ATS. Les autres entreprises
-// envisagées (Lydia, Yousign, Hyperline, PayFit…) n'ont pas de page carrières sur
-// l'un d'eux ; Lunchr est l'ancien nom de Swile.
+// envisagées (Lydia, Yousign, Hyperline, PayFit, Notion, Spotify, Hugging Face…) n'ont
+// pas de page carrières sur l'un d'eux ; Lunchr est l'ancien nom de Swile. Les boards
+// Ashby « shift » et « swan » sont des homonymes (fintech australienne, société
+// américaine), pas Shift Technology ni Swan.
 export const JOB_BOARD_COMPANIES: Company[] = [
   { key: "doctolib", name: "Doctolib", domain: "doctolib.fr", ats: "greenhouse", slug: "doctolib" },
+  { key: "mirakl", name: "Mirakl", domain: "mirakl.com", ats: "greenhouse", slug: "mirakl" },
+  { key: "ivalua", name: "Ivalua", domain: "ivalua.com", ats: "greenhouse", slug: "ivalua" },
+  { key: "dataiku", name: "Dataiku", domain: "dataiku.com", ats: "greenhouse", slug: "dataiku" },
+  { key: "datadog", name: "Datadog", domain: "datadoghq.com", ats: "greenhouse", slug: "datadog" },
+  { key: "databricks", name: "Databricks", domain: "databricks.com", ats: "greenhouse", slug: "databricks" },
+  { key: "stripe", name: "Stripe", domain: "stripe.com", ats: "greenhouse", slug: "stripe" },
+  { key: "airbnb", name: "Airbnb", domain: "airbnb.com", ats: "greenhouse", slug: "airbnb" },
+  { key: "figma", name: "Figma", domain: "figma.com", ats: "greenhouse", slug: "figma" },
+  { key: "gitlab", name: "GitLab", domain: "gitlab.com", ats: "greenhouse", slug: "gitlab" },
+  { key: "mongodb", name: "MongoDB", domain: "mongodb.com", ats: "greenhouse", slug: "mongodb" },
+  { key: "elastic", name: "Elastic", domain: "elastic.co", ats: "greenhouse", slug: "elastic" },
+  { key: "fastly", name: "Fastly", domain: "fastly.com", ats: "greenhouse", slug: "fastly" },
+  { key: "cloudflare", name: "Cloudflare", domain: "cloudflare.com", ats: "greenhouse", slug: "cloudflare" },
+  { key: "intercom", name: "Intercom", domain: "intercom.com", ats: "greenhouse", slug: "intercom" },
+  { key: "mixpanel", name: "Mixpanel", domain: "mixpanel.com", ats: "greenhouse", slug: "mixpanel" },
+  { key: "netlify", name: "Netlify", domain: "netlify.com", ats: "greenhouse", slug: "netlify" },
+  { key: "pagerduty", name: "PagerDuty", domain: "pagerduty.com", ats: "greenhouse", slug: "pagerduty" },
+  { key: "twilio", name: "Twilio", domain: "twilio.com", ats: "greenhouse", slug: "twilio" },
+  { key: "vercel", name: "Vercel", domain: "vercel.com", ats: "greenhouse", slug: "vercel" },
   { key: "swile", name: "Swile", domain: "swile.co", ats: "lever", slug: "swile" },
   { key: "contentsquare", name: "Contentsquare", domain: "contentsquare.com", ats: "lever", slug: "contentsquare" },
   { key: "mistral", name: "Mistral AI", domain: "mistral.ai", ats: "lever", slug: "mistral" },
+  { key: "aircall", name: "Aircall", domain: "aircall.io", ats: "lever", slug: "aircall" },
+  { key: "ogury", name: "Ogury", domain: "ogury.com", ats: "lever", slug: "ogury" },
   { key: "alan", name: "Alan", domain: "alan.com", ats: "ashby", slug: "alan" },
   { key: "qonto", name: "Qonto", domain: "qonto.com", ats: "ashby", slug: "qonto" },
   { key: "pennylane", name: "Pennylane", domain: "pennylane.com", ats: "ashby", slug: "pennylane" },
@@ -46,6 +69,14 @@ export const JOB_BOARD_COMPANIES: Company[] = [
   { key: "dust", name: "Dust", domain: "dust.tt", ats: "ashby", slug: "dust" },
   { key: "photoroom", name: "Photoroom", domain: "photoroom.com", ats: "ashby", slug: "photoroom" },
   { key: "poolside", name: "Poolside", domain: "poolside.ai", ats: "ashby", slug: "poolside" },
+  { key: "joko", name: "Joko", domain: "joko.com", ats: "ashby", slug: "joko" },
+  { key: "owkin", name: "Owkin", domain: "owkin.com", ats: "ashby", slug: "owkin" },
+  { key: "nabla", name: "Nabla", domain: "nabla.com", ats: "ashby", slug: "nabla" },
+  { key: "cohere", name: "Cohere", domain: "cohere.com", ats: "ashby", slug: "cohere" },
+  { key: "openai", name: "OpenAI", domain: "openai.com", ats: "ashby", slug: "openai" },
+  { key: "perplexity", name: "Perplexity", domain: "perplexity.ai", ats: "ashby", slug: "perplexity" },
+  { key: "anyscale", name: "Anyscale", domain: "anyscale.com", ats: "ashby", slug: "anyscale" },
+  { key: "modal", name: "Modal", domain: "modal.com", ats: "ashby", slug: "modal" },
 ];
 
 const companyByKey = new Map(JOB_BOARD_COMPANIES.map((company) => [company.key, company]));
@@ -101,7 +132,7 @@ export type JobBoardJob = {
   team: string | null;
 };
 
-const TIMEOUT_MS = 10_000;
+const TIMEOUT_MS = 20_000;
 
 async function getJson<T>(url: string): Promise<T> {
   // Pas de cache de fetch : la plupart des réponses dépassent sa limite de 2 Mo. Les
@@ -336,8 +367,15 @@ export async function fetchAllJobs(): Promise<JobBoardJob[]> {
   return lists.flat().sort((a, b) => (b.postedAt ?? "").localeCompare(a.postedAt ?? ""));
 }
 
-/** fetchAllJobs, mis en cache une heure. */
-export const getAllJobs = unstable_cache(fetchAllJobs, ["job-boards-all"], { revalidate: 3600 });
+/**
+ * Offres basées en France, mises en cache une heure. Seules celles-ci sont gardées : la
+ * liste complète (plusieurs milliers d'offres) dépasse la limite de 2 Mo du cache.
+ */
+export const getAllJobs = unstable_cache(
+  async () => (await fetchAllJobs()).filter((job) => job.inFrance),
+  ["job-boards-france"],
+  { revalidate: 3600 },
+);
 
 // ---------------------------------------------------------------------------
 // Recherche (page « Trouver une offre »)
