@@ -16,6 +16,7 @@ import {
   OFFER_SOURCES,
   OfferSourceError,
   type OfferListing,
+  type OfferSource,
   type OfferSearch,
 } from "@/lib/offer-types";
 import {
@@ -36,6 +37,12 @@ export const metadata: Metadata = { title: "Trouver une offre — Applyfy" };
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 const numberFormatter = new Intl.NumberFormat("fr-FR");
+
+/** Logo de la source, à défaut de celui de l'entreprise (offres des pages carrières : initiales). */
+const SOURCE_LOGOS: Partial<Record<OfferSource, string>> = {
+  "france-travail": "/images/france-travail.png",
+  adzuna: "/images/adzuna.png",
+};
 
 function publishedLabel(iso: string | null) {
   if (!iso) return null;
@@ -340,8 +347,12 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                           }`}
                         >
                           <h3 className="text-lg leading-snug font-bold text-slate-900 dark:text-white">{offer.title}</h3>
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <CompanyLogo name={offer.company} src={logoOf(offer.company)} />
+                          <div className="mt-2 flex items-center gap-3">
+                            <CompanyLogo
+                              name={offer.company}
+                              src={logoOf(offer.company)}
+                              fallbackSrc={SOURCE_LOGOS[offer.source]}
+                            />
                             <p className="min-w-0 text-[15px] font-medium text-slate-700 dark:text-slate-200">
                               {offer.company ?? "Entreprise non communiquée"}
                             </p>

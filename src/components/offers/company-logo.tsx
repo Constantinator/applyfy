@@ -10,29 +10,40 @@ function initials(name: string | null) {
 }
 
 /**
- * Logo d'une entreprise ; ses initiales si le logo est inconnu (`src` null) ou ne se
- * charge pas (404 de Logo.dev).
+ * Logo d'une entreprise (`src`), sinon `fallbackSrc` (logo de la source de l'offre), sinon
+ * les initiales : quand le logo est inconnu (null) ou ne se charge pas (404 de Logo.dev).
+ * Même style que l'avatar des candidatures du tableau de bord.
  */
-export function CompanyLogo({ name, src, className = "h-7 w-7" }: { name: string | null; src: string | null; className?: string }) {
-  const [failed, setFailed] = useState(false);
+export function CompanyLogo({
+  name,
+  src,
+  fallbackSrc = null,
+}: {
+  name: string | null;
+  src: string | null;
+  fallbackSrc?: string | null;
+}) {
+  const [failed, setFailed] = useState<string[]>([]);
+  const current = [src, fallbackSrc].find((url): url is string => Boolean(url) && !failed.includes(url!));
 
-  if (src && !failed) {
+  if (current) {
     return (
       <Image
-        src={src}
+        key={current}
+        src={current}
         alt=""
-        width={28}
-        height={28}
+        width={36}
+        height={36}
         unoptimized
-        onError={() => setFailed(true)}
-        className={`${className} shrink-0 rounded-md bg-white object-contain ring-1 ring-slate-200 dark:ring-slate-700`}
+        onError={() => setFailed((urls) => [...urls, current])}
+        className="h-9 w-9 shrink-0 rounded-xl bg-white object-contain ring-1 ring-slate-200 dark:ring-slate-700"
       />
     );
   }
   return (
     <span
       aria-hidden="true"
-      className={`${className} inline-flex shrink-0 items-center justify-center rounded-md bg-slate-100 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700`}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/15 text-sm font-bold text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-500/20"
     >
       {initials(name)}
     </span>
