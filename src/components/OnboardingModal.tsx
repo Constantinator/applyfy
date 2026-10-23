@@ -8,7 +8,8 @@ import { ONBOARDING_OPEN_ATTRIBUTE, notifyOnboardingChange } from "@/lib/onboard
 
 const STORAGE_KEY = "applyfy_onboarding_done";
 
-function isOnboardingDone() {
+/** Présentation déjà vue dans ce navigateur (utilisé aussi par la popup Premium de bienvenue). */
+export function isOnboardingDone() {
   try {
     return window.localStorage.getItem(STORAGE_KEY) !== null;
   } catch {
