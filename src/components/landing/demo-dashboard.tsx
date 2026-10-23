@@ -337,7 +337,7 @@ function DemoOffers({ onFeature }: { onFeature: () => void }) {
         </div>
         <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <FakeField label="Type de contrat" value="Tous les contrats" onClick={onFeature} />
-          <FakeField label="Secteur" value="Tous les secteurs" onClick={onFeature} />
+          <FakeField label="Trier par" value="Le plus récent" onClick={onFeature} />
           <button type="button" onClick={onFeature} className="btn-primary px-6 py-2.5 text-sm">
             <IconSearch className="h-4 w-4" />
             Rechercher

@@ -17,11 +17,14 @@ import {
   OfferSourceError,
   SOURCE_PAGE_SIZE,
   isContractFilter,
+  isOfferSort,
   type ContractFilter,
   type OfferListing,
   type OfferSearch,
+  type OfferSort,
   type OfferSource,
 } from "@/lib/offer-types";
+import { compareOffers } from "@/lib/offer-sort";
 
 // Recherche d'offres sur toutes les sources configurées (France Travail, Adzuna) et sur
 // les pages carrières d'entreprises tech (sans configuration) : interrogées en parallèle,
@@ -43,7 +46,7 @@ export type OfferQuery = {
   keywords: string;
   place: string;
   contract: ContractFilter | null;
-  sector: string | null;
+  sort: OfferSort;
   page: number;
 };
 
@@ -53,12 +56,11 @@ const text = (value: string | string[] | undefined, max = 120) =>
   (typeof value === "string" ? value : "").trim().slice(0, max);
 
 export function readOfferQuery(params: Params): OfferQuery {
-  const sector = text(params.secteur);
   return {
     keywords: text(params.q),
     place: text(params.lieu, 80),
     contract: isContractFilter(params.contrat) ? params.contrat : null,
-    sector: /^[A-Za-z0-9]{1,6}$/.test(sector) ? sector : null,
+    sort: isOfferSort(params.tri) ? params.tri : "recent",
     page: Math.max(1, Math.min(Number.parseInt(text(params.page), 10) || 1, MAX_PAGES)),
   };
 }
@@ -69,13 +71,13 @@ export function offerQueryParams(query: OfferQuery): URLSearchParams {
   if (query.keywords) params.set("q", query.keywords);
   if (query.place) params.set("lieu", query.place);
   if (query.contract) params.set("contrat", query.contract);
-  if (query.sector) params.set("secteur", query.sector);
+  if (query.sort !== "recent") params.set("tri", query.sort);
   if (query.page > 1) params.set("page", String(query.page));
   return params;
 }
 
 export const hasOfferQuery = (query: OfferQuery) =>
-  Boolean(query.keywords || query.place || query.contract || query.sector);
+  Boolean(query.keywords || query.place || query.contract);
 
 /** Recherche prête à lancer ; `department` null si la localisation est introuvable. */
 export async function resolveOfferSearch(
@@ -89,7 +91,7 @@ export async function resolveOfferSearch(
       keywords: query.keywords,
       department: department && { code: department.code, name: department.departmentName },
       contract: query.contract,
-      sector: query.sector,
+      sort: query.sort === "pertinence" && !query.keywords ? "recent" : query.sort,
       page: query.page,
     },
   };
@@ -136,7 +138,7 @@ export async function searchAllOffers(search: OfferSearch): Promise<CombinedSear
     throw error instanceof OfferSourceError ? error : new OfferSourceError("La recherche a échoué. Réessaie dans un instant.");
   }
 
-  // Mélange : une offre de chaque source à tour de rôle, sans doublons.
+  // Mélange sans doublons (une offre de chaque source à tour de rôle), puis tri de la page.
   const seen = new Set<string>();
   const offers: OfferListing[] = [];
   for (let i = 0; i < SOURCE_PAGE_SIZE; i++) {
@@ -147,6 +149,7 @@ export async function searchAllOffers(search: OfferSearch): Promise<CombinedSear
       offers.push(offer);
     }
   }
+  offers.sort(compareOffers(search.sort, search.keywords));
 
   const reachable = Math.max(...results.map((r) => Math.min(r.total, MAX_RESULTS_PER_SOURCE)));
   return {

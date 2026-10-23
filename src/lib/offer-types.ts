@@ -32,13 +32,25 @@ export function isContractFilter(value: unknown): value is ContractFilter {
   return typeof value === "string" && value in CONTRACT_FILTERS;
 }
 
+/** Tris proposés, avec leur libellé (le premier par défaut). */
+export const OFFER_SORTS = {
+  recent: "Le plus récent",
+  ancien: "Le plus ancien",
+  pertinence: "Le plus pertinent",
+} as const;
+export type OfferSort = keyof typeof OFFER_SORTS;
+
+export function isOfferSort(value: unknown): value is OfferSort {
+  return typeof value === "string" && value in OFFER_SORTS;
+}
+
 export type OfferSearch = {
   keywords: string;
   /** Département déjà résolu depuis la saisie : code (« 75 », « 2A ») et nom. */
   department: { code: string; name: string } | null;
   contract: ContractFilter | null;
-  /** Code de secteur France Travail. */
-  sector: string | null;
+  /** Tri effectif : jamais « pertinence » sans mots-clés (remplacé par « recent »). */
+  sort: OfferSort;
   page: number;
 };
 

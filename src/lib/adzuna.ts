@@ -102,15 +102,12 @@ function toListing(job: RawJob): OfferListing | null {
 }
 
 export async function searchAdzuna(search: OfferSearch): Promise<OfferSearchResult> {
-  // Les secteurs sont des codes France Travail, sans équivalent chez Adzuna : avec ce
-  // filtre, seules les offres France Travail sont pertinentes.
-  if (search.sector) return { offers: [], total: 0 };
-
   const params = new URLSearchParams({
     app_id: process.env.ADZUNA_APP_ID ?? "",
     app_key: process.env.ADZUNA_APP_KEY ?? "",
     results_per_page: String(SOURCE_PAGE_SIZE),
-    sort_by: search.keywords ? "relevance" : "date",
+    sort_by: search.sort === "pertinence" ? "relevance" : "date",
+    sort_dir: search.sort === "ancien" ? "up" : "down",
   });
   let keywords = search.keywords;
   if (search.contract === "cdi") params.set("permanent", "1");

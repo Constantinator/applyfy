@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 
 import { decodeEntities, formatOfferDescription } from "@/lib/format-offer";
 import { getDepartmentCommunes } from "@/lib/geo";
+import { compareOffers, keywordGroups, normalize } from "@/lib/offer-sort";
 import {
   SOURCE_PAGE_SIZE,
   type OfferListing,
@@ -80,15 +81,6 @@ export const JOB_BOARD_COMPANIES: Company[] = [
 ];
 
 const companyByKey = new Map(JOB_BOARD_COMPANIES.map((company) => [company.key, company]));
-
-/** Comparaison sans casse, accents ni ponctuation. */
-const normalize = (text: string) =>
-  text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
 
 const companyByName = new Map(JOB_BOARD_COMPANIES.map((company) => [normalize(company.name), company]));
 
@@ -406,80 +398,12 @@ function toListing(job: JobBoardJob, description = ""): OfferListing {
 
 const CONTRACT_LABELS = { cdi: "CDI", cdd: "CDD", alternance: "Alternance", stage: "Stage" } as const;
 
-/** Termes RH français → équivalents anglais : les intitulés des pages carrières sont surtout en anglais. */
-const FR_TO_EN: Record<string, string[]> = {
-  "développeur": ["developer", "engineer", "software"],
-  "developpeur": ["developer", "engineer", "software"],
-  "ingénieur": ["engineer", "developer"],
-  "ingenieur": ["engineer", "developer"],
-  "designer": ["designer", "design", "ux", "ui"],
-  "chef de projet": ["project manager", "product manager", "pm"],
-  "product manager": ["product manager", "pm"],
-  "data": ["data", "analyst", "scientist"],
-  "marketing": ["marketing", "growth", "acquisition"],
-  "commercial": ["sales", "account", "business development"],
-  "finance": ["finance", "accounting", "financial"],
-  "comptable": ["accounting", "finance", "comptroller"],
-  "juridique": ["legal", "counsel", "lawyer"],
-  "rh": ["hr", "human resources", "people", "recruiter"],
-  "ressources humaines": ["hr", "human resources", "people"],
-  "devops": ["devops", "infrastructure", "platform", "sre"],
-  "cyber": ["security", "cybersecurity", "infosec"],
-  "ia": ["ai", "machine learning", "ml", "artificial intelligence"],
-  "intelligence artificielle": ["ai", "machine learning", "artificial intelligence"],
-  "stage": ["intern", "internship"],
-  "alternance": ["apprentice", "apprenticeship", "alternance"],
-};
-
-/** Dictionnaire normalisé (sans accents), les expressions les plus longues d'abord. */
-const TRANSLATIONS = (() => {
-  const byTerm = new Map<string, Set<string>>();
-  for (const [french, english] of Object.entries(FR_TO_EN)) {
-    const term = normalize(french);
-    const alternatives = byTerm.get(term) ?? new Set([term]);
-    for (const word of english) alternatives.add(normalize(word));
-    byTerm.set(term, alternatives);
-  }
-  return Array.from(byTerm, ([term, alternatives]) => ({ term, alternatives: [...alternatives] })).sort(
-    (a, b) => b.term.split(" ").length - a.term.split(" ").length,
-  );
-})();
-
-/**
- * Terme du dictionnaire présent comme mot entier, au pluriel ou suivi d'un suffixe courant
- * (« engineer » trouve « Engineering », mais « intern » ne trouve pas « Internal », ni
- * « ui » « build »).
- */
-const termPattern = (term: string) => new RegExp(`(^| )${term}(s|es|ing|ings|ship|ships)?( |$)`);
-
-type KeywordGroup = (text: string) => boolean;
-
-/**
- * Mots-clés → conditions qui doivent toutes être remplies. Un terme du dictionnaire est
- * trouvé en français ou en anglais ; un autre mot, n'importe où dans le texte (comme avant).
- */
-function keywordGroups(keywords: string): KeywordGroup[] {
-  let rest = ` ${normalize(keywords)} `;
-  const groups: KeywordGroup[] = [];
-  for (const { term, alternatives } of TRANSLATIONS) {
-    if (!rest.includes(` ${term} `)) continue;
-    rest = rest.replaceAll(` ${term} `, " ");
-    const patterns = alternatives.map(termPattern);
-    groups.push((text) => patterns.some((pattern) => pattern.test(text)));
-  }
-  for (const word of rest.split(" ").filter(Boolean)) groups.push((text) => text.includes(word));
-  return groups;
-}
-
 /**
  * Offres basées en France qui correspondent à la recherche. Sans description : elle est
  * lue à l'ouverture de l'offre (getJobBoardOffer). Ne lève pas d'erreur : les pages
  * carrières complètent France Travail et Adzuna, leur panne ne bloque pas la recherche.
  */
 export async function searchJobBoards(search: OfferSearch): Promise<OfferSearchResult> {
-  // Les secteurs sont des codes France Travail, sans équivalent ici.
-  if (search.sector) return { offers: [], total: 0 };
-
   let jobs: JobBoardJob[];
   try {
     jobs = await getAllJobs();
@@ -502,11 +426,9 @@ export async function searchJobBoards(search: OfferSearch): Promise<OfferSearchR
     return groups.every((matches) => matches(text));
   });
 
+  const offers = matches.map((job) => toListing(job)).sort(compareOffers(search.sort, search.keywords));
   const start = (search.page - 1) * SOURCE_PAGE_SIZE;
-  return {
-    offers: matches.slice(start, start + SOURCE_PAGE_SIZE).map((job) => toListing(job)),
-    total: matches.length,
-  };
+  return { offers: offers.slice(start, start + SOURCE_PAGE_SIZE), total: offers.length };
 }
 
 // ---------------------------------------------------------------------------

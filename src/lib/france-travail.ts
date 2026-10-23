@@ -85,15 +85,10 @@ async function apiGet(path: string, init?: { revalidate?: number }): Promise<Res
 
 export type ReferenceItem = { code: string; libelle: string };
 
-async function getReference(name: "naturesContrats" | "secteursActivites"): Promise<ReferenceItem[]> {
+async function getReference(name: "naturesContrats"): Promise<ReferenceItem[]> {
   const response = await apiGet(`/referentiel/${name}`, { revalidate: 86_400 });
   if (!response.ok) throw new FranceTravailError("Chargement des filtres impossible.");
   return ((await response.json()) as ReferenceItem[]).filter((item) => item.code && item.libelle);
-}
-
-export async function getSectors(): Promise<ReferenceItem[]> {
-  const sectors = await getReference("secteursActivites");
-  return sectors.sort((a, b) => a.libelle.localeCompare(b.libelle, "fr"));
 }
 
 // ---------------------------------------------------------------------------
@@ -189,14 +184,10 @@ export async function searchFranceTravail(search: OfferSearch): Promise<OfferSea
   const start = (search.page - 1) * SOURCE_PAGE_SIZE;
   // Page au-delà des résultats consultables (l'autre source peut en avoir davantage).
   if (start > MAX_INDEX) return { offers: [], total: 0 };
-  const params = new URLSearchParams({
-    range: `${start}-${Math.min(start + SOURCE_PAGE_SIZE - 1, MAX_INDEX)}`,
-    // 0 : pertinence (avec mots-clés), 1 : plus récentes d'abord.
-    sort: search.keywords ? "0" : "1",
-  });
+  // 0 : pertinence, 1 : plus récentes d'abord.
+  const params = new URLSearchParams({ sort: search.sort === "pertinence" ? "0" : "1" });
   let keywords = search.keywords;
   if (search.department) params.set("departement", search.department.code);
-  if (search.sector) params.set("secteurActivite", search.sector);
 
   if (search.contract === "cdi" || search.contract === "cdd") {
     params.set("typeContrat", CONTRACT_FILTERS[search.contract]);
@@ -212,6 +203,22 @@ export async function searchFranceTravail(search: OfferSearch): Promise<OfferSea
   }
   if (keywords) params.set("motsCles", keywords);
 
+  if (search.sort !== "ancien") return searchRange(params, start, Math.min(start + SOURCE_PAGE_SIZE - 1, MAX_INDEX));
+
+  // Pas de tri par date croissante dans l'API : on lit la fin des résultats triés du plus
+  // récent au plus ancien, à l'envers. Au-delà de 1 150 offres, ce sont les plus anciennes
+  // parmi les 1 150 plus récentes (limite de l'API).
+  const { total } = await searchRange(params, 0, 0);
+  const end = Math.min(total, MAX_INDEX + 1) - 1 - start;
+  if (end < 0) return { offers: [], total };
+  const page = await searchRange(params, Math.max(0, end - SOURCE_PAGE_SIZE + 1), end);
+  return { offers: page.offers.reverse(), total };
+}
+
+/** Offres d'indices `start` à `end` (inclus) d'une recherche, et nombre total d'offres trouvées. */
+async function searchRange(filters: URLSearchParams, start: number, end: number): Promise<OfferSearchResult> {
+  const params = new URLSearchParams(filters);
+  params.set("range", `${start}-${end}`);
   const response = await apiGet(`/offres/search?${params}`);
   // 204 : aucun résultat ; 416 : page au-delà du nombre d'offres trouvées.
   if (response.status === 204 || response.status === 416) return { offers: [], total: 0 };

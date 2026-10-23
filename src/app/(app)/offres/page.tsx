@@ -7,12 +7,12 @@ import { OfferDetails } from "@/components/offers/offer-details";
 import { OfferLink } from "@/components/offers/offer-link";
 import { RecommendationsToggle } from "@/components/offers/recommendations-toggle";
 import { requireUser } from "@/lib/auth";
-import { getSectors, isFranceTravailConfigured, type ReferenceItem } from "@/lib/france-travail";
 import type { Department } from "@/lib/geo";
 import { findCompanyDomain, getCompanyLogo, isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
   CONTRACT_FILTERS,
+  OFFER_SORTS,
   OFFER_SOURCES,
   OfferSourceError,
   type OfferListing,
@@ -58,7 +58,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   const params = await searchParams;
   /** Recherche saisie dans le formulaire. */
   const manualQuery = readOfferQuery(params);
-  const { keywords, place, contract, sector } = manualQuery;
+  const { keywords, place, contract, sort } = manualQuery;
   const hasManualSearch = hasOfferQuery(manualQuery);
   /** Offre affichée dans le panneau de détails (?offre=). */
   const selectedId = isOfferId(params.offre) ? params.offre : null;
@@ -74,25 +74,17 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       })
     : null;
   const query: OfferQuery = basis
-    ? { keywords: basis.keywords, place: basis.place, contract: basis.contract, sector: null, page: manualQuery.page }
+    ? { keywords: basis.keywords, place: basis.place, contract: basis.contract, sort: "recent", page: manualQuery.page }
     : manualQuery;
   const { page } = query;
   const hasSearch = recommending ? basis !== null : hasManualSearch;
 
-  let sectors: ReferenceItem[] = [];
   let search: OfferSearch | null = null;
   let department: Department | null = null;
   let result: CombinedSearchResult | null = null;
   let error: string | null = null;
 
   if (configured) {
-    // Filtres : sans secteurs (France Travail absent ou indisponible), la recherche reste possible.
-    if (isFranceTravailConfigured()) {
-      sectors = await getSectors().catch((e) => {
-        console.error("[offres] secteurs", e);
-        return [];
-      });
-    }
     if (hasSearch) {
       ({ search, department } = await resolveOfferSearch(query));
       if (!search) {
@@ -227,20 +219,13 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
               </select>
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="offres-secteur" className={label}>
-                Secteur
+              <label htmlFor="offres-tri" className={label}>
+                Trier par
               </label>
-              <select
-                id="offres-secteur"
-                name="secteur"
-                defaultValue={sector ?? ""}
-                disabled={sectors.length === 0}
-                className="input py-2.5"
-              >
-                <option value="">Tous les secteurs</option>
-                {sectors.map((s) => (
-                  <option key={s.code} value={s.code}>
-                    {s.libelle}
+              <select id="offres-tri" name="tri" defaultValue={sort} className="input py-2.5">
+                {Object.entries(OFFER_SORTS).map(([value, name]) => (
+                  <option key={value} value={value}>
+                    {name}
                   </option>
                 ))}
               </select>
