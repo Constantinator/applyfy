@@ -63,23 +63,22 @@ function SuggestionList({
   const styles =
     tone === "match"
       ? {
-          box: "border-[#BBF7D0] bg-[#F0FAF4] dark:border-emerald-800 dark:bg-emerald-950/30",
-          title: "text-emerald-700 dark:text-emerald-400",
+          title: "text-emerald-600 dark:text-emerald-400",
           marker: "text-emerald-500",
+          badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
         }
       : {
-          box: "border-[#FED7AA] bg-[#FFF7F0] dark:border-orange-800 dark:bg-orange-950/30",
-          title: "text-orange-700 dark:text-orange-400",
-          marker: "text-orange-400",
+          title: "text-red-500 dark:text-red-400",
+          marker: "text-red-400",
+          badge: "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
         };
 
   return (
-    <section className={`rounded-xl border p-4 ${styles.box}`}>
+    <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
       <h3 className={`flex items-center gap-2 font-semibold ${styles.title}`}>
         {tone === "match" ? <CheckIcon className="h-4 w-4" /> : <DashIcon className="h-4 w-4" />}
         {title}
-        {/* Pastille : texte et fond (10 %) reprennent la couleur du titre. */}
-        <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-current/10">
+        <span className={`ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${styles.badge}`}>
           {items.length}
         </span>
       </h3>
