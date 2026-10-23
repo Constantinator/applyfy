@@ -26,6 +26,11 @@ const PROCESSORS = [
     url: "https://jina.ai/legal/",
   },
   {
+    name: "Logo.dev",
+    role: "Affichage des logos d'entreprises dans « Trouver une offre » : ton navigateur les charge depuis ses serveurs, qui reçoivent ton adresse IP",
+    url: "https://www.logo.dev/legal/privacy",
+  },
+  {
     name: "Brevo",
     role: "Envoi des emails (rappels de relance, email de bienvenue à l'inscription et email de relance J+2 si aucune candidature ajoutée)",
     url: "https://www.brevo.com/fr/legal/privacypolicy/",
@@ -51,7 +56,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Politique de confidentialité"
-      updatedOn="22 octobre 2026"
+      updatedOn="23 octobre 2026"
       intro="Applyfy t'aide à suivre ta recherche d'emploi. Cette page explique quelles données sont collectées, pourquoi, combien de temps elles sont conservées et comment exercer tes droits, conformément au Règlement général sur la protection des données (RGPD)."
     >
       <LegalSection title="Responsable du traitement">

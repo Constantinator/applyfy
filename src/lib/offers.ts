@@ -8,6 +8,7 @@ import {
   searchFranceTravail,
 } from "@/lib/france-travail";
 import { resolveDepartment, type Department } from "@/lib/geo";
+import { getJobBoardOffer, isJobBoardOfferId, searchJobBoards } from "@/lib/job-boards";
 import { fetchOfferDescription } from "@/lib/offer-import";
 import {
   MAX_PAGES,
@@ -22,15 +23,16 @@ import {
   type OfferSource,
 } from "@/lib/offer-types";
 
-// Recherche d'offres sur toutes les sources configurées (France Travail, Adzuna) :
-// interrogées en parallèle, résultats mélangés.
+// Recherche d'offres sur toutes les sources configurées (France Travail, Adzuna) et sur
+// les pages carrières d'entreprises tech (sans configuration) : interrogées en parallèle,
+// résultats mélangés.
 
 export function isOfferSearchConfigured() {
   return isFranceTravailConfigured() || isAdzunaConfigured();
 }
 
 export function isOfferId(id: unknown): id is string {
-  return isFranceTravailOfferId(id) || isAdzunaOfferId(id);
+  return isFranceTravailOfferId(id) || isAdzunaOfferId(id) || isJobBoardOfferId(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +121,7 @@ export async function searchAllOffers(search: OfferSearch): Promise<CombinedSear
   const sources: [OfferSource, typeof searchFranceTravail][] = [];
   if (isFranceTravailConfigured()) sources.push(["france-travail", searchFranceTravail]);
   if (isAdzunaConfigured()) sources.push(["adzuna", searchAdzuna]);
+  sources.push(["job-boards", searchJobBoards]);
 
   const settled = await Promise.allSettled(sources.map(([, run]) => run(search)));
   const results = settled.flatMap((outcome) => (outcome.status === "fulfilled" ? [outcome.value] : []));
@@ -168,6 +171,7 @@ export async function searchAllOffers(search: OfferSearch): Promise<CombinedSear
 export async function findOffer(id: string, search: OfferSearch | null): Promise<OfferListing | null> {
   if (isFranceTravailOfferId(id)) return isFranceTravailConfigured() ? getFranceTravailOffer(id) : null;
   if (isAdzunaOfferId(id) && search && isAdzunaConfigured()) return findAdzunaOffer(id, search);
+  if (isJobBoardOfferId(id)) return getJobBoardOffer(id);
   return null;
 }
 

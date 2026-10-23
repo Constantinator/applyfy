@@ -14,7 +14,7 @@ export type AddOfferState = { status: "idle" } | { status: "error"; message: str
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
 /**
- * Crée une candidature (brouillon) à partir d'une offre (France Travail ou Adzuna), puis
+ * Crée une candidature (brouillon) à partir d'une offre (France Travail, Adzuna ou page carrières), puis
  * ouvre sa fiche. L'offre est relue côté serveur : seuls son identifiant et la recherche
  * où elle a été vue (nécessaire pour retrouver une offre Adzuna) viennent du navigateur.
  */

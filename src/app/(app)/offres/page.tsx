@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { IconBriefcase, IconClock, IconMapPin, IconSearch } from "@/components/icons";
+import { CompanyLogo } from "@/components/offers/company-logo";
 import { OfferDetails } from "@/components/offers/offer-details";
 import { OfferLink } from "@/components/offers/offer-link";
 import { RecommendationsToggle } from "@/components/offers/recommendations-toggle";
 import { requireUser } from "@/lib/auth";
 import { getSectors, isFranceTravailConfigured, type ReferenceItem } from "@/lib/france-travail";
 import type { Department } from "@/lib/geo";
+import { findCompanyDomain, getCompanyLogo, isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
   CONTRACT_FILTERS,
@@ -100,10 +102,11 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   }
 
   // Offre sélectionnée : déjà dans les résultats, sinon lue à part (lien partagé, page changée).
+  // Une offre de page carrières est toujours relue : la liste n'a pas sa description.
   let selected: OfferListing | null = null;
   let selectedMissing = false;
   if (configured && selectedId) {
-    selected = result?.offers.find((offer) => offer.id === selectedId) ?? null;
+    selected = isJobBoardOfferId(selectedId) ? null : (result?.offers.find((offer) => offer.id === selectedId) ?? null);
     if (!selected) {
       selected = await findOffer(selectedId, search).catch((e) => {
         if (!(e instanceof OfferSourceError)) console.error("[offres] détail", e);
@@ -114,6 +117,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   }
 
   const pageCount = result?.pageCount ?? 0;
+  const logoOf = (company: string | null) => {
+    const domain = findCompanyDomain(company);
+    return domain && getCompanyLogo(domain);
+  };
   /** Recherche effectuée (mots-clés recommandés compris), pour retrouver une offre à l'ajout. */
   const searchParamsOf = (target: number) => offerQueryParams({ ...query, page: target });
   const href = (target: number, offre: string | null = null) => {
@@ -137,8 +144,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          Les offres proviennent de France Travail et Adzuna. Pour postuler, tu seras redirigé vers le site
-          d&apos;origine. Ajoute l&apos;offre à tes candidatures pour la suivre depuis Applyfy.
+          Les offres proviennent de France Travail, d&apos;Adzuna et des sites carrières d&apos;entreprises tech
+          (Doctolib, Qonto, Alan…). Pour postuler, tu seras redirigé vers le site d&apos;origine. Ajoute l&apos;offre à tes candidatures pour la suivre depuis Applyfy.
         </p>
       </div>
 
@@ -334,9 +341,12 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                           }`}
                         >
                           <h3 className="text-lg leading-snug font-bold text-slate-900 dark:text-white">{offer.title}</h3>
-                          <p className="mt-1 text-[15px] font-medium text-slate-700 dark:text-slate-200">
-                            {offer.company ?? "Entreprise non communiquée"}
-                          </p>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <CompanyLogo name={offer.company} src={logoOf(offer.company)} />
+                            <p className="min-w-0 text-[15px] font-medium text-slate-700 dark:text-slate-200">
+                              {offer.company ?? "Entreprise non communiquée"}
+                            </p>
+                          </div>
                           <div className="mt-3 flex items-end justify-between gap-3">
                             <ul className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
                               {details.map(({ icon: Icon, text }) => (
@@ -406,11 +416,21 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       )}
 
       <p className="text-xs text-slate-400">
-        Offres fournies par l&apos;API Offres d&apos;emploi de France Travail et par{" "}
+        Offres fournies par l&apos;API Offres d&apos;emploi de France Travail, par{" "}
         <a href="https://www.adzuna.fr" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">
           Adzuna
-        </a>
-        .
+        </a>{" "}
+        et par les pages carrières des entreprises (Greenhouse, Lever, Ashby).
+        {process.env.LOGO_DEV_TOKEN && (
+          <>
+            {" "}
+            Logos fournis par{" "}
+            <a href="https://logo.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">
+              Logo.dev
+            </a>
+            .
+          </>
+        )}
       </p>
     </main>
   );

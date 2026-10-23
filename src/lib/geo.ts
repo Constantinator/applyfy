@@ -47,3 +47,19 @@ export async function resolveDepartment(input: string): Promise<Department | nul
     return null;
   }
 }
+
+/** Noms des communes d'un département (pour situer une ville saisie en texte libre). */
+export async function getDepartmentCommunes(code: string): Promise<string[]> {
+  if (!DEPARTMENT_CODE.test(code)) return [];
+  try {
+    const response = await fetch(
+      `${GEO_API}/departements/${encodeURIComponent(code.toUpperCase())}/communes?fields=nom`,
+      { next: { revalidate: 86_400 } },
+    );
+    if (!response.ok) return [];
+    return ((await response.json()) as { nom: string }[]).map((commune) => commune.nom);
+  } catch (error) {
+    console.error("[geo] communes du département", error);
+    return [];
+  }
+}

@@ -1,10 +1,12 @@
-// Types communs aux sources d'offres d'emploi (France Travail, Adzuna) et à la page
+// Types communs aux sources d'offres d'emploi (France Travail, Adzuna, pages carrières
+// d'entreprises) et à la page
 // « Trouver une offre ».
 
 /** Sources d'offres, avec leur nom affiché. */
 export const OFFER_SOURCES = {
   "france-travail": "France Travail",
   adzuna: "Adzuna",
+  "job-boards": "Site carrière",
 } as const;
 export type OfferSource = keyof typeof OFFER_SOURCES;
 
@@ -41,7 +43,7 @@ export type OfferSearch = {
 };
 
 export type OfferSummary = {
-  /** Identifiant France Travail, ou « adzuna-<id> » pour Adzuna. */
+  /** Identifiant France Travail, « adzuna-<id> » pour Adzuna, « <ats>-<entreprise>-<id> » pour une page carrières. */
   id: string;
   source: OfferSource;
   title: string;
