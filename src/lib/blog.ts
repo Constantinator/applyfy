@@ -14,6 +14,38 @@ export type BlogPost = {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "ia-recherche-emploi",
+    title: "L'IA dans la recherche d'emploi : une arme à double tranchant",
+    date: "2026-10-22",
+    description:
+      "CV optimisé en 30 secondes, lettre de motivation sur mesure — l'IA promet beaucoup. Mais elle peut aussi te coûter ta candidature si tu ne sais pas t'en servir.",
+    cover: {
+      src: "/images/blog/ia-recherche-emploi.jpg",
+      alt: "Homme en costume sombre et cravate rayée boutonnant sa veste devant un escalier",
+    },
+    content: `
+L'IA a changé la façon de candidater. En quelques secondes, tu génères un CV adapté à une offre ou une lettre de motivation. Ce qui prenait deux heures en prend maintenant dix minutes. Les recruteurs ont commencé à le remarquer.
+
+## Ce que l'IA fait bien
+
+Pour adapter ton CV à une offre précise ou rédiger une première version de lettre, l'IA est rapide et difficile à battre. Elle compense aussi certains blocages : si tu ne sais pas comment formuler une expérience ou structurer ton CV, elle te donne une base. Tu peux générer dix variantes, corriger, recommencer sans te retrouver face à une page blanche.
+
+## Ce qu'elle fait mal
+
+L'IA écrit pour n'importe quel candidat. Une lettre non retouchée sonne comme une lettre générée, et les recruteurs qui en lisent des dizaines par jour le repèrent. Certains outils ajoutent des compétences que tu n'as pas, reformulent des expériences de façon inexacte, ou glissent des chiffres qui ne viennent pas de toi. Si tu ne relis pas ligne par ligne, tu envoies un CV qui ne te représente pas. Et si tout le monde utilise les mêmes outils avec les mêmes prompts, les candidatures finissent par se ressembler.
+
+## Comment s'en servir
+
+Utilise l'IA pour générer une structure ou débloquer une formulation, puis retravaille le résultat. Lis chaque phrase avant d'envoyer. Supprime ce que tu ne dirais pas à l'oral. Ajoute un détail concret que l'IA ne pouvait pas inventer. Si tu peux envoyer une candidature sans l'avoir lue, elle n'est pas prête.
+
+## Ce qui reste humain
+
+Les outils IA accélèrent l'exécution. Savoir quelles offres valent ton temps, comment te préparer à un entretien, ce que tu veux vraiment faire : ça, l'IA ne le fait pas à ta place. C'est là que se joue une candidature.
+
+Applyfy utilise l'IA pour adapter ton CV à chaque offre et générer une lettre de motivation, mais te laisse relire, modifier et décider ce qui part. Essaie sur applyfy.fr.
+`,
+  },
+  {
     slug: "organiser-candidatures-stage",
     title: "Comment organiser ses candidatures de stage efficacement",
     date: "2026-10-11",
