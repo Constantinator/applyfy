@@ -144,8 +144,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          Les offres proviennent de France Travail, d&apos;Adzuna et des sites carrières d&apos;entreprises tech
-          (Doctolib, Qonto, Alan…). Pour postuler, tu seras redirigé vers le site d&apos;origine. Ajoute l&apos;offre à tes candidatures pour la suivre depuis Applyfy.
+          Cette section est encore en cours de développement — le catalogue d&apos;offres est incomplet.
         </p>
       </div>
 
@@ -415,23 +414,6 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         </div>
       )}
 
-      <p className="text-xs text-slate-400">
-        Offres fournies par l&apos;API Offres d&apos;emploi de France Travail, par{" "}
-        <a href="https://www.adzuna.fr" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">
-          Adzuna
-        </a>{" "}
-        et par les pages carrières des entreprises (Greenhouse, Lever, Ashby).
-        {process.env.LOGO_DEV_TOKEN && (
-          <>
-            {" "}
-            Logos fournis par{" "}
-            <a href="https://logo.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">
-              Logo.dev
-            </a>
-            .
-          </>
-        )}
-      </p>
     </main>
   );
 }
