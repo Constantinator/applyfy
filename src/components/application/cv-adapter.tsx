@@ -76,7 +76,7 @@ function SuggestionList({
         };
 
   return (
-    <section className={`rounded-xl border p-4 ${styles.border}`}>
+    <section className={`rounded-xl border-2 p-4 ${styles.border}`}>
       <h3 className={`flex items-center gap-2 font-semibold ${styles.title}`}>
         {tone === "match" ? <CheckIcon className="h-4 w-4" /> : <DashIcon className="h-4 w-4" />}
         {title}
