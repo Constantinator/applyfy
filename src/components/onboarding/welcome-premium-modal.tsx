@@ -118,14 +118,11 @@ export function WelcomePremiumModal() {
           Bienvenue sur Applyfy
         </h2>
         <p id="welcome-premium-description" className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-          Pour célébrer ton inscription, profite du prix de lancement : le Premium à 8 €/mois
-          jusqu&apos;au 31 octobre. Il passera ensuite à 10 €/mois pour les nouveaux abonnés, et
-          tu gardes 8 €/mois tant que ton abonnement reste actif.
+          Prix de lancement : 8 €/mois jusqu&apos;au 31 octobre, puis 10 €/mois pour les nouveaux
+          abonnés.
         </p>
 
         <p className="mt-6 text-3xl font-bold text-green-600 dark:text-green-400">8 €/mois</p>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">puis 10 €/mois à partir du 1er novembre 2026</p>
-
         <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
           {expired ? (
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Offre expirée</p>
