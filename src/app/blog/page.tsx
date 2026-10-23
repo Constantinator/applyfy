@@ -28,9 +28,14 @@ export default function BlogPage() {
           const featured = index === 0;
           return (
             <li key={post.slug} className={featured ? "flex md:col-span-3" : "flex"}>
-              <article className="card flex w-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-0.5">
-                {/* Couverture 16:9 (fond gris clair pour un article sans image). */}
-                <div className="relative aspect-video bg-slate-100">
+              <article
+                className={`card flex w-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-0.5 ${featured ? "md:flex-row" : ""}`}
+              >
+                {/* Couverture : 16:9, ou 4:3 sur la moitié gauche pour l'article mis en avant
+                    (fond gris clair pour un article sans image). */}
+                <div
+                  className={`relative bg-slate-100 ${featured ? "aspect-[4/3] md:w-1/2 md:shrink-0" : "aspect-video"}`}
+                >
                   {post.cover && (
                     <Image
                       src={post.cover.src}
@@ -39,14 +44,21 @@ export default function BlogPage() {
                       priority={featured}
                       sizes={
                         featured
-                          ? "(min-width: 1152px) 1104px, 100vw"
+                          ? "(min-width: 1152px) 552px, (min-width: 768px) 50vw, 100vw"
                           : "(min-width: 1152px) 360px, (min-width: 768px) 33vw, 100vw"
                       }
                       className="object-cover"
                     />
                   )}
+                  {featured && (
+                    <span className="absolute top-3 left-3 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white">
+                      Nouvel article
+                    </span>
+                  )}
                 </div>
-                <div className={`flex flex-1 flex-col ${featured ? "p-6 sm:p-8" : "p-6"}`}>
+                <div
+                  className={`flex flex-1 flex-col ${featured ? "p-6 sm:p-8 md:justify-center" : "p-6"}`}
+                >
                   <time dateTime={post.date} className="text-xs font-medium text-slate-500">
                     {formatBlogDate(post.date)}
                   </time>
@@ -56,7 +68,7 @@ export default function BlogPage() {
                     {post.title}
                   </h2>
                   <p
-                    className={`mt-2 flex-1 leading-relaxed text-slate-500 ${featured ? "text-base" : "text-sm"}`}
+                    className={`mt-2 leading-relaxed text-slate-500 ${featured ? "text-base" : "flex-1 text-sm"}`}
                   >
                     {post.description}
                   </p>
