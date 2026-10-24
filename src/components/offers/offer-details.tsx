@@ -62,7 +62,7 @@ export function OfferDetails({
   return (
     <article
       aria-labelledby="offre-titre"
-      className="card flex flex-col overflow-hidden lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]"
+      className="card flex flex-col overflow-hidden lg:max-h-[calc(100vh-3rem)]"
     >
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5 sm:p-6">
         <Link href={backHref} scroll={false} className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white lg:hidden">

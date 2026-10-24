@@ -379,7 +379,9 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           )}
 
           {selected ? (
-            <div className={result ? "" : "lg:col-span-2"}>
+            // Collant sur grand écran : l'élément de la grille (et non la carte, aussi haute que
+            // lui) reste visible pendant le défilement de la liste.
+            <div className={result ? "lg:sticky lg:top-6" : "lg:col-span-2"}>
               <OfferDetails
                 key={selected.id}
                 offer={selected}
