@@ -7,7 +7,6 @@ import { FeedbackSection } from "@/components/admin/feedback-section";
 import { MonthPicker } from "@/components/admin/month-picker";
 import {
   AI_ACTION_COSTS,
-  PREMIUM_MONTHLY_PRICE,
   STRIPE_FEE_FIXED,
   STRIPE_FEE_RATE,
   URSSAF_RATE,
@@ -141,6 +140,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   // « d'octobre », « de mars ».
   const ofMonth = `${/^[aeiou]/i.test(month) ? "d'" : "de "}${month}`;
   const p = m.profitability;
+  // « 3 × 12 € (Mensuel) + 2 × 8 € (3 mois) ».
+  const mrrDetail =
+    m.revenue.byPlan.map((plan) => `${integer.format(plan.subscribers)} × ${plan.monthlyPrice} € (${plan.name})`).join(" + ") ||
+    "0 abonné";
   const sumOf = (key: "revenue" | "stripeFees" | "aiCost" | "urssaf" | "net") =>
     p.projection.reduce((sum, row) => sum + row[key], 0);
   const projectedYearRevenue = sumOf("revenue");
@@ -313,7 +316,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           <Stat
             label="MRR"
             value={euros.format(m.revenue.mrr)}
-            hint={`${integer.format(m.users.premium)} abonnés × ${PREMIUM_MONTHLY_PRICE} €`}
+            hint={mrrDetail}
           />
           <Stat
             label="Conversion Gratuit → Premium"
@@ -439,7 +442,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                 <th scope="row" className={`${td} text-left font-medium text-slate-900`}>
                   Revenus bruts (MRR)
                   <span className="block text-xs font-normal text-slate-500">
-                    {integer.format(m.users.premium)} abonnés × {PREMIUM_MONTHLY_PRICE} €
+                    {mrrDetail}
                   </span>
                 </th>
                 <td className={`${td} ${num} font-medium text-slate-900`}>{euros.format(p.revenue)}</td>

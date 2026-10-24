@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
+import { findPremiumPlan } from "@/lib/premium-plans";
 import { createCheckoutUrl, createPortalUrl, isStripeConfigured } from "@/lib/stripe";
 import { getSubscription } from "@/lib/subscription";
 
@@ -17,10 +18,16 @@ async function requestOrigin() {
   return `${h.get("x-forwarded-proto") ?? "https"}://${host}`;
 }
 
-/** « Passer au Premium » : redirige vers Stripe Checkout. */
-export async function startCheckoutAction() {
+/**
+ * « Passer au Premium » : redirige vers Stripe Checkout pour l'offre de prix `priceId`
+ * (à lier au formulaire : `startCheckoutAction.bind(null, plan.priceId)`).
+ */
+export async function startCheckoutAction(priceId: string) {
   const user = await requireUser();
   if (!isStripeConfigured()) redirect("/premium?erreur=config");
+  // Seuls les prix des offres Premium sont acceptés (l'argument vient du navigateur).
+  const plan = findPremiumPlan(priceId);
+  if (!plan) redirect("/premium?erreur=paiement");
 
   const subscription = await getSubscription();
   if (subscription?.premium) redirect("/profil");
@@ -30,6 +37,7 @@ export async function startCheckoutAction() {
   let url: string;
   try {
     url = await createCheckoutUrl({
+      priceId: plan.priceId,
       userId: user.id,
       email: user.email,
       customerId: subscription?.stripeCustomerId ?? null,

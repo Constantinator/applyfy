@@ -48,12 +48,18 @@ export type AiUsage = {
   resetsOn: string;
 };
 
-export const PREMIUM_PRICE_LABEL = "8 €/mois";
+/** Prix du Premium, en euros TTC : sans engagement (mensuel) ou par 3 mois (renouvelable). */
+export const PREMIUM_PRICE_MONTHLY = 12;
+export const PREMIUM_PRICE_QUARTERLY = 24;
+export const PREMIUM_PRICE_MONTHLY_EQUIVALENT_QUARTERLY = PREMIUM_PRICE_QUARTERLY / 3;
+
+/** Prix d'appel du Premium : l'offre 3 mois, ramenée au mois. */
+export const PREMIUM_PRICE_FROM_LABEL = `à partir de ${PREMIUM_PRICE_MONTHLY_EQUIVALENT_QUARTERLY} €/mois`;
 
 export const LIMIT_REACHED_LABEL = "Essai gratuit utilisé";
 
 /** Message commun à toutes les actions IA quand l'essai gratuit du mois est utilisé. */
-export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton essai gratuit. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour un accès illimité.`;
+export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton essai gratuit. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour un accès illimité.`;
 
 /**
  * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,

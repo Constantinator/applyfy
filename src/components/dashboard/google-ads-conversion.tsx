@@ -5,8 +5,9 @@ import { useEffect } from "react";
 
 const CONVERSION = {
   send_to: "AW-18509978707/TmN4COyC95odENO4n_pE",
-  // Prix de l'abonnement Premium mensuel (PREMIUM_PRICE_LABEL, src/lib/ai-usage-limits.ts).
-  value: 8.0,
+  // Prix de l'offre Premium mensuelle (PREMIUM_PRICE_MONTHLY, src/lib/ai-usage-limits.ts),
+  // valeur par défaut quelle que soit l'offre souscrite.
+  value: 12.0,
   currency: "EUR",
 };
 

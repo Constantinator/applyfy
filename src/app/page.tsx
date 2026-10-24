@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AccountDeletedNotice } from "@/components/account-deleted-notice";
-import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import {
   IconActivity,
   IconBell,
@@ -21,8 +20,8 @@ import { CountUp } from "@/components/landing/count-up";
 import { DemoDashboard } from "@/components/landing/demo-dashboard";
 import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
-import { AI_MONTHLY_LIMITS, PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
-import { BETA_MAX_TESTERS } from "@/lib/beta-rules";
+import { AI_MONTHLY_LIMITS, PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
+import { PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -132,7 +131,7 @@ const FEATURES = [
 type Support = "yes" | "no" | "partial";
 
 const COMPARISON_TOOLS = [
-  { name: "Applyfy", price: `Gratuit · ${PREMIUM_PRICE_LABEL}` },
+  { name: "Applyfy", price: `Gratuit · Premium ${PREMIUM_PRICE_FROM_LABEL}` },
   { name: "Huntr", price: "Pro : 40 $/mois" },
   { name: "Excel / Word", price: null },
 ] as const;
@@ -270,7 +269,7 @@ function PageRibbons() {
 }
 
 /**
- * Tarifs : uniquement ce que l'app fait aujourd'hui (voir /premium, ai-usage-limits, beta-rules).
+ * Tarifs : uniquement ce que l'app fait aujourd'hui (voir /premium, ai-usage-limits, premium-plans).
  * Premium « illimité » comme sur /premium (garde-fou de 50 actions IA par jour en interne).
  */
 const PLAN_FEATURES = {
@@ -400,18 +399,6 @@ export default function LandingPage() {
           </svg>
           <div className="relative z-10 mx-auto max-w-7xl px-4 pt-[120px] pb-24 sm:px-6 lg:pt-40">
             <div className="mx-auto max-w-4xl text-center">
-              {/* Offre beta en pastille : seule vraie rareté de la page, mise en avant. */}
-              <div className="mb-8 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-blue-200 bg-white/70 px-4 py-1.5 text-sm text-slate-600 backdrop-blur">
-                <span className="font-medium text-blue-700">✦ Beta</span>
-                <span>Premium offert jusqu&apos;au 31/12/2026 · 30 places</span>
-                <span aria-hidden="true" className="text-slate-300">
-                  |
-                </span>
-                <BetaJoinDialog
-                  mode="link"
-                  triggerClassName="font-medium text-blue-600 underline-offset-4 hover:underline"
-                />
-              </div>
               <h1
                 className={`text-5xl leading-[1.08] text-balance text-slate-900 sm:text-6xl lg:text-7xl ${H1}`}
               >
@@ -710,7 +697,7 @@ export default function LandingPage() {
           </Reveal>
         </section>
 
-        {/* Nos tarifs (blanc) : Gratuit, Premium (au centre, mis en avant) et offre bêta. */}
+        {/* Nos tarifs (blanc) : Gratuit, Premium Mensuel et Premium 3 mois (mis en avant). */}
         <section
           aria-labelledby="pricing-title"
           className="relative isolate bg-white"
@@ -741,21 +728,48 @@ export default function LandingPage() {
                 </Link>
               </article>
 
-              {/* Premium : bordure bleue de 2 px, fond bleuté et ombre (même hauteur que les autres : boutons alignés). */}
-              <article className="flex h-full flex-col justify-between rounded-[12px] border-2 border-blue-500 bg-blue-50/50 p-8 shadow-lg shadow-blue-600/10">
-                <span className="self-start rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
-                  {PREMIUM_PRICE_LABEL}
+              {/* Premium Mensuel : sans engagement. */}
+              <article className="flex h-full flex-col justify-between rounded-[12px] border border-[#e5e7eb] bg-white p-8">
+                <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                  Sans engagement
                 </span>
-                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Premium</h3>
+                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Premium {PREMIUM_MONTHLY_PLAN.name}</h3>
                 <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>
-                  {PREMIUM_PRICE_LABEL.replace("/mois", "")}
+                  {PREMIUM_MONTHLY_PLAN.monthlyPrice} €
                   <span className="text-base font-medium tracking-normal text-slate-500">
                     {" "}
                     / mois
                   </span>
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Sans engagement, résiliable à tout moment.
+                  Résiliable à tout moment.
+                </p>
+                <div className="mt-6 mb-8">
+                  <PlanFeatures items={PLAN_FEATURES.premium} />
+                </div>
+                <Link
+                  href="/signup"
+                  className={`mt-auto w-full ${BTN_SECONDARY}`}
+                >
+                  Obtenir le Premium
+                </Link>
+              </article>
+
+              {/* Premium 3 mois : bordure bleue de 2 px, fond bleuté et ombre (même hauteur que les autres : boutons alignés). */}
+              <article className="flex h-full flex-col justify-between rounded-[12px] border-2 border-blue-500 bg-blue-50/50 p-8 shadow-lg shadow-blue-600/10">
+                <span className="self-start rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
+                  Meilleure offre · −{QUARTERLY_SAVING_PERCENT} %
+                </span>
+                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Premium {PREMIUM_QUARTERLY_PLAN.name}</h3>
+                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>
+                  {PREMIUM_QUARTERLY_PLAN.monthlyPrice} €
+                  <span className="text-base font-medium tracking-normal text-slate-500">
+                    {" "}
+                    / mois
+                  </span>
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Facturé {PREMIUM_QUARTERLY_PLAN.billedAmount} € tous les {PREMIUM_QUARTERLY_PLAN.intervalMonths} mois, renouvelable.
                 </p>
                 <div className="mt-6 mb-8">
                   <PlanFeatures items={PLAN_FEATURES.premium} />
@@ -766,40 +780,6 @@ export default function LandingPage() {
                 >
                   Obtenir le Premium
                 </Link>
-              </article>
-
-              {/* Bêta testeur : bordure et fond cyan (couleur d'Applyfy) pour la distinguer. */}
-              <article className="flex h-full flex-col justify-between rounded-[12px] border-2 border-cyan-400 bg-cyan-50 p-8">
-                <span className="self-start rounded-full bg-cyan-200 px-3 py-1 text-xs font-medium text-cyan-900">
-                  Offre limitée · {BETA_MAX_TESTERS} places
-                </span>
-                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>
-                  Bêta testeur
-                </h3>
-                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Gratuit jusqu&apos;au 31/12/2026
-                </p>
-                <div className="mt-6">
-                  <PlanFeatures
-                    items={["Accès complet au Premium jusqu'au 31/12/2026"]}
-                  />
-                </div>
-                {/* Engagement réel du programme (conditions de BetaJoinDialog). */}
-                <div className="mt-5 mb-8">
-                  <p className="rounded-[8px] bg-white/70 px-3 py-2.5 text-sm leading-relaxed font-medium text-cyan-900 ring-1 ring-cyan-200">
-                    En échange, tu nous envoies 3 courts rapports sur ton
-                    expérience : à 1 semaine, 2 semaines et 1 mois.
-                  </p>
-                </div>
-                {/*
-                  Ouvre les conditions du programme, puis mène à l'inscription ou à la connexion et
-                  inscrit au programme (un simple lien /signup n'y inscrirait pas).
-                */}
-                <BetaJoinDialog
-                  mode="link"
-                  triggerClassName={`mt-auto w-full ${BTN_SECONDARY} border-cyan-400!`}
-                />
               </article>
             </div>
           </div>

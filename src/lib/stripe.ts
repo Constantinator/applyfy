@@ -5,15 +5,15 @@ import Stripe from "stripe";
 import { isPremiumStatus } from "./subscription";
 import { createAdminClient, isAdminConfigured } from "./supabase/admin";
 
-// Paiement du Premium avec Stripe (abonnement mensuel, Stripe Checkout + portail client).
+// Paiement du Premium avec Stripe (abonnement mensuel ou par 3 mois, Stripe Checkout +
+// portail client). Les prix récurrents des deux offres sont dans src/lib/premium-plans.ts.
 //   STRIPE_SECRET_KEY      clé secrète (serveur uniquement)
-//   STRIPE_PRICE_ID        prix récurrent du Premium (8 €/mois)
 //   STRIPE_WEBHOOK_SECRET  secret de signature du webhook (/api/stripe/webhook)
 // Le statut Premium est enregistré dans la table "subscriptions" (migration 0014) par le
 // webhook, et dès le retour de Checkout (sans attendre le webhook).
 
 export function isStripeConfigured() {
-  return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID && isAdminConfigured());
+  return Boolean(process.env.STRIPE_SECRET_KEY && isAdminConfigured());
 }
 
 export class StripeConfigError extends Error {}
@@ -35,25 +35,25 @@ const idOf = (value: string | { id: string } | null | undefined) =>
 // Checkout et portail client
 // ---------------------------------------------------------------------------
 
-/** URL de paiement Stripe Checkout de l'abonnement Premium. */
+/** URL de paiement Stripe Checkout de l'abonnement Premium, pour le prix `priceId`. */
 export async function createCheckoutUrl({
+  priceId,
   userId,
   email,
   customerId,
   origin,
 }: {
+  /** Prix récurrent de l'offre choisie (PREMIUM_PLANS). */
+  priceId: string;
   userId: string;
   email: string | null;
   /** Client Stripe d'un abonnement précédent, réutilisé. */
   customerId: string | null;
   origin: string;
 }): Promise<string> {
-  const price = process.env.STRIPE_PRICE_ID;
-  if (!price) throw new StripeConfigError("STRIPE_PRICE_ID manquant.");
-
   const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
-    line_items: [{ price, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }],
     client_reference_id: userId,
     ...(customerId ? { customer: customerId } : email ? { customer_email: email } : {}),
     // Retrouver l'utilisateur depuis les événements de l'abonnement (résiliation…).
@@ -124,17 +124,24 @@ export async function syncSubscription(subscription: Stripe.Subscription, userId
   }
 
   const periodEnd = Math.max(0, ...subscription.items.data.map((item) => item.current_period_end ?? 0));
-  const { error } = await supabase.from("subscriptions").upsert(
-    {
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      status: subscription.status,
-      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-      cancel_at_period_end: subscription.cancel_at_period_end || subscription.cancel_at !== null,
-    },
-    { onConflict: "user_id" },
-  );
+  const row = {
+    user_id: userId,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscription.id,
+    status: subscription.status,
+    current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    cancel_at_period_end: subscription.cancel_at_period_end || subscription.cancel_at !== null,
+  };
+  // Offre souscrite (mensuelle ou 3 mois) : MRR du tableau de bord admin.
+  const priceId = subscription.items.data[0]?.price.id ?? null;
+  let { error } = await supabase
+    .from("subscriptions")
+    .upsert({ ...row, stripe_price_id: priceId }, { onConflict: "user_id" });
+  if (error?.message.includes("stripe_price_id")) {
+    // Migration 0024 pas encore appliquée : le statut Premium est enregistré sans l'offre.
+    console.error("[stripe] colonne stripe_price_id absente (migration 0024)");
+    ({ error } = await supabase.from("subscriptions").upsert(row, { onConflict: "user_id" }));
+  }
   if (error) throw new Error(`Enregistrement de l'abonnement impossible : ${error.message}`);
 }
 

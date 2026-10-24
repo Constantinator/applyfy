@@ -49,7 +49,16 @@ export default function TermsPage() {
         </p>
         <ul>
           <li>
-            <strong>Prix :</strong> 8 € par mois TTC. TVA non applicable, article 293 B du CGI.
+            <strong>Prix :</strong> deux offres au choix, prix TTC (TVA non applicable, article 293 B
+            du CGI) :
+            <ul>
+              <li>
+                <strong>Mensuel :</strong> 12 € par mois, sans engagement ;
+              </li>
+              <li>
+                <strong>3 mois :</strong> 24 € tous les 3 mois, soit 8 € par mois.
+              </li>
+            </ul>
           </li>
           <li>
             <strong>Paiement :</strong> par carte bancaire, via le prestataire de paiement Stripe.
@@ -81,13 +90,14 @@ export default function TermsPage() {
           </li>
           <li>
             <strong>Avec renonciation au droit de rétractation :</strong> aucun remboursement pour la
-            période en cours, y compris en cas de résiliation en cours de mois ou de suppression du compte
+            période en cours, y compris en cas de résiliation en cours de période ou de suppression du compte
             (la suppression du compte résilie immédiatement l&apos;abonnement).
           </li>
           <li>
-            <strong>Renouvellement automatique mensuel :</strong> l&apos;abonnement est reconduit chaque
-            mois, à la date anniversaire de ta souscription, et le montant est prélevé automatiquement sur
-            le moyen de paiement enregistré. Tu peux l&apos;annuler à tout moment depuis{" "}
+            <strong>Renouvellement automatique :</strong> l&apos;abonnement est reconduit pour la même
+            durée à la fin de chaque période (chaque mois pour l&apos;offre Mensuel, tous les 3 mois pour
+            l&apos;offre 3 mois), à la date anniversaire de ta souscription, et le montant est prélevé
+            automatiquement sur le moyen de paiement enregistré. Tu peux l&apos;annuler à tout moment depuis{" "}
             <strong>Mon profil → Gérer mon abonnement</strong> ; aucun nouveau prélèvement n&apos;a lieu
             ensuite.
           </li>

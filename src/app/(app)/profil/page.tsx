@@ -9,7 +9,7 @@ import { ProfileCvs } from "@/components/profile/profile-cvs";
 import { UsageOverview } from "@/components/profile/usage-overview";
 import { getAccountName } from "@/lib/account";
 import { readAiUsage } from "@/lib/ai-usage";
-import { PREMIUM_PRICE_LABEL } from "@/lib/ai-usage-limits";
+import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
 import { ReminderSettingsForm } from "@/components/profile/reminder-settings-form";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
@@ -50,7 +50,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
   const periodEnd = subscription?.currentPeriodEnd
     ? longDate.format(new Date(subscription.currentPeriodEnd))
     : null;
-  let planDescription = `Limites mensuelles par fonctionnalité IA. Premium à ${PREMIUM_PRICE_LABEL} : accès illimité.`;
+  let planDescription = `Limites mensuelles par fonctionnalité IA. Premium ${PREMIUM_PRICE_FROM_LABEL} : accès illimité.`;
   if (betaPremium && !stripePremium && beta) {
     planDescription = `Premium offert en tant que beta testeur, jusqu'au ${longDate.format(new Date(`${beta.premiumUntil}T12:00:00Z`))}.`;
   } else if (premium) {
@@ -159,7 +159,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
             ) : (
               <>
                 Plan gratuit : limites mensuelles par fonctionnalité IA (regénérations comprises).
-                Premium à {PREMIUM_PRICE_LABEL} : accès illimité.
+                Premium {PREMIUM_PRICE_FROM_LABEL} : accès illimité.
               </>
             )}
           </p>

@@ -14,6 +14,7 @@ import {
   type MissingFeature,
   type RecommendAnswer,
 } from "./feedback-options";
+import { findPremiumPlan, PREMIUM_MONTHLY_PLAN } from "./premium-plans";
 import { isPremiumStatus } from "./subscription";
 import { createAdminClient, isAdminConfigured } from "./supabase/admin";
 
@@ -23,8 +24,11 @@ import { createAdminClient, isAdminConfigured } from "./supabase/admin";
 
 export const ADMIN_EMAIL = "constantinvarin@gmail.com";
 
-/** Prix mensuel du Premium, en euros (MRR = abonnés × prix). */
-export const PREMIUM_MONTHLY_PRICE = 8;
+/**
+ * Abonnement sans offre connue : souscrit avant les deux offres (prix unique de 8 €/mois),
+ * ou prix pas encore enregistré (migration 0024, prochain événement Stripe).
+ */
+const UNKNOWN_PLAN = { name: "Ancien prix", monthlyPrice: 8, billedAmount: 8, intervalMonths: 1 };
 
 /** Coût réel estimé d'une action IA (appel à l'API Claude), en euros. */
 export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
@@ -65,7 +69,13 @@ export type AdminClient = ReturnType<typeof createAdminClient>;
 
 export type AuthUser = { id: string; email: string | null; createdAt: string };
 type UsageRow = { user_id: string; kind: AiUsageKind };
-type SubscriptionRow = { user_id: string; status: string; created_at: string; updated_at: string };
+type SubscriptionRow = {
+  user_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  stripe_price_id?: string | null;
+};
 
 const PAGE = 1000;
 
@@ -153,7 +163,7 @@ export type ProfitBreakdown = {
   net: number;
 };
 
-/** Frais Stripe par paiement mensuel : 1,5 % + 0,25 €. */
+/** Frais Stripe par paiement : 1,5 % + 0,25 €. */
 export const STRIPE_FEE_RATE = 0.015;
 export const STRIPE_FEE_FIXED = 0.25;
 /** Cotisations sociales de l'auto-entrepreneur : 22 % du chiffre d'affaires brut. */
@@ -161,9 +171,21 @@ export const URSSAF_RATE = 0.22;
 /** Plafond annuel de la franchise en base de TVA (prestations de services). */
 export const VAT_FRANCHISE_THRESHOLD = 36_800;
 
-function profit(subscribers: number, aiCost: number): ProfitBreakdown {
-  const revenue = subscribers * PREMIUM_MONTHLY_PRICE;
-  const stripeFees = subscribers * (PREMIUM_MONTHLY_PRICE * STRIPE_FEE_RATE + STRIPE_FEE_FIXED);
+/** Revenu et frais Stripe mensuels d'un abonné, en euros. */
+type PerSubscriber = { revenue: number; stripeFees: number };
+
+/** Ramenés au mois : l'offre 3 mois paie 24 € (et ses frais) une fois tous les 3 mois. */
+function perSubscriberOf(plan: { monthlyPrice: number; billedAmount: number; intervalMonths: number }): PerSubscriber {
+  return {
+    revenue: plan.monthlyPrice,
+    stripeFees: (plan.billedAmount * STRIPE_FEE_RATE + STRIPE_FEE_FIXED) / plan.intervalMonths,
+  };
+}
+
+/** `perSubscriber` : moyenne des abonnés actuels (mensuel si aucun abonné). */
+function profit(subscribers: number, aiCost: number, perSubscriber: PerSubscriber): ProfitBreakdown {
+  const revenue = subscribers * perSubscriber.revenue;
+  const stripeFees = subscribers * perSubscriber.stripeFees;
   const urssaf = revenue * URSSAF_RATE;
   return { revenue, stripeFees, aiCost, urssaf, net: revenue - stripeFees - aiCost - urssaf };
 }
@@ -228,6 +250,8 @@ export type AdminMetrics = {
   };
   revenue: {
     mrr: number;
+    /** Abonnés par offre (MRR = Σ abonnés × prix mensuel de l'offre). */
+    byPlan: { name: string; subscribers: number; monthlyPrice: number }[];
     /** Part des inscrits abonnés au Premium (0–1). */
     conversionRate: number;
     /** Abonnés gagnés (nets) dans le mois. */
@@ -257,6 +281,20 @@ export type AdminMetrics = {
 /** Inscrits d'un jour, répartis selon leur plan actuel. */
 export type SignupCounts = { total: number; free: number; premium: number };
 
+/** Abonnements, avec leur prix Stripe si la migration 0024 est appliquée. */
+async function listSubscriptions(supabase: AdminClient): Promise<SubscriptionRow[]> {
+  const select = (columns: string) =>
+    selectAll<SubscriptionRow>((from, to) =>
+      supabase.from("subscriptions").select(columns).order("user_id").range(from, to).overrideTypes<SubscriptionRow[], { merge: false }>(),
+    );
+  try {
+    return await select("user_id, status, created_at, updated_at, stripe_price_id");
+  } catch (error) {
+    if (!(error instanceof Error && error.message.includes("stripe_price_id"))) throw error;
+    return select("user_id, status, created_at, updated_at");
+  }
+}
+
 /** `requestedMonth` (« YYYY-MM ») : mois à afficher ; par défaut (ou si invalide), le mois en cours. */
 export async function getAdminMetrics(requestedMonth?: string, now = new Date()): Promise<AdminMetrics> {
   const supabase = createAdminClient();
@@ -265,13 +303,7 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
 
   const [users, subscriptions] = await Promise.all([
     listAllUsers(supabase),
-    selectAll<SubscriptionRow>((from, to) =>
-      supabase
-        .from("subscriptions")
-        .select("user_id, status, created_at, updated_at")
-        .order("user_id")
-        .range(from, to),
-    ),
+    listSubscriptions(supabase),
   ]);
 
   const months = availableMonths(users, currentMonth);
@@ -337,6 +369,25 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
   const newInMonth = usersAsOf.filter((u) => parisDay(u.createdAt) >= monthStart).length;
   const netNewSubscribersInMonth = premiumIds.size - subscribersOn(dayBeforeMonth).size;
 
+  // --- MRR selon l'offre de chaque abonné --------------------------------------
+  const planOf = new Map(subscriptions.map((s) => [s.user_id, findPremiumPlan(s.stripe_price_id) ?? UNKNOWN_PLAN]));
+  const byPlanName = new Map<string, { name: string; subscribers: number; monthlyPrice: number }>();
+  const totals: PerSubscriber = { revenue: 0, stripeFees: 0 };
+  for (const user of usersAsOf) {
+    const plan = premiumIds.has(user.id) ? planOf.get(user.id) : undefined;
+    if (!plan) continue;
+    const entry = byPlanName.get(plan.name) ?? { name: plan.name, subscribers: 0, monthlyPrice: plan.monthlyPrice };
+    entry.subscribers++;
+    byPlanName.set(plan.name, entry);
+    const unit = perSubscriberOf(plan);
+    totals.revenue += unit.revenue;
+    totals.stripeFees += unit.stripeFees;
+  }
+  const mrr = totals.revenue;
+  const perSubscriber = premiumCount
+    ? { revenue: totals.revenue / premiumCount, stripeFees: totals.stripeFees / premiumCount }
+    : perSubscriberOf(PREMIUM_MONTHLY_PLAN);
+
   // --- Coûts IA du mois ------------------------------------------------------
   const countByKind = Object.fromEntries(AI_USAGE_KINDS.map((k) => [k, 0])) as Record<AiUsageKind, number>;
   const perUser = new Map<string, { actions: number; cost: number }>();
@@ -392,7 +443,7 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
     const subscribers = Math.max(0, premiumCount + growth.subscribers * step);
     const totalUsers = Math.max(subscribers, usersAsOf.length + growth.users * step);
     const aiCost = (totalUsers - subscribers) * avgPerFreeUser + subscribers * avgPerPremiumUser;
-    return { month: step, subscribers, users: totalUsers, ...profit(subscribers, aiCost) };
+    return { month: step, subscribers, users: totalUsers, ...profit(subscribers, aiCost, perSubscriber) };
   });
 
   // --- Derniers inscrits (à la date de l'état affiché) -----------------------
@@ -429,12 +480,13 @@ export async function getAdminMetrics(requestedMonth?: string, now = new Date())
       premium: premiumCount,
     },
     revenue: {
-      mrr: premiumCount * PREMIUM_MONTHLY_PRICE,
+      mrr,
+      byPlan: [...byPlanName.values()],
       conversionRate: usersAsOf.length ? premiumCount / usersAsOf.length : 0,
       netNewSubscribersInMonth,
     },
     costs: { byKind, total: totalCost, avgPerFreeUser, avgPerPremiumUser, topUsers },
-    profitability: { ...profit(premiumCount, totalCost), growth, projection },
+    profitability: { ...profit(premiumCount, totalCost, perSubscriber), growth, projection },
     latestSignups,
     newSignups: { today: signupsOn(today), yesterday: signupsOn(yesterdayDay) },
     newApplications: { today: applicationsToday, yesterday: applicationsYesterday, dayBefore: applicationsDayBefore },
