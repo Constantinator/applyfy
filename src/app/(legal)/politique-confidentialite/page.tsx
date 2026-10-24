@@ -177,6 +177,12 @@ export default function PrivacyPolicyPage() {
           vues et ton choix concernant les cookies.
         </p>
         <p>
+          <strong>Recherches récentes :</strong> tes 5 dernières recherches dans « Trouver une offre »
+          (mots-clés, localisation, type de contrat) sont gardées 30 jours dans un cookie de ton
+          navigateur, pour personnaliser les offres recommandées. Elles ne sont pas enregistrées dans
+          notre base de données ; tu peux les effacer en supprimant les cookies du site.
+        </p>
+        <p>
           <strong>Cookies publicitaires (Meta Pixel, Google Ads) :</strong> si tu les acceptes dans le
           bandeau affiché lors de ta première visite, Applyfy charge le pixel de Meta (Facebook,
           Instagram) et la balise Google Ads pour mesurer l&apos;efficacité de ses publicités. Meta et

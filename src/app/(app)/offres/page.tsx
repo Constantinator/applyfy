@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { IconBriefcase, IconClock, IconMapPin, IconSearch } from "@/components/icons";
 import { CompanyLogo } from "@/components/offers/company-logo";
 import { OfferDetails } from "@/components/offers/offer-details";
 import { OfferLink } from "@/components/offers/offer-link";
+import { RecentSearchRecorder } from "@/components/offers/recent-search-recorder";
 import { RecommendationsToggle } from "@/components/offers/recommendations-toggle";
 import { SortSelect } from "@/components/offers/sort-select";
 import { requireUser } from "@/lib/auth";
@@ -31,6 +33,7 @@ import {
   type CombinedSearchResult,
   type OfferQuery,
 } from "@/lib/offers";
+import { RECENT_SEARCHES_COOKIE, parseRecentSearches } from "@/lib/recent-searches";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Trouver une offre — Applyfy" };
@@ -65,10 +68,13 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   const configured = isOfferSearchConfigured();
 
   // Recommandations personnalisées (?reco=1, sans recherche manuelle) : recherche
-  // construite à partir des candidatures de l'utilisateur.
+  // construite à partir des candidatures et des recherches récentes de l'utilisateur.
   const recommending = configured && params.reco === "1" && !hasManualSearch;
+  const recentSearches = recommending
+    ? parseRecentSearches((await cookies()).get(RECENT_SEARCHES_COOKIE)?.value)
+    : [];
   const basis = recommending
-    ? await getRecommendationBasis().catch((e) => {
+    ? await getRecommendationBasis(recentSearches).catch((e) => {
         console.error("[offres] recommandations", e);
         return null;
       })
@@ -147,12 +153,17 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         </p>
       </div>
 
+      {/* Recherche valide : mémorisée pour les recommandations. */}
+      {!recommending && hasManualSearch && search && (
+        <RecentSearchRecorder keywords={keywords} place={place} contract={contract} />
+      )}
+
       {configured && (
         <div className={mobileHidden}>
           <RecommendationsToggle active={recommending} canAutoOpen={!hasManualSearch && !selectedId}>
             {basis && (
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Basées sur tes candidatures : « {basis.keywords} »
+                Basées sur tes candidatures et recherches récentes : « {basis.keywords} »
                 {department ? ` · ${department.name}` : basis.place ? ` · ${basis.place}` : " · toute la France"}
                 {basis.contract ? ` · ${CONTRACT_FILTERS[basis.contract]}` : ""}
               </p>
@@ -247,11 +258,11 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       {recommending && !basis && !selected && (
         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center">
           <p className="font-medium text-slate-900 dark:text-white">
-            Ajoute des candidatures pour recevoir des recommandations personnalisées
+            Fais une recherche ou ajoute des candidatures pour recevoir des recommandations personnalisées
           </p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Les offres recommandées s&apos;appuient sur les postes et les villes de tes candidatures
-            envoyées (les brouillons ne sont pas pris en compte).
+            Les offres recommandées s&apos;appuient sur tes recherches récentes et sur les postes et les
+            villes de tes candidatures envoyées (les brouillons ne sont pas pris en compte).
           </p>
           <Link href="/candidatures/nouvelle" className="btn-primary mt-4 inline-flex px-4 py-2 text-sm">
             Ajouter une candidature
