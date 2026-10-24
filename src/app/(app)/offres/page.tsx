@@ -358,7 +358,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                 <nav aria-label="Pages de résultats" className="flex items-center justify-between pt-2 text-sm">
                   {page > 1 ? (
                     <Link href={href(page - 1)} className="btn-secondary px-4 py-2">
-                      ← Précédent
+                      Précédent
                     </Link>
                   ) : (
                     <span />
@@ -368,7 +368,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                   </span>
                   {page < pageCount ? (
                     <Link href={href(page + 1)} className="btn-secondary px-4 py-2">
-                      Suivant →
+                      Suivant
                     </Link>
                   ) : (
                     <span />

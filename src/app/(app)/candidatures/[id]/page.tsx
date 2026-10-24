@@ -94,7 +94,7 @@ export default async function ApplicationPage({
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <Link href="/dashboard" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-        ← Retour au dashboard
+        Retour au dashboard
       </Link>
 
       {source === "demo" && (
@@ -151,7 +151,7 @@ export default async function ApplicationPage({
                       rel="noopener noreferrer"
                       className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
                     >
-                      Voir l&apos;offre ↗
+                      Voir l&apos;offre
                     </a>
                   </dd>
                 </div>

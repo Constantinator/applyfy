@@ -50,7 +50,7 @@ export function OfferDescriptionCompleter({
                 rel="noopener noreferrer"
                 className="font-medium text-amber-900 underline underline-offset-2 hover:text-amber-800"
               >
-                Voir l&apos;offre complète ↗
+                Voir l&apos;offre complète
               </a>
             </>
           )}

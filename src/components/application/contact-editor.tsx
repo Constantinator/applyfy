@@ -147,7 +147,7 @@ export function ContactEditor({
           href={`mailto:${saved.email}`}
           className="inline-block text-xs font-normal text-slate-500 dark:text-slate-400 underline-offset-2 hover:text-slate-900 dark:hover:text-white hover:underline"
         >
-          Écrire un email ↗
+          Écrire un email
         </a>
       )}
     </div>

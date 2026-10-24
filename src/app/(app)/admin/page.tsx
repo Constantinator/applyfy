@@ -180,7 +180,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               ⏰ {betaLate} retard{betaLate > 1 ? "s" : ""} ou suspension{betaLate > 1 ? "s" : ""}
             </span>
           )}
-          <span className="ml-auto font-medium">Voir les beta testeurs →</span>
+          <span className="ml-auto font-medium">Voir les beta testeurs</span>
         </Link>
       )}
 

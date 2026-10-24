@@ -202,8 +202,8 @@ function PanelCard({
 const PRIMARY_BUTTON = "btn-primary px-4 py-2 text-sm";
 const SECONDARY_BUTTON = "btn-secondary px-4 py-2 text-sm";
 
-const TOAST_CREATE = "Inscris-toi pour créer ta première candidature →";
-const TOAST_FEATURE = "Inscris-toi pour accéder à cette fonctionnalité →";
+const TOAST_CREATE = "Inscris-toi pour créer ta première candidature";
+const TOAST_FEATURE = "Inscris-toi pour accéder à cette fonctionnalité";
 
 type Screen = "dashboard" | "offres";
 
@@ -664,7 +664,7 @@ export function DemoDashboard() {
           {shown && (
             <>
               <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
-                <span className="text-sm text-slate-500">← Retour au dashboard</span>
+                <span className="text-sm text-slate-500">Retour au dashboard</span>
                 <button
                   ref={closeRef}
                   type="button"
@@ -703,7 +703,7 @@ export function DemoDashboard() {
                         </div>
                         <div>
                           <dt className="text-slate-500">Annonce</dt>
-                          <dd className="mt-0.5 font-medium text-blue-600">Voir l&apos;offre ↗</dd>
+                          <dd className="mt-0.5 font-medium text-blue-600">Voir l&apos;offre</dd>
                         </div>
                       </dl>
                     </div>

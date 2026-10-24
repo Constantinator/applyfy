@@ -26,7 +26,7 @@ export default async function RoadmapAdminPage() {
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <div>
         <Link href="/admin" className="text-sm text-slate-500 hover:text-slate-900">
-          ← Retour à l&apos;admin
+          Retour à l&apos;admin
         </Link>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Roadmap</h1>
         <p className="mt-1.5 text-sm text-slate-500">

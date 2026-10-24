@@ -77,7 +77,7 @@ export default function BlogPage() {
                     className="mt-6 text-sm font-semibold text-blue-600 underline-offset-4 hover:underline"
                     aria-label={`Lire l'article : ${post.title}`}
                   >
-                    Lire l&apos;article →
+                    Lire l&apos;article
                   </Link>
                 </div>
               </article>

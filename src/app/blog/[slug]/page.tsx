@@ -32,7 +32,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20">
       <Link href="/blog" className="text-sm text-slate-500 hover:text-slate-900">
-        ← Tous les articles
+        Tous les articles
       </Link>
       {post.cover && (
         <div className="relative mt-8 aspect-video overflow-hidden rounded-2xl bg-slate-100">

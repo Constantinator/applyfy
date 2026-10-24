@@ -35,7 +35,7 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
           href={`/candidatures/${app.id}`}
           className="text-sm text-slate-500 hover:text-slate-900"
         >
-          ← Retour à la candidature {app.company}
+          Retour à la candidature {app.company}
         </Link>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Mon CV</h1>
         <p className="text-sm text-slate-500">

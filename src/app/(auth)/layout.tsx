@@ -24,7 +24,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       <Link href="/" className="relative mt-6 text-sm text-slate-500 hover:text-slate-900">
-        ← Retour à l&apos;accueil
+        Retour à l&apos;accueil
       </Link>
     </main>
   );

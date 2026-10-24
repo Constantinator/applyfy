@@ -62,7 +62,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <Link href="/dashboard" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-        ← Retour au dashboard
+        Retour au dashboard
       </Link>
 
       <div>

@@ -58,7 +58,7 @@ export function OfferActions({
           {pending ? "Résumé en cours…" : state.status === "done" ? "Regénérer le résumé" : "Générer un résumé"}
         </button>
         <a href={url} target="_blank" rel="noopener noreferrer" className="btn-secondary px-4 py-2 text-sm">
-          Voir l&apos;offre ↗
+          Voir l&apos;offre
         </a>
       </div>
 

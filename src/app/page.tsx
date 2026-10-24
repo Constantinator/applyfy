@@ -468,7 +468,7 @@ export default function LandingPage() {
                 href="/about"
                 className="mt-2 inline-block text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
               >
-                Notre histoire →
+                Notre histoire
               </Link>
             </div>
           </figure>
@@ -837,7 +837,7 @@ export default function LandingPage() {
             </Link>
             <p className="mt-3 text-sm text-slate-500">{FRICTION_REDUCER}</p>
             <p className="mt-4 text-sm text-slate-500">
-              J&apos;ai déjà un compte →{" "}
+              J&apos;ai déjà un compte ?{" "}
               <Link
                 href="/login"
                 className="font-medium text-blue-600 underline-offset-4 hover:underline"

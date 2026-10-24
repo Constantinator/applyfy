@@ -15,7 +15,7 @@ export default async function NewApplicationPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <Link href="/dashboard" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-        ← Retour au dashboard
+        Retour au dashboard
       </Link>
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Nouvelle candidature</h1>
       <p className="mt-1 mb-6 text-sm text-slate-500 dark:text-slate-400">

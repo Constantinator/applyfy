@@ -66,7 +66,7 @@ export function OfferDetails({
     >
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5 sm:p-6">
         <Link href={backHref} scroll={false} className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white lg:hidden">
-          ← Retour aux offres
+          Retour aux offres
         </Link>
 
         <header className="space-y-1.5">

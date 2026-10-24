@@ -12,7 +12,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <Logo />
           </Link>
           <Link href="/" className="text-sm text-slate-500 hover:text-slate-900">
-            ← Retour à l&apos;accueil
+            Retour à l&apos;accueil
           </Link>
         </div>
       </header>

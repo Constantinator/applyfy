@@ -68,7 +68,7 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900">
-        ← Retour au dashboard
+        Retour au dashboard
       </Link>
 
       <div>

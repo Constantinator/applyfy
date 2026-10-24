@@ -244,8 +244,8 @@ export function DocumentsPreview() {
             </span>
             {/* Libellé complet si l'aperçu est assez large, sinon « Ouvrir → ». */}
             <span className="shrink-0 rounded-md bg-[#1E40AF] px-2 py-1 text-[10px] font-semibold text-white">
-              <span className="hidden @sm:inline">{doc.action} →</span>
-              <span className="@sm:hidden">Ouvrir →</span>
+              <span className="hidden @sm:inline">{doc.action}</span>
+              <span className="@sm:hidden">Ouvrir</span>
             </span>
           </div>
         ))}
