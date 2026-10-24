@@ -48,14 +48,11 @@ function savePreference(enabled: boolean) {
 export function RecommendationsToggle({
   active,
   canAutoOpen,
-  children,
 }: {
   /** La page affiche les recommandations (?reco=1). */
   active: boolean;
   /** Ni recherche manuelle ni offre ouverte : la préférence peut être appliquée. */
   canAutoOpen: boolean;
-  /** Détail affiché sous l'interrupteur (mots-clés utilisés). */
-  children?: React.ReactNode;
 }) {
   const router = useRouter();
   const stored = useSyncExternalStore(subscribe, readPreference, () => false);
@@ -75,29 +72,26 @@ export function RecommendationsToggle({
   }
 
   return (
-    <div className="space-y-1.5">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        onClick={toggle}
-        className="group inline-flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-200"
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      onClick={toggle}
+      className="group inline-flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-200"
+    >
+      <span
+        aria-hidden="true"
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+          enabled ? "bg-blue-600" : "bg-slate-300 group-hover:bg-slate-400"
+        }`}
       >
         <span
-          aria-hidden="true"
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-            enabled ? "bg-blue-600" : "bg-slate-300 group-hover:bg-slate-400"
+          className={`h-5 w-5 rounded-full bg-white dark:bg-slate-900 shadow-sm transition-transform ${
+            enabled ? "translate-x-5.5" : "translate-x-0.5"
           }`}
-        >
-          <span
-            className={`h-5 w-5 rounded-full bg-white dark:bg-slate-900 shadow-sm transition-transform ${
-              enabled ? "translate-x-5.5" : "translate-x-0.5"
-            }`}
-          />
-        </span>
-        Recommandations personnalisées
-      </button>
-      {enabled && children}
-    </div>
+        />
+      </span>
+      Recommandations personnalisées
+    </button>
   );
 }

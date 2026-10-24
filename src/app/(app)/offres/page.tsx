@@ -160,15 +160,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
 
       {configured && (
         <div className={mobileHidden}>
-          <RecommendationsToggle active={recommending} canAutoOpen={!hasManualSearch && !selectedId}>
-            {basis && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Basées sur tes candidatures et recherches récentes : « {basis.keywords} »
-                {department ? ` · ${department.name}` : basis.place ? ` · ${basis.place}` : " · toute la France"}
-                {basis.contract ? ` · ${CONTRACT_FILTERS[basis.contract]}` : ""}
-              </p>
-            )}
-          </RecommendationsToggle>
+          <RecommendationsToggle active={recommending} canAutoOpen={!hasManualSearch && !selectedId} />
         </div>
       )}
 
