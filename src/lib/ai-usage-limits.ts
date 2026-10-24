@@ -3,7 +3,7 @@
 // (record_ai_usage, migrations 0013, 0014, 0020 et 0023) : garder les deux définitions alignées.
 // Les utilisateurs Premium n'ont pas de limite mensuelle, seulement la limite quotidienne.
 
-/** Types d'action IA, dans l'ordre d'affichage de « Mon utilisation ». */
+/** Types d'action IA. */
 export const AI_USAGE_KINDS = [
   "resume_offre",
   "resume_recherche",

@@ -14,7 +14,7 @@ export function PremiumButton() {
 /**
  * Bandeau affiché quand l'essai gratuit du mois d'une action IA est utilisé : fond blanc,
  * bordure fine et texte dans le bleu de marque. `resetLabel` : date de remise à zéro
- * (omise là où elle est déjà affichée, ex. « Mon utilisation »).
+ * (omise là où elle est déjà affichée).
  */
 export function UsageLimitBanner({ resetLabel }: { resetLabel?: string }) {
   return (

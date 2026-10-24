@@ -37,7 +37,7 @@ export default function TermsPage() {
         <p>
           L&apos;inscription et l&apos;utilisation d&apos;Applyfy sont <strong>gratuites</strong>. Les
           fonctionnalités d&apos;intelligence artificielle sont limitées à un nombre d&apos;utilisations
-          par mois, indiqué dans <strong>Mon profil</strong> et remis à zéro le 1er de chaque mois. Des
+          par mois, indiqué sur la page <strong>Premium</strong> et remis à zéro le 1er de chaque mois. Des
           fonctionnalités peuvent évoluer, être ajoutées ou retirées.
         </p>
       </LegalSection>

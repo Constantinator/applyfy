@@ -6,9 +6,7 @@ import { openBillingPortalAction } from "@/app/actions/premium";
 import { AccountNameForm } from "@/components/profile/account-name-form";
 import { DeleteAccount } from "@/components/profile/delete-account";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
-import { UsageOverview } from "@/components/profile/usage-overview";
 import { getAccountName } from "@/lib/account";
-import { readAiUsage } from "@/lib/ai-usage";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
 import { ReminderSettingsForm } from "@/components/profile/reminder-settings-form";
 import { getCurrentUser } from "@/lib/auth";
@@ -31,7 +29,7 @@ const longDate = new Intl.DateTimeFormat("fr-FR", {
 export default async function ProfilePage({ searchParams }: PageProps<"/profil">) {
   await connection(); // toujours rendu à la requête : la liste des CV change
   const { abonnement } = await searchParams;
-  const [user, accountName, cvs, reminderSettings, usage, subscription] = await Promise.all([
+  const [user, accountName, cvs, reminderSettings, subscription] = await Promise.all([
     getCurrentUser(),
     getAccountName(),
     listProfileCvs(),
@@ -40,7 +38,6 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
       console.error("[profil] préférences de rappel", error);
       return DEFAULT_REMINDER_SETTINGS;
     }),
-    readAiUsage(),
     getSubscription(),
   ]);
   const beta = await getMyBeta();
@@ -146,25 +143,6 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
           Tes CV sont stockés de façon privée : toi seul·e y as accès. Lors d&apos;une analyse, le CV
           choisi est transmis à Claude (Anthropic).
         </p>
-      </section>
-
-      <section aria-labelledby="utilisation-title" className="space-y-4 card p-5 sm:p-6">
-        <div>
-          <h2 id="utilisation-title" className="font-semibold text-slate-900 dark:text-white">
-            Mon utilisation
-          </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {premium ? (
-              "Premium : toutes les fonctionnalités IA sont illimitées."
-            ) : (
-              <>
-                Plan gratuit : limites mensuelles par fonctionnalité IA (regénérations comprises).
-                Premium {PREMIUM_PRICE_FROM_LABEL} : accès illimité.
-              </>
-            )}
-          </p>
-        </div>
-        <UsageOverview usage={usage} />
       </section>
 
       <section
