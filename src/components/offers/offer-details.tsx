@@ -4,7 +4,7 @@ import { FormattedText } from "@/components/formatted-text";
 import { IconBriefcase, IconClock, IconMapPin } from "@/components/icons";
 import { OFFER_SOURCES, type OfferListing } from "@/lib/offer-types";
 
-import { AddOfferButton } from "./add-offer-button";
+import { OfferActions } from "./offer-actions";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -153,17 +153,7 @@ export function OfferDetails({
         )}
       </div>
 
-      <footer className="flex flex-wrap items-start gap-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:px-6">
-        <AddOfferButton offerId={offer.id} search={search} title={offer.title} className="items-start" />
-        <a
-          href={offer.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-secondary px-4 py-2 text-sm"
-        >
-          Voir l&apos;offre ↗
-        </a>
-      </footer>
+      <OfferActions offerId={offer.id} search={search} title={offer.title} url={offer.url} />
     </article>
   );
 }

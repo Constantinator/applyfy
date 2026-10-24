@@ -1,13 +1,20 @@
 "use server";
 
+import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
+import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
+import { PREMIUM_ONLY_MESSAGE } from "@/lib/ai-usage-limits";
 import { createApplication } from "@/lib/applications";
+import { requireUser } from "@/lib/auth";
+import { isClaudeConfigured, summarizeJobOffer } from "@/lib/claude";
 import { normalizeCompanyName } from "@/lib/normalize";
 import { OFFER_DESCRIPTION_MAX_LENGTH } from "@/lib/offer-limits";
 import { OfferSourceError } from "@/lib/offer-types";
 import { getOfferForApplication, isOfferSearchConfigured, readOfferQuery, resolveOfferSearch } from "@/lib/offers";
+import { isPremium } from "@/lib/subscription";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export type AddOfferState = { status: "idle" } | { status: "error"; message: string };
 
@@ -52,4 +59,65 @@ export async function addOfferToApplicationsAction(
 
   revalidatePath("/dashboard");
   redirect(`/candidatures/${id}?creee=1`);
+}
+
+export type JobOfferSummaryResult =
+  | { ok: true; summary: string }
+  | { ok: false; error: string; premiumRequired?: boolean };
+
+/**
+ * Résumé IA d'une offre de la recherche (réservé au Premium) : poste, entreprise, contrat,
+ * localisation, puis points clés et compétences requises. L'offre est relue côté serveur.
+ */
+export async function summarizeJobOfferAction(offerId: string, search: string): Promise<JobOfferSummaryResult> {
+  if (isSupabaseConfigured()) await requireUser();
+  if (!isClaudeConfigured()) {
+    return { ok: false, error: "Le résumé automatique n'est pas activé (clé API Claude manquante)." };
+  }
+  if (!(await isPremium())) return { ok: false, error: PREMIUM_ONLY_MESSAGE, premiumRequired: true };
+
+  // Limites quotidienne et par minute (le Premium n'a pas de limite mensuelle).
+  const gate = await checkAiAccess("resume_offre");
+  if (!gate.ok) return { ok: false, error: gate.message };
+
+  try {
+    const query = readOfferQuery(Object.fromEntries(new URLSearchParams(typeof search === "string" ? search : "")));
+    const { search: offerSearch } = await resolveOfferSearch(query);
+    const offer = await getOfferForApplication(String(offerId), offerSearch);
+    if (!offer) return { ok: false, error: "Cette offre n'est plus disponible." };
+
+    const summary = await summarizeJobOffer({ ...offer, description: clip(offer.description, OFFER_DESCRIPTION_MAX_LENGTH) });
+    if (!summary) return { ok: false, error: "Le résumé n'a pas pu être généré pour cette offre." };
+    await recordAiUsage("resume_offre");
+
+    const bullets = (items: string[]) => items.map((item) => `• ${item}`).join("\n");
+    const facts = [
+      `• Poste : ${offer.title}`,
+      `• Entreprise : ${offer.company ?? "Non communiquée"}`,
+      `• Type de contrat : ${offer.contract ?? "Non précisé"}`,
+      `• Localisation : ${offer.location ?? "Non précisée"}`,
+    ].join("\n");
+    return {
+      ok: true,
+      summary: [
+        facts,
+        summary.points_cles.length ? `## Points clés du poste\n${bullets(summary.points_cles)}` : "",
+        summary.competences.length ? `## Compétences requises\n${bullets(summary.competences)}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    };
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof OfferSourceError) return { ok: false, error: error.message };
+    if (error instanceof Anthropic.RateLimitError) {
+      return { ok: false, error: "Trop de demandes en ce moment. Réessaie dans une minute." };
+    }
+    if (error instanceof Anthropic.APIError) {
+      console.error(`[summarizeJobOffer] API ${error.status}`, error.message);
+      return { ok: false, error: "Le service de résumé est indisponible. Réessaie plus tard." };
+    }
+    console.error("[summarizeJobOffer]", error);
+    return { ok: false, error: "Le résumé n'a pas pu être généré." };
+  }
 }

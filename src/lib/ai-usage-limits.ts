@@ -52,6 +52,9 @@ export const LIMIT_REACHED_LABEL = "Limite mensuelle atteinte";
 /** Message commun à toutes les actions IA quand la limite du mois est atteinte. */
 export const LIMIT_REACHED_MESSAGE = `Tu as atteint ta limite mensuelle gratuite. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour un accès illimité.`;
 
+/** Fonctionnalité IA réservée au Premium (résumé d'une offre de « Trouver une offre »). */
+export const PREMIUM_ONLY_MESSAGE = `Le résumé d'offre est réservé aux membres Premium. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour en profiter.`;
+
 /**
  * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,
  * heure de Paris) et requêtes à Claude par minute (migration 0020).

@@ -107,6 +107,34 @@ export async function summarizeOffer(description: string): Promise<OfferSummary 
   );
 }
 
+const JobOfferSummarySchema = z.object({
+  points_cles: z.array(z.string()).describe("3 à 6 points clés du poste (missions, contexte, équipe), une phrase courte chacun"),
+  competences: z.array(z.string()).describe("3 à 8 compétences requises (techniques, outils, savoir-être, langues)"),
+});
+
+export type JobOfferSummary = z.infer<typeof JobOfferSummarySchema>;
+
+/** Points clés et compétences d'une offre de la recherche (« Trouver une offre »). */
+export async function summarizeJobOffer(offer: {
+  title: string;
+  company: string | null;
+  location: string | null;
+  contract: string | null;
+  description: string;
+}): Promise<JobOfferSummary | null> {
+  const header = [
+    `Poste : ${offer.title}`,
+    `Entreprise : ${offer.company ?? "non communiquée"}`,
+    `Localisation : ${offer.location ?? "non précisée"}`,
+    `Contrat : ${offer.contract ?? "non précisé"}`,
+  ].join("\n");
+  return parseStructured(
+    JobOfferSummarySchema,
+    `${SUMMARY_SYSTEM}\nL'offre peut être rédigée en anglais : réponds toujours en français.`,
+    `<offre>\n${header}\n\n${offer.description}\n</offre>`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Extraction des champs d'une offre (page sans données structurées, ou texte collé)
 // ---------------------------------------------------------------------------
