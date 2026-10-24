@@ -20,13 +20,15 @@ const ERRORS: Record<string, string> = {
 };
 
 const L = AI_MONTHLY_LIMITS;
+/** « 1 résumé », « 2 résumés ». */
+const count = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 
 const FREE_FEATURES = [
-  `${L.resume_offre} résumés d'offre par mois`,
-  `${L.adaptation_cv} analyses de CV par mois`,
-  `${L.cv_ameliore} CV ouverts dans l'éditeur par mois`,
-  `${L.lettre} lettres de motivation par mois`,
-  `${L.affinage_cv} messages par mois au chat « Affiner avec l'IA » (CV et lettre)`,
+  `${count(L.resume_offre, "résumé", "résumés")} d'offre par mois`,
+  `${count(L.adaptation_cv, "analyse", "analyses")} de CV par mois`,
+  `${count(L.cv_ameliore, "CV ouvert", "CV ouverts")} dans l'éditeur par mois`,
+  `${count(L.lettre, "lettre", "lettres")} de motivation par mois`,
+  `${count(L.affinage_cv, "message", "messages")} par mois au chat « Affiner avec l'IA » (CV et lettre)`,
 ];
 
 const PREMIUM_FEATURES = [

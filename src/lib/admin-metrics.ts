@@ -29,6 +29,7 @@ export const PREMIUM_MONTHLY_PRICE = 8;
 /** Coût réel estimé d'une action IA (appel à l'API Claude), en euros. */
 export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
   resume_offre: 0.02,
+  resume_recherche: 0.02,
   adaptation_cv: 0.05,
   cv_ameliore: 0.08,
   lettre: 0.05,

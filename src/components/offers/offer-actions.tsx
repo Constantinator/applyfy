@@ -12,10 +12,10 @@ import { AddOfferButton } from "./add-offer-button";
 type SummaryState =
   | { status: "idle" }
   | { status: "done"; summary: string }
-  | { status: "error"; message: string; premiumRequired: boolean };
+  | { status: "error"; message: string; limitReached: boolean };
 
 /**
- * Pied du panneau de détails : ajout aux candidatures, résumé IA (Premium), lien vers
+ * Pied du panneau de détails : ajout aux candidatures, résumé IA (essai gratuit), lien vers
  * l'offre originale. Le résumé s'affiche sous les boutons, dans une carte à part.
  */
 export function OfferActions({
@@ -39,7 +39,7 @@ export function OfferActions({
       setState(
         result.ok
           ? { status: "done", summary: result.summary }
-          : { status: "error", message: result.error, premiumRequired: result.premiumRequired === true },
+          : { status: "error", message: result.error, limitReached: result.limitReached === true },
       );
     });
   }
@@ -63,8 +63,8 @@ export function OfferActions({
       </div>
 
       {!pending && state.status === "error" &&
-        (state.premiumRequired ? (
-          <UsageLimitBanner message={state.message} />
+        (state.limitReached ? (
+          <UsageLimitBanner />
         ) : (
           <p role="alert" className="text-xs text-red-600 dark:text-red-400">
             {state.message}

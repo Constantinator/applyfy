@@ -307,7 +307,11 @@ export function RefineChat({
       </form>
       <p className="text-xs text-slate-500">
         {texts.privacy}{" "}
-        {usage.limit !== null && <>{usage.limit} messages par mois avec le plan gratuit. </>}
+        {usage.limit !== null && (
+          <>
+            {usage.limit} message{usage.limit > 1 ? "s" : ""} par mois avec le plan gratuit.{" "}
+          </>
+        )}
         {texts.save}
       </p>
     </section>

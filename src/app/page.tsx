@@ -278,7 +278,7 @@ const PLAN_FEATURES = {
     "Suivi illimité des candidatures",
     "Tableau de bord",
     "Rappels de relance par e-mail",
-    `${AI_MONTHLY_LIMITS.lettre} actions IA par type et par mois (résumé d'offre, analyse de CV, lettre…)`,
+    `${AI_MONTHLY_LIMITS.lettre} action${AI_MONTHLY_LIMITS.lettre > 1 ? "s" : ""} IA par type et par mois (résumé d'offre, analyse de CV, lettre…)`,
   ],
   premium: [
     "Tout le plan gratuit",
@@ -295,7 +295,7 @@ const PLAN_FEATURES = {
 const FAQ: { question: string; answer: React.ReactNode }[] = [
   {
     question: "Qu'est-ce qui est gratuit ?",
-    answer: `Le plan gratuit inclut le suivi illimité de tes candidatures, le tableau de bord, les rappels de relance et ${AI_MONTHLY_LIMITS.lettre} actions IA par type et par mois. Aucune carte bancaire requise.`,
+    answer: `Le plan gratuit inclut le suivi illimité de tes candidatures, le tableau de bord, les rappels de relance et ${AI_MONTHLY_LIMITS.lettre} action${AI_MONTHLY_LIMITS.lettre > 1 ? "s" : ""} IA par type et par mois. Aucune carte bancaire requise.`,
   },
   {
     question: "L'IA invente-t-elle des choses dans mon CV ?",

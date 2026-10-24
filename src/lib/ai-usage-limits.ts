@@ -1,11 +1,12 @@
 // Limites mensuelles d'utilisation de l'IA (plan gratuit), partagées entre les pages
 // (serveur) et les composants (client). Elles sont aussi appliquées par la base
-// (record_ai_usage, migrations 0013, 0014 et 0020) : garder les deux définitions alignées.
+// (record_ai_usage, migrations 0013, 0014, 0020 et 0023) : garder les deux définitions alignées.
 // Les utilisateurs Premium n'ont pas de limite mensuelle, seulement la limite quotidienne.
 
 /** Types d'action IA, dans l'ordre d'affichage de « Mon utilisation ». */
 export const AI_USAGE_KINDS = [
   "resume_offre",
+  "resume_recherche",
   "adaptation_cv",
   "cv_ameliore",
   "affinage_cv",
@@ -14,18 +15,20 @@ export const AI_USAGE_KINDS = [
 ] as const;
 export type AiUsageKind = (typeof AI_USAGE_KINDS)[number];
 
-/** Plan gratuit : nombre d'actions par type et par mois (regénérations comprises). */
+/** Plan gratuit : nombre d'actions par type et par mois (regénérations comprises) : un essai. */
 export const AI_MONTHLY_LIMITS: Record<AiUsageKind, number> = {
-  resume_offre: 2,
-  adaptation_cv: 2,
-  cv_ameliore: 2,
-  affinage_cv: 2,
-  lettre: 2,
-  affinage_lettre: 2,
+  resume_offre: 1,
+  resume_recherche: 1,
+  adaptation_cv: 1,
+  cv_ameliore: 1,
+  affinage_cv: 1,
+  lettre: 1,
+  affinage_lettre: 1,
 };
 
 export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string; feminine: boolean }> = {
   resume_offre: { title: "Résumés d'offre", unit: "résumés", feminine: false },
+  resume_recherche: { title: "Résumés d'offre — Trouver une offre", unit: "résumés", feminine: false },
   adaptation_cv: { title: "Analyses de CV", unit: "analyses", feminine: true },
   cv_ameliore: { title: "CV ouverts dans l'éditeur", unit: "ouvertures", feminine: true },
   affinage_cv: { title: "Chat « Affiner avec l'IA » — CV", unit: "messages", feminine: false },
@@ -47,13 +50,10 @@ export type AiUsage = {
 
 export const PREMIUM_PRICE_LABEL = "8 €/mois";
 
-export const LIMIT_REACHED_LABEL = "Limite mensuelle atteinte";
+export const LIMIT_REACHED_LABEL = "Essai gratuit utilisé";
 
-/** Message commun à toutes les actions IA quand la limite du mois est atteinte. */
-export const LIMIT_REACHED_MESSAGE = `Tu as atteint ta limite mensuelle gratuite. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour un accès illimité.`;
-
-/** Fonctionnalité IA réservée au Premium (résumé d'une offre de « Trouver une offre »). */
-export const PREMIUM_ONLY_MESSAGE = `Le résumé d'offre est réservé aux membres Premium. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour en profiter.`;
+/** Message commun à toutes les actions IA quand l'essai gratuit du mois est utilisé. */
+export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton essai gratuit. Passe au Premium à ${PREMIUM_PRICE_LABEL} pour un accès illimité.`;
 
 /**
  * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,

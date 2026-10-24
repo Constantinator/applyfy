@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
-import { PREMIUM_ONLY_MESSAGE } from "@/lib/ai-usage-limits";
 import { createApplication } from "@/lib/applications";
 import { requireUser } from "@/lib/auth";
 import { isClaudeConfigured, summarizeJobOffer } from "@/lib/claude";
@@ -13,7 +12,6 @@ import { normalizeCompanyName } from "@/lib/normalize";
 import { OFFER_DESCRIPTION_MAX_LENGTH } from "@/lib/offer-limits";
 import { OfferSourceError } from "@/lib/offer-types";
 import { getOfferForApplication, isOfferSearchConfigured, readOfferQuery, resolveOfferSearch } from "@/lib/offers";
-import { isPremium } from "@/lib/subscription";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export type AddOfferState = { status: "idle" } | { status: "error"; message: string };
@@ -63,22 +61,20 @@ export async function addOfferToApplicationsAction(
 
 export type JobOfferSummaryResult =
   | { ok: true; summary: string }
-  | { ok: false; error: string; premiumRequired?: boolean };
+  | { ok: false; error: string; limitReached?: boolean };
 
 /**
- * Résumé IA d'une offre de la recherche (réservé au Premium) : poste, entreprise, contrat,
- * localisation, puis points clés et compétences requises. L'offre est relue côté serveur.
+ * Résumé IA d'une offre de la recherche (un essai gratuit par mois, illimité en Premium) :
+ * poste, entreprise, contrat, localisation, puis points clés et compétences requises.
+ * L'offre est relue côté serveur.
  */
 export async function summarizeJobOfferAction(offerId: string, search: string): Promise<JobOfferSummaryResult> {
   if (isSupabaseConfigured()) await requireUser();
   if (!isClaudeConfigured()) {
     return { ok: false, error: "Le résumé automatique n'est pas activé (clé API Claude manquante)." };
   }
-  if (!(await isPremium())) return { ok: false, error: PREMIUM_ONLY_MESSAGE, premiumRequired: true };
-
-  // Limites quotidienne et par minute (le Premium n'a pas de limite mensuelle).
-  const gate = await checkAiAccess("resume_offre");
-  if (!gate.ok) return { ok: false, error: gate.message };
+  const gate = await checkAiAccess("resume_recherche");
+  if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };
 
   try {
     const query = readOfferQuery(Object.fromEntries(new URLSearchParams(typeof search === "string" ? search : "")));
@@ -88,7 +84,7 @@ export async function summarizeJobOfferAction(offerId: string, search: string): 
 
     const summary = await summarizeJobOffer({ ...offer, description: clip(offer.description, OFFER_DESCRIPTION_MAX_LENGTH) });
     if (!summary) return { ok: false, error: "Le résumé n'a pas pu être généré pour cette offre." };
-    await recordAiUsage("resume_offre");
+    await recordAiUsage("resume_recherche");
 
     const bullets = (items: string[]) => items.map((item) => `• ${item}`).join("\n");
     const facts = [
