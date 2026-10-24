@@ -177,10 +177,12 @@ export default function PrivacyPolicyPage() {
           vues et ton choix concernant les cookies.
         </p>
         <p>
-          <strong>Recherches récentes :</strong> tes 5 dernières recherches dans « Trouver une offre »
-          (mots-clés, localisation, type de contrat) sont gardées 30 jours dans un cookie de ton
-          navigateur, pour personnaliser les offres recommandées. Elles ne sont pas enregistrées dans
-          notre base de données ; tu peux les effacer en supprimant les cookies du site.
+          <strong>Recherches récentes :</strong> uniquement si tu actives les « Recommandations
+          personnalisées » dans « Trouver une offre », tes 5 dernières recherches (mots-clés,
+          localisation, type de contrat) sont gardées 30 jours dans un cookie de ton navigateur, pour
+          personnaliser les offres recommandées. Elles ne sont pas enregistrées dans notre base de
+          données. Désactiver les recommandations efface ce cookie ; tant qu&apos;elles sont désactivées,
+          aucune recherche n&apos;est mémorisée.
         </p>
         <p>
           <strong>Cookies publicitaires (Meta Pixel, Google Ads) :</strong> si tu les acceptes dans le

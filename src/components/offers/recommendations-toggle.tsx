@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
+import { RECENT_SEARCHES_COOKIE } from "@/lib/recent-searches";
+
 // Préférence mémorisée dans le navigateur (localStorage) : "1" activé, sinon désactivé
 // (par défaut).
 const STORAGE_KEY = "applyfy:offres-recommandations";
@@ -17,7 +19,8 @@ function subscribe(callback: () => void) {
   };
 }
 
-function readPreference(): boolean {
+/** Recommandations personnalisées activées dans ce navigateur. */
+export function readPreference(): boolean {
   try {
     return window.localStorage.getItem(STORAGE_KEY) === "1";
   } catch {
@@ -31,6 +34,8 @@ function savePreference(enabled: boolean) {
   } catch {
     // Stockage indisponible (navigation privée…) : le choix vaut pour cette page seulement.
   }
+  // Désactivées : les recherches récentes mémorisées pour elles sont effacées.
+  if (!enabled) document.cookie = `${RECENT_SEARCHES_COOKIE}=; path=/; max-age=0`;
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 

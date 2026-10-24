@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { readPreference } from "@/components/offers/recommendations-toggle";
 import type { ContractFilter } from "@/lib/offer-types";
 import {
   RECENT_SEARCHES_COOKIE,
@@ -20,7 +21,10 @@ function readCookie(name: string) {
   }
 }
 
-/** Mémorise la recherche affichée (cookie) pour les recommandations personnalisées. */
+/**
+ * Mémorise la recherche affichée (cookie) pour les recommandations personnalisées,
+ * seulement si elles sont activées dans ce navigateur.
+ */
 export function RecentSearchRecorder({
   keywords,
   place,
@@ -31,6 +35,7 @@ export function RecentSearchRecorder({
   contract: ContractFilter | null;
 }) {
   useEffect(() => {
+    if (!readPreference()) return;
     const searches = addRecentSearch(parseRecentSearches(readCookie(RECENT_SEARCHES_COOKIE)), {
       keywords,
       place,
