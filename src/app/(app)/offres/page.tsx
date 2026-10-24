@@ -6,13 +6,13 @@ import { CompanyLogo } from "@/components/offers/company-logo";
 import { OfferDetails } from "@/components/offers/offer-details";
 import { OfferLink } from "@/components/offers/offer-link";
 import { RecommendationsToggle } from "@/components/offers/recommendations-toggle";
+import { SortSelect } from "@/components/offers/sort-select";
 import { requireUser } from "@/lib/auth";
 import type { Department } from "@/lib/geo";
 import { findCompanyDomain, getCompanyLogo, isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
   CONTRACT_FILTERS,
-  OFFER_SORTS,
   OFFER_SOURCES,
   OfferSourceError,
   type OfferListing,
@@ -167,14 +167,15 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           API France Travail et Adzuna manquants).
         </p>
       ) : (
-        <form action="/offres" role="search" className={`card space-y-4 p-5 ${mobileHidden}`}>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form action="/offres" role="search" className={`card space-y-3 p-5 sm:p-6 ${mobileHidden}`}>
+          {/* Filtres principaux, bien visibles ; le tri, secondaire, en dessous. */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.3fr)_auto] lg:items-end">
             <div className="space-y-1.5">
               <label htmlFor="offres-q" className={label}>
                 Mot-clé
               </label>
               <div className="relative">
-                <IconSearch className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <IconSearch className="pointer-events-none absolute top-1/2 left-3.5 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   id="offres-q"
                   name="q"
@@ -182,7 +183,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                   defaultValue={keywords}
                   maxLength={120}
                   placeholder="Poste, métier, compétence…"
-                  className="input py-2.5 pl-9"
+                  className="input h-12 pl-11 text-base"
                 />
               </div>
             </div>
@@ -191,7 +192,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                 Localisation
               </label>
               <div className="relative">
-                <IconMapPin className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <IconMapPin className="pointer-events-none absolute top-1/2 left-3.5 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   id="offres-lieu"
                   name="lieu"
@@ -199,17 +200,15 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                   defaultValue={place}
                   maxLength={80}
                   placeholder="Ville ou département (ex. Lyon, 69)"
-                  className="input py-2.5 pl-9"
+                  className="input h-12 pl-11 text-base"
                 />
               </div>
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <div className="space-y-1.5">
               <label htmlFor="offres-contrat" className={label}>
                 Type de contrat
               </label>
-              <select id="offres-contrat" name="contrat" defaultValue={contract ?? ""} className="input py-2.5">
+              <select id="offres-contrat" name="contrat" defaultValue={contract ?? ""} className="input h-12 text-base">
                 <option value="">Tous les contrats</option>
                 {Object.entries(CONTRACT_FILTERS).map(([value, name]) => (
                   <option key={value} value={value}>
@@ -218,23 +217,12 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                 ))}
               </select>
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="offres-tri" className={label}>
-                Trier par
-              </label>
-              <select id="offres-tri" name="tri" defaultValue={sort} className="input py-2.5">
-                {Object.entries(OFFER_SORTS).map(([value, name]) => (
-                  <option key={value} value={value}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button type="submit" className="btn-primary px-6 py-2.5 text-sm">
-              <IconSearch className="h-4 w-4" />
+            <button type="submit" className="btn-primary h-12 px-6 text-base">
+              <IconSearch className="h-5 w-5" />
               Rechercher
             </button>
           </div>
+          <SortSelect defaultValue={sort} />
         </form>
       )}
 
