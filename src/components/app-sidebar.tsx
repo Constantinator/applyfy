@@ -11,6 +11,7 @@ import {
   IconHome,
   IconLogout,
   IconPlus,
+  IconPuzzle,
   IconSearch,
   IconStar,
   IconUser,
@@ -58,6 +59,13 @@ const NAV: NavItem[] = [
     shortLabel: "Profil",
     icon: IconUser,
     isActive: (p) => p.startsWith("/profil"),
+  },
+  {
+    href: "/extension",
+    label: "Extension Chrome",
+    shortLabel: "Extension",
+    icon: IconPuzzle,
+    isActive: (p) => p.startsWith("/extension"),
   },
 ];
 
@@ -113,7 +121,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const isDemo = email === null;
-  // Ordre : … Mon profil, Beta testing, Admin, Beta testeurs, Roadmap.
+  // Ordre : … Mon profil, Extension Chrome, Beta testing, Admin, Beta testeurs, Roadmap.
   const nav = [...NAV, ...(isBetaTester ? [BETA_ITEM] : []), ...(isAdmin ? ADMIN_ITEMS : [])];
   // Messages non lus de la messagerie beta : badge rouge sur l'onglet concerné.
   const badges: Record<string, number> = { "/beta": unreadBeta, "/admin/beta": unreadAdmin };
