@@ -46,7 +46,10 @@ export default async function ExtensionPage() {
 
       <ol className="grid gap-4 sm:grid-cols-3">
         {STEPS.map((step, i) => (
-          <li key={step.title} className="card space-y-3 p-5">
+          <li
+            key={step.title}
+            className="card space-y-3 p-5 transition duration-200 ease-out hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          >
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
               {i + 1}
             </span>
