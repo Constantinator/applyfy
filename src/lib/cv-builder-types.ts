@@ -63,7 +63,8 @@ export const CV_IMPORT_FOLDER = "cv-builder-import";
 
 export const CV_LIMITS = {
   title: 120,
-  short: 120,
+  /** Intitulés (poste, diplôme, école…) : un intitulé long ne doit jamais être coupé. */
+  short: 300,
   url: 300,
   text: 2000,
   bullet: 500,
@@ -98,7 +99,7 @@ const EducationSchema = z.object({
 
 const SkillSchema = z.object({
   id,
-  name: text(80),
+  name: text(CV_LIMITS.short),
   level: z.enum(["", "debutant", "intermediaire", "avance", "expert"]).default(""),
 });
 

@@ -112,17 +112,17 @@ function sectionsOf(data: CvData) {
   };
 }
 
-/** Liste « a · b · c » dont chaque élément est rendu par `render`. */
-function Joined<T>({ items, separator, render }: { items: T[]; separator: string; render: (item: T) => ReactNode }) {
+/** Liste à puces : un élément par ligne, rendu par `render`. */
+function ItemList<T extends { id: string }>({ items, render }: { items: T[]; render: (item: T) => ReactNode }) {
   return (
-    <>
-      {items.map((item, i) => (
-        <Text key={i}>
-          {i > 0 ? separator : null}
-          {render(item)}
-        </Text>
+    <View>
+      {items.map((item) => (
+        <View key={item.id} style={{ flexDirection: "row", marginTop: 1.5 }} wrap={false}>
+          <Text style={{ width: 10 }}>•</Text>
+          <Text style={{ flex: 1 }}>{render(item)}</Text>
+        </View>
       ))}
-    </>
+    </View>
   );
 }
 
@@ -308,18 +308,15 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
               ))}
             </View>
           ) : (
-            <Text>
-              <Joined
-                items={s.skills}
-                separator={variant === "classique" ? " • " : ", "}
-                render={(k) => (
-                  <>
-                    <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
-                    {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
-                  </>
-                )}
-              />
-            </Text>
+            <ItemList
+              items={s.skills}
+              render={(k) => (
+                <>
+                  <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
+                  {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
+                </>
+              )}
+            />
           )}
         </View>
       ) : null}
@@ -327,19 +324,16 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
       {s.languages.length ? (
         <View style={section} wrap={false}>
           <Heading>Langues</Heading>
-          <Text>
-            <Joined
-              items={s.languages}
-              separator="   ·   "
-              render={(l) => (
-                <>
-                  <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
-                  {l.level ? " : " : ""}
-                  {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
-                </>
-              )}
-            />
-          </Text>
+          <ItemList
+            items={s.languages}
+            render={(l) => (
+              <>
+                <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
+                {l.level ? " : " : ""}
+                {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
+              </>
+            )}
+          />
         </View>
       ) : null}
 

@@ -842,7 +842,7 @@ function SkillsTab({ data, edit }: { data: CvData; edit: Edit }) {
           <input
             aria-label={`Compétence ${index + 1}`}
             value={skill.name}
-            maxLength={80}
+            maxLength={CV_LIMITS.short}
             placeholder="Ex. SQL"
             onChange={(e) => update(skill.id, { name: e.target.value })}
             className="input"

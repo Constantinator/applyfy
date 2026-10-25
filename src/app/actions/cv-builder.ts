@@ -220,6 +220,16 @@ export type ImportCvResult = { ok: true; id: string } | { ok: false; error: stri
 
 const clip = (value: string, max: number) => value.trim().slice(0, max);
 
+/** Puces regroupées dans un seul élément (« a • b », ou une par ligne) : séparées. */
+function splitBullets(bullets: string[]) {
+  return bullets.flatMap((b) =>
+    b
+      .split(/\n+|\s*[•●▪◦►▸]\s*/)
+      .map((part) => part.replace(/^[-–—*]\s+/, "").trim())
+      .filter(Boolean),
+  );
+}
+
 /** Contenu extrait → données du CV, aux bornes du formulaire (un champ trop long est coupé). */
 function importedToCvData(cv: ImportedCv): CvData {
   const L = CV_LIMITS;
@@ -245,7 +255,7 @@ function importedToCvData(cv: ImportedCv): CvData {
       endDate: e.current ? "" : clip(e.endDate, 40),
       current: e.current,
       location: clip(e.location, L.short),
-      bullets: e.bullets
+      bullets: splitBullets(e.bullets)
         .map((b) => clip(b, L.bullet))
         .filter(Boolean)
         .slice(0, L.bullets),
@@ -261,7 +271,7 @@ function importedToCvData(cv: ImportedCv): CvData {
     skills: cv.skills
       .filter((s) => s.name.trim())
       .slice(0, 40)
-      .map((s) => ({ id: newItemId(), name: clip(s.name, 80), level: s.level })),
+      .map((s) => ({ id: newItemId(), name: clip(s.name, L.short), level: s.level })),
     languages: cv.languages
       .filter((l) => l.name.trim())
       .slice(0, L.items)

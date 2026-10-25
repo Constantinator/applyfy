@@ -2,6 +2,8 @@
 
 import { useId, type ReactNode } from "react";
 
+import { CV_LIMITS } from "@/lib/cv-builder-types";
+
 // Champs du formulaire du CV Builder.
 
 const labelClass = "text-sm font-medium text-slate-700 dark:text-slate-200";
@@ -12,7 +14,7 @@ export function Field({
   onChange,
   placeholder,
   type = "text",
-  maxLength = 120,
+  maxLength = CV_LIMITS.short,
   className = "",
 }: {
   label: string;
@@ -104,7 +106,7 @@ export function ItemCard({
   return (
     <div className="space-y-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
       <div className="flex items-center gap-1">
-        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white">{title}</p>
+        <p className="min-w-0 flex-1 text-sm font-semibold break-words text-slate-900 dark:text-white">{title}</p>
         <button type="button" onClick={() => onMove(-1)} disabled={index === 0} className={iconButton} aria-label={`Monter « ${title} »`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path d="m6 15 6-6 6 6" />
