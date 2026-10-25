@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
@@ -15,22 +14,14 @@ import {
   generateCvSummary,
   improveCvBullet,
   isClaudeConfigured,
-  transcribeCv,
   type ImportedCv,
 } from "@/lib/claude";
-import { CV_HTML_MAX_LENGTH, firstHeadingText, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
 import {
   CvBuilderError,
-  convertImportedCv,
   createBuilderCv,
-  createImportedCv,
   deleteBuilderCv,
-  finishImportExtraction,
-  getBuilderCv,
-  getImportState,
-  renameBuilderCv,
   saveBuilderCv,
-  saveImportedCvHtml,
+  setBuilderCvTemplate,
 } from "@/lib/cv-builder";
 import {
   CV_IMPORT_FOLDER,
@@ -330,7 +321,10 @@ async function readImportFile(formData: FormData, userId: string | null): Promis
   return Buffer.from(await file.arrayBuffer());
 }
 
-/** « Importer un CV » : extraction par l'IA puis création du CV pré-rempli. */
+/**
+ * « Créer un CV à partir d'un CV existant » : extraction par l'IA puis création du CV
+ * pré-rempli (modèle Minimaliste, puis celui choisi dans « Choisis un modèle »).
+ */
 export async function importBuilderCvAction(formData: FormData): Promise<ImportCvResult> {
   const user = await getCurrentUser();
   if (isSupabaseConfigured() && !user) return { ok: false, error: "Ta session a expiré : reconnecte-toi." };
@@ -363,123 +357,33 @@ export async function importBuilderCvAction(formData: FormData): Promise<ImportC
     return { ok: false, error: "Choisis un fichier PDF ou Word (.docx)." };
   }
 
-  // Deux lectures du CV en parallèle : la retranscription en HTML (affichée tout de suite)
-  // et l'extraction des données pour les modèles, terminée en arrière-plan après la réponse.
-  const extraction = extractCvForBuilder(source).catch((error) => {
-    console.error("[cv-builder] extraction", error);
-    return null;
-  });
-
   let id: string;
   try {
-    const transcribed = await transcribeCv(source.kind === "pdf" ? source.base64 : { text: source.text }, { keepProfile: true });
-    if (!transcribed) return { ok: false, error: "Ce CV n'a pas pu être lu. Vérifie le fichier, ou crée ton CV à la main." };
-    const html = sanitizeCvHtml(improvedCvToHtml(transcribed));
+    const extracted = await extractCvForBuilder(source);
+    if (!extracted) return { ok: false, error: "Ce CV n'a pas pu être lu. Vérifie le fichier, ou crée ton CV à la main." };
+    const data = importedToCvData(extracted);
     await recordAiUsage("cvb_import");
-    const name = firstHeadingText(html);
-    id = await createImportedCv(name ? `CV ${name}` : "CV importé", html);
+    const name = fullName(data);
+    id = await createBuilderCv(data, name ? `CV ${name}` : "CV importé");
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
     return { ok: false, error: claudeErrorMessage(error, "cv-builder import") };
   }
-
-  const userId = user?.id ?? null;
-  after(async () => {
-    const extracted = await extraction;
-    await finishImportExtraction(id, extracted ? importedToCvData(extracted) : null, userId);
-  });
   revalidatePath("/cv-builder");
   return { ok: true, id };
 }
 
-// ---------------------------------------------------------------------------
-// CV importé : modifications du HTML, puis « Convertir en template Applyfy »
-// ---------------------------------------------------------------------------
-
-/** Enregistrement de l'éditeur de CV pour un CV importé (même interface que saveImprovedCvAction). */
-export async function saveImportedCvAction(id: string, html: string, style?: unknown): Promise<SaveCvResult> {
-  if (typeof id !== "string" || typeof html !== "string") return { ok: false, error: "Requête invalide." };
-  if (html.length > CV_HTML_MAX_LENGTH) return { ok: false, error: "Le CV est trop long." };
+/** Modèle choisi dans « Choisis un modèle » après l'import d'un CV existant. */
+export async function setBuilderCvTemplateAction(id: string, templateId: CvTemplateId): Promise<{ ok: boolean }> {
+  if (!isTemplateId(templateId)) return { ok: false };
   try {
-    const savedAt = await saveImportedCvHtml(id, sanitizeCvHtml(html), style);
+    await setBuilderCvTemplate(String(id), templateId);
     revalidatePath("/cv-builder");
-    return { ok: true, savedAt };
+    return { ok: true };
   } catch (error) {
     unstable_rethrow(error);
-    if (error instanceof CvBuilderError) return { ok: false, error: error.message };
-    console.error("[cv-builder] enregistrement du CV importé", error);
-    return { ok: false, error: "L'enregistrement a échoué. Réessaie dans un instant." };
+    console.error("[cv-builder] modèle", error);
+    return { ok: false };
   }
-}
-
-export async function renameBuilderCvAction(id: string, title: string) {
-  try {
-    await renameBuilderCv(String(id), String(title ?? ""));
-    revalidatePath("/cv-builder");
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("[cv-builder] renommage", error);
-  }
-}
-
-/** Au-delà, une extraction encore « en cours » est considérée comme perdue (fonction interrompue). */
-const EXTRACTION_STALE_MS = 3 * 60_000;
-
-export type ImportReadiness = "pending" | "ready" | "missing";
-
-/** L'extraction en arrière-plan est-elle terminée (ou à refaire à la conversion) ? */
-export async function importReadinessAction(id: string): Promise<ImportReadiness> {
-  const state = await getImportState(String(id)).catch(() => null);
-  if (!state) return "missing";
-  const stale = Date.now() - new Date(state.createdAt).getTime() > EXTRACTION_STALE_MS;
-  return state.status === "pending" && !stale ? "pending" : "ready";
-}
-
-/** HTML de l'éditeur → texte (un bloc par ligne), pour une extraction de secours. */
-function htmlToText(html: string) {
-  return html
-    .replace(/<\/(h[1-6]|p|li|div)>|<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-export type ConvertCvResult = { ok: true } | { ok: false; error: string };
-
-/**
- * « Convertir en template Applyfy » : le CV passe au modèle choisi, pré-rempli avec les
- * données extraites en arrière-plan. Si l'extraction a échoué (ou s'est perdue), ou si le
- * CV a été modifié depuis l'import, elle est refaite à partir du HTML affiché (sans compter
- * une nouvelle utilisation de l'IA).
- */
-export async function convertImportedCvAction(id: string, templateId: CvTemplateId): Promise<ConvertCvResult> {
-  if (!isTemplateId(templateId)) return { ok: false, error: "Modèle inconnu." };
-  try {
-    const cv = await getBuilderCv(String(id));
-    if (!cv) return { ok: false, error: "Ce CV n'existe plus." };
-    if (!cv.imported) return { ok: true }; // déjà converti (autre onglet)
-
-    let data = cv.data;
-    if (cv.imported.status !== "ready" || cv.imported.edited) {
-      if (!isClaudeConfigured()) return { ok: false, error: "La conversion n'est pas disponible (clé API Claude manquante)." };
-      const extracted = await extractCvForBuilder({ kind: "text", text: htmlToText(cv.imported.html).slice(0, 40_000) });
-      if (!extracted) return { ok: false, error: "Les informations du CV n'ont pas pu être lues. Réessaie dans un instant." };
-      data = importedToCvData(extracted);
-    }
-    await convertImportedCv(cv.id, templateId, data);
-  } catch (error) {
-    unstable_rethrow(error);
-    if (error instanceof CvBuilderError) return { ok: false, error: error.message };
-    return { ok: false, error: claudeErrorMessage(error, "cv-builder conversion") };
-  }
-  revalidatePath("/cv-builder");
-  revalidatePath(`/cv-builder/${id}`);
-  return { ok: true };
 }

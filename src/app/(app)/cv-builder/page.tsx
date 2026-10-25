@@ -97,9 +97,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
                   {cv.title}
                 </Link>
                 <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
-                  {[cv.jobTitle, cv.isImported ? "CV importé" : CV_TEMPLATES.find((t) => t.id === cv.templateId)?.name]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[cv.jobTitle, CV_TEMPLATES.find((t) => t.id === cv.templateId)?.name].filter(Boolean).join(" · ")}
                 </p>
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                   Modifié le {dateFormatter.format(new Date(cv.updatedAt))}

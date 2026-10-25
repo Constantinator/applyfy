@@ -4,7 +4,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { refineCoverLetterAction, saveCoverLetterAction } from "@/app/actions/cover-letter";
 import { refineCvAction, saveImprovedCvAction } from "@/app/actions/cv";
-import { saveImportedCvAction } from "@/app/actions/cv-builder";
 import type { AiUsageCount } from "@/lib/ai-usage-limits";
 import { applyLayout, toOneColumn } from "@/lib/cv-layout";
 import {
@@ -119,7 +118,6 @@ const EDITOR_KINDS = {
     // Marges larges : CV aéré.
     paddingMm: 16,
     hasLayouts: true,
-    hasMarks: true,
     label: "CV amélioré, modifiable",
     inDocument: "dans le CV",
     marksToggle: "Surligner les améliorations",
@@ -134,28 +132,11 @@ const EDITOR_KINDS = {
     // Marges plus larges, d'usage pour un courrier.
     paddingMm: 20,
     hasLayouts: false,
-    hasMarks: true,
     label: "Lettre de motivation, modifiable",
     inDocument: "dans la lettre",
     marksToggle: "Surligner la personnalisation",
     marksHint: "passage personnalisé pour cette offre : vérifie qu'il est exact",
     accentHint: "nom et objet",
-  },
-  // CV Builder : CV créé à partir d'un CV existant, modifiable tel quel avant sa conversion
-  // en modèle Applyfy (`applicationId` est alors l'identifiant du CV). Ni surlignage ni chat.
-  cvBuilder: {
-    save: saveImportedCvAction,
-    refine: null,
-    defaultStyle: DEFAULT_CV_STYLE,
-    documentClassName: documentStyles,
-    paddingMm: 16,
-    hasLayouts: true,
-    hasMarks: false,
-    label: "CV importé, modifiable",
-    inDocument: "dans le CV",
-    marksToggle: "",
-    marksHint: "",
-    accentHint: "nom et titres de section",
   },
 } as const;
 
@@ -597,17 +578,15 @@ export function CvEditor({
       <div className="min-w-0 space-y-4 print:space-y-0">
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur print:hidden">
           {/* Affichage seulement : masquer les surlignages ne modifie pas le document. */}
-          {config.hasMarks && (
-            <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={showMarks}
-                onChange={(e) => setShowMarks(e.target.checked)}
-                className="accent-blue-600"
-              />
-              {config.marksToggle}
-            </label>
-          )}
+          <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={showMarks}
+              onChange={(e) => setShowMarks(e.target.checked)}
+              className="accent-blue-600"
+            />
+            {config.marksToggle}
+          </label>
 
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden text-xs text-slate-500 sm:inline" aria-live="polite">
@@ -643,12 +622,8 @@ export function CvEditor({
 
         <div className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between print:hidden">
           <p className="text-slate-500">
-            {config.hasMarks && (
-              <>
-                <mark className="rounded bg-yellow-200 px-1">Surligné</mark> = {config.marksHint}.{" "}
-              </>
-            )}
-            « Générer le PDF » ouvre l&apos;impression : choisis « Enregistrer au format PDF ».
+            <mark className="rounded bg-yellow-200 px-1">Surligné</mark> = {config.marksHint}. « Générer le PDF » ouvre l&apos;impression : choisis « Enregistrer
+            au format PDF ».
           </p>
           <p
             role="status"
@@ -705,9 +680,9 @@ export function CvEditor({
           </div>
         </div>
 
-        {refine && config.refine && (
+        {refine && (
           <RefineChat
-            document={kind === "lettre" ? "lettre" : "cv"}
+            document={kind}
             applicationId={applicationId}
             aiEnabled={refine.aiEnabled}
             usage={refine.usage}

@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { importBuilderCvAction } from "@/app/actions/cv-builder";
+import { importBuilderCvAction, setBuilderCvTemplateAction } from "@/app/actions/cv-builder";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
-import { CV_IMPORT_FOLDER, CV_IMPORT_MAX_BYTES, CV_IMPORT_MAX_LABEL } from "@/lib/cv-builder-types";
+import { CV_IMPORT_FOLDER, CV_IMPORT_MAX_BYTES, CV_IMPORT_MAX_LABEL, type CvTemplateId } from "@/lib/cv-builder-types";
 import { createClient } from "@/lib/supabase/client";
+
+import { TemplateChoiceDialog } from "./new-cv-dialog";
 
 const SUPABASE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
@@ -47,6 +49,17 @@ export function ImportCvButton({ resetLabel }: { resetLabel: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [limitReached, setLimitReached] = useState(false);
+  const templateDialogRef = useRef<HTMLDialogElement>(null);
+  /** CV créé par l'import, en attente du choix du modèle. */
+  const [importedId, setImportedId] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+
+  async function openEditor(templateId?: CvTemplateId) {
+    if (!importedId) return;
+    setOpening(true);
+    if (templateId && templateId !== "minimaliste") await setBuilderCvTemplateAction(importedId, templateId);
+    router.push(`/cv-builder/${importedId}`);
+  }
 
   // Fenêtre de chargement pendant l'extraction.
   useEffect(() => {
@@ -67,8 +80,11 @@ export function ImportCvButton({ resetLabel }: { resetLabel: string }) {
     try {
       const result = await sendForImport(file, ext as "pdf" | "docx");
       if (result.ok) {
-        router.push(`/cv-builder/${result.id}`);
-        return; // le chargement reste affiché jusqu'à l'ouverture de l'éditeur
+        // CV créé avec les données extraites : choix du modèle, puis l'éditeur.
+        setPending(false);
+        setImportedId(result.id);
+        templateDialogRef.current?.showModal();
+        return;
       }
       if ("limitReached" in result && result.limitReached) setLimitReached(true);
       else setError(result.error);
@@ -127,14 +143,38 @@ export function ImportCvButton({ resetLabel }: { resetLabel: string }) {
           />
           <div>
             <h2 id="import-cv-title" className="font-semibold text-slate-900 dark:text-white">
-              Lecture de ton CV…
+              Analyse de ton CV en cours…
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              L&apos;IA retranscrit ton CV pour que tu puisses le modifier. Cela peut prendre jusqu&apos;à une minute.
+              L&apos;IA récupère tes informations pour remplir ton nouveau CV. Cela prend 15 à 20 secondes.
             </p>
           </div>
         </div>
       </dialog>
+      <TemplateChoiceDialog
+        dialogRef={templateDialogRef}
+        open={importedId !== null}
+        // Fenêtre fermée sans choisir : le CV importé s'ouvre dans le modèle Minimaliste.
+        onClose={() => {
+          if (!opening) void openEditor();
+        }}
+        subtitle="Ton CV y est déjà repris. Tu pourras changer de modèle à tout moment dans l'éditeur."
+        footer={(selected) => (
+          <>
+            <button
+              type="button"
+              onClick={() => void openEditor()}
+              disabled={opening}
+              className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline disabled:opacity-60 dark:text-slate-400 dark:hover:text-white"
+            >
+              Passer cette étape
+            </button>
+            <button type="button" onClick={() => void openEditor(selected)} disabled={opening} className="btn-primary px-6 py-2.5 text-sm">
+              {opening ? "Ouverture de l'éditeur…" : "Continuer"}
+            </button>
+          </>
+        )}
+      />
     </div>
   );
 }
