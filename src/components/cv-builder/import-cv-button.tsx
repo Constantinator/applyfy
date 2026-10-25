@@ -146,7 +146,7 @@ export function ImportCvButton({ resetLabel }: { resetLabel: string }) {
               Analyse de ton CV en cours…
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              L&apos;IA récupère tes informations pour remplir ton nouveau CV. Cela prend 15 à 20 secondes.
+              Applyfy récupère tes informations pour remplir ton nouveau CV. Cela prend quelques secondes.
             </p>
           </div>
         </div>
