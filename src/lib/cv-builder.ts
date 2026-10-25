@@ -80,15 +80,16 @@ export async function getBuilderCv(id: string): Promise<BuilderCv | null> {
   return data ? toCv(data as Row) : null;
 }
 
-/** Nouveau CV pré-rempli (nom, email) ; renvoie son identifiant. */
-export async function createBuilderCv(initial: CvData): Promise<string> {
+/** Nouveau CV pré-rempli (nom, email, ou CV importé) ; renvoie son identifiant. */
+export async function createBuilderCv(initial: CvData, rawTitle = "Mon CV"): Promise<string> {
   const data = CvDataSchema.parse(initial);
+  const title = rawTitle.trim().slice(0, 120) || "Mon CV";
 
   if (!isSupabaseConfigured()) {
     if (demoCvs.length >= CV_BUILDER_MAX) throw new CvBuilderError(`Tu as atteint la limite de ${CV_BUILDER_MAX} CV.`);
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
-    demoCvs.push({ id, title: "Mon CV", templateId: "minimaliste", data, createdAt: now, updatedAt: now });
+    demoCvs.push({ id, title, templateId: "minimaliste", data, createdAt: now, updatedAt: now });
     return id;
   }
 
@@ -103,7 +104,7 @@ export async function createBuilderCv(initial: CvData): Promise<string> {
 
   const { data: row, error } = await supabase
     .from("cv_builder")
-    .insert({ user_id: user.id, title: "Mon CV", template_id: "minimaliste", data })
+    .insert({ user_id: user.id, title, template_id: "minimaliste", data })
     .select("id")
     .single();
   if (error) throw new Error(`Création du CV impossible : ${error.message}`);

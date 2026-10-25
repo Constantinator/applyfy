@@ -7,7 +7,15 @@ import { getAccountName } from "@/lib/account";
 import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
 import type { AiUsageKind } from "@/lib/ai-usage-limits";
 import { getCurrentUser } from "@/lib/auth";
-import { adaptCvToOffer, claudeErrorMessage, generateCvSummary, improveCvBullet, isClaudeConfigured } from "@/lib/claude";
+import {
+  adaptCvToOffer,
+  claudeErrorMessage,
+  extractCvForBuilder,
+  generateCvSummary,
+  improveCvBullet,
+  isClaudeConfigured,
+  type ImportedCv,
+} from "@/lib/claude";
 import {
   CvBuilderError,
   createBuilderCv,
@@ -15,15 +23,22 @@ import {
   saveBuilderCv,
 } from "@/lib/cv-builder";
 import {
+  CV_IMPORT_FOLDER,
+  CV_IMPORT_MAX_BYTES,
+  CV_IMPORT_MAX_LABEL,
+  CV_LIMITS,
   CvDataSchema,
   dateRange,
   fullName,
   interestList,
   isTemplateId,
+  newItemId,
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 /** « Créer un CV » : nouveau CV pré-rempli avec le nom et l'email du compte, puis l'éditeur. */
 export async function createBuilderCvAction() {
@@ -190,3 +205,162 @@ export async function adaptToOfferAction(rawData: CvData, offer: string) {
   });
 }
 
+
+// ---------------------------------------------------------------------------
+// « Importer un CV » : PDF ou Word lu par l'IA, puis nouveau CV pré-rempli
+// ---------------------------------------------------------------------------
+
+export type ImportCvResult = { ok: true; id: string } | { ok: false; error: string; limitReached?: boolean };
+
+const clip = (value: string, max: number) => value.trim().slice(0, max);
+
+/** Contenu extrait → données du CV, aux bornes du formulaire (un champ trop long est coupé). */
+function importedToCvData(cv: ImportedCv): CvData {
+  const L = CV_LIMITS;
+  const url = (value: string) => clip(value, L.url);
+  return CvDataSchema.parse({
+    personal: {
+      firstName: clip(cv.firstName, 60),
+      lastName: clip(cv.lastName, 60),
+      jobTitle: clip(cv.jobTitle, L.short),
+      email: clip(cv.email, L.short),
+      phone: clip(cv.phone, 40),
+      city: clip(cv.city, L.short),
+      linkedin: url(cv.linkedin),
+      website: url(cv.website),
+      github: url(cv.github),
+    },
+    summary: clip(cv.summary, L.text),
+    experiences: cv.experiences.slice(0, L.items).map((e) => ({
+      id: newItemId(),
+      position: clip(e.position, L.short),
+      company: clip(e.company, L.short),
+      startDate: clip(e.startDate, 40),
+      endDate: e.current ? "" : clip(e.endDate, 40),
+      current: e.current,
+      location: clip(e.location, L.short),
+      bullets: e.bullets
+        .map((b) => clip(b, L.bullet))
+        .filter(Boolean)
+        .slice(0, L.bullets),
+    })),
+    education: cv.education.slice(0, L.items).map((e) => ({
+      id: newItemId(),
+      school: clip(e.school, L.short),
+      degree: clip(e.degree, L.short),
+      startDate: clip(e.startDate, 40),
+      endDate: clip(e.endDate, 40),
+      honors: clip(e.honors, L.short),
+    })),
+    skills: cv.skills
+      .filter((s) => s.name.trim())
+      .slice(0, 40)
+      .map((s) => ({ id: newItemId(), name: clip(s.name, 80), level: s.level })),
+    languages: cv.languages
+      .filter((l) => l.name.trim())
+      .slice(0, L.items)
+      .map((l) => ({ id: newItemId(), name: clip(l.name, 60), level: clip(l.level, 60) })),
+    certifications: cv.certifications
+      .filter((c) => c.name.trim())
+      .slice(0, L.items)
+      .map((c) => ({ id: newItemId(), name: clip(c.name, L.short), issuer: clip(c.issuer, L.short), date: clip(c.date, 40) })),
+    projects: cv.projects
+      .filter((p) => p.name.trim())
+      .slice(0, L.items)
+      .map((p) => ({ id: newItemId(), name: clip(p.name, L.short), description: clip(p.description, L.text), link: url(p.link) })),
+    interests: clip(
+      cv.interests
+        .map((i) => i.trim())
+        .filter(Boolean)
+        .join(", "),
+      500,
+    ),
+  });
+}
+
+/** Chemin d'un fichier déposé dans le dossier d'import de l'utilisateur, sinon null. */
+function importPath(formData: FormData, userId: string | null) {
+  const path = formData.get("path");
+  if (typeof path !== "string" || !userId) return null;
+  const pattern = new RegExp(`^${userId}/${CV_IMPORT_FOLDER}/[A-Za-z0-9-]+\\.(pdf|docx)$`);
+  return pattern.test(path) ? path : null;
+}
+
+async function removeImport(path: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.storage.from("documents").remove([path]);
+  if (error) console.error("[cv-builder] suppression de l'import", error.message);
+}
+
+/**
+ * Lit le fichier importé : déposé par le navigateur dans le stockage privé (`path`, au-delà
+ * de la limite de taille des requêtes), ou envoyé avec le formulaire (`file`, mode démo).
+ */
+async function readImportFile(formData: FormData, userId: string | null): Promise<Buffer | string> {
+  if (isSupabaseConfigured()) {
+    const path = importPath(formData, userId);
+    if (!path) return "Fichier introuvable. Réessaie.";
+    const supabase = await createClient();
+    const { data, error } = await supabase.storage.from("documents").download(path);
+    // Supprimé aussitôt lu : le fichier ne sert qu'à l'extraction.
+    await removeImport(path);
+    if (error || !data) {
+      console.error("[cv-builder] lecture de l'import", error?.message);
+      return "Le fichier n'a pas pu être lu. Réessaie.";
+    }
+    return Buffer.from(await data.arrayBuffer());
+  }
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return "Choisis ton CV (PDF ou Word).";
+  return Buffer.from(await file.arrayBuffer());
+}
+
+/** « Importer un CV » : extraction par l'IA puis création du CV pré-rempli. */
+export async function importBuilderCvAction(formData: FormData): Promise<ImportCvResult> {
+  const user = await getCurrentUser();
+  if (isSupabaseConfigured() && !user) return { ok: false, error: "Ta session a expiré : reconnecte-toi." };
+
+  const gate = isClaudeConfigured()
+    ? await checkAiAccess("cvb_import")
+    : ({ ok: false, message: "L'import n'est pas activé (clé API Claude manquante).", limitReached: false } as const);
+  if (!gate.ok) {
+    // Le fichier déjà déposé ne sera pas lu : il est supprimé.
+    const path = isSupabaseConfigured() ? importPath(formData, user?.id ?? null) : null;
+    if (path) await removeImport(path);
+    return { ok: false, error: gate.message, limitReached: gate.limitReached };
+  }
+
+  const bytes = await readImportFile(formData, user?.id ?? null);
+  if (typeof bytes === "string") return { ok: false, error: bytes };
+  if (bytes.length > CV_IMPORT_MAX_BYTES) return { ok: false, error: `Ton CV dépasse ${CV_IMPORT_MAX_LABEL}.` };
+
+  // Format reconnu à la signature du fichier, pas seulement à son extension.
+  let source: Parameters<typeof extractCvForBuilder>[0];
+  if (bytes.subarray(0, 5).toString("latin1") === "%PDF-") {
+    source = { kind: "pdf", base64: bytes.toString("base64") };
+  } else if (bytes.subarray(0, 2).toString("latin1") === "PK") {
+    const text = extractDocxText(bytes);
+    if (!text || text.length < 30) {
+      return { ok: false, error: "Ce document Word n'a pas pu être lu. Essaie de l'exporter en PDF." };
+    }
+    source = { kind: "text", text: text.slice(0, 40_000) };
+  } else {
+    return { ok: false, error: "Choisis un fichier PDF ou Word (.docx)." };
+  }
+
+  let id: string;
+  try {
+    const extracted = await extractCvForBuilder(source);
+    if (!extracted) return { ok: false, error: "Ce CV n'a pas pu être lu. Vérifie le fichier, ou crée ton CV à la main." };
+    const data = importedToCvData(extracted);
+    await recordAiUsage("cvb_import");
+    const name = fullName(data);
+    id = await createBuilderCv(data, name ? `CV ${name}` : "CV importé");
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof CvBuilderError) return { ok: false, error: error.message };
+    return { ok: false, error: claudeErrorMessage(error, "cv-builder import") };
+  }
+  revalidatePath("/cv-builder");
+  return { ok: true, id };
+}

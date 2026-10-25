@@ -30,6 +30,12 @@ export function skillLevelValue(level: SkillLevel) {
 }
 
 /** Bornes : un CV tient sur 1 à 3 pages, la photo est redimensionnée dans le navigateur. */
+/** « Importer un CV » : PDF ou Word, 5 Mo maximum. */
+export const CV_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+export const CV_IMPORT_MAX_LABEL = "5 Mo";
+/** Dossier du bucket « documents » où le navigateur dépose le fichier importé. */
+export const CV_IMPORT_FOLDER = "cv-builder-import";
+
 export const CV_LIMITS = {
   title: 120,
   short: 120,

@@ -4,11 +4,17 @@ import { connection } from "next/server";
 
 import { createBuilderCvAction } from "@/app/actions/cv-builder";
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
+import { ImportCvButton } from "@/components/cv-builder/import-cv-button";
 import { IconDocument } from "@/components/icons";
+import { readAiUsage } from "@/lib/ai-usage";
+import { formatResetDate } from "@/lib/ai-usage-limits";
 import { CV_BUILDER_MAX, listBuilderCvs } from "@/lib/cv-builder";
 import { CV_TEMPLATES } from "@/lib/cv-builder-types";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
+
+// « Importer un CV » : lecture du fichier par Claude (quelques dizaines de secondes).
+export const maxDuration = 120;
 
 const ERRORS: Record<string, string> = {
   creation: "Le CV n'a pas pu être créé. Réessaie dans un instant.",
@@ -31,6 +37,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
   const { erreur } = await searchParams;
   const error = typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
 
+  const resetLabel = formatResetDate((await readAiUsage()).resetsOn);
   let cvs: Awaited<ReturnType<typeof listBuilderCvs>> | null = null;
   try {
     cvs = await listBuilderCvs();
@@ -48,11 +55,14 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
           </p>
         </div>
         {cvs && cvs.length < CV_BUILDER_MAX && (
-          <form action={createBuilderCvAction}>
-            <button type="submit" className="btn-primary px-5 py-2.5 text-sm">
-              Créer un CV
-            </button>
-          </form>
+          <div className="flex flex-wrap items-start gap-2">
+            <ImportCvButton resetLabel={resetLabel} />
+            <form action={createBuilderCvAction}>
+              <button type="submit" className="btn-primary px-5 py-2.5 text-sm">
+                Créer un CV
+              </button>
+            </form>
+          </div>
         )}
       </div>
 
@@ -74,7 +84,8 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
           <div>
             <h2 className="font-semibold text-slate-900 dark:text-white">Aucun CV pour l&apos;instant</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Remplis tes informations une seule fois, puis change de modèle quand tu veux.
+              Remplis tes informations une seule fois, ou importe ton CV actuel (PDF ou Word) pour
+              pré-remplir le formulaire. Tu changes de modèle quand tu veux.
             </p>
           </div>
           <form action={createBuilderCvAction}>

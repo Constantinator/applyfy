@@ -42,6 +42,7 @@ export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
   cvb_puce: 0.01,
   cvb_resume: 0.02,
   cvb_adaptation: 0.05,
+  cvb_import: 0.06,
 };
 
 /**

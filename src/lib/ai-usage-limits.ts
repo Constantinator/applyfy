@@ -1,6 +1,6 @@
 // Limites mensuelles d'utilisation de l'IA (plan gratuit), partagées entre les pages
 // (serveur) et les composants (client). Elles sont aussi appliquées par la base
-// (record_ai_usage, migrations 0013, 0014, 0020, 0023 et 0025) : garder les deux définitions alignées.
+// (record_ai_usage, migrations 0013, 0014, 0020, 0023, 0025 et 0026) : garder les deux définitions alignées.
 // Les utilisateurs Premium n'ont pas de limite mensuelle, seulement la limite quotidienne.
 
 /** Types d'action IA. */
@@ -15,6 +15,7 @@ export const AI_USAGE_KINDS = [
   "cvb_puce",
   "cvb_resume",
   "cvb_adaptation",
+  "cvb_import",
 ] as const;
 export type AiUsageKind = (typeof AI_USAGE_KINDS)[number];
 
@@ -30,6 +31,7 @@ export const AI_MONTHLY_LIMITS: Record<AiUsageKind, number> = {
   cvb_puce: 1,
   cvb_resume: 1,
   cvb_adaptation: 1,
+  cvb_import: 1,
 };
 
 export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string; feminine: boolean }> = {
@@ -43,6 +45,7 @@ export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string;
   cvb_puce: { title: "CV Builder — points d'expérience améliorés", unit: "améliorations", feminine: true },
   cvb_resume: { title: "CV Builder — résumés de profil", unit: "résumés", feminine: false },
   cvb_adaptation: { title: "CV Builder — adaptations à une offre", unit: "adaptations", feminine: true },
+  cvb_import: { title: "CV Builder — imports de CV", unit: "imports", feminine: false },
 };
 
 /** Utilisation d'un type d'action pour le mois en cours ; `limit` null : illimité (Premium). */
