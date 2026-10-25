@@ -39,7 +39,7 @@ async function sendForImport(file: File, ext: "pdf" | "docx") {
   return importBuilderCvAction(formData);
 }
 
-/** « Importer un CV » : PDF ou Word lu par l'IA, puis l'éditeur avec les champs pré-remplis. */
+/** « Créer un CV à partir d'un CV existant » : PDF ou Word lu par l'IA, puis l'éditeur avec les champs pré-remplis. */
 export function ImportCvButton({ resetLabel }: { resetLabel: string }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -87,7 +87,7 @@ export function ImportCvButton({ resetLabel }: { resetLabel: string }) {
         disabled={pending}
         className="btn-secondary px-5 py-2.5 text-sm"
       >
-        Importer un CV
+        Créer un CV à partir d&apos;un CV existant
       </button>
       <input
         ref={inputRef}

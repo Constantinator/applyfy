@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
-import { createBuilderCvAction } from "@/app/actions/cv-builder";
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
 import { ImportCvButton } from "@/components/cv-builder/import-cv-button";
+import { NewCvDialog } from "@/components/cv-builder/new-cv-dialog";
 import { IconDocument } from "@/components/icons";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
@@ -56,12 +56,8 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
         </div>
         {cvs && cvs.length < CV_BUILDER_MAX && (
           <div className="flex flex-wrap items-start gap-2">
+            <NewCvDialog />
             <ImportCvButton resetLabel={resetLabel} />
-            <form action={createBuilderCvAction}>
-              <button type="submit" className="btn-primary px-5 py-2.5 text-sm">
-                Créer un CV
-              </button>
-            </form>
           </div>
         )}
       </div>
@@ -84,15 +80,10 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
           <div>
             <h2 className="font-semibold text-slate-900 dark:text-white">Aucun CV pour l&apos;instant</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Remplis tes informations une seule fois, ou importe ton CV actuel (PDF ou Word) pour
+              Pars d&apos;un modèle vierge, ou d&apos;un CV que tu as déjà (PDF ou Word) pour
               pré-remplir le formulaire. Tu changes de modèle quand tu veux.
             </p>
           </div>
-          <form action={createBuilderCvAction}>
-            <button type="submit" className="btn-primary px-5 py-2.5 text-sm">
-              Créer mon premier CV
-            </button>
-          </form>
         </div>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">

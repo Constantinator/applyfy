@@ -264,3 +264,22 @@ export function CvHtmlPreview({
   );
 }
 
+
+/** Polices du CV, à rendre une fois dans une page qui affiche des miniatures. */
+export function CvFontFaces() {
+  return <style>{FONT_FACES}</style>;
+}
+
+/** Miniature d'un modèle (première page, non modifiable), de largeur `width` en pixels. */
+export function CvThumbnail({ data, templateId, width }: { data: CvData; templateId: CvTemplateId; width: number }) {
+  const scale = width / A4_WIDTH_PX;
+  return (
+    <div aria-hidden="true" className="relative overflow-hidden bg-white" style={{ width, height: A4_HEIGHT_PX * scale }}>
+      <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_WIDTH_PX, pointerEvents: "none" }}>
+        <PrimitivesContext value={HTML_PRIMITIVES}>
+          <CvPages data={data} templateId={templateId} />
+        </PrimitivesContext>
+      </div>
+    </div>
+  );
+}

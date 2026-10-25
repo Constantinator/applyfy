@@ -40,8 +40,11 @@ import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
-/** « Créer un CV » : nouveau CV pré-rempli avec le nom et l'email du compte, puis l'éditeur. */
-export async function createBuilderCvAction() {
+/**
+ * « Créer un nouveau CV » : CV pré-rempli avec le nom et l'email du compte, dans le modèle
+ * choisi (à lier au formulaire : `createBuilderCvAction.bind(null, templateId)`), puis l'éditeur.
+ */
+export async function createBuilderCvAction(templateId: CvTemplateId) {
   let id: string;
   try {
     const [user, name] = await Promise.all([getCurrentUser(), getAccountName().catch(() => null)]);
@@ -49,6 +52,8 @@ export async function createBuilderCvAction() {
       CvDataSchema.parse({
         personal: { firstName: name?.firstName ?? "", lastName: name?.lastName ?? "", email: user?.email ?? "" },
       }),
+      "Mon CV",
+      isTemplateId(templateId) ? templateId : "minimaliste",
     );
   } catch (error) {
     unstable_rethrow(error);
