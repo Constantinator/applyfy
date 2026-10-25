@@ -39,6 +39,9 @@ export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
   lettre: 0.05,
   affinage_cv: 0.05,
   affinage_lettre: 0.05,
+  cvb_puce: 0.01,
+  cvb_resume: 0.02,
+  cvb_adaptation: 0.05,
 };
 
 /**

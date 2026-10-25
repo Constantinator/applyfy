@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Politique de confidentialité"
-      updatedOn="23 octobre 2026"
+      updatedOn="25 octobre 2026"
       intro="Applyfy t'aide à suivre ta recherche d'emploi. Cette page explique quelles données sont collectées, pourquoi, combien de temps elles sont conservées et comment exercer tes droits, conformément au Règlement général sur la protection des données (RGPD)."
     >
       <LegalSection title="Responsable du traitement">
@@ -73,7 +73,8 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             <strong>CV :</strong> les fichiers PDF que tu enregistres dans ton profil ou importes pour une
-            analyse.
+            analyse, et les CV que tu crées dans le CV Builder (informations saisies et photo
+            facultative).
           </li>
           <li>
             <strong>Candidatures :</strong> entreprises, postes, offres, statuts, historique, notes,

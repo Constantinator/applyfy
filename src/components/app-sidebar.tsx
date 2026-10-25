@@ -67,6 +67,13 @@ const NAV: NavItem[] = [
     icon: IconPuzzle,
     isActive: (p) => p.startsWith("/extension"),
   },
+  {
+    href: "/cv-builder",
+    label: "CV Builder",
+    shortLabel: "CV Builder",
+    icon: IconDocument,
+    isActive: (p) => p.startsWith("/cv-builder"),
+  },
 ];
 
 /** Rapports du programme beta : beta testeurs actifs uniquement. */
@@ -121,7 +128,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const isDemo = email === null;
-  // Ordre : … Mon profil, Extension Chrome, Beta testing, Admin, Beta testeurs, Roadmap.
+  // Ordre : … Mon profil, Extension Chrome, CV Builder, Beta testing, Admin, Beta testeurs, Roadmap.
   const nav = [...NAV, ...(isBetaTester ? [BETA_ITEM] : []), ...(isAdmin ? ADMIN_ITEMS : [])];
   // Messages non lus de la messagerie beta : badge rouge sur l'onglet concerné.
   const badges: Record<string, number> = { "/beta": unreadBeta, "/admin/beta": unreadAdmin };

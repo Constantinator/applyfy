@@ -1,6 +1,6 @@
 // Limites mensuelles d'utilisation de l'IA (plan gratuit), partagées entre les pages
 // (serveur) et les composants (client). Elles sont aussi appliquées par la base
-// (record_ai_usage, migrations 0013, 0014, 0020 et 0023) : garder les deux définitions alignées.
+// (record_ai_usage, migrations 0013, 0014, 0020, 0023 et 0025) : garder les deux définitions alignées.
 // Les utilisateurs Premium n'ont pas de limite mensuelle, seulement la limite quotidienne.
 
 /** Types d'action IA. */
@@ -12,6 +12,9 @@ export const AI_USAGE_KINDS = [
   "affinage_cv",
   "lettre",
   "affinage_lettre",
+  "cvb_puce",
+  "cvb_resume",
+  "cvb_adaptation",
 ] as const;
 export type AiUsageKind = (typeof AI_USAGE_KINDS)[number];
 
@@ -24,6 +27,9 @@ export const AI_MONTHLY_LIMITS: Record<AiUsageKind, number> = {
   affinage_cv: 1,
   lettre: 1,
   affinage_lettre: 1,
+  cvb_puce: 1,
+  cvb_resume: 1,
+  cvb_adaptation: 1,
 };
 
 export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string; feminine: boolean }> = {
@@ -34,6 +40,9 @@ export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string;
   affinage_cv: { title: "Chat « Affiner avec l'IA » — CV", unit: "messages", feminine: false },
   lettre: { title: "Lettres de motivation", unit: "générations", feminine: true },
   affinage_lettre: { title: "Chat « Affiner avec l'IA » — lettre", unit: "messages", feminine: false },
+  cvb_puce: { title: "CV Builder — points d'expérience améliorés", unit: "améliorations", feminine: true },
+  cvb_resume: { title: "CV Builder — résumés de profil", unit: "résumés", feminine: false },
+  cvb_adaptation: { title: "CV Builder — adaptations à une offre", unit: "adaptations", feminine: true },
 };
 
 /** Utilisation d'un type d'action pour le mois en cours ; `limit` null : illimité (Premium). */
