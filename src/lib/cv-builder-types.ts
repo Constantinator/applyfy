@@ -15,6 +15,31 @@ export const CV_TEMPLATES = [
 export type CvTemplateId = (typeof CV_TEMPLATES)[number]["id"];
 export const CV_TEMPLATE_IDS = CV_TEMPLATES.map((t) => t.id) as [CvTemplateId, ...CvTemplateId[]];
 
+/**
+ * Polices du CV, en 400 et 700 (public/fonts/cv, Google Fonts) : les mêmes fichiers servent
+ * à l'aperçu et au PDF. Georgia n'est pas redistribuable : Gelasio a les mêmes proportions.
+ */
+export const CV_FONTS = [
+  { id: "inter", name: "Inter", fallback: "sans-serif" },
+  { id: "roboto", name: "Roboto", fallback: "sans-serif" },
+  { id: "open-sans", name: "Open Sans", fallback: "sans-serif" },
+  { id: "lato", name: "Lato", fallback: "sans-serif" },
+  { id: "montserrat", name: "Montserrat", fallback: "sans-serif" },
+  { id: "playfair-display", name: "Playfair Display", fallback: "serif" },
+  { id: "merriweather", name: "Merriweather", fallback: "serif" },
+  { id: "source-sans-3", name: "Source Sans Pro", fallback: "sans-serif" },
+  { id: "raleway", name: "Raleway", fallback: "sans-serif" },
+  { id: "gelasio", name: "Georgia (Gelasio)", fallback: "Georgia, serif" },
+] as const;
+
+export type CvFontId = (typeof CV_FONTS)[number]["id"];
+const CV_FONT_IDS = CV_FONTS.map((f) => f.id) as [CvFontId, ...CvFontId[]];
+
+/** Fichier d'une police dans public/. */
+export function cvFontFile(id: CvFontId, weight: 400 | 700) {
+  return `/fonts/cv/${id}-${weight}.ttf`;
+}
+
 export const SKILL_LEVELS = [
   { value: "", label: "Sans niveau" },
   { value: "debutant", label: "Débutant" },
@@ -116,6 +141,13 @@ export const CvDataSchema = z.object({
   certifications: z.array(CertificationSchema).max(CV_LIMITS.items).default([]),
   projects: z.array(ProjectSchema).max(CV_LIMITS.items).default([]),
   interests: text(500),
+  style: z
+    .object({
+      font: z.enum(CV_FONT_IDS).catch("inter").default("inter"),
+      /** Texte compact : tailles et espacements verticaux réduits, pour tenir sur une page. */
+      density: z.enum(["normal", "compact"]).catch("normal").default("normal"),
+    })
+    .prefault({}),
 });
 
 export type CvData = z.infer<typeof CvDataSchema>;
@@ -173,4 +205,33 @@ export function interestList(data: CvData) {
 /** Adresse affichée sans « https:// » ni « www. ». */
 export function displayUrl(url: string) {
   return url.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
+}
+
+/**
+ * Modification faite dans l'aperçu : `path` désigne le champ ("personal.city",
+ * "experiences.<id>.bullets.2"). Renvoie de nouvelles données, ou les mêmes si le chemin
+ * ne correspond à rien.
+ */
+export function applyEdit(data: CvData, path: string, value: string): CvData {
+  const keys = path.split(".");
+  const set = (node: unknown, i: number): unknown => {
+    const key = keys[i];
+    const last = i === keys.length - 1;
+    if (Array.isArray(node)) {
+      const index = node.findIndex((item, j) =>
+        item && typeof item === "object" && "id" in item ? item.id === key : String(j) === key,
+      );
+      if (index < 0) return node;
+      const next = [...node];
+      next[index] = last ? value : set(node[index], i + 1);
+      return next;
+    }
+    if (node && typeof node === "object" && key in node) {
+      const current = (node as Record<string, unknown>)[key];
+      if (last && typeof current !== "string") return node;
+      return { ...node, [key]: last ? value : set(current, i + 1) };
+    }
+    return node;
+  };
+  return set(data, 0) as CvData;
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
@@ -14,6 +13,8 @@ import {
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
+  applyEdit,
+  CV_FONTS,
   CV_LIMITS,
   CV_TEMPLATES,
   fullName,
@@ -22,17 +23,13 @@ import {
   type BuilderCv,
   type CvData,
   type CvExperience,
+  type CvFontId,
   type CvTemplateId,
   type SkillLevel,
 } from "@/lib/cv-builder-types";
 
+import { CvHtmlPreview } from "./cv-html-preview";
 import { AddButton, Field, ItemCard, move, TextArea } from "./form-controls";
-
-// L'aperçu (et la bibliothèque PDF) ne se charge que dans le navigateur.
-const CvPreview = dynamic(() => import("./cv-preview"), {
-  ssr: false,
-  loading: () => <p className="p-6 text-sm text-slate-500 dark:text-slate-400">Préparation de l&apos;aperçu…</p>,
-});
 
 type AiKind = "cvb_puce" | "cvb_resume" | "cvb_adaptation";
 export type CvBuilderUsage = { counts: Record<AiKind, AiUsageCount>; resetLabel: string };
@@ -103,6 +100,7 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
   const [counts, setCounts] = useState(usage.counts);
   const [limitHit, setLimitHit] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [pages, setPages] = useState(1);
   const version = useRef(0);
   const touched = useRef(false);
 
@@ -146,7 +144,11 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
   async function download() {
     setDownloading(true);
     try {
-      const [{ pdf }, { CvDocument }] = await Promise.all([import("@react-pdf/renderer"), import("./cv-document")]);
+      const [{ pdf }, { CvDocument, registerCvFonts }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("./cv-document"),
+      ]);
+      registerCvFonts(window.location.origin);
       const blob = await pdf(<CvDocument data={data} templateId={templateId} title={title} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -227,6 +229,43 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
         </div>
       </fieldset>
 
+      {/* Style : police et densité, appliquées à l'aperçu et au PDF. */}
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-1.5">
+          <label htmlFor="cv-police" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+            Police
+          </label>
+          <select
+            id="cv-police"
+            value={data.style.font}
+            onChange={(e) => edit((d) => ({ ...d, style: { ...d.style, font: e.target.value as CvFontId } }))}
+            className="input w-56"
+          >
+            {CV_FONTS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="cv-densite" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+            Taille du texte
+          </label>
+          <select
+            id="cv-densite"
+            value={data.style.density}
+            onChange={(e) =>
+              edit((d) => ({ ...d, style: { ...d.style, density: e.target.value === "compact" ? "compact" : "normal" } }))
+            }
+            className="input w-44"
+          >
+            <option value="normal">Normale</option>
+            <option value="compact">Compacte</option>
+          </select>
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
         {/* Formulaire */}
         <section aria-label="Contenu du CV" className="card min-w-0 p-4 sm:p-5">
@@ -286,9 +325,24 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
         {/* Aperçu : reste visible pendant la saisie (grand écran). */}
         <section
           aria-label="Aperçu du CV"
-          className="card h-[80vh] overflow-hidden p-1.5 lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]"
+          className="card flex h-[80vh] flex-col overflow-hidden lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]"
         >
-          <CvPreview data={data} templateId={templateId} title={title} />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-xs dark:border-slate-700">
+            <p className="text-slate-500 dark:text-slate-400">Clique sur un texte de l&apos;aperçu pour le modifier.</p>
+            <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
+              {pages > 1
+                ? `Environ ${pages} pages${data.style.density === "normal" ? " : essaie la taille de texte « Compacte »" : ""}`
+                : "1 page"}
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-4 dark:bg-slate-800/60">
+            <CvHtmlPreview
+              data={data}
+              templateId={templateId}
+              onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
+              onPagesChange={setPages}
+            />
+          </div>
         </section>
       </div>
     </div>
