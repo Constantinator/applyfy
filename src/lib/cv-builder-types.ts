@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { CvStyle as EditorStyle } from "./cv-style";
+
 // CV Builder : contenu d'un CV (colonne data de la table cv_builder, migration 0025) et
 // modèles de mise en page. Partagé entre le serveur (validation à l'enregistrement) et
 // l'éditeur (formulaire, prévisualisation, PDF).
@@ -158,6 +160,9 @@ export type CvLanguage = CvData["languages"][number];
 export type CvCertification = CvData["certifications"][number];
 export type CvProject = CvData["projects"][number];
 
+/** Extraction des données d'un CV importé : en cours, terminée, ou échouée. */
+export type ImportStatus = "pending" | "ready" | "failed";
+
 export type BuilderCv = {
   id: string;
   title: string;
@@ -165,9 +170,15 @@ export type BuilderCv = {
   data: CvData;
   createdAt: string;
   updatedAt: string;
+  /**
+   * CV créé à partir d'un CV existant, pas encore converti en modèle Applyfy : HTML de
+   * l'éditeur de CV et sa mise en forme ; `data` reçoit les données extraites en arrière-plan.
+   * `edited` : HTML modifié depuis l'import (la conversion le relit alors).
+   */
+  imported: { html: string; style: EditorStyle; status: ImportStatus; edited: boolean } | null;
 };
 
-export type BuilderCvSummary = Omit<BuilderCv, "data"> & { jobTitle: string };
+export type BuilderCvSummary = Omit<BuilderCv, "data" | "imported"> & { jobTitle: string; isImported: boolean };
 
 /** Données d'un CV lues en base : jamais d'échec, les champs invalides sont remis à zéro. */
 export function readCvData(value: unknown): CvData {

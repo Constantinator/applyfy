@@ -130,7 +130,7 @@ export function ImportCvButton({ resetLabel }: { resetLabel: string }) {
               Lecture de ton CV…
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              L&apos;IA remplit le formulaire avec tes informations. Cela peut prendre jusqu&apos;à une minute.
+              L&apos;IA retranscrit ton CV pour que tu puisses le modifier. Cela peut prendre jusqu&apos;à une minute.
             </p>
           </div>
         </div>

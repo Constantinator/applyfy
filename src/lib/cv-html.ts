@@ -15,6 +15,8 @@ export type ImprovedCv = {
   langue: "fr" | "en";
   nom: string;
   coordonnees: { ville: string; email: string; telephone: string; linkedin: string };
+  /** Paragraphe « Profil » (CV Builder : CV importé retranscrit fidèlement). */
+  profil?: string;
   formation: CvEntry[];
   experience: CvEntry[];
   competences: { categorie: string; elements: string }[];
@@ -22,8 +24,8 @@ export type ImprovedCv = {
 };
 
 const SECTION_TITLES = {
-  fr: { formation: "Formation", experience: "Expérience", competences: "Compétences", interets: "Intérêts" },
-  en: { formation: "Education", experience: "Experience", competences: "Skills", interets: "Interests" },
+  fr: { profil: "Profil", formation: "Formation", experience: "Expérience", competences: "Compétences", interets: "Intérêts" },
+  en: { profil: "Summary", formation: "Education", experience: "Experience", competences: "Skills", interets: "Interests" },
 } as const;
 
 /** Délimiteurs utilisés par Claude pour marquer un passage amélioré (ajouté ou reformulé). */
@@ -58,6 +60,7 @@ export function improvedCvToHtml(cv: ImprovedCv): string {
   const { ville, email, telephone, linkedin } = cv.coordonnees;
   const contact = [ville, email, telephone, linkedin].filter((s) => s.trim()).map(inline).join(" | ");
   if (contact) parts.push(`<p>${contact}</p>`);
+  if (cv.profil?.trim()) parts.push(`<h2>${titles.profil}</h2>`, `<p>${inline(cv.profil)}</p>`);
 
   const entries = (title: string, list: CvEntry[]) => {
     const kept = list.filter((e) => e.intitule.trim() || e.structure.trim());
