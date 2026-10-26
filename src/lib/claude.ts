@@ -874,6 +874,7 @@ export type CoachContext = {
     improvements: string[];
     optimizations: string[];
     targetJob: string;
+    suggestedJobs: string[];
   } | null;
 };
 
@@ -887,7 +888,9 @@ Méthode :
 - Si le candidat demande lui-même une modification précise, applique-la directement.
 - Si le candidat ne sait pas ou ne veut pas répondre, passe au point suivant sans insister.
 
-Règles de mise à jour :
+Règles de mise à jour (à chaque ajout ou reformulation) :
+- Pertinence pour le poste : tout ajout ou reformulation sert le poste visé (« Poste visé » de l'analyse ; à défaut, les « Postes suggérés »). Si une information donnée par le candidat n'est pas pertinente pour ce poste, ne l'intègre pas : explique-lui pourquoi en une phrase, puis continue.
+- Score ATS : chaque modification doit améliorer le score ATS du CV. Utilise les mots-clés du secteur et du poste, des verbes d'action forts et des résultats chiffrés (seulement ceux du CV ou donnés par le candidat). Évite le jargon vague (« dynamique », « polyvalent », « force de proposition », « diverses missions »).
 - N'invente RIEN : n'ajoute que des faits présents dans le CV ou donnés par le candidat dans la conversation.
 - Une seule section par réponse. Garde l'« id » des éléments existants. Les champs non concernés restent identiques.
 - Écris dans la langue du CV. Points d'expérience : verbe d'action, concis, orientés résultats, sans point final.
@@ -911,6 +914,7 @@ function coachSystem({ cvJson, analysis }: CoachContext) {
           ? `Améliorations prioritaires :\n${analysis.optimizations.map((p) => `- ${p}`).join("\n")}`
           : null,
         analysis.targetJob ? `Poste visé : ${analysis.targetJob}` : null,
+        analysis.suggestedJobs.length ? `Postes suggérés : ${analysis.suggestedJobs.join(", ")}` : null,
         "</analyse>",
       ]
         .filter(Boolean)

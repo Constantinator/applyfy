@@ -485,6 +485,7 @@ function coachContext(data: CvData): CoachContext & { contentKey: string } {
       improvements: a.improvements,
       optimizations: a.optimizations.map((o) => o.title),
       targetJob: a.targetJob,
+      suggestedJobs: a.suggestedJobs,
     },
   };
 }
