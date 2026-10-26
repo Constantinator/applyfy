@@ -1,6 +1,6 @@
 // Limites mensuelles d'utilisation de l'IA (plan gratuit), partagées entre les pages
 // (serveur) et les composants (client). Elles sont aussi appliquées par la base
-// (record_ai_usage, migrations 0013, 0014, 0020, 0023, 0025, 0026, 0028 et 0029) : garder les deux définitions alignées.
+// (record_ai_usage, migrations 0013, 0014, 0020, 0023, 0025, 0026, 0028, 0029 et 0031) : garder les deux définitions alignées.
 // Les utilisateurs Premium n'ont pas de limite mensuelle, seulement la limite quotidienne.
 
 /** Types d'action IA. */
@@ -17,6 +17,7 @@ export const AI_USAGE_KINDS = [
   "cvb_adaptation",
   "cvb_import",
   "cvb_chat",
+  "cvb_coach",
 ] as const;
 export type AiUsageKind = (typeof AI_USAGE_KINDS)[number];
 
@@ -37,6 +38,8 @@ export const AI_MONTHLY_LIMITS: Record<AiUsageKind, number> = {
   cvb_adaptation: 1,
   cvb_import: 1,
   cvb_chat: 2,
+  // Pas de limite mensuelle (borne de sécurité) : limite du jour CVB_COACH_DAILY_LIMIT.
+  cvb_coach: 1000,
 };
 
 export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string; feminine: boolean }> = {
@@ -51,7 +54,8 @@ export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string;
   cvb_resume: { title: "CV Builder — résumés de profil", unit: "résumés", feminine: false },
   cvb_adaptation: { title: "CV Builder — adaptations à une offre", unit: "adaptations", feminine: true },
   cvb_import: { title: "CV Builder — imports de CV", unit: "imports", feminine: false },
-  cvb_chat: { title: "CV Builder — chat « Affiner avec l'IA »", unit: "messages", feminine: false },
+  cvb_chat: { title: "CV Builder — chat : adaptations du CV", unit: "adaptations", feminine: true },
+  cvb_coach: { title: "CV Builder — chat : échanges sans modification", unit: "messages", feminine: false },
 };
 
 /** Utilisation d'un type d'action pour le mois en cours ; `limit` null : illimité (Premium). */
@@ -78,6 +82,14 @@ export const LIMIT_REACHED_LABEL = "Essai gratuit utilisé";
 
 /** Message commun à toutes les actions IA quand l'essai gratuit du mois est utilisé. */
 export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton essai gratuit. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour un accès illimité.`;
+
+/**
+ * Chat du CV Builder : seules les réponses qui modifient le CV comptent comme adaptations
+ * (cvb_chat). Les autres échanges (questions du coach) sont comptés à part (cvb_coach),
+ * limités par jour avec le plan gratuit.
+ */
+export const CVB_COACH_DAILY_LIMIT = 5;
+export const CVB_COACH_DAILY_MESSAGE = `Tu as atteint la limite de ${CVB_COACH_DAILY_LIMIT} échanges par jour avec le coach. Elle se remet à zéro à minuit, ou passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour échanger sans limite.`;
 
 /** Chat du CV Builder : plusieurs adaptations gratuites par mois. */
 export const CVB_CHAT_LIMIT_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations IA gratuites ce mois-ci. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour modifier ton CV avec l'IA sans limite.`;

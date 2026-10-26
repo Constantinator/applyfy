@@ -5,7 +5,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
-import type { RefineResult } from "@/lib/refine";
+import type { DocumentChatResult } from "@/lib/refine";
 
 /** Textes propres à chaque document (CV amélioré, lettre de motivation). */
 const DOCUMENTS = {
@@ -24,21 +24,16 @@ const DOCUMENTS = {
       "Raccourcis pour tenir en 1 page",
     ],
   },
-  // CV Builder : modifications appliquées aux champs du CV (enregistrement automatique).
+  // CV Builder : coach qui pose des questions et met à jour le CV (enregistrement automatique).
   cvBuilder: {
-    intro: "Demande une modification en quelques mots : elle est appliquée directement à ton CV.",
-    empty: "Dis à l'assistant ce que tu veux changer : une accroche plus forte, une expérience reformulée, un CV plus percutant…",
-    pending: "L'assistant modifie ton CV… cela peut prendre jusqu'à une minute.",
-    placeholder: "Ex: Améliore mon accroche, reformule mon expérience chez X...",
+    intro: "Réponds aux questions du coach : il intègre tes réponses directement dans ton CV.",
+    empty: "Écris au coach ce que tu veux améliorer dans ton CV, ou pose-lui une question.",
+    pending: "Le coach réfléchit… cela peut prendre quelques secondes.",
+    placeholder: "Ta réponse…",
     privacy: "Le contenu de ton CV (sans la photo) est transmis à Claude (Anthropic).",
-    save: "Les modifications sont enregistrées automatiquement.",
+    save: "Seules les réponses qui modifient ton CV comptent. Les modifications sont enregistrées automatiquement.",
     units: { one: "adaptation IA", many: "adaptations IA", used: "utilisées" },
-    suggestions: [
-      "Améliore mon accroche",
-      "Rends mon CV plus percutant",
-      "Ajoute des verbes d'action",
-      "Raccourcis pour tenir en 1 page",
-    ],
+    suggestions: [],
   },
   lettre: {
     intro: "Demande à l'assistant de rédiger ta lettre ou de la modifier : les changements sont surlignés en jaune.",
@@ -88,8 +83,7 @@ export function RefineChat({
   onPendingChange,
   initialPrompt,
   controlRef,
-  welcome,
-  suggestions,
+  opening,
   limitMessage,
   tall = false,
 }: {
@@ -101,7 +95,7 @@ export function RefineChat({
   /** Date de remise à zéro du compteur (ex. « 1er novembre 2026 »). */
   resetLabel: string;
   /** Server Action d'affinage du document. */
-  refine: (id: string, html: string, message: string, history: unknown) => Promise<RefineResult>;
+  refine: (id: string, html: string, message: string, history: unknown) => Promise<DocumentChatResult>;
   /** HTML du document tel qu'affiché dans l'éditeur. */
   readDocument: () => string;
   /** Remplace le document de l'éditeur et retourne le HTML précédent. */
@@ -111,10 +105,8 @@ export function RefineChat({
   initialPrompt?: string;
   /** Accès aux commandes du chat (insérer un texte dans le champ de saisie). */
   controlRef?: React.Ref<RefineChatHandle>;
-  /** Premier message de l'assistant, affiché à l'ouverture (ex. points à améliorer du CV importé). */
-  welcome?: string;
-  /** Suggestions propres à ce document, à la place des suggestions par défaut. */
-  suggestions?: readonly string[];
+  /** Premier message de l'assistant, demandé à l'ouverture (null : pas de message). */
+  opening?: () => Promise<string | null>;
   /** Message du bandeau Premium quand la limite du mois est atteinte. */
   limitMessage?: string;
   /** Historique plus haut (chat en colonne à côté de l'aperçu). */
@@ -122,9 +114,8 @@ export function RefineChat({
 }) {
   const texts = DOCUMENTS[document];
   const units = texts.units;
-  const [messages, setMessages] = useState<Message[]>(() =>
-    welcome ? [{ id: -1, role: "assistant", content: welcome }] : [],
-  );
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [openingPending, setOpeningPending] = useState(Boolean(opening && aiEnabled));
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [used, setUsed] = useState(usage.used);
@@ -171,7 +162,8 @@ export function RefineChat({
     try {
       const result = await refine(applicationId, readDocument(), request, history);
       if (result.ok) {
-        const previousHtml = replaceDocument(result.html);
+        // html null : réponse sans modification du document (rien à annuler).
+        const previousHtml = result.html === null ? undefined : replaceDocument(result.html);
         setUsed(result.usage.used);
         add({ role: "assistant", content: result.reply, previousHtml });
       } else {
@@ -185,6 +177,20 @@ export function RefineChat({
       onPendingChange(false);
     }
   }
+
+  // Premier message de l'assistant : demandé une seule fois, à l'ouverture.
+  const openingAsked = useRef(false);
+  useEffect(() => {
+    if (!opening || !aiEnabled || openingAsked.current) return;
+    openingAsked.current = true;
+    opening()
+      .then((text) => {
+        // Placé avant les messages déjà envoyés pendant le chargement.
+        if (text) setMessages((list) => [{ id: -1, role: "assistant", content: text }, ...list]);
+      })
+      .catch(() => {})
+      .finally(() => setOpeningPending(false));
+  }, [opening, aiEnabled]);
 
   // Demande initiale : envoyée une seule fois, juste après l'ouverture de l'éditeur.
   const initialSent = useRef(false);
@@ -232,8 +238,17 @@ export function RefineChat({
         aria-label="Conversation avec l'assistant"
         className={`${tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700`}
       >
-        {messages.length === 0 && !pending && (
+        {messages.length === 0 && !pending && !openingPending && (
           <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{texts.empty}</p>
+        )}
+        {openingPending && (
+          <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+            <span
+              aria-hidden="true"
+              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
+            />
+            Lecture de ton CV…
+          </p>
         )}
         {messages.map((message) =>
           message.role === "user" ? (
@@ -285,9 +300,9 @@ export function RefineChat({
         <p className="text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached ? (
         <UsageLimitBanner resetLabel={resetLabel} message={limitMessage} premiumBadge={limitMessage !== undefined} />
-      ) : (
+      ) : texts.suggestions.length === 0 ? null : (
         <div className="flex flex-wrap gap-2">
-          {(suggestions?.length ? suggestions : texts.suggestions).map((suggestion) => (
+          {texts.suggestions.map((suggestion) => (
             <button
               key={suggestion}
               type="button"

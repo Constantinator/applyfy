@@ -159,6 +159,30 @@ export async function checkAiAccess(
 }
 
 /**
+ * Actions d'un type depuis minuit (heure de Paris) pour l'utilisateur connecté. Sans échec :
+ * 0 si la lecture échoue (journalisée). Mode démo : 0.
+ */
+export async function countAiUsageToday(kind: AiUsageKind): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+    const today = parisDay(new Date());
+    const { data, error } = await supabase
+      .from("usage")
+      .select("created_at")
+      .eq("user_id", user.id)
+      .eq("kind", kind)
+      .eq("period", currentPeriod().period);
+    if (error) throw new Error(error.message);
+    return (data as { created_at: string }[]).filter((row) => parisDay(new Date(row.created_at)) === today).length;
+  } catch (error) {
+    console.error(`[aiUsage] lecture du jour (${kind})`, error);
+    return 0;
+  }
+}
+
+/**
  * Enregistre une action IA réussie. La base refuse l'ajout si la limite est déjà atteinte
  * (requêtes simultanées) : l'appel à Claude a déjà eu lieu, on journalise seulement.
  */

@@ -44,6 +44,7 @@ export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
   cvb_adaptation: 0.05,
   cvb_import: 0.06,
   cvb_chat: 0.05,
+  cvb_coach: 0.03,
 };
 
 /**

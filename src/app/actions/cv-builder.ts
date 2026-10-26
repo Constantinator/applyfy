@@ -1,11 +1,18 @@
 "use server";
 
+import { createHash } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
-import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
-import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageKind } from "@/lib/ai-usage-limits";
+import { checkAiAccess, checkAiRateLimit, countAiUsageToday, recordAiUsage } from "@/lib/ai-usage";
+import {
+  CVB_CHAT_LIMIT_MESSAGE,
+  CVB_COACH_DAILY_LIMIT,
+  CVB_COACH_DAILY_MESSAGE,
+  type AiUsageKind,
+} from "@/lib/ai-usage-limits";
 import { getCurrentUser } from "@/lib/auth";
 import {
   adaptCvToOffer,
@@ -15,7 +22,10 @@ import {
   generateCvSummary,
   improveCvBullet,
   isClaudeConfigured,
-  refineBuilderCv,
+  coachBuilderCv,
+  coachOpening,
+  type CoachContext,
+  type CoachUpdate,
   type ImportedCv,
 } from "@/lib/claude";
 import {
@@ -32,6 +42,7 @@ import {
   CV_LIMITS,
   chatContent,
   CvAnalysisSchema,
+  CV_CRITERIA,
   CvDataSchema,
   dateRange,
   fullName,
@@ -45,7 +56,7 @@ import {
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
-import type { RefineResult } from "@/lib/refine";
+import type { DocumentChatResult } from "@/lib/refine";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 /**
@@ -455,41 +466,145 @@ export async function completeCvImportAction(
 }
 
 // ---------------------------------------------------------------------------
-// Chat « Affiner avec l'IA » de l'éditeur (même composant que le CV d'une candidature)
+// Chat « coach » de l'éditeur (même composant que le CV d'une candidature)
 // ---------------------------------------------------------------------------
 
+/** Échanges précédents transmis au coach (un coaching s'étale sur plusieurs messages). */
+const COACH_HISTORY_MAX = 12;
+
+/** Contenu du CV transmis au coach, et son empreinte (cache du premier message). */
+function coachContext(data: CvData): CoachContext & { contentKey: string } {
+  const cvJson = JSON.stringify(chatContent(data));
+  const a = data.analysis;
+  return {
+    cvJson,
+    contentKey: createHash("sha256").update(cvJson).digest("hex").slice(0, 32),
+    analysis: a && {
+      score: a.score,
+      criteria: Object.fromEntries(CV_CRITERIA.map((c) => [c.label, a.criteria[c.id]])),
+      improvements: a.improvements,
+      optimizations: a.optimizations.map((o) => o.title),
+      targetJob: a.targetJob,
+    },
+  };
+}
+
 /**
- * Applique une demande au CV affiché (modifications non enregistrées comprises). `json` :
- * contenu du CV (chatContent) ; le résultat est renvoyé au même format dans `html`, nom
- * imposé par le composant du chat. CV importé : le poste visé et les points à améliorer de
- * l'analyse guident l'assistant. Deux adaptations gratuites par mois, illimité en Premium.
+ * Premier message du coach à l'ouverture de l'éditeur : le point le plus faible du CV et une
+ * question. Gratuit (hors quota). Gardé dans le CV tant que son contenu ne change pas.
  */
-export async function refineBuilderCvAction(id: string, json: string, message: string, history: unknown): Promise<RefineResult> {
+export async function coachOpeningAction(
+  id: string,
+): Promise<{ ok: true; coach: NonNullable<CvData["coach"]> } | { ok: false }> {
+  if (typeof id !== "string" || !isClaudeConfigured()) return { ok: false };
+  try {
+    const cv = await getBuilderCv(id);
+    if (!cv) return { ok: false };
+    const context = coachContext(cv.data);
+    if (cv.data.coach?.contentKey === context.contentKey) return { ok: true, coach: cv.data.coach };
+
+    const rate = await checkAiRateLimit();
+    if (!rate.ok) return { ok: false };
+    const message = (await coachOpening(context))?.slice(0, 2000);
+    if (!message) return { ok: false };
+    const coach = { opening: message, contentKey: context.contentKey };
+    await saveBuilderCv(cv.id, { title: cv.title, templateId: cv.templateId, data: { ...cv.data, coach } });
+    return { ok: true, coach };
+  } catch (error) {
+    unstable_rethrow(error);
+    claudeErrorMessage(error, "cv-builder coach : premier message"); // journalisation
+    return { ok: false };
+  }
+}
+
+/** Section renvoyée par le coach, appliquée au CV ; null si elle est inutilisable. */
+function applyCoachUpdate(current: CvData, update: CoachUpdate): CvData | null {
+  const next: Record<string, unknown> = { ...current };
+  // Élément d'une liste remplacé par son id, ou ajouté s'il est nouveau.
+  const upsert = <T extends { id: string }>(items: T[], item: T | null) => {
+    if (!item) return null;
+    const index = item.id ? items.findIndex((i) => i.id === item.id) : -1;
+    if (index < 0) return [...items, { ...item, id: newItemId() }];
+    return items.map((i, j) => (j === index ? item : i));
+  };
+  // Liste complète : identifiants manquants ou en double remplacés.
+  const withIds = <T extends { id: string }>(items: T[] | null) => {
+    if (!items) return null;
+    const seen = new Set<string>();
+    return items.map((item) => {
+      const id = item.id && !seen.has(item.id) && item.id.length <= 40 ? item.id : newItemId();
+      seen.add(id);
+      return { ...item, id };
+    });
+  };
+  const value = {
+    personal: update.personal && { ...update.personal, photo: current.personal.photo },
+    summary: update.summary,
+    experience: upsert(current.experiences, update.experience),
+    education: upsert(current.education, update.education),
+    skills: withIds(update.skills),
+    languages: withIds(update.languages),
+    certifications: withIds(update.certifications),
+    projects: withIds(update.projects),
+    interests: update.interests,
+  }[update.section];
+  if (value === null || value === undefined) return null;
+  const key = { experience: "experiences", education: "education" }[update.section as string] ?? update.section;
+  next[key] = value;
+  const parsed = CvDataSchema.safeParse(next);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Réponse du coach au message du candidat, sur le CV affiché (modifications non enregistrées
+ * comprises). `json` : contenu du CV (chatContent) ; le CV mis à jour est renvoyé au même
+ * format dans `html` (nom imposé par le composant du chat), ou null s'il ne change pas.
+ * Quota : seules les réponses qui modifient le CV comptent (cvb_chat, 2 par mois avec le
+ * plan gratuit) ; les autres sont limitées à CVB_COACH_DAILY_LIMIT par jour (cvb_coach).
+ */
+export async function refineBuilderCvAction(
+  id: string,
+  json: string,
+  message: string,
+  history: unknown,
+): Promise<DocumentChatResult> {
   if (typeof id !== "string" || typeof json !== "string" || typeof message !== "string") {
     return { ok: false, error: "Requête invalide." };
   }
   const request = message.trim();
-  if (!request) return { ok: false, error: "Écris ta demande." };
-  if (request.length > REFINE_MESSAGE_MAX_LENGTH) return { ok: false, error: "Ta demande est trop longue." };
+  if (!request) return { ok: false, error: "Écris ta réponse." };
+  if (request.length > REFINE_MESSAGE_MAX_LENGTH) return { ok: false, error: "Ton message est trop long." };
   if (json.length > 200_000) return { ok: false, error: "Le CV est trop long." };
   if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
 
-  let current: CvData;
+  let shown: CvData;
   try {
     const parsed = CvDataSchema.safeParse(JSON.parse(json));
     if (!parsed.success) return { ok: false, error: "Le CV contient des informations invalides." };
-    current = parsed.data;
+    shown = parsed.data;
   } catch {
     return { ok: false, error: "Requête invalide." };
   }
   // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
   const stored = await getBuilderCv(id);
   if (!stored) return { ok: false, error: "Ce CV n'existe plus." };
-  const analysis = stored.data.analysis;
+  // Contenu affiché, avec la photo, les réglages et l'analyse enregistrés.
+  const current: CvData = {
+    ...shown,
+    personal: { ...shown.personal, photo: stored.data.personal.photo },
+    style: stored.data.style,
+    analysis: stored.data.analysis,
+    coach: null,
+  };
 
+  // Adaptations du mois épuisées : le chat est bloqué (Premium proposé).
   const gate = await checkAiAccess("cvb_chat");
   if (!gate.ok) {
     return { ok: false, error: gate.limitReached ? CVB_CHAT_LIMIT_MESSAGE : gate.message, limitReached: gate.limitReached };
+  }
+  // Échanges sans modification : limite du jour avec le plan gratuit.
+  if (gate.count.limit !== null && (await countAiUsageToday("cvb_coach")) >= CVB_COACH_DAILY_LIMIT) {
+    return { ok: false, error: CVB_COACH_DAILY_MESSAGE };
   }
 
   const turns = Array.isArray(history)
@@ -498,48 +613,34 @@ export async function refineBuilderCvAction(id: string, json: string, message: s
           (t): t is { role: "user" | "assistant"; content: string } =>
             Boolean(t) && (t.role === "user" || t.role === "assistant") && typeof t.content === "string",
         )
-        .slice(-6)
-        .map(({ role, content }) => ({ role, content: content.slice(0, REFINE_MESSAGE_MAX_LENGTH) }))
+        .slice(-COACH_HISTORY_MAX)
+        .map(({ role, content }) => ({ role, content: content.slice(0, 2000) }))
     : [];
 
-  let refined;
+  let reply;
   try {
-    refined = await refineBuilderCv(JSON.stringify(chatContent(current)), turns, request, {
-      targetJob: analysis?.targetJob,
-      optimizations: analysis?.optimizations.map((o) => o.title),
-    });
+    reply = await coachBuilderCv(coachContext(current), turns, request);
   } catch (error) {
-    return { ok: false, error: claudeErrorMessage(error, "cv-builder chat") };
+    return { ok: false, error: claudeErrorMessage(error, "cv-builder coach") };
   }
-  if (!refined) return { ok: false, error: "La modification n'a pas pu être appliquée. Reformule ta demande." };
+  if (!reply) return { ok: false, error: "Le coach n'a pas pu répondre. Reformule ton message." };
 
-  // Identifiants manquants ou en double (nouveaux éléments) : remplacés.
-  const seen = new Set<string>();
-  const withIds = <T extends { id: string }>(items: T[]) =>
-    items.map((item) => {
-      const id = item.id && !seen.has(item.id) && item.id.length <= 40 ? item.id : newItemId();
-      seen.add(id);
-      return { ...item, id };
-    });
-  const cv = refined.cv;
-  const updated = CvDataSchema.safeParse({
-    ...cv,
-    experiences: withIds(cv.experiences),
-    education: withIds(cv.education),
-    skills: withIds(cv.skills),
-    languages: withIds(cv.languages),
-    certifications: withIds(cv.certifications),
-    projects: withIds(cv.projects),
-    personal: { ...cv.personal, photo: current.personal.photo },
-    style: current.style,
-  });
-  if (!updated.success) return { ok: false, error: "La modification rend le CV trop long. Reformule ta demande." };
+  const text = reply.message.trim();
+  if (reply.update) {
+    const updated = applyCoachUpdate(current, reply.update);
+    if (updated) {
+      await recordAiUsage("cvb_chat");
+      return {
+        ok: true,
+        reply: text || "Parfait, j'intègre ça dans ton CV.",
+        html: JSON.stringify(chatContent(updated)),
+        usage: { used: gate.count.used + 1, limit: gate.count.limit },
+      };
+    }
+    console.error("[cv-builder coach] mise à jour inutilisable", reply.update.section);
+    if (!text) return { ok: false, error: "La modification n'a pas pu être appliquée. Reformule ton message." };
+  }
 
-  await recordAiUsage("cvb_chat");
-  return {
-    ok: true,
-    reply: refined.reponse.trim() || "C'est fait : ton CV est à jour.",
-    html: JSON.stringify(chatContent(updated.data)),
-    usage: { used: gate.count.used + 1, limit: gate.count.limit },
-  };
+  await recordAiUsage("cvb_coach");
+  return { ok: true, reply: text, html: null, usage: gate.count };
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { refineBuilderCvAction, saveBuilderCvAction } from "@/app/actions/cv-builder";
+import { coachOpeningAction, refineBuilderCvAction, saveBuilderCvAction } from "@/app/actions/cv-builder";
 import { RefineChat } from "@/components/application/refine-chat";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
@@ -13,7 +13,6 @@ import {
   CvDataSchema,
   fullName,
   type BuilderCv,
-  type CvAnalysis,
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
@@ -42,22 +41,10 @@ function fileName(title: string, data: CvData) {
   return `${base.replace(/[^\w -]+/g, "").trim().replace(/\s+/g, "-") || "CV"}.pdf`;
 }
 
-/** Premier message du chat d'un CV importé : les optimisations prioritaires de l'analyse. */
-function welcomeMessage(analysis: CvAnalysis) {
-  const points = analysis.optimizations.map((o) => `• ${o.title}`);
-  return [
-    points.length ? `Voici ce que j'ai identifié à améliorer dans ton CV :\n${points.join("\n")}` : null,
-    analysis.targetJob ? `Je tiens compte du poste que tu vises : ${analysis.targetJob}.` : null,
-    "Tu peux me demander de corriger l'un de ces points, ou me poser n'importe quelle question sur ton CV.",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 /**
- * Éditeur du CV Builder : chat « Affiner avec l'IA » à gauche (40 %) et aperçu du CV à
- * droite (60 %), modifiable d'un clic sur un texte. CV importé : le chat s'ouvre sur les
- * points à améliorer de l'analyse.
+ * Éditeur du CV Builder : chat « coach » à gauche (40 %) et aperçu du CV à droite (60 %),
+ * modifiable d'un clic sur un texte. Le coach ouvre la conversation sur le point le plus
+ * faible du CV, pose ses questions et intègre les réponses au CV.
  */
 export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilderUsage }) {
   const [title, setTitle] = useState(cv.title);
@@ -68,7 +55,6 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
   const [saveError, setSaveError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [pages, setPages] = useState(1);
-  const analysis = cv.data.analysis;
   const version = useRef(0);
   const touched = useRef(false);
   // Dernières données, lues par le chat au moment d'un envoi ou d'une annulation.
@@ -104,6 +90,15 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [status]);
+
+  // Premier message du coach. Gardé dans les données (sans les marquer modifiées) : la
+  // sauvegarde automatique conserve ainsi le cache enregistré par le serveur.
+  const opening = useCallback(async () => {
+    const result = await coachOpeningAction(cv.id);
+    if (!result.ok) return null;
+    setData((d) => ({ ...d, coach: result.coach }));
+    return result.coach.opening;
+  }, [cv.id]);
 
   async function download() {
     setDownloading(true);
@@ -163,7 +158,7 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
       )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
-        {/* Chat « Affiner avec l'IA » : même composant que l'éditeur du CV d'une candidature. */}
+        {/* Chat « coach » : même composant que le chat de l'éditeur du CV d'une candidature. */}
         <div className="min-w-0">
           <RefineChat
             document="cvBuilder"
@@ -183,6 +178,7 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
                   personal: { ...parsed.personal, photo: current.personal.photo },
                   style: current.style,
                   analysis: current.analysis,
+                  coach: current.coach,
                 });
                 if (next.success) edit(() => next.data);
               } catch {
@@ -191,8 +187,7 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
               return previous;
             }}
             onPendingChange={() => {}}
-            welcome={analysis ? welcomeMessage(analysis) : undefined}
-            suggestions={analysis?.optimizations.map((o) => o.request).filter(Boolean)}
+            opening={opening}
             limitMessage={CVB_CHAT_LIMIT_MESSAGE}
             tall
           />

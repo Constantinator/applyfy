@@ -22,6 +22,11 @@ export type RefineResult =
   | { ok: true; reply: string; html: string; usage: AiUsageCount }
   | { ok: false; error: string; limitReached?: boolean };
 
+/** Résultat d'un message du chat, quel que soit le document : `html` null si le document ne change pas. */
+export type DocumentChatResult =
+  | { ok: true; reply: string; html: string | null; usage: AiUsageCount }
+  | { ok: false; error: string; limitReached?: boolean };
+
 /** Nombre d'échanges précédents transmis à Claude comme contexte. */
 const HISTORY_MAX = 6;
 

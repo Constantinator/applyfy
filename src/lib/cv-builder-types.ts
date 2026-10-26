@@ -208,6 +208,15 @@ export const CvDataSchema = z.object({
     .prefault({}),
   /** CV importé : analyse de l'import (null pour un CV créé à partir d'un modèle vierge). */
   analysis: CvAnalysisSchema.nullable().catch(null).default(null),
+  /**
+   * Premier message du coach (chat de l'éditeur), gardé tant que le contenu du CV ne change
+   * pas : `contentKey` est l'empreinte du contenu (chatContent) au moment où il a été écrit.
+   */
+  coach: z
+    .object({ opening: z.string().max(2000), contentKey: z.string().max(100) })
+    .nullable()
+    .catch(null)
+    .default(null),
 });
 
 export type CvData = z.infer<typeof CvDataSchema>;
