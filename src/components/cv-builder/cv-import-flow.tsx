@@ -304,10 +304,22 @@ function UploadStep({
 
 /** Couleur d'une note : rouge sous 50 %, orange sous 75 %, vert au-delà. */
 function tone(ratio: number) {
-  if (ratio < 0.5) return { stroke: "#dc2626", bar: "bg-red-500", text: "text-red-600 dark:text-red-400", label: "À retravailler" };
-  if (ratio < 0.75) return { stroke: "#f97316", bar: "bg-orange-500", text: "text-orange-600 dark:text-orange-400", label: "Correct" };
-  return { stroke: "#16a34a", bar: "bg-green-600", text: "text-green-700 dark:text-green-400", label: "Très bon" };
+  if (ratio < 0.5) return { stroke: "#dc2626", bar: "bg-red-500", text: "text-red-600 dark:text-red-400" };
+  if (ratio < 0.75) return { stroke: "#f97316", bar: "bg-orange-500", text: "text-orange-600 dark:text-orange-400" };
+  return { stroke: "#16a34a", bar: "bg-green-600", text: "text-green-700 dark:text-green-400" };
 }
+
+/** Appréciation du score sur 100. */
+function scoreLabel(score: number) {
+  if (score < 50) return "À retravailler";
+  if (score < 65) return "Correct";
+  if (score < 75) return "Bien";
+  if (score < 85) return "Très bien";
+  return "Excellent";
+}
+
+/** Sous-étapes de l'analyse : un écran chacune, dans l'étape « Analyse » du stepper. */
+const ANALYSIS_SCREENS = ["Score", "Points forts et faibles", "Poste visé", "Optimisations"] as const;
 
 function AnalysisStep({
   analysis,
@@ -320,23 +332,68 @@ function AnalysisStep({
   onTargetJob: (value: string) => void;
   onContinue: () => void;
 }) {
-  return (
-    <div className="space-y-6">
-      {analysis ? (
-        <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
-          <ScoreCard analysis={analysis} />
-          <TargetJobCard suggestions={analysis.suggestedJobs} value={targetJob} onChange={onTargetJob} />
-          <OptimizationsCard analysis={analysis} />
-        </div>
-      ) : (
+  const [screen, setScreen] = useState(0);
+  const headingRef = useRef<HTMLDivElement>(null);
+
+  if (!analysis) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
         <p className="card p-6 text-sm text-slate-600 dark:text-slate-300">
           Ton CV est bien importé, mais son analyse n&apos;a pas pu être faite. Tu peux continuer : l&apos;assistant IA de
           l&apos;éditeur t&apos;aidera à l&apos;améliorer.
         </p>
-      )}
-      <div className="flex justify-end">
-        <button type="button" onClick={onContinue} className="btn-primary px-6 py-2.5 text-sm">
-          Continuer
+        <div className="flex justify-end">
+          <button type="button" onClick={onContinue} className="btn-primary px-6 py-2.5 text-sm">
+            Choisir mon modèle de CV
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const last = screen === ANALYSIS_SCREENS.length - 1;
+  function go(next: number) {
+    setScreen(next);
+    // Nouvel écran : retour en haut, focus sur son contenu (lecteurs d'écran).
+    headingRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    headingRef.current?.focus({ preventScroll: true });
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-5">
+      <div ref={headingRef} tabIndex={-1} className="flex items-center justify-between gap-3 outline-none">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          {screen + 1}/{ANALYSIS_SCREENS.length} · {ANALYSIS_SCREENS[screen]}
+        </p>
+        <div aria-hidden="true" className="flex gap-1.5">
+          {ANALYSIS_SCREENS.map((label, i) => (
+            <span
+              key={label}
+              className={`h-1.5 w-6 rounded-full ${i <= screen ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {screen === 0 && <ScoreCard analysis={analysis} />}
+      {screen === 1 && <PointsCard analysis={analysis} />}
+      {screen === 2 && <TargetJobCard suggestions={analysis.suggestedJobs} value={targetJob} onChange={onTargetJob} />}
+      {screen === 3 && <OptimizationsCard analysis={analysis} />}
+
+      <div className="flex items-center justify-between gap-3">
+        {screen > 0 ? (
+          <button
+            type="button"
+            onClick={() => go(screen - 1)}
+            className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white"
+          >
+            Retour
+          </button>
+        ) : (
+          <span />
+        )}
+        <button type="button" onClick={() => (last ? onContinue() : go(screen + 1))} className="btn-primary px-6 py-2.5 text-sm">
+          {screen === 0 ? "Voir les points forts et faibles" : last ? "Choisir mon modèle de CV" : "Continuer"}
         </button>
       </div>
     </div>
@@ -382,7 +439,7 @@ function ScoreCard({ analysis }: { analysis: CvAnalysis }) {
           </p>
         </div>
         <div>
-          <p className={`font-semibold ${t.text}`}>{t.label}</p>
+          <p className={`font-semibold ${t.text}`}>{scoreLabel(analysis.score)}</p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Évalué comme le ferait un recruteur.</p>
         </div>
       </div>
@@ -404,7 +461,15 @@ function ScoreCard({ analysis }: { analysis: CvAnalysis }) {
           );
         })}
       </ul>
+    </section>
+  );
+}
 
+function PointsCard({ analysis }: { analysis: CvAnalysis }) {
+  const titleId = useId();
+  return (
+    <section aria-labelledby={titleId} className="card space-y-5 p-5">
+      <CardTitle id={titleId}>Points forts et points à améliorer</CardTitle>
       {analysis.positives.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Points positifs</h3>
