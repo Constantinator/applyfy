@@ -24,12 +24,7 @@ export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-bui
       <CvBuilderEditor
         cv={cv}
         usage={{
-          counts: {
-            cvb_puce: usage.counts.cvb_puce,
-            cvb_resume: usage.counts.cvb_resume,
-            cvb_adaptation: usage.counts.cvb_adaptation,
-            cvb_chat: usage.counts.cvb_chat,
-          },
+          chat: usage.counts.cvb_chat,
           resetLabel: formatResetDate(usage.resetsOn),
           aiEnabled: isClaudeConfigured(),
         }}
