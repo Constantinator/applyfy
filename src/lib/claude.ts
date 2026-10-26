@@ -339,7 +339,9 @@ const RefinedDocumentSchema = z.object({
   html: z.string().describe("Le document complet mis à jour, en HTML, modifications encadrées par <mark>"),
   reponse: z
     .string()
-    .describe("1 à 3 phrases au candidat (tutoiement) : ce qui a changé, et ce qu'il doit compléter lui-même"),
+    .describe(
+      "Au candidat (tutoiement) : 1 à 3 phrases sur ce qui a changé et ce qu'il doit compléter lui-même, ou la réponse à sa question",
+    ),
 });
 
 export type RefinedDocument = z.infer<typeof RefinedDocumentSchema>;
@@ -657,13 +659,41 @@ const ImportedCvSchema = z.object({
   certifications: z.array(z.object({ name: z.string(), issuer: z.string(), date: z.string() })),
   projects: z.array(z.object({ name: z.string(), description: z.string(), link: z.string() })),
   interests: z.array(z.string()),
+  analysis: z.object({
+    criteria: z
+      .object({
+        clarity: z.number().int(),
+        impact: z.number().int(),
+        structure: z.number().int(),
+        ats: z.number().int(),
+        length: z.number().int(),
+        formatting: z.number().int(),
+      })
+      .describe("Note de 0 à 10 de chaque critère"),
+    score: z.number().int().describe("Note globale sur 100"),
+    positives: z.array(z.string()).describe("2 à 4 points forts"),
+    improvements: z.array(z.string()).describe("2 à 4 points à améliorer"),
+    optimizations: z
+      .array(z.object({ title: z.string(), detail: z.string(), request: z.string() }))
+      .describe("3 à 5 améliorations prioritaires, de la plus importante à la moins importante"),
+    suggestedJobs: z.array(z.string()).describe("3 à 5 intitulés de postes que ce profil peut viser"),
+  }),
 });
 
 export type ImportedCv = z.infer<typeof ImportedCvSchema>;
 
-const IMPORT_CV_SYSTEM = `Extrais les informations de ce CV. Recopie chaque élément exactement tel qu'il apparaît, sans reformuler, résumer ou compléter. Chaque puce ou tiret = un élément séparé dans bullets[], jamais fusionné. Respecte strictement l'appartenance de chaque information à sa section. Si un passage est illisible, laisse le champ vide.`;
+const IMPORT_CV_SYSTEM = `Extrais les informations de ce CV. Recopie chaque élément exactement tel qu'il apparaît, sans reformuler, résumer ou compléter. Chaque puce ou tiret = un élément séparé dans bullets[], jamais fusionné. Respecte strictement l'appartenance de chaque information à sa section. Si un passage est illisible, laisse le champ vide.
 
-/** « Importer un CV » du CV Builder : contenu structuré d'un CV PDF ou Word ; null si illisible. */
+Puis, dans « analysis », évalue ce CV comme un recruteur exigeant mais juste. Écris en français, en tutoyant le candidat, phrases courtes et concrètes, propres à CE CV (jamais de conseil générique) :
+- criteria : note de 0 à 10 pour chaque critère. clarity : clarté et lisibilité. impact : formulations (verbes d'action, résultats chiffrés). structure : ordre et organisation des sections. ats : mots-clés du métier et lisibilité par les logiciels de recrutement. length : longueur adaptée à l'expérience. formatting : mise en forme (cohérence, aération, dates) ; pour un CV fourni en texte brut, juge l'organisation du texte.
+- score : note globale sur 100, cohérente avec les critères. Un CV moyen obtient 50 à 65, un excellent CV dépasse 85.
+- positives : 2 à 4 points forts.
+- improvements : 2 à 4 points faibles.
+- optimizations : 3 à 5 améliorations prioritaires. title : une phrase courte adressée au candidat (ex. « Ton accroche est trop vague », « Tes expériences manquent de chiffres concrets »). detail : une phrase, pourquoi et comment. request : la demande que le candidat écrirait à l'assistant qui modifie son CV pour corriger ce point, 12 mots maximum (ex. « Rends mon accroche plus précise et percutante »).
+- suggestedJobs : 3 à 5 intitulés de postes courts que ce profil peut viser, déduits du CV (ex. « Data Analyst », « Chef de projet », « Consultant finance »).
+L'analyse s'appuie uniquement sur le contenu du CV et ne modifie jamais les informations extraites.`;
+
+/** « Importer un CV » du CV Builder : contenu structuré d'un CV PDF ou Word et son analyse ; null si illisible. */
 export async function extractCvForBuilder(
   source: { kind: "pdf"; base64: string } | { kind: "text"; text: string },
 ): Promise<ImportedCv | null> {
@@ -671,10 +701,10 @@ export async function extractCvForBuilder(
     source.kind === "pdf"
       ? [
           { type: "document", source: { type: "base64", media_type: "application/pdf", data: source.base64 }, title: "CV" },
-          { type: "text", text: "Extrais le contenu de ce CV." },
+          { type: "text", text: "Extrais le contenu de ce CV, puis analyse-le." },
         ]
-      : [{ type: "text", text: `<cv>\n${source.text}\n</cv>\n\nExtrais le contenu de ce CV.` }];
-  return parseStructured(ImportedCvSchema, IMPORT_CV_SYSTEM, content, { effort: "low", maxTokens: 16000 });
+      : [{ type: "text", text: `<cv>\n${source.text}\n</cv>\n\nExtrais le contenu de ce CV, puis analyse-le.` }];
+  return parseStructured(ImportedCvSchema, IMPORT_CV_SYSTEM, content, { effort: "low", maxTokens: 20000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -727,6 +757,9 @@ export type RefinedBuilderCv = z.infer<typeof RefinedBuilderCvSchema>;
 
 const REFINE_BUILDER_SYSTEM = `Tu es l'assistant du CV Builder d'Applyfy. Le candidat te demande de modifier son CV, fourni en JSON.
 - Applique uniquement la demande : les champs qu'elle ne concerne pas restent strictement identiques.
+- Si le candidat pose une question sans demander de modification, réponds-y dans « reponse » (5 phrases maximum) et
+  renvoie le CV strictement inchangé.
+- Si un poste visé est indiqué, oriente les formulations et les mots-clés vers ce type de poste quand la demande s'y prête.
 - Renvoie le CV complet. Garde l'« id » de chaque élément existant ; un nouvel élément reçoit un id court inédit.
 - N'invente aucun fait, chiffre, employeur, diplôme ou outil absent du CV : si une information manque, dis-le au candidat
   dans ta réponse au lieu de l'inventer.
@@ -740,12 +773,17 @@ export async function refineBuilderCv(
   cvJson: string,
   history: RefineChatTurn[],
   message: string,
+  context: { targetJob?: string; optimizations?: string[] } = {},
 ): Promise<RefinedBuilderCv | null> {
   const transcript = history
     .map((turn) => `${turn.role === "user" ? "Candidat" : "Assistant"} : ${turn.content}`)
     .join("\n");
   const text = [
     `<cv>\n${cvJson}\n</cv>`,
+    context.targetJob ? `<poste_vise>\n${context.targetJob}\n</poste_vise>` : null,
+    context.optimizations?.length
+      ? `<points_a_ameliorer>\n${context.optimizations.map((o) => `- ${o}`).join("\n")}\n</points_a_ameliorer>`
+      : null,
     transcript ? `<historique>\n${transcript}\n</historique>` : null,
     `<demande>\n${message}\n</demande>`,
   ]

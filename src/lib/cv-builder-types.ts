@@ -126,6 +126,46 @@ const ProjectSchema = z.object({
   link: text(CV_LIMITS.url),
 });
 
+/** Critères de l'analyse d'un CV importé, notés sur 10. */
+export const CV_CRITERIA = [
+  { id: "clarity", label: "Clarté" },
+  { id: "impact", label: "Impact des formulations" },
+  { id: "structure", label: "Structure" },
+  { id: "ats", label: "Mots-clés ATS" },
+  { id: "length", label: "Longueur" },
+  { id: "formatting", label: "Mise en forme" },
+] as const;
+export type CvCriterionId = (typeof CV_CRITERIA)[number]["id"];
+
+const note = (max: number) => z.number().int().min(0).max(max);
+
+/**
+ * Analyse faite à l'import d'un CV existant (même appel à l'IA que l'extraction) : score,
+ * points forts et faibles, optimisations prioritaires (reprises par le chat de l'éditeur),
+ * postes suggérés et poste visé choisi par l'utilisateur.
+ */
+export const CvAnalysisSchema = z.object({
+  score: note(100),
+  criteria: z.object({
+    clarity: note(10),
+    impact: note(10),
+    structure: note(10),
+    ats: note(10),
+    length: note(10),
+    formatting: note(10),
+  }),
+  positives: z.array(z.string().max(300)).max(6).default([]),
+  improvements: z.array(z.string().max(300)).max(6).default([]),
+  /** `request` : demande prête à envoyer au chat pour corriger ce point. */
+  optimizations: z
+    .array(z.object({ title: z.string().max(200), detail: z.string().max(500), request: z.string().max(200) }))
+    .max(5)
+    .default([]),
+  suggestedJobs: z.array(z.string().max(80)).max(5).default([]),
+  targetJob: z.string().max(120).default(""),
+});
+export type CvAnalysis = z.infer<typeof CvAnalysisSchema>;
+
 export const CvDataSchema = z.object({
   personal: z
     .object({
@@ -163,6 +203,8 @@ export const CvDataSchema = z.object({
       align: z.enum(["left", "justify"]).catch("left").default("left"),
     })
     .prefault({}),
+  /** CV importé : analyse de l'import (null pour un CV créé à partir d'un modèle vierge). */
+  analysis: CvAnalysisSchema.nullable().catch(null).default(null),
 });
 
 export type CvData = z.infer<typeof CvDataSchema>;

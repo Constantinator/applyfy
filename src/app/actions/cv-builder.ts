@@ -5,7 +5,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
 import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
-import type { AiUsageKind } from "@/lib/ai-usage-limits";
+import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageKind } from "@/lib/ai-usage-limits";
 import { getCurrentUser } from "@/lib/auth";
 import {
   adaptCvToOffer,
@@ -23,7 +23,6 @@ import {
   deleteBuilderCv,
   getBuilderCv,
   saveBuilderCv,
-  setBuilderCvTemplate,
 } from "@/lib/cv-builder";
 import {
   CV_IMPORT_FOLDER,
@@ -31,12 +30,14 @@ import {
   CV_IMPORT_MAX_LABEL,
   CV_LIMITS,
   chatContent,
+  CvAnalysisSchema,
   CvDataSchema,
   dateRange,
   fullName,
   interestList,
   isTemplateId,
   newItemId,
+  type CvAnalysis,
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
@@ -221,7 +222,9 @@ export async function adaptToOfferAction(rawData: CvData, offer: string) {
 // « Importer un CV » : PDF ou Word lu par l'IA, puis nouveau CV pré-rempli
 // ---------------------------------------------------------------------------
 
-export type ImportCvResult = { ok: true; id: string } | { ok: false; error: string; limitReached?: boolean };
+export type ImportCvResult =
+  | { ok: true; id: string; analysis: CvAnalysis | null }
+  | { ok: false; error: string; limitReached?: boolean };
 
 const clip = (value: string, max: number) => value.trim().slice(0, max);
 
@@ -233,6 +236,33 @@ function splitBullets(bullets: string[]) {
       .map((part) => part.replace(/^[-–—*]\s+/, "").trim())
       .filter(Boolean),
   );
+}
+
+const clipList = (items: string[], max: number, count: number) =>
+  items
+    .map((item) => clip(item, max))
+    .filter(Boolean)
+    .slice(0, count);
+
+/** Note de l'IA ramenée à un entier entre 0 et `max`. */
+const clampNote = (value: number, max: number) => Math.min(max, Math.max(0, Math.round(Number(value) || 0)));
+
+/** Analyse de l'IA aux bornes du schéma ; null si elle est inutilisable (le CV reste importé). */
+function importedAnalysis({ analysis: a }: ImportedCv): CvAnalysis | null {
+  const parsed = CvAnalysisSchema.safeParse({
+    score: clampNote(a.score, 100),
+    criteria: Object.fromEntries(Object.entries(a.criteria).map(([k, v]) => [k, clampNote(v, 10)])),
+    positives: clipList(a.positives, 300, 6),
+    improvements: clipList(a.improvements, 300, 6),
+    optimizations: a.optimizations
+      .map((o) => ({ title: clip(o.title, 200), detail: clip(o.detail, 500), request: clip(o.request, 200) }))
+      .filter((o) => o.title)
+      .slice(0, 5),
+    suggestedJobs: clipList(a.suggestedJobs, 80, 5),
+    targetJob: "",
+  });
+  if (!parsed.success) console.error("[cv-builder] analyse de l'import", parsed.error.message);
+  return parsed.success ? parsed.data : null;
 }
 
 /** Contenu extrait → données du CV, aux bornes du formulaire (un champ trop long est coupé). */
@@ -296,6 +326,7 @@ function importedToCvData(cv: ImportedCv): CvData {
         .join(", "),
       500,
     ),
+    analysis: importedAnalysis(cv),
   });
 }
 
@@ -337,8 +368,9 @@ async function readImportFile(formData: FormData, userId: string | null): Promis
 }
 
 /**
- * « Créer un CV à partir d'un CV existant » : extraction par l'IA puis création du CV
- * pré-rempli (modèle Minimaliste, puis celui choisi dans « Choisis un modèle »).
+ * « Créer un CV à partir d'un CV existant », étape 1 : extraction et analyse par l'IA (un
+ * seul appel), puis création du CV pré-rempli (modèle Minimaliste) avec son analyse. Le
+ * poste visé et le modèle sont choisis ensuite (completeCvImportAction).
  */
 export async function importBuilderCvAction(formData: FormData): Promise<ImportCvResult> {
   const user = await getCurrentUser();
@@ -373,10 +405,11 @@ export async function importBuilderCvAction(formData: FormData): Promise<ImportC
   }
 
   let id: string;
+  let data: CvData;
   try {
     const extracted = await extractCvForBuilder(source);
     if (!extracted) return { ok: false, error: "Ce CV n'a pas pu être lu. Vérifie le fichier, ou crée ton CV à la main." };
-    const data = importedToCvData(extracted);
+    data = importedToCvData(extracted);
     await recordAiUsage("cvb_import");
     const name = fullName(data);
     id = await createBuilderCv(data, name ? `CV ${name}` : "CV importé");
@@ -386,19 +419,26 @@ export async function importBuilderCvAction(formData: FormData): Promise<ImportC
     return { ok: false, error: claudeErrorMessage(error, "cv-builder import") };
   }
   revalidatePath("/cv-builder");
-  return { ok: true, id };
+  return { ok: true, id, analysis: data.analysis };
 }
 
-/** Modèle choisi dans « Choisis un modèle » après l'import d'un CV existant. */
-export async function setBuilderCvTemplateAction(id: string, templateId: CvTemplateId): Promise<{ ok: boolean }> {
-  if (!isTemplateId(templateId)) return { ok: false };
+/** Fin de l'import d'un CV existant : poste visé (carte « Quel type de poste tu vises ? ») et modèle choisi. */
+export async function completeCvImportAction(
+  id: string,
+  input: { templateId: CvTemplateId; targetJob: string },
+): Promise<{ ok: boolean }> {
+  const templateId = isTemplateId(input?.templateId) ? input.templateId : "minimaliste";
+  const targetJob = String(input?.targetJob ?? "").trim().slice(0, 120);
   try {
-    await setBuilderCvTemplate(String(id), templateId);
+    const cv = await getBuilderCv(String(id));
+    if (!cv) return { ok: false };
+    const analysis = cv.data.analysis && { ...cv.data.analysis, targetJob };
+    await saveBuilderCv(cv.id, { title: cv.title, templateId, data: { ...cv.data, analysis } });
     revalidatePath("/cv-builder");
     return { ok: true };
   } catch (error) {
     unstable_rethrow(error);
-    console.error("[cv-builder] modèle", error);
+    console.error("[cv-builder] fin de l'import", error);
     return { ok: false };
   }
 }
@@ -410,7 +450,8 @@ export async function setBuilderCvTemplateAction(id: string, templateId: CvTempl
 /**
  * Applique une demande au CV affiché (modifications non enregistrées comprises). `json` :
  * contenu du CV (chatContent) ; le résultat est renvoyé au même format dans `html`, nom
- * imposé par le composant du chat. Un essai gratuit par mois, illimité en Premium.
+ * imposé par le composant du chat. CV importé : le poste visé et les points à améliorer de
+ * l'analyse guident l'assistant. Deux adaptations gratuites par mois, illimité en Premium.
  */
 export async function refineBuilderCvAction(id: string, json: string, message: string, history: unknown): Promise<RefineResult> {
   if (typeof id !== "string" || typeof json !== "string" || typeof message !== "string") {
@@ -431,10 +472,14 @@ export async function refineBuilderCvAction(id: string, json: string, message: s
     return { ok: false, error: "Requête invalide." };
   }
   // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
-  if (!(await getBuilderCv(id))) return { ok: false, error: "Ce CV n'existe plus." };
+  const stored = await getBuilderCv(id);
+  if (!stored) return { ok: false, error: "Ce CV n'existe plus." };
+  const analysis = stored.data.analysis;
 
   const gate = await checkAiAccess("cvb_chat");
-  if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };
+  if (!gate.ok) {
+    return { ok: false, error: gate.limitReached ? CVB_CHAT_LIMIT_MESSAGE : gate.message, limitReached: gate.limitReached };
+  }
 
   const turns = Array.isArray(history)
     ? history
@@ -448,7 +493,10 @@ export async function refineBuilderCvAction(id: string, json: string, message: s
 
   let refined;
   try {
-    refined = await refineBuilderCv(JSON.stringify(chatContent(current)), turns, request);
+    refined = await refineBuilderCv(JSON.stringify(chatContent(current)), turns, request, {
+      targetJob: analysis?.targetJob,
+      optimizations: analysis?.optimizations.map((o) => o.title),
+    });
   } catch (error) {
     return { ok: false, error: claudeErrorMessage(error, "cv-builder chat") };
   }

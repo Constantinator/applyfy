@@ -16,6 +16,7 @@ const DOCUMENTS = {
     placeholder: "Ex: Rends les bullet points plus percutants, ajoute plus de chiffres...",
     privacy: "Ton CV, son analyse et l'offre sont transmis à Claude (Anthropic).",
     save: "Pense à enregistrer le CV pour garder les modifications.",
+    units: { one: "message", many: "messages", used: "utilisés" },
     suggestions: [
       "Adapte mon CV à l'offre",
       "Rends les bullet points plus percutants",
@@ -31,6 +32,7 @@ const DOCUMENTS = {
     placeholder: "Ex: Améliore mon accroche, reformule mon expérience chez X...",
     privacy: "Le contenu de ton CV (sans la photo) est transmis à Claude (Anthropic).",
     save: "Les modifications sont enregistrées automatiquement.",
+    units: { one: "adaptation IA", many: "adaptations IA", used: "utilisées" },
     suggestions: [
       "Améliore mon accroche",
       "Rends mon CV plus percutant",
@@ -45,6 +47,7 @@ const DOCUMENTS = {
     placeholder: "Ex: Rends l'accroche plus percutante, adopte un ton plus direct...",
     privacy: "Ta lettre, ton CV et l'offre sont transmis à Claude (Anthropic).",
     save: "Pense à enregistrer la lettre pour garder les modifications.",
+    units: { one: "message", many: "messages", used: "utilisés" },
     suggestions: [
       "Rédige ma lettre",
       "Rends l'accroche plus percutante",
@@ -85,6 +88,10 @@ export function RefineChat({
   onPendingChange,
   initialPrompt,
   controlRef,
+  welcome,
+  suggestions,
+  limitMessage,
+  tall = false,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -104,9 +111,20 @@ export function RefineChat({
   initialPrompt?: string;
   /** Accès aux commandes du chat (insérer un texte dans le champ de saisie). */
   controlRef?: React.Ref<RefineChatHandle>;
+  /** Premier message de l'assistant, affiché à l'ouverture (ex. points à améliorer du CV importé). */
+  welcome?: string;
+  /** Suggestions propres à ce document, à la place des suggestions par défaut. */
+  suggestions?: readonly string[];
+  /** Message du bandeau Premium quand la limite du mois est atteinte. */
+  limitMessage?: string;
+  /** Historique plus haut (chat en colonne à côté de l'aperçu). */
+  tall?: boolean;
 }) {
   const texts = DOCUMENTS[document];
-  const [messages, setMessages] = useState<Message[]>([]);
+  const units = texts.units;
+  const [messages, setMessages] = useState<Message[]>(() =>
+    welcome ? [{ id: -1, role: "assistant", content: welcome }] : [],
+  );
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [used, setUsed] = useState(usage.used);
@@ -201,8 +219,8 @@ export function RefineChat({
         {aiEnabled && (
           <p className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
             {usage.limit === null
-              ? `${used} message${used > 1 ? "s" : ""} ce mois-ci · illimité`
-              : `${Math.min(used, usage.limit)}/${usage.limit} messages utilisés ce mois-ci`}
+              ? `${used} ${used > 1 ? units.many : units.one} ce mois-ci · illimité`
+              : `${Math.min(used, usage.limit)}/${usage.limit} ${units.many} ${units.used} ce mois-ci`}
           </p>
         )}
       </div>
@@ -212,7 +230,7 @@ export function RefineChat({
         role="log"
         aria-live="polite"
         aria-label="Conversation avec l'assistant"
-        className="max-h-96 min-h-28 space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700"
+        className={`${tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700`}
       >
         {messages.length === 0 && !pending && (
           <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{texts.empty}</p>
@@ -266,10 +284,10 @@ export function RefineChat({
       {!aiEnabled ? (
         <p className="text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached ? (
-        <UsageLimitBanner resetLabel={resetLabel} />
+        <UsageLimitBanner resetLabel={resetLabel} message={limitMessage} premiumBadge={limitMessage !== undefined} />
       ) : (
         <div className="flex flex-wrap gap-2">
-          {texts.suggestions.map((suggestion) => (
+          {(suggestions?.length ? suggestions : texts.suggestions).map((suggestion) => (
             <button
               key={suggestion}
               type="button"
@@ -326,7 +344,7 @@ export function RefineChat({
         {texts.privacy}{" "}
         {usage.limit !== null && (
           <>
-            {usage.limit} message{usage.limit > 1 ? "s" : ""} par mois avec le plan gratuit.{" "}
+            {usage.limit} {usage.limit > 1 ? units.many : units.one} par mois avec le plan gratuit.{" "}
           </>
         )}
         {texts.save}

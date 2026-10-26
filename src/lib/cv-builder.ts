@@ -145,21 +145,6 @@ export async function saveBuilderCv(
   return row.updated_at as string;
 }
 
-/** Modèle d'un CV (choisi juste après l'import d'un CV existant). */
-export async function setBuilderCvTemplate(id: string, templateId: CvTemplateId): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const cv = demoCvs.find((c) => c.id === id);
-    if (cv) Object.assign(cv, { templateId, updatedAt: new Date().toISOString() });
-    return;
-  }
-
-  const user = await requireUser();
-  if (!isUuid(id)) return;
-  const supabase = await createClient();
-  const { error } = await supabase.from("cv_builder").update({ template_id: templateId }).eq("id", id).eq("user_id", user.id);
-  if (error) throw new Error(`Changement de modèle impossible : ${error.message}`);
-}
-
 export async function deleteBuilderCv(id: string): Promise<void> {
   if (!isSupabaseConfigured()) {
     const index = demoCvs.findIndex((c) => c.id === id);

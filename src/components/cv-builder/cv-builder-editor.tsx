@@ -13,7 +13,12 @@ import {
 } from "@/app/actions/cv-builder";
 import { RefineChat } from "@/components/application/refine-chat";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
-import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
+import {
+  CVB_CHAT_LIMIT_MESSAGE,
+  isLimitReached,
+  LIMIT_REACHED_LABEL,
+  type AiUsageCount,
+} from "@/lib/ai-usage-limits";
 import {
   applyEdit,
   chatContent,
@@ -24,6 +29,7 @@ import {
   newItemId,
   SKILL_LEVELS,
   type BuilderCv,
+  type CvAnalysis,
   type CvData,
   type CvExperience,
   type CvTemplateId,
@@ -97,7 +103,23 @@ function fileName(title: string, data: CvData) {
   return `${base.replace(/[^\w -]+/g, "").trim().replace(/\s+/g, "-") || "CV"}.pdf`;
 }
 
-/** Éditeur du CV Builder : formulaire à onglets (40 %) et aperçu PDF en temps réel (60 %). */
+/** Premier message du chat d'un CV importé : les optimisations prioritaires de l'analyse. */
+function welcomeMessage(analysis: CvAnalysis) {
+  const points = analysis.optimizations.map((o) => `• ${o.title}`);
+  return [
+    points.length ? `Voici ce que j'ai identifié à améliorer dans ton CV :\n${points.join("\n")}` : null,
+    analysis.targetJob ? `Je tiens compte du poste que tu vises : ${analysis.targetJob}.` : null,
+    "Tu peux me demander de corriger l'un de ces points, ou me poser n'importe quelle question sur ton CV.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Éditeur du CV Builder : formulaire à onglets (40 %) et aperçu en temps réel (60 %). CV
+ * importé (avec analyse) : aperçu à gauche (60 %) et, à droite (40 %), le chat initialisé
+ * avec les points à améliorer, ou le formulaire.
+ */
 export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilderUsage }) {
   const [title, setTitle] = useState(cv.title);
   const [templateId, setTemplateId] = useState<CvTemplateId>(cv.templateId);
@@ -109,6 +131,8 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
   const [limitHit, setLimitHit] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [pages, setPages] = useState(1);
+  const analysis = cv.data.analysis;
+  const [panel, setPanel] = useState<"assistant" | "formulaire">("assistant");
   const version = useRef(0);
   const touched = useRef(false);
   // Dernières données, lues par le chat au moment d'un envoi ou d'une annulation.
@@ -176,6 +200,123 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
       setDownloading(false);
     }
   }
+
+  // Formulaire
+  const form = (
+    <section aria-label="Contenu du CV" data-cv-form className="card min-w-0 p-4 sm:p-5">
+      <div role="tablist" aria-label="Sections du CV" className="mb-5 flex flex-wrap gap-1">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            id={`onglet-${t.id}`}
+            aria-selected={tab === t.id}
+            aria-controls="cv-panneau"
+            onClick={() => setTab(t.id)}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
+              tab === t.id
+                ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {limitHit && (
+        <div className="mb-5">
+          <UsageLimitBanner resetLabel={usage.resetLabel} />
+        </div>
+      )}
+
+      <div id="cv-panneau" role="tabpanel" aria-labelledby={`onglet-${tab}`} className="space-y-5">
+        {tab === "infos" && <PersonalTab data={data} setPersonal={setPersonal} />}
+        {tab === "profil" && (
+          <SummaryTab
+            data={data}
+            exhausted={exhausted("cvb_resume")}
+            onChange={(summary) => edit((d) => ({ ...d, summary }))}
+            afterAi={(r) => afterAi("cvb_resume", r)}
+          />
+        )}
+        {tab === "experiences" && (
+          <ExperiencesTab
+            data={data}
+            edit={edit}
+            bulletExhausted={exhausted("cvb_puce")}
+            adaptExhausted={exhausted("cvb_adaptation")}
+            afterAi={afterAi}
+          />
+        )}
+        {tab === "formation" && <EducationTab data={data} edit={edit} />}
+        {tab === "competences" && <SkillsTab data={data} edit={edit} />}
+        {tab === "langues" && <LanguagesTab data={data} edit={edit} />}
+        {tab === "plus" && <MoreTab data={data} edit={edit} />}
+      </div>
+    </section>
+  );
+
+  // Chat « Affiner avec l'IA » : même composant que l'éditeur du CV d'une candidature.
+  const chat = (
+    <RefineChat
+      document="cvBuilder"
+      applicationId={cv.id}
+      aiEnabled={usage.aiEnabled}
+      usage={usage.counts.cvb_chat}
+      resetLabel={usage.resetLabel}
+      refine={refineBuilderCvAction}
+      readDocument={() => JSON.stringify(chatContent(dataRef.current))}
+      replaceDocument={(json) => {
+        const current = dataRef.current;
+        const previous = JSON.stringify(chatContent(current));
+        try {
+          const parsed = JSON.parse(json);
+          const next = CvDataSchema.safeParse({
+            ...parsed,
+            personal: { ...parsed.personal, photo: current.personal.photo },
+            style: current.style,
+            analysis: current.analysis,
+          });
+          if (next.success) edit(() => next.data);
+        } catch {
+          // Contenu illisible : le CV reste tel quel.
+        }
+        return previous;
+      }}
+      onPendingChange={() => {}}
+      welcome={analysis ? welcomeMessage(analysis) : undefined}
+      suggestions={analysis?.optimizations.map((o) => o.request).filter(Boolean)}
+      limitMessage={CVB_CHAT_LIMIT_MESSAGE}
+      tall={analysis !== null}
+    />
+  );
+
+  // Aperçu : reste visible pendant la saisie (grand écran).
+  const preview = (
+    <section
+      aria-label="Aperçu du CV"
+      className="card flex h-[80vh] flex-col overflow-hidden lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-xs dark:border-slate-700">
+        <p className="text-slate-500 dark:text-slate-400">Clique sur un texte de l&apos;aperçu pour le modifier.</p>
+        <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
+          {pages > 1
+            ? `Environ ${pages} pages${data.style.density !== "compact" ? " : essaie la taille de texte « Petite »" : ""}`
+            : "1 page"}
+        </p>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-4 dark:bg-slate-800/60">
+        <CvHtmlPreview
+          data={data}
+          templateId={templateId}
+          onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
+          onPagesChange={setPages}
+        />
+      </div>
+    </section>
+  );
 
   return (
     <div className="space-y-5">
@@ -255,115 +396,47 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
-        <div className="min-w-0 space-y-6">
-          {/* Formulaire */}
-          <section aria-label="Contenu du CV" data-cv-form className="card min-w-0 p-4 sm:p-5">
-            <div role="tablist" aria-label="Sections du CV" className="mb-5 flex flex-wrap gap-1">
-              {TABS.map((t) => (
+      {analysis ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
+          {preview}
+          <div className="min-w-0 space-y-4">
+            <div role="tablist" aria-label="Panneau de droite" className="flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+              {(
+                [
+                  ["assistant", "Assistant IA"],
+                  ["formulaire", "Formulaire"],
+                ] as const
+              ).map(([id, label]) => (
                 <button
-                  key={t.id}
+                  key={id}
                   type="button"
                   role="tab"
-                  id={`onglet-${t.id}`}
-                  aria-selected={tab === t.id}
-                  aria-controls="cv-panneau"
-                  onClick={() => setTab(t.id)}
-                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                    tab === t.id
-                      ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  aria-selected={panel === id}
+                  onClick={() => setPanel(id)}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    panel === id
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                   }`}
                 >
-                  {t.label}
+                  {label}
                 </button>
               ))}
             </div>
-
-            {limitHit && (
-              <div className="mb-5">
-                <UsageLimitBanner resetLabel={usage.resetLabel} />
-              </div>
-            )}
-
-            <div id="cv-panneau" role="tabpanel" aria-labelledby={`onglet-${tab}`} className="space-y-5">
-              {tab === "infos" && <PersonalTab data={data} setPersonal={setPersonal} />}
-              {tab === "profil" && (
-                <SummaryTab
-                  data={data}
-                  exhausted={exhausted("cvb_resume")}
-                  onChange={(summary) => edit((d) => ({ ...d, summary }))}
-                  afterAi={(r) => afterAi("cvb_resume", r)}
-                />
-              )}
-              {tab === "experiences" && (
-                <ExperiencesTab
-                  data={data}
-                  edit={edit}
-                  bulletExhausted={exhausted("cvb_puce")}
-                  adaptExhausted={exhausted("cvb_adaptation")}
-                  afterAi={afterAi}
-                />
-              )}
-              {tab === "formation" && <EducationTab data={data} edit={edit} />}
-              {tab === "competences" && <SkillsTab data={data} edit={edit} />}
-              {tab === "langues" && <LanguagesTab data={data} edit={edit} />}
-              {tab === "plus" && <MoreTab data={data} edit={edit} />}
-            </div>
-          </section>
-
-          {/* Chat « Affiner avec l'IA » : même composant que l'éditeur du CV d'une candidature. */}
-          <RefineChat
-            document="cvBuilder"
-            applicationId={cv.id}
-            aiEnabled={usage.aiEnabled}
-            usage={usage.counts.cvb_chat}
-            resetLabel={usage.resetLabel}
-            refine={refineBuilderCvAction}
-            readDocument={() => JSON.stringify(chatContent(dataRef.current))}
-            replaceDocument={(json) => {
-              const current = dataRef.current;
-              const previous = JSON.stringify(chatContent(current));
-              try {
-                const parsed = JSON.parse(json);
-                const next = CvDataSchema.safeParse({
-                  ...parsed,
-                  personal: { ...parsed.personal, photo: current.personal.photo },
-                  style: current.style,
-                });
-                if (next.success) edit(() => next.data);
-              } catch {
-                // Contenu illisible : le CV reste tel quel.
-              }
-              return previous;
-            }}
-            onPendingChange={() => {}}
-          />
+            {/* Les deux panneaux restent montés : la conversation survit au changement d'onglet. */}
+            <div hidden={panel !== "assistant"}>{chat}</div>
+            <div hidden={panel !== "formulaire"}>{form}</div>
+          </div>
         </div>
-
-        {/* Aperçu : reste visible pendant la saisie (grand écran). */}
-        <section
-          aria-label="Aperçu du CV"
-          className="card flex h-[80vh] flex-col overflow-hidden lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-xs dark:border-slate-700">
-            <p className="text-slate-500 dark:text-slate-400">Clique sur un texte de l&apos;aperçu pour le modifier.</p>
-            <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
-              {pages > 1
-                ? `Environ ${pages} pages${data.style.density !== "compact" ? " : essaie la taille de texte « Petite »" : ""}`
-                : "1 page"}
-            </p>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
+          <div className="min-w-0 space-y-6">
+            {form}
+            {chat}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-4 dark:bg-slate-800/60">
-            <CvHtmlPreview
-              data={data}
-              templateId={templateId}
-              onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
-              onPagesChange={setPages}
-            />
-          </div>
-        </section>
-      </div>
+          {preview}
+        </div>
+      )}
     </div>
   );
 }

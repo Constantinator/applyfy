@@ -1,6 +1,6 @@
 // Limites mensuelles d'utilisation de l'IA (plan gratuit), partagées entre les pages
 // (serveur) et les composants (client). Elles sont aussi appliquées par la base
-// (record_ai_usage, migrations 0013, 0014, 0020, 0023, 0025, 0026 et 0028) : garder les deux définitions alignées.
+// (record_ai_usage, migrations 0013, 0014, 0020, 0023, 0025, 0026, 0028 et 0029) : garder les deux définitions alignées.
 // Les utilisateurs Premium n'ont pas de limite mensuelle, seulement la limite quotidienne.
 
 /** Types d'action IA. */
@@ -20,7 +20,10 @@ export const AI_USAGE_KINDS = [
 ] as const;
 export type AiUsageKind = (typeof AI_USAGE_KINDS)[number];
 
-/** Plan gratuit : nombre d'actions par type et par mois (regénérations comprises) : un essai. */
+/**
+ * Plan gratuit : nombre d'actions par type et par mois (regénérations comprises) : un essai,
+ * deux adaptations pour le chat du CV Builder.
+ */
 export const AI_MONTHLY_LIMITS: Record<AiUsageKind, number> = {
   resume_offre: 1,
   resume_recherche: 1,
@@ -33,7 +36,7 @@ export const AI_MONTHLY_LIMITS: Record<AiUsageKind, number> = {
   cvb_resume: 1,
   cvb_adaptation: 1,
   cvb_import: 1,
-  cvb_chat: 1,
+  cvb_chat: 2,
 };
 
 export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string; feminine: boolean }> = {
@@ -75,6 +78,9 @@ export const LIMIT_REACHED_LABEL = "Essai gratuit utilisé";
 
 /** Message commun à toutes les actions IA quand l'essai gratuit du mois est utilisé. */
 export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton essai gratuit. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour un accès illimité.`;
+
+/** Chat du CV Builder : plusieurs adaptations gratuites par mois. */
+export const CVB_CHAT_LIMIT_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations IA gratuites ce mois-ci. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour modifier ton CV avec l'IA sans limite.`;
 
 /**
  * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,
