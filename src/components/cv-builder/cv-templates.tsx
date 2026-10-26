@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 import {
   displayUrl,
@@ -18,6 +18,19 @@ import { Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
 // à un champ porte `edit` : il se modifie directement dans l'aperçu.
 
 const BOLD = { fontWeight: "bold" };
+
+/** Alignement des paragraphes et des puces (réglage « Alignement » de l'éditeur). */
+const AlignContext = createContext<"left" | "justify">("left");
+
+/** Paragraphe modifiable (profil, description de projet), à l'alignement choisi. */
+function Paragraph({ edit, children, style }: { edit: string; children: string; style?: StyleProp }) {
+  const align = useContext(AlignContext);
+  return (
+    <Text edit={edit} multiline style={[{ textAlign: align }, ...(Array.isArray(style) ? style : [style])]}>
+      {children}
+    </Text>
+  );
+}
 const levelLabel = (level: string) => SKILL_LEVELS.find((l) => l.value === level && l.value)?.label ?? "";
 
 type ContactItem = { field: "email" | "phone" | "city" | "linkedin" | "website" | "github"; label: string; href?: string };
@@ -82,6 +95,7 @@ function Dates({ base, start, end, current, style }: { base: string; start: stri
 }
 
 function Bullets({ base, items, color, style }: { base: string; items: string[]; color?: string; style?: StyleProp }) {
+  const align = useContext(AlignContext);
   const lines = items.map((text, index) => ({ text, index })).filter((b) => b.text.trim());
   if (!lines.length) return null;
   return (
@@ -89,7 +103,7 @@ function Bullets({ base, items, color, style }: { base: string; items: string[];
       {lines.map((b) => (
         <View key={b.index} style={{ flexDirection: "row", marginTop: 1.5 }} wrap={false}>
           <Text style={[{ width: 10, color: color ?? "#111827" }, ...(Array.isArray(style) ? style : [style])]}>•</Text>
-          <Text edit={`${base}.bullets.${b.index}`} style={[{ flex: 1 }, ...(Array.isArray(style) ? style : [style])]}>
+          <Text edit={`${base}.bullets.${b.index}`} style={[{ flex: 1, textAlign: align }, ...(Array.isArray(style) ? style : [style])]}>
             {b.text}
           </Text>
         </View>
@@ -204,9 +218,9 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
       {s.summary ? (
         <View style={section}>
           <Heading>Profil</Heading>
-          <Text edit="summary" multiline>
+          <Paragraph edit="summary">
             {s.summary}
-          </Text>
+          </Paragraph>
         </View>
       ) : null}
 
@@ -357,9 +371,9 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                 ) : null}
               </View>
               {p.description ? (
-                <Text edit={`projects.${p.id}.description`} multiline>
+                <Paragraph edit={`projects.${p.id}.description`}>
                   {p.description}
-                </Text>
+                </Paragraph>
               ) : null}
             </View>
           ))}
@@ -559,9 +573,9 @@ function Sidebar({ data }: { data: CvData }) {
           {s.summary ? (
             <>
               <MainHeading>Profil</MainHeading>
-              <Text edit="summary" multiline>
+              <Paragraph edit="summary">
                 {s.summary}
-              </Text>
+              </Paragraph>
             </>
           ) : null}
           {s.experiences.length ? (
@@ -597,9 +611,9 @@ function Sidebar({ data }: { data: CvData }) {
                     {p.name}
                   </Text>
                   {p.description ? (
-                    <Text edit={`projects.${p.id}.description`} multiline>
+                    <Paragraph edit={`projects.${p.id}.description`}>
                       {p.description}
-                    </Text>
+                    </Paragraph>
                   ) : null}
                   {p.link ? (
                     <Link src={absolute(p.link)} edit={`projects.${p.id}.link`} style={{ textDecoration: "none", fontSize: 9, color: "#475569" }}>
@@ -634,7 +648,10 @@ function Sidebar({ data }: { data: CvData }) {
 
 /** Les pages du CV dans le modèle choisi (dans un PrimitivesContext PDF ou HTML). */
 export function CvPages({ data, templateId }: { data: CvData; templateId: CvTemplateId }) {
-  if (templateId === "sidebar") return <Sidebar data={data} />;
-  const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH }[templateId];
-  return <SingleColumn data={data} variant={templateId} theme={theme} />;
+  const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH, sidebar: null }[templateId];
+  return (
+    <AlignContext value={data.style.align}>
+      {theme ? <SingleColumn data={data} variant={templateId} theme={theme} /> : <Sidebar data={data} />}
+    </AlignContext>
+  );
 }

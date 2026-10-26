@@ -11,9 +11,10 @@ import {
 } from "@react-pdf/renderer";
 import { useContext, type ComponentProps } from "react";
 
-import { CV_FONTS, cvFontFile, fullName, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_FONTS, cvFontFile, densityFactor, fullName, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { parseRich } from "@/lib/cv-rich-text";
 
-import { COMPACT, DensityContext, densityStyle, PrimitivesContext, type CvPrimitives, type StyleProp } from "./cv-primitives";
+import { DensityContext, densityStyle, PrimitivesContext, type CvPrimitives, type StyleProp } from "./cv-primitives";
 import { CvPages } from "./cv-templates";
 
 // Rendu PDF (A4) des modèles du CV Builder, par @react-pdf/renderer : téléchargement.
@@ -40,11 +41,34 @@ export function registerCvFonts(base: string) {
       fonts: [
         { src: `${base}${cvFontFile(font.id, 400)}`, fontWeight: 400 },
         { src: `${base}${cvFontFile(font.id, 700)}`, fontWeight: 700 },
+        { src: `${base}${cvFontFile(font.id, 400, true)}`, fontWeight: 400, fontStyle: "italic" },
+        { src: `${base}${cvFontFile(font.id, 700, true)}`, fontWeight: 700, fontStyle: "italic" },
       ],
     });
   }
   // Pas de césure automatique (règles anglaises par défaut : « dévelop-pement »).
   Font.registerHyphenationCallback((word) => [word]);
+}
+
+const RUN_STYLES = {
+  bold: { fontWeight: 700 },
+  italic: { fontStyle: "italic" },
+  underline: { textDecoration: "underline" },
+} as const;
+
+/** Texte avec sa mise en forme (gras, italique, souligné). */
+function RichRuns({ text }: { text: string }) {
+  const runs = parseRich(text);
+  if (runs.length === 1 && !runs[0].format) return text;
+  return runs.map((run, i) =>
+    run.format ? (
+      <PdfText key={i} style={RUN_STYLES[run.format]}>
+        {run.text}
+      </PdfText>
+    ) : (
+      run.text
+    ),
+  );
 }
 
 const NO_LIGATURES = { liga: false, clig: false, dlig: false };
@@ -67,7 +91,7 @@ const PDF_PRIMITIVES: CvPrimitives = {
     );
   },
   Text: function Text({ style, children }) {
-    return <PdfText style={usePdfStyle(style)}>{children}</PdfText>;
+    return <PdfText style={usePdfStyle(style)}>{typeof children === "string" ? <RichRuns text={children} /> : children}</PdfText>;
   },
   Link: function Link({ src, style, children }) {
     return (
@@ -86,7 +110,7 @@ export function CvDocument({ data, templateId, title }: { data: CvData; template
   return (
     <Document title={title} author={fullName(data) || undefined} creator="Applyfy" producer="Applyfy" language="fr">
       <PrimitivesContext value={PDF_PRIMITIVES}>
-        <DensityContext value={data.style.density === "compact" ? COMPACT : 1}>
+        <DensityContext value={densityFactor(data.style.density)}>
           <CvPages data={data} templateId={templateId} />
         </DensityContext>
       </PrimitivesContext>

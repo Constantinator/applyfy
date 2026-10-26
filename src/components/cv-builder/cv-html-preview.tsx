@@ -10,10 +10,10 @@ import {
   type CSSProperties,
 } from "react";
 
-import { CV_FONTS, cvFontFile, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_FONTS, cvFontFile, densityFactor, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { parseRich, type RichFormat } from "@/lib/cv-rich-text";
 
 import {
-  COMPACT,
   DensityContext,
   densityStyle,
   PrimitivesContext,
@@ -92,11 +92,26 @@ function EditableText({
 }) {
   const ref = useRef<HTMLElement>(null);
   const onEdit = useContext(EditContext);
+  // Hors saisie : texte mis en forme. Pendant la saisie : texte brut avec son marquage
+  // (**gras**…), réécrit seulement si la valeur change d'ailleurs (curseur conservé).
+  const [focused, setFocused] = useState(false);
   useLayoutEffect(() => {
     const el = ref.current;
-    if (el && el.textContent !== value) el.textContent = value;
-  }, [value]);
+    if (!el) return;
+    if (!focused) {
+      el.replaceChildren(...richNodes(value));
+    } else if (el.textContent !== value) {
+      el.textContent = value;
+      // Curseur en fin de texte (le texte affiché vient de changer).
+      const selection = window.getSelection();
+      selection?.selectAllChildren(el);
+      selection?.collapseToEnd();
+    }
+  }, [value, focused]);
   const props = {
+    "data-edit-path": path,
+    onFocus: () => setFocused(true),
+    onBlur: () => setFocused(false),
     contentEditable: "plaintext-only" as const,
     suppressContentEditableWarning: true,
     role: "textbox",
@@ -121,6 +136,30 @@ function EditableText({
   );
 }
 
+const RUN_CSS: Record<RichFormat, Partial<CSSStyleDeclaration>> = {
+  bold: { fontWeight: "700" },
+  italic: { fontStyle: "italic" },
+  underline: { textDecoration: "underline" },
+};
+
+/** Nœuds DOM d'un texte mis en forme (texte modifiable, géré hors de React). */
+function richNodes(text: string): Node[] {
+  return parseRich(text).map((run) => {
+    if (!run.format) return document.createTextNode(run.text);
+    const span = document.createElement("span");
+    Object.assign(span.style, RUN_CSS[run.format]);
+    span.textContent = run.text;
+    return span;
+  });
+}
+
+/** Texte mis en forme (rendu React, textes non modifiables). */
+function RichText({ text }: { text: string }) {
+  const runs = parseRich(text);
+  if (runs.length === 1 && !runs[0].format) return text;
+  return runs.map((run, i) => (run.format ? <span key={i} style={RUN_CSS[run.format] as CSSProperties}>{run.text}</span> : run.text));
+}
+
 function HtmlText({ style, children, edit, multiline, placeholder }: Parameters<CvPrimitives["Text"]>[0]) {
   const nested = useContext(InTextContext);
   const onEdit = useContext(EditContext);
@@ -132,7 +171,11 @@ function HtmlText({ style, children, edit, multiline, placeholder }: Parameters<
       <EditableText as={as} style={css} value={children == null ? "" : String(children)} path={edit} multiline={multiline} placeholder={placeholder} />
     );
   }
-  return createElement(as, { style: css }, <InTextContext value>{children}</InTextContext>);
+  return createElement(
+    as,
+    { style: css },
+    <InTextContext value>{typeof children === "string" ? <RichText text={children} /> : children}</InTextContext>,
+  );
 }
 
 function useCss(style: StyleProp) {
@@ -176,9 +219,11 @@ const HTML_PRIMITIVES: CvPrimitives = {
 
 /** Polices du CV pour l'aperçu : mêmes fichiers que le PDF. */
 const FONT_FACES = CV_FONTS.flatMap((font) =>
-  ([400, 700] as const).map(
-    (weight) =>
-      `@font-face{font-family:"cv-${font.id}";font-weight:${weight};font-style:normal;font-display:swap;src:url(${cvFontFile(font.id, weight)}) format("truetype")}`,
+  ([400, 700] as const).flatMap((weight) =>
+    [false, true].map(
+      (italic) =>
+        `@font-face{font-family:"cv-${font.id}";font-weight:${weight};font-style:${italic ? "italic" : "normal"};font-display:swap;src:url(${cvFontFile(font.id, weight, italic)}) format("truetype")}`,
+    ),
   ),
 ).join("");
 
@@ -241,7 +286,7 @@ export function CvHtmlPreview({
         >
           <EditContext value={onEdit}>
             <PrimitivesContext value={HTML_PRIMITIVES}>
-              <DensityContext value={data.style.density === "compact" ? COMPACT : 1}>
+              <DensityContext value={densityFactor(data.style.density)}>
                 <CvPages data={data} templateId={templateId} />
               </DensityContext>
             </PrimitivesContext>

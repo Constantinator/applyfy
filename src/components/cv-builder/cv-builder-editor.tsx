@@ -7,15 +7,18 @@ import {
   adaptToOfferAction,
   generateSummaryAction,
   improveBulletAction,
+  refineBuilderCvAction,
   saveBuilderCvAction,
   type AdaptedExperiences,
 } from "@/app/actions/cv-builder";
+import { RefineChat } from "@/components/application/refine-chat";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
-  CV_FONTS,
+  chatContent,
   CV_LIMITS,
+  CvDataSchema,
   CV_TEMPLATES,
   fullName,
   newItemId,
@@ -23,16 +26,21 @@ import {
   type BuilderCv,
   type CvData,
   type CvExperience,
-  type CvFontId,
   type CvTemplateId,
   type SkillLevel,
 } from "@/lib/cv-builder-types";
 
 import { CvHtmlPreview } from "./cv-html-preview";
+import { FormatToolbar } from "./format-toolbar";
 import { AddButton, Field, ItemCard, move, TextArea } from "./form-controls";
 
 type AiKind = "cvb_puce" | "cvb_resume" | "cvb_adaptation";
-export type CvBuilderUsage = { counts: Record<AiKind, AiUsageCount>; resetLabel: string };
+export type CvBuilderUsage = {
+  counts: Record<AiKind | "cvb_chat", AiUsageCount>;
+  resetLabel: string;
+  /** Clé API Claude configurée (chat « Affiner avec l'IA »). */
+  aiEnabled: boolean;
+};
 
 const TABS = [
   { id: "infos", label: "Infos" },
@@ -103,6 +111,11 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
   const [pages, setPages] = useState(1);
   const version = useRef(0);
   const touched = useRef(false);
+  // Dernières données, lues par le chat au moment d'un envoi ou d'une annulation.
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const edit = (fn: (d: CvData) => CvData) => {
     touched.current = true;
@@ -229,98 +242,104 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
         </div>
       </fieldset>
 
-      {/* Style : police et densité, appliquées à l'aperçu et au PDF. */}
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="space-y-1.5">
-          <label htmlFor="cv-police" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-            Police
-          </label>
-          <select
-            id="cv-police"
-            value={data.style.font}
-            onChange={(e) => edit((d) => ({ ...d, style: { ...d.style, font: e.target.value as CvFontId } }))}
-            className="input w-56"
-          >
-            {CV_FONTS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="cv-densite" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-            Taille du texte
-          </label>
-          <select
-            id="cv-densite"
-            value={data.style.density}
-            onChange={(e) =>
-              edit((d) => ({ ...d, style: { ...d.style, density: e.target.value === "compact" ? "compact" : "normal" } }))
-            }
-            className="input w-44"
-          >
-            <option value="normal">Normale</option>
-            <option value="compact">Compacte</option>
-          </select>
-        </div>
+      {/* Mise en forme : gras / italique / souligné sur le champ actif, réglages du CV entier. */}
+      <div className="space-y-1.5">
+        <FormatToolbar
+          style={data.style}
+          onStyle={(patch) => edit((d) => ({ ...d, style: { ...d.style, ...patch } }))}
+          onPreviewEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
+        />
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Gras, italique, souligné : sélectionne du texte dans le formulaire ou dans l&apos;aperçu. Dans le formulaire, la
+          mise en forme s&apos;écrit **gras**, *italique* et __souligné__.
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
-        {/* Formulaire */}
-        <section aria-label="Contenu du CV" className="card min-w-0 p-4 sm:p-5">
-          <div role="tablist" aria-label="Sections du CV" className="mb-5 flex flex-wrap gap-1">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                id={`onglet-${t.id}`}
-                aria-selected={tab === t.id}
-                aria-controls="cv-panneau"
-                onClick={() => setTab(t.id)}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  tab === t.id
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {limitHit && (
-            <div className="mb-5">
-              <UsageLimitBanner resetLabel={usage.resetLabel} />
+        <div className="min-w-0 space-y-6">
+          {/* Formulaire */}
+          <section aria-label="Contenu du CV" data-cv-form className="card min-w-0 p-4 sm:p-5">
+            <div role="tablist" aria-label="Sections du CV" className="mb-5 flex flex-wrap gap-1">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  id={`onglet-${t.id}`}
+                  aria-selected={tab === t.id}
+                  aria-controls="cv-panneau"
+                  onClick={() => setTab(t.id)}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    tab === t.id
+                      ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
-          )}
 
-          <div id="cv-panneau" role="tabpanel" aria-labelledby={`onglet-${tab}`} className="space-y-5">
-            {tab === "infos" && <PersonalTab data={data} setPersonal={setPersonal} />}
-            {tab === "profil" && (
-              <SummaryTab
-                data={data}
-                exhausted={exhausted("cvb_resume")}
-                onChange={(summary) => edit((d) => ({ ...d, summary }))}
-                afterAi={(r) => afterAi("cvb_resume", r)}
-              />
+            {limitHit && (
+              <div className="mb-5">
+                <UsageLimitBanner resetLabel={usage.resetLabel} />
+              </div>
             )}
-            {tab === "experiences" && (
-              <ExperiencesTab
-                data={data}
-                edit={edit}
-                bulletExhausted={exhausted("cvb_puce")}
-                adaptExhausted={exhausted("cvb_adaptation")}
-                afterAi={afterAi}
-              />
-            )}
-            {tab === "formation" && <EducationTab data={data} edit={edit} />}
-            {tab === "competences" && <SkillsTab data={data} edit={edit} />}
-            {tab === "langues" && <LanguagesTab data={data} edit={edit} />}
-            {tab === "plus" && <MoreTab data={data} edit={edit} />}
-          </div>
-        </section>
+
+            <div id="cv-panneau" role="tabpanel" aria-labelledby={`onglet-${tab}`} className="space-y-5">
+              {tab === "infos" && <PersonalTab data={data} setPersonal={setPersonal} />}
+              {tab === "profil" && (
+                <SummaryTab
+                  data={data}
+                  exhausted={exhausted("cvb_resume")}
+                  onChange={(summary) => edit((d) => ({ ...d, summary }))}
+                  afterAi={(r) => afterAi("cvb_resume", r)}
+                />
+              )}
+              {tab === "experiences" && (
+                <ExperiencesTab
+                  data={data}
+                  edit={edit}
+                  bulletExhausted={exhausted("cvb_puce")}
+                  adaptExhausted={exhausted("cvb_adaptation")}
+                  afterAi={afterAi}
+                />
+              )}
+              {tab === "formation" && <EducationTab data={data} edit={edit} />}
+              {tab === "competences" && <SkillsTab data={data} edit={edit} />}
+              {tab === "langues" && <LanguagesTab data={data} edit={edit} />}
+              {tab === "plus" && <MoreTab data={data} edit={edit} />}
+            </div>
+          </section>
+
+          {/* Chat « Affiner avec l'IA » : même composant que l'éditeur du CV d'une candidature. */}
+          <RefineChat
+            document="cvBuilder"
+            applicationId={cv.id}
+            aiEnabled={usage.aiEnabled}
+            usage={usage.counts.cvb_chat}
+            resetLabel={usage.resetLabel}
+            refine={refineBuilderCvAction}
+            readDocument={() => JSON.stringify(chatContent(dataRef.current))}
+            replaceDocument={(json) => {
+              const current = dataRef.current;
+              const previous = JSON.stringify(chatContent(current));
+              try {
+                const parsed = JSON.parse(json);
+                const next = CvDataSchema.safeParse({
+                  ...parsed,
+                  personal: { ...parsed.personal, photo: current.personal.photo },
+                  style: current.style,
+                });
+                if (next.success) edit(() => next.data);
+              } catch {
+                // Contenu illisible : le CV reste tel quel.
+              }
+              return previous;
+            }}
+            onPendingChange={() => {}}
+          />
+        </div>
 
         {/* Aperçu : reste visible pendant la saisie (grand écran). */}
         <section
@@ -331,7 +350,7 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
             <p className="text-slate-500 dark:text-slate-400">Clique sur un texte de l&apos;aperçu pour le modifier.</p>
             <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
               {pages > 1
-                ? `Environ ${pages} pages${data.style.density === "normal" ? " : essaie la taille de texte « Compacte »" : ""}`
+                ? `Environ ${pages} pages${data.style.density !== "compact" ? " : essaie la taille de texte « Petite »" : ""}`
                 : "1 page"}
             </p>
           </div>

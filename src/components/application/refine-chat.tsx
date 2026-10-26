@@ -23,6 +23,21 @@ const DOCUMENTS = {
       "Raccourcis pour tenir en 1 page",
     ],
   },
+  // CV Builder : modifications appliquées aux champs du CV (enregistrement automatique).
+  cvBuilder: {
+    intro: "Demande une modification en quelques mots : elle est appliquée directement à ton CV.",
+    empty: "Dis à l'assistant ce que tu veux changer : une accroche plus forte, une expérience reformulée, un CV plus percutant…",
+    pending: "L'assistant modifie ton CV… cela peut prendre jusqu'à une minute.",
+    placeholder: "Ex: Améliore mon accroche, reformule mon expérience chez X...",
+    privacy: "Le contenu de ton CV (sans la photo) est transmis à Claude (Anthropic).",
+    save: "Les modifications sont enregistrées automatiquement.",
+    suggestions: [
+      "Améliore mon accroche",
+      "Rends mon CV plus percutant",
+      "Ajoute des verbes d'action",
+      "Raccourcis pour tenir en 1 page",
+    ],
+  },
   lettre: {
     intro: "Demande à l'assistant de rédiger ta lettre ou de la modifier : les changements sont surlignés en jaune.",
     empty: "Demande à l'assistant de rédiger ta lettre à partir de l'offre et de ton CV, ou ce que tu veux y améliorer.",
@@ -178,13 +193,13 @@ export function RefineChat({
     <section aria-labelledby="refine-title" className="card space-y-4 p-5 print:hidden">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
         <div>
-          <h2 id="refine-title" className="font-semibold text-slate-900">
+          <h2 id="refine-title" className="font-semibold text-slate-900 dark:text-white">
             Affiner avec l&apos;IA
           </h2>
-          <p className="mt-1 text-sm text-slate-500">{texts.intro}</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{texts.intro}</p>
         </div>
         {aiEnabled && (
-          <p className="shrink-0 text-xs text-slate-500">
+          <p className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
             {usage.limit === null
               ? `${used} message${used > 1 ? "s" : ""} ce mois-ci · illimité`
               : `${Math.min(used, usage.limit)}/${usage.limit} messages utilisés ce mois-ci`}
@@ -197,10 +212,10 @@ export function RefineChat({
         role="log"
         aria-live="polite"
         aria-label="Conversation avec l'assistant"
-        className="max-h-96 min-h-28 space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200"
+        className="max-h-96 min-h-28 space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700"
       >
         {messages.length === 0 && !pending && (
-          <p className="py-6 text-center text-sm text-slate-500">{texts.empty}</p>
+          <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{texts.empty}</p>
         )}
         {messages.map((message) =>
           message.role === "user" ? (
@@ -213,7 +228,9 @@ export function RefineChat({
             <div key={message.id} className="flex flex-col items-start gap-1">
               <p
                 className={`max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm whitespace-pre-wrap ring-1 ${
-                  message.error ? "bg-red-50 text-red-700 ring-red-200" : "bg-white text-slate-800 ring-slate-200"
+                  message.error
+                    ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30"
+                    : "bg-white text-slate-800 ring-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
                 }`}
               >
                 {message.content}
@@ -261,7 +278,7 @@ export function RefineChat({
                 setInput(suggestion);
                 inputRef.current?.focus();
               }}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-blue-500/15 dark:hover:text-blue-300"
             >
               {suggestion}
             </button>
@@ -305,7 +322,7 @@ export function RefineChat({
           {limitReached ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
         </button>
       </form>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         {texts.privacy}{" "}
         {usage.limit !== null && (
           <>

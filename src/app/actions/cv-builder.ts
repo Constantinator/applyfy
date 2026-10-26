@@ -14,12 +14,14 @@ import {
   generateCvSummary,
   improveCvBullet,
   isClaudeConfigured,
+  refineBuilderCv,
   type ImportedCv,
 } from "@/lib/claude";
 import {
   CvBuilderError,
   createBuilderCv,
   deleteBuilderCv,
+  getBuilderCv,
   saveBuilderCv,
   setBuilderCvTemplate,
 } from "@/lib/cv-builder";
@@ -28,6 +30,7 @@ import {
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
   CV_LIMITS,
+  chatContent,
   CvDataSchema,
   dateRange,
   fullName,
@@ -37,8 +40,10 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
+import type { RefineResult } from "@/lib/refine";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 /**
@@ -396,4 +401,86 @@ export async function setBuilderCvTemplateAction(id: string, templateId: CvTempl
     console.error("[cv-builder] modèle", error);
     return { ok: false };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Chat « Affiner avec l'IA » de l'éditeur (même composant que le CV d'une candidature)
+// ---------------------------------------------------------------------------
+
+/**
+ * Applique une demande au CV affiché (modifications non enregistrées comprises). `json` :
+ * contenu du CV (chatContent) ; le résultat est renvoyé au même format dans `html`, nom
+ * imposé par le composant du chat. Un essai gratuit par mois, illimité en Premium.
+ */
+export async function refineBuilderCvAction(id: string, json: string, message: string, history: unknown): Promise<RefineResult> {
+  if (typeof id !== "string" || typeof json !== "string" || typeof message !== "string") {
+    return { ok: false, error: "Requête invalide." };
+  }
+  const request = message.trim();
+  if (!request) return { ok: false, error: "Écris ta demande." };
+  if (request.length > REFINE_MESSAGE_MAX_LENGTH) return { ok: false, error: "Ta demande est trop longue." };
+  if (json.length > 200_000) return { ok: false, error: "Le CV est trop long." };
+  if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
+
+  let current: CvData;
+  try {
+    const parsed = CvDataSchema.safeParse(JSON.parse(json));
+    if (!parsed.success) return { ok: false, error: "Le CV contient des informations invalides." };
+    current = parsed.data;
+  } catch {
+    return { ok: false, error: "Requête invalide." };
+  }
+  // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
+  if (!(await getBuilderCv(id))) return { ok: false, error: "Ce CV n'existe plus." };
+
+  const gate = await checkAiAccess("cvb_chat");
+  if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };
+
+  const turns = Array.isArray(history)
+    ? history
+        .filter(
+          (t): t is { role: "user" | "assistant"; content: string } =>
+            Boolean(t) && (t.role === "user" || t.role === "assistant") && typeof t.content === "string",
+        )
+        .slice(-6)
+        .map(({ role, content }) => ({ role, content: content.slice(0, REFINE_MESSAGE_MAX_LENGTH) }))
+    : [];
+
+  let refined;
+  try {
+    refined = await refineBuilderCv(JSON.stringify(chatContent(current)), turns, request);
+  } catch (error) {
+    return { ok: false, error: claudeErrorMessage(error, "cv-builder chat") };
+  }
+  if (!refined) return { ok: false, error: "La modification n'a pas pu être appliquée. Reformule ta demande." };
+
+  // Identifiants manquants ou en double (nouveaux éléments) : remplacés.
+  const seen = new Set<string>();
+  const withIds = <T extends { id: string }>(items: T[]) =>
+    items.map((item) => {
+      const id = item.id && !seen.has(item.id) && item.id.length <= 40 ? item.id : newItemId();
+      seen.add(id);
+      return { ...item, id };
+    });
+  const cv = refined.cv;
+  const updated = CvDataSchema.safeParse({
+    ...cv,
+    experiences: withIds(cv.experiences),
+    education: withIds(cv.education),
+    skills: withIds(cv.skills),
+    languages: withIds(cv.languages),
+    certifications: withIds(cv.certifications),
+    projects: withIds(cv.projects),
+    personal: { ...cv.personal, photo: current.personal.photo },
+    style: current.style,
+  });
+  if (!updated.success) return { ok: false, error: "La modification rend le CV trop long. Reformule ta demande." };
+
+  await recordAiUsage("cvb_chat");
+  return {
+    ok: true,
+    reply: refined.reponse.trim() || "C'est fait : ton CV est à jour.",
+    html: JSON.stringify(chatContent(updated.data)),
+    usage: { used: gate.count.used + 1, limit: gate.count.limit },
+  };
 }

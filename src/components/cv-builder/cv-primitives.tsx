@@ -63,8 +63,7 @@ export function Photo(props: ImageProps) {
   return createElement(usePrimitives().Image, props);
 }
 
-/** Densité du texte : 1 (normale) ou COMPACT (tailles et espacements verticaux réduits). */
-export const COMPACT = 0.88;
+/** Taille du texte (densityFactor) : 1 normale, < 1 plus petite, > 1 plus grande. */
 export const DensityContext = createContext(1);
 const DENSITY_KEYS = ["fontSize", "marginTop", "marginBottom", "marginVertical", "paddingTop", "paddingBottom", "paddingVertical"];
 

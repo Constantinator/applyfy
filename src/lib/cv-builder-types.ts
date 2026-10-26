@@ -36,8 +36,20 @@ export type CvFontId = (typeof CV_FONTS)[number]["id"];
 const CV_FONT_IDS = CV_FONTS.map((f) => f.id) as [CvFontId, ...CvFontId[]];
 
 /** Fichier d'une police dans public/. */
-export function cvFontFile(id: CvFontId, weight: 400 | 700) {
-  return `/fonts/cv/${id}-${weight}.ttf`;
+export function cvFontFile(id: CvFontId, weight: 400 | 700, italic = false) {
+  return `/fonts/cv/${id}-${weight}${italic ? "-italic" : ""}.ttf`;
+}
+
+/** Taille du texte : facteur appliqué aux tailles et aux espacements verticaux des modèles. */
+export const CV_DENSITIES = [
+  { id: "compact", label: "Petite", factor: 0.88 },
+  { id: "normal", label: "Normale", factor: 1 },
+  { id: "large", label: "Grande", factor: 1.1 },
+] as const;
+export type CvDensity = (typeof CV_DENSITIES)[number]["id"];
+
+export function densityFactor(density: CvDensity) {
+  return CV_DENSITIES.find((d) => d.id === density)?.factor ?? 1;
 }
 
 export const SKILL_LEVELS = [
@@ -146,7 +158,9 @@ export const CvDataSchema = z.object({
     .object({
       font: z.enum(CV_FONT_IDS).catch("inter").default("inter"),
       /** Texte compact : tailles et espacements verticaux réduits, pour tenir sur une page. */
-      density: z.enum(["normal", "compact"]).catch("normal").default("normal"),
+      density: z.enum(["compact", "normal", "large"]).catch("normal").default("normal"),
+      /** Alignement des paragraphes et des puces. */
+      align: z.enum(["left", "justify"]).catch("left").default("left"),
     })
     .prefault({}),
 });
@@ -235,4 +249,10 @@ export function applyEdit(data: CvData, path: string, value: string): CvData {
     return node;
   };
   return set(data, 0) as CvData;
+}
+
+/** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo ni les réglages de mise en page. */
+export function chatContent({ personal, summary, experiences, education, skills, languages, certifications, projects, interests }: CvData) {
+  // photo: undefined → absente du JSON.
+  return { personal: { ...personal, photo: undefined }, summary, experiences, education, skills, languages, certifications, projects, interests };
 }
