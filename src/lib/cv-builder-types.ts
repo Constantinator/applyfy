@@ -10,7 +10,7 @@ export const CV_TEMPLATES = [
   { id: "moderne", name: "Moderne bleu", description: "Titres bleus, photo ronde, compétences sur 2 colonnes." },
   { id: "sidebar", name: "Sidebar sombre", description: "Colonne gauche sombre pour les infos et compétences." },
   { id: "tech", name: "Tech moderne", description: "Accent vert, badges, timeline et liens GitHub mis en avant." },
-  { id: "finance", name: "Finance", description: "Sobre et institutionnel, inspiré des CV banque et conseil." },
+  { id: "finance", name: "Finance", description: "CV ATS classique : Times, noir et blanc, très compact." },
 ] as const;
 
 export type CvTemplateId = (typeof CV_TEMPLATES)[number]["id"];
@@ -31,8 +31,8 @@ export const CV_FONTS = [
   { id: "source-sans-3", name: "Source Sans Pro", fallback: "sans-serif" },
   { id: "raleway", name: "Raleway", fallback: "sans-serif" },
   { id: "gelasio", name: "Georgia (Gelasio)", fallback: "Georgia, serif" },
-  // Arimo : mêmes proportions qu'Arial et Liberation Sans (modèle Finance).
-  { id: "arimo", name: "Arial (Arimo)", fallback: "Arial, Helvetica, sans-serif" },
+  // Tinos : mêmes proportions que Times New Roman et Liberation Serif (modèle Finance).
+  { id: "tinos", name: "Times New Roman (Tinos)", fallback: "'Times New Roman', Times, serif" },
 ] as const;
 
 export type CvFontId = (typeof CV_FONTS)[number]["id"];

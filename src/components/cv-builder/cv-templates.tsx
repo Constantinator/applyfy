@@ -141,7 +141,7 @@ function ItemList<T extends { id: string }>({ items, render }: { items: T[]; ren
 }
 
 // ---------------------------------------------------------------------------
-// Modèles à une colonne : minimaliste, classique, moderne bleu, tech, finance
+// Modèles à une colonne : minimaliste, classique, moderne bleu, tech
 // ---------------------------------------------------------------------------
 
 type Theme = {
@@ -149,8 +149,6 @@ type Theme = {
   muted: string;
   headerAlign: "left" | "center";
   Heading: (props: { children: string }) => ReactNode;
-  /** Polices propres au modèle (identifiants de CV_FONTS), à la place de celle du CV. */
-  fonts?: { heading: string; body: string };
 };
 
 function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; variant: CvTemplateId }) {
@@ -159,9 +157,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
   const center = theme.headerAlign === "center";
   const photo = (variant === "moderne" || variant === "tech") && data.personal.photo;
   const muted = { color: theme.muted };
-  // Finance : filet fin à gauche de chaque section.
-  const section =
-    variant === "finance" ? { marginTop: 12, borderLeftWidth: 0.75, borderColor: theme.accent, paddingLeft: 9 } : { marginTop: 12 };
+  const section = { marginTop: 12 };
   const entry = { marginTop: 7 };
   const row = { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" };
   const Heading = theme.Heading;
@@ -171,16 +167,15 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
   const headerContacts = items.filter((c) => !highlighted.includes(c));
 
   return (
-    <Page style={{ fontFamily: theme.fonts?.body ?? data.style.font, fontSize: 9.5, lineHeight: 1.4, color: "#111827", paddingVertical: 36, paddingHorizontal: 42 }}>
+    <Page style={{ fontFamily: data.style.font, fontSize: 9.5, lineHeight: 1.4, color: "#111827", paddingVertical: 36, paddingHorizontal: 42 }}>
       <View style={[row, { alignItems: "center" }]}>
         <View style={{ flex: 1, textAlign: theme.headerAlign }}>
           <Name
             data={data}
             style={[
               BOLD,
-              { fontSize: 22, lineHeight: 1.15, color: variant === "moderne" || variant === "finance" ? theme.accent : "#111827" },
+              { fontSize: 22, lineHeight: 1.15, color: variant === "moderne" ? theme.accent : "#111827" },
               center && { textTransform: "uppercase" },
-              theme.fonts && { fontFamily: theme.fonts.heading, fontSize: 24 },
             ]}
           />
           {data.personal.jobTitle ? (
@@ -218,9 +213,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
         </View>
       ) : null}
 
-      {(variant === "minimaliste" || variant === "finance") && (
-        <View style={{ borderBottomWidth: 0.75, borderColor: variant === "finance" ? theme.accent : "#111827", marginTop: 10 }} />
-      )}
+      {variant === "minimaliste" && <View style={{ borderBottomWidth: 0.75, borderColor: "#111827", marginTop: 10 }} />}
 
       {s.summary ? (
         <View style={section}>
@@ -465,20 +458,6 @@ const TECH: Theme = {
   ),
 };
 
-/** Finance : marine, titres en Gelasio (proportions de Georgia), texte en Arimo (Arial). */
-const FINANCE_NAVY = "#1a2340";
-const FINANCE: Theme = {
-  accent: FINANCE_NAVY,
-  muted: "#4B5563",
-  headerAlign: "left",
-  fonts: { heading: "gelasio", body: "arimo" },
-  Heading: ({ children }) => (
-    <Text style={[BOLD, { fontFamily: "gelasio", fontSize: 11.5, color: FINANCE_NAVY, letterSpacing: 0.4, marginBottom: 3 }]}>
-      {children}
-    </Text>
-  ),
-};
-
 // ---------------------------------------------------------------------------
 // Modèle 4 : sidebar sombre (30 %) + colonne blanche
 // ---------------------------------------------------------------------------
@@ -667,14 +646,241 @@ function Sidebar({ data }: { data: CvData }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Modèle 6 : finance, CV ATS classique américain (Times, noir et blanc, très compact)
+// ---------------------------------------------------------------------------
+
+const FINANCE_BLACK = "#000000";
+const ITALIC = { fontStyle: "italic" };
+
+/** Titre centré en petites majuscules, entre deux filets pleine largeur. */
+const FinanceHeading = ({ children }: { children: string }) => (
+  <View style={{ borderTopWidth: 0.75, borderBottomWidth: 0.75, borderColor: FINANCE_BLACK, paddingVertical: 1, marginBottom: 3 }}>
+    <Text style={[BOLD, { fontSize: 9.5, letterSpacing: 1, textAlign: "center", textTransform: "uppercase" }]}>{children}</Text>
+  </View>
+);
+
+/** Puces carrées ▪. */
+function FinanceBullets({ base, items }: { base: string; items: string[] }) {
+  const align = useContext(AlignContext);
+  const lines = items.map((text, index) => ({ text, index })).filter((b) => b.text.trim());
+  if (!lines.length) return null;
+  return (
+    <View style={{ marginTop: 1 }}>
+      {lines.map((b) => (
+        <View key={b.index} style={{ flexDirection: "row", marginTop: 0.5 }} wrap={false}>
+          <Text style={{ width: 10, fontSize: 8 }}>▪</Text>
+          <Text edit={`${base}.bullets.${b.index}`} style={{ flex: 1, textAlign: align }}>
+            {b.text}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Ligne « libellé : éléments » de la section Compétences & Langues. */
+function FinanceLine({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Text style={{ marginTop: 1 }}>
+      <Text style={BOLD}>{label} : </Text>
+      {children}
+    </Text>
+  );
+}
+
+/** Éléments séparés par des virgules, chacun modifiable. */
+function joined<T>(items: T[], render: (item: T) => ReactNode) {
+  return items.map((item, i) => (
+    <Text key={i}>
+      {i > 0 ? ", " : ""}
+      {render(item)}
+    </Text>
+  ));
+}
+
+function Finance({ data }: { data: CvData }) {
+  const s = sectionsOf(data);
+  const items = contacts(data);
+  const row = { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" };
+  const section = { marginTop: 7 };
+  const entry = { marginTop: 4 };
+  const dates = { marginLeft: 8 };
+
+  return (
+    <Page style={{ fontFamily: "tinos", fontSize: 9.5, lineHeight: 1.25, color: FINANCE_BLACK, paddingVertical: 26, paddingHorizontal: 34 }}>
+      <View style={{ textAlign: "center" }}>
+        <Name data={data} style={[BOLD, { fontSize: 17, lineHeight: 1.1, textTransform: "uppercase", letterSpacing: 0.5 }]} />
+        {data.personal.jobTitle ? (
+          <Text edit="personal.jobTitle" style={[ITALIC, { marginTop: 1 }]}>
+            {data.personal.jobTitle}
+          </Text>
+        ) : null}
+        {items.length ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
+            {items.map((c, i) => (
+              <View key={c.field} style={{ flexDirection: "row" }}>
+                {i > 0 && <Text style={{ marginHorizontal: 4, fontSize: 9 }}>·</Text>}
+                <Contact item={c} style={{ fontSize: 9, color: FINANCE_BLACK }} />
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+
+      {s.summary ? (
+        <View style={section}>
+          <FinanceHeading>Résumé</FinanceHeading>
+          <Paragraph edit="summary">{s.summary}</Paragraph>
+        </View>
+      ) : null}
+
+      {s.education.length ? (
+        <View style={section}>
+          <FinanceHeading>Formation</FinanceHeading>
+          {s.education.map((e) => {
+            const base = `education.${e.id}`;
+            return (
+              <View key={e.id} style={entry} wrap={false}>
+                <View style={row}>
+                  <Text edit={`${base}.${e.school ? "school" : "degree"}`} style={[BOLD, { flex: 1 }]}>
+                    {e.school || e.degree}
+                  </Text>
+                  <Dates base={base} start={e.startDate} end={e.endDate} style={dates} />
+                </View>
+                {e.school && e.degree ? (
+                  <Text edit={`${base}.degree`} style={ITALIC}>
+                    {e.degree}
+                  </Text>
+                ) : null}
+                {e.honors ? <Text edit={`${base}.honors`}>{e.honors}</Text> : null}
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {s.experiences.length ? (
+        <View style={section}>
+          <FinanceHeading>Expériences</FinanceHeading>
+          {s.experiences.map((e) => {
+            const base = `experiences.${e.id}`;
+            return (
+              <View key={e.id} style={entry}>
+                <View wrap={false}>
+                  <View style={row}>
+                    <Text edit={`${base}.${e.company ? "company" : "position"}`} style={[BOLD, { flex: 1 }]}>
+                      {e.company || e.position}
+                    </Text>
+                    {e.location ? (
+                      <Text edit={`${base}.location`} style={dates}>
+                        {e.location}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={row}>
+                    {e.company && e.position ? (
+                      <Text edit={`${base}.position`} style={[ITALIC, { flex: 1 }]}>
+                        {e.position}
+                      </Text>
+                    ) : (
+                      <View style={{ flex: 1 }} />
+                    )}
+                    <Dates base={base} start={e.startDate} end={e.endDate} current={e.current} style={dates} />
+                  </View>
+                </View>
+                <FinanceBullets base={base} items={e.bullets} />
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {s.projects.length ? (
+        <View style={section}>
+          <FinanceHeading>Projets</FinanceHeading>
+          {s.projects.map((p) => (
+            <View key={p.id} style={entry} wrap={false}>
+              <View style={row}>
+                <Text edit={`projects.${p.id}.name`} style={[BOLD, { flex: 1 }]}>
+                  {p.name}
+                </Text>
+                {p.link ? (
+                  <Link src={absolute(p.link)} edit={`projects.${p.id}.link`} style={[dates, { textDecoration: "none", color: FINANCE_BLACK }]}>
+                    {displayUrl(p.link)}
+                  </Link>
+                ) : null}
+              </View>
+              {p.description ? <Paragraph edit={`projects.${p.id}.description`}>{p.description}</Paragraph> : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {s.skills.length || s.languages.length || s.certifications.length || s.hasInterests ? (
+        <View style={section} wrap={false}>
+          <FinanceHeading>Compétences & Langues</FinanceHeading>
+          {s.skills.length ? (
+            <FinanceLine label="Compétences">
+              {joined(s.skills, (k) => (
+                <>
+                  <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
+                  {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
+                </>
+              ))}
+            </FinanceLine>
+          ) : null}
+          {s.languages.length ? (
+            <FinanceLine label="Langues">
+              {joined(s.languages, (l) => (
+                <>
+                  <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
+                  {l.level ? " (" : ""}
+                  {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
+                  {l.level ? ")" : ""}
+                </>
+              ))}
+            </FinanceLine>
+          ) : null}
+          {s.certifications.length ? (
+            <FinanceLine label="Certifications">
+              {joined(s.certifications, (c) => (
+                <>
+                  <Text edit={`certifications.${c.id}.name`}>{c.name}</Text>
+                  {c.issuer || c.date ? " (" : ""}
+                  {c.issuer ? <Text edit={`certifications.${c.id}.issuer`}>{c.issuer}</Text> : null}
+                  {c.issuer && c.date ? ", " : ""}
+                  {c.date ? <Text edit={`certifications.${c.id}.date`}>{c.date}</Text> : null}
+                  {c.issuer || c.date ? ")" : ""}
+                </>
+              ))}
+            </FinanceLine>
+          ) : null}
+          {s.hasInterests ? (
+            <FinanceLine label="Centres d'intérêt">
+              <Text edit="interests">{data.interests}</Text>
+            </FinanceLine>
+          ) : null}
+        </View>
+      ) : null}
+    </Page>
+  );
+}
+
 /** Les pages du CV dans le modèle choisi (dans un PrimitivesContext PDF ou HTML). */
 export function CvPages({ data, templateId }: { data: CvData; templateId: CvTemplateId }) {
-  const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH, finance: FINANCE, sidebar: null }[
+  const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH, finance: null, sidebar: null }[
     templateId
   ];
   return (
     <AlignContext value={data.style.align}>
-      {theme ? <SingleColumn data={data} variant={templateId} theme={theme} /> : <Sidebar data={data} />}
+      {templateId === "finance" ? (
+        <Finance data={data} />
+      ) : theme ? (
+        <SingleColumn data={data} variant={templateId} theme={theme} />
+      ) : (
+        <Sidebar data={data} />
+      )}
     </AlignContext>
   );
 }
