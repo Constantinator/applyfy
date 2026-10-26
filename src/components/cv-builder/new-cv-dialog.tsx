@@ -87,7 +87,7 @@ export function TemplateChoiceDialog({
   dialogRef,
   open,
   onClose,
-  subtitle = "Tu pourras en changer à tout moment dans l'éditeur.",
+  subtitle = "Il s'applique à tout ton CV.",
   footer,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;

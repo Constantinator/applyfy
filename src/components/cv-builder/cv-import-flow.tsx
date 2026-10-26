@@ -116,7 +116,7 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
         onClose={() => {
           if (!opening) setStep(1);
         }}
-        subtitle="Ton CV y est déjà repris. Tu pourras changer de modèle à tout moment dans l'éditeur."
+        subtitle="Ton CV y est déjà repris."
         footer={(selected) => (
           <>
             <button

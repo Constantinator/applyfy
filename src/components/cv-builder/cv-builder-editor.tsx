@@ -11,7 +11,6 @@ import {
   chatContent,
   CV_LIMITS,
   CvDataSchema,
-  CV_TEMPLATES,
   fullName,
   type BuilderCv,
   type CvAnalysis,
@@ -27,15 +26,6 @@ export type CvBuilderUsage = {
   resetLabel: string;
   /** Clé API Claude configurée. */
   aiEnabled: boolean;
-};
-
-/** Couleur de la pastille de chaque modèle dans le sélecteur. */
-const TEMPLATE_SWATCH: Record<CvTemplateId, string> = {
-  minimaliste: "bg-white ring-1 ring-slate-400",
-  classique: "bg-slate-700",
-  moderne: "bg-[#1E40AF]",
-  sidebar: "bg-[#1E293B]",
-  tech: "bg-[#059669]",
 };
 
 type SaveStatus = "saved" | "pending" | "saving" | "error";
@@ -71,7 +61,8 @@ function welcomeMessage(analysis: CvAnalysis) {
  */
 export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilderUsage }) {
   const [title, setTitle] = useState(cv.title);
-  const [templateId, setTemplateId] = useState<CvTemplateId>(cv.templateId);
+  // Modèle choisi à la création du CV : plus modifiable dans l'éditeur.
+  const templateId: CvTemplateId = cv.templateId;
   const [data, setData] = useState<CvData>(cv.data);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -170,37 +161,6 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
           {saveError}
         </p>
       )}
-
-      {/* Choix du modèle : les données sont communes aux 5 modèles. */}
-      <fieldset>
-        <legend className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-200">Modèle</legend>
-        <div className="flex flex-wrap gap-2">
-          {CV_TEMPLATES.map((t) => {
-            const active = t.id === templateId;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                aria-pressed={active}
-                title={t.description}
-                onClick={() => {
-                  touched.current = true;
-                  setStatus("pending");
-                  setTemplateId(t.id);
-                }}
-                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
-                  active
-                    ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                }`}
-              >
-                <span aria-hidden="true" className={`h-3.5 w-3.5 rounded-full ${TEMPLATE_SWATCH[t.id]}`} />
-                {t.name}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
         {/* Chat « Affiner avec l'IA » : même composant que l'éditeur du CV d'une candidature. */}

@@ -1,16 +1,16 @@
 // Personnalisation du CV amélioré (police, taille, couleur d'accent, mise en page).
 // Partagé entre l'éditeur (client) et l'enregistrement (serveur).
 
-// Ordre d'affichage dans le sélecteur de police. Les polices web (var(--font-…)) sont
-// chargées par lib/cv-fonts sur les pages de l'éditeur.
+// Ordre d'affichage dans le sélecteur de police. Nom commercial affiché ; le texte utilise
+// d'abord le fichier libre aux mêmes proportions (var(--font-cv-…), chargé par lib/cv-fonts
+// sur les pages de l'éditeur), pour un rendu identique sur tous les ordinateurs.
 export const CV_FONTS = {
-  georgia: { label: "Georgia", stack: "Georgia, 'Times New Roman', serif" },
-  garamond: { label: "Garamond", stack: "var(--font-garamond), Garamond, 'Times New Roman', serif" },
-  inter: { label: "Inter", stack: "var(--font-inter), Arial, Helvetica, sans-serif" },
-  calibri: { label: "Calibri", stack: "Calibri, Carlito, 'Segoe UI', Arial, sans-serif" },
-  playfair: { label: "Playfair Display", stack: "var(--font-playfair), Georgia, serif" },
-  times: { label: "Times New Roman", stack: "'Times New Roman', Times, serif" },
-  arial: { label: "Arial", stack: "Arial, Helvetica, sans-serif" },
+  georgia: { label: "Georgia", stack: "var(--font-cv-gelasio), Georgia, serif" },
+  garamond: { label: "Garamond", stack: "var(--font-cv-garamond), Garamond, serif" },
+  calibri: { label: "Calibri", stack: "var(--font-cv-carlito), Calibri, sans-serif" },
+  arial: { label: "Arial", stack: "var(--font-cv-arimo), Arial, Helvetica, sans-serif" },
+  cambria: { label: "Cambria", stack: "var(--font-cv-caladea), Cambria, serif" },
+  times: { label: "Times New Roman", stack: "var(--font-cv-tinos), 'Times New Roman', Times, serif" },
 } as const;
 
 export const CV_ACCENTS = {
@@ -52,7 +52,7 @@ export const DEFAULT_CV_STYLE: CvStyle = {
 
 /** Réglages par défaut de la lettre de motivation (une seule colonne, texte un peu plus grand). */
 export const DEFAULT_LETTER_STYLE: CvStyle = {
-  font: "inter",
+  font: "arial",
   fontSize: 12,
   accent: "noir",
   layout: "une_colonne",

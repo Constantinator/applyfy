@@ -13,7 +13,7 @@ import {
 
 import { Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
 
-// Les 5 modèles du CV Builder, écrits une fois avec les briques de cv-primitives : rendus
+// Les 6 modèles du CV Builder, écrits une fois avec les briques de cv-primitives : rendus
 // en PDF (téléchargement) et en HTML modifiable (aperçu de l'éditeur). Chaque texte relié
 // à un champ porte `edit` : il se modifie directement dans l'aperçu.
 
@@ -141,7 +141,7 @@ function ItemList<T extends { id: string }>({ items, render }: { items: T[]; ren
 }
 
 // ---------------------------------------------------------------------------
-// Modèles à une colonne : minimaliste, classique, moderne bleu, tech
+// Modèles à une colonne : minimaliste, classique, moderne bleu, tech, finance
 // ---------------------------------------------------------------------------
 
 type Theme = {
@@ -149,6 +149,8 @@ type Theme = {
   muted: string;
   headerAlign: "left" | "center";
   Heading: (props: { children: string }) => ReactNode;
+  /** Polices propres au modèle (identifiants de CV_FONTS), à la place de celle du CV. */
+  fonts?: { heading: string; body: string };
 };
 
 function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; variant: CvTemplateId }) {
@@ -157,7 +159,9 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
   const center = theme.headerAlign === "center";
   const photo = (variant === "moderne" || variant === "tech") && data.personal.photo;
   const muted = { color: theme.muted };
-  const section = { marginTop: 12 };
+  // Finance : filet fin à gauche de chaque section.
+  const section =
+    variant === "finance" ? { marginTop: 12, borderLeftWidth: 0.75, borderColor: theme.accent, paddingLeft: 9 } : { marginTop: 12 };
   const entry = { marginTop: 7 };
   const row = { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" };
   const Heading = theme.Heading;
@@ -167,15 +171,16 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
   const headerContacts = items.filter((c) => !highlighted.includes(c));
 
   return (
-    <Page style={{ fontFamily: data.style.font, fontSize: 9.5, lineHeight: 1.4, color: "#111827", paddingVertical: 36, paddingHorizontal: 42 }}>
+    <Page style={{ fontFamily: theme.fonts?.body ?? data.style.font, fontSize: 9.5, lineHeight: 1.4, color: "#111827", paddingVertical: 36, paddingHorizontal: 42 }}>
       <View style={[row, { alignItems: "center" }]}>
         <View style={{ flex: 1, textAlign: theme.headerAlign }}>
           <Name
             data={data}
             style={[
               BOLD,
-              { fontSize: 22, lineHeight: 1.15, color: variant === "moderne" ? theme.accent : "#111827" },
+              { fontSize: 22, lineHeight: 1.15, color: variant === "moderne" || variant === "finance" ? theme.accent : "#111827" },
               center && { textTransform: "uppercase" },
+              theme.fonts && { fontFamily: theme.fonts.heading, fontSize: 24 },
             ]}
           />
           {data.personal.jobTitle ? (
@@ -213,7 +218,9 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
         </View>
       ) : null}
 
-      {variant === "minimaliste" && <View style={{ borderBottomWidth: 0.75, borderColor: "#111827", marginTop: 10 }} />}
+      {(variant === "minimaliste" || variant === "finance") && (
+        <View style={{ borderBottomWidth: 0.75, borderColor: variant === "finance" ? theme.accent : "#111827", marginTop: 10 }} />
+      )}
 
       {s.summary ? (
         <View style={section}>
@@ -458,6 +465,20 @@ const TECH: Theme = {
   ),
 };
 
+/** Finance : marine, titres en Gelasio (proportions de Georgia), texte en Arimo (Arial). */
+const FINANCE_NAVY = "#1a2340";
+const FINANCE: Theme = {
+  accent: FINANCE_NAVY,
+  muted: "#4B5563",
+  headerAlign: "left",
+  fonts: { heading: "gelasio", body: "arimo" },
+  Heading: ({ children }) => (
+    <Text style={[BOLD, { fontFamily: "gelasio", fontSize: 11.5, color: FINANCE_NAVY, letterSpacing: 0.4, marginBottom: 3 }]}>
+      {children}
+    </Text>
+  ),
+};
+
 // ---------------------------------------------------------------------------
 // Modèle 4 : sidebar sombre (30 %) + colonne blanche
 // ---------------------------------------------------------------------------
@@ -648,7 +669,9 @@ function Sidebar({ data }: { data: CvData }) {
 
 /** Les pages du CV dans le modèle choisi (dans un PrimitivesContext PDF ou HTML). */
 export function CvPages({ data, templateId }: { data: CvData; templateId: CvTemplateId }) {
-  const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH, sidebar: null }[templateId];
+  const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH, finance: FINANCE, sidebar: null }[
+    templateId
+  ];
   return (
     <AlignContext value={data.style.align}>
       {theme ? <SingleColumn data={data} variant={templateId} theme={theme} /> : <Sidebar data={data} />}

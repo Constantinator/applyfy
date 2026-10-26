@@ -44,7 +44,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">CV Builder</h1>
           <p className="mt-1.5 text-slate-500 dark:text-slate-400">
-            Crée ton CV en remplissant un formulaire, choisis parmi 5 modèles et télécharge-le en PDF.
+            Choisis un modèle parmi 5, améliore ton CV avec l&apos;assistant IA et télécharge-le en PDF.
           </p>
         </div>
         {cvs && cvs.length < CV_BUILDER_MAX && (
@@ -76,7 +76,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
             <h2 className="font-semibold text-slate-900 dark:text-white">Aucun CV pour l&apos;instant</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Pars d&apos;un modèle vierge, ou d&apos;un CV que tu as déjà (PDF ou Word) pour
-              pré-remplir le formulaire et obtenir son analyse. Tu changes de modèle quand tu veux.
+              pré-remplir ton nouveau CV et obtenir son analyse.
             </p>
           </div>
         </div>
