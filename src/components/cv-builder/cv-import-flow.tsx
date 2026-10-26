@@ -34,6 +34,8 @@ const STEPS = ["Import", "Analyse", "Modèle", "Éditeur"] as const;
  */
 async function sendForImport(file: File, ext: "pdf" | "docx") {
   const formData = new FormData();
+  // Taille d'origine : le serveur vérifie qu'il lit bien le fichier entier.
+  formData.set("size", String(file.size));
   if (!SUPABASE_CONFIGURED) {
     formData.set("file", file);
     return importBuilderCvAction(formData);

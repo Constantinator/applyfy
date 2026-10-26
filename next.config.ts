@@ -16,6 +16,9 @@ if (process.env.VERCEL_ENV === "production") {
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Lecture du texte des PDF côté serveur (src/lib/pdf-text.ts) : chargé depuis node_modules,
+  // sans passer par le bundler (worker et fichiers annexes de pdfjs).
+  serverExternalPackages: ["pdfjs-dist"],
   experimental: {
     serverActions: {
       // Upload de CV en PDF (3,5 Mo max, cf. src/lib/cv-types.ts), sous la limite

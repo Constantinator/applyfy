@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { CoverLetter, TranscribedLetter } from "./cover-letter";
 import type { ImprovedCv } from "./cv-html";
 import type { CvSuggestions } from "./cv-types";
+import { extractPdfText } from "./pdf-text";
 
 const MODEL = "claude-opus-5-5";
 
@@ -47,20 +48,30 @@ async function parseStructured<T extends z.ZodType>(
   return (response.parsed_output as z.infer<T> | null) ?? null;
 }
 
+/** Journalise l'erreur exacte d'un appel à Claude : statut, identifiant de requête et réponse de l'API. */
+function logClaudeError(context: string, error: unknown) {
+  if (error instanceof Anthropic.APIError) {
+    console.error(`[${context}] API ${error.status ?? "?"} (request-id ${error.requestID ?? "?"})`, error.message, error.error);
+  } else {
+    console.error(`[${context}]`, error);
+  }
+}
+
 /** Message d'erreur affichable pour un appel à Claude qui a échoué (détails dans les logs). */
 export function claudeErrorMessage(error: unknown, context: string): string {
+  logClaudeError(context, error);
   if (error instanceof Anthropic.BadRequestError) {
-    console.error(`[${context}] requête refusée`, error.message);
-    return "Impossible de lire ce PDF (protégé par mot de passe ou endommagé ?).";
+    // Seul un refus qui vise le document justifie le message sur le PDF.
+    return /pdf|document/i.test(error.message)
+      ? "Impossible de lire ce PDF (protégé par mot de passe ou endommagé ?). Essaie de le réenregistrer en PDF, ou importe-le en Word."
+      : "La demande a été refusée par le service d'analyse. Réessaie dans un instant.";
   }
   if (error instanceof Anthropic.RateLimitError) {
     return "Trop de demandes en ce moment. Réessaie dans une minute.";
   }
   if (error instanceof Anthropic.APIError) {
-    console.error(`[${context}] API ${error.status}`, error.message);
     return "Le service d'analyse est indisponible. Réessaie plus tard.";
   }
-  console.error(`[${context}]`, error);
   return "L'opération a échoué. Réessaie dans un instant.";
 }
 
@@ -618,7 +629,7 @@ Un point sans lien avec l'offre peut rester presque inchangé. L'offre peut êtr
   );
 }
 
-const ImportedCvSchema = z.object({
+const ImportedCvContentSchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
   jobTitle: z.string().describe("Intitulé du poste occupé ou visé, tel qu'en tête du CV"),
@@ -659,52 +670,116 @@ const ImportedCvSchema = z.object({
   certifications: z.array(z.object({ name: z.string(), issuer: z.string(), date: z.string() })),
   projects: z.array(z.object({ name: z.string(), description: z.string(), link: z.string() })),
   interests: z.array(z.string()),
-  analysis: z.object({
-    criteria: z
-      .object({
-        clarity: z.number().int(),
-        impact: z.number().int(),
-        structure: z.number().int(),
-        ats: z.number().int(),
-        length: z.number().int(),
-        formatting: z.number().int(),
-      })
-      .describe("Note de 0 à 10 de chaque critère"),
-    score: z.number().int().describe("Note globale sur 100"),
-    positives: z.array(z.string()).describe("2 à 4 points forts"),
-    improvements: z.array(z.string()).describe("2 à 4 points à améliorer"),
-    optimizations: z
-      .array(z.object({ title: z.string(), detail: z.string(), request: z.string() }))
-      .describe("3 à 5 améliorations prioritaires, de la plus importante à la moins importante"),
-    suggestedJobs: z.array(z.string()).describe("3 à 5 intitulés de postes que ce profil peut viser"),
-  }),
 });
 
-export type ImportedCv = z.infer<typeof ImportedCvSchema>;
+const ImportedCvAnalysisSchema = z.object({
+  criteria: z
+    .object({
+      clarity: z.number().int(),
+      impact: z.number().int(),
+      structure: z.number().int(),
+      ats: z.number().int(),
+      length: z.number().int(),
+      formatting: z.number().int(),
+    })
+    .describe("Note de 0 à 10 de chaque critère"),
+  score: z.number().int().describe("Note globale sur 100"),
+  positives: z.array(z.string()).describe("2 à 4 points forts"),
+  improvements: z.array(z.string()).describe("2 à 4 points à améliorer"),
+  optimizations: z
+    .array(z.object({ title: z.string(), detail: z.string(), request: z.string() }))
+    .describe("3 à 5 améliorations prioritaires, de la plus importante à la moins importante"),
+  suggestedJobs: z.array(z.string()).describe("3 à 5 intitulés de postes que ce profil peut viser"),
+});
 
-const IMPORT_CV_SYSTEM = `Extrais les informations de ce CV. Recopie chaque élément exactement tel qu'il apparaît, sans reformuler, résumer ou compléter. Chaque puce ou tiret = un élément séparé dans bullets[], jamais fusionné. Respecte strictement l'appartenance de chaque information à sa section. Si un passage est illisible, laisse le champ vide.
+const ImportedCvSchema = ImportedCvContentSchema.extend({ analysis: ImportedCvAnalysisSchema });
 
-Puis, dans « analysis », évalue ce CV comme un recruteur exigeant mais juste. Écris en français, en tutoyant le candidat, phrases courtes et concrètes, propres à CE CV (jamais de conseil générique) :
+/** CV importé ; `analysis` null si l'analyse n'a pas pu être faite (le contenu reste importé). */
+export type ImportedCv = z.infer<typeof ImportedCvContentSchema> & {
+  analysis: z.infer<typeof ImportedCvAnalysisSchema> | null;
+};
+
+const IMPORT_EXTRACT_RULES = `Extrais les informations de ce CV. Recopie chaque élément exactement tel qu'il apparaît, sans reformuler, résumer ou compléter. Chaque puce ou tiret = un élément séparé dans bullets[], jamais fusionné. Respecte strictement l'appartenance de chaque information à sa section. Si un passage est illisible, laisse le champ vide.`;
+
+const IMPORT_ANALYSIS_RULES = `Évalue ce CV comme un recruteur exigeant mais juste. Écris en français, en tutoyant le candidat, phrases courtes et concrètes, propres à CE CV (jamais de conseil générique) :
 - criteria : note de 0 à 10 pour chaque critère. clarity : clarté et lisibilité. impact : formulations (verbes d'action, résultats chiffrés). structure : ordre et organisation des sections. ats : mots-clés du métier et lisibilité par les logiciels de recrutement. length : longueur adaptée à l'expérience. formatting : mise en forme (cohérence, aération, dates) ; pour un CV fourni en texte brut, juge l'organisation du texte.
 - score : note globale sur 100, cohérente avec les critères. Un CV moyen obtient 50 à 65, un excellent CV dépasse 85.
 - positives : 2 à 4 points forts.
 - improvements : 2 à 4 points faibles.
 - optimizations : 3 à 5 améliorations prioritaires. title : une phrase courte adressée au candidat (ex. « Ton accroche est trop vague », « Tes expériences manquent de chiffres concrets »). detail : une phrase, pourquoi et comment. request : la demande que le candidat écrirait à l'assistant qui modifie son CV pour corriger ce point, 12 mots maximum (ex. « Rends mon accroche plus précise et percutante »).
 - suggestedJobs : 3 à 5 intitulés de postes courts que ce profil peut viser, déduits du CV (ex. « Data Analyst », « Chef de projet », « Consultant finance »).
-L'analyse s'appuie uniquement sur le contenu du CV et ne modifie jamais les informations extraites.`;
+L'analyse s'appuie uniquement sur le contenu du CV.`;
 
-/** « Importer un CV » du CV Builder : contenu structuré d'un CV PDF ou Word et son analyse ; null si illisible. */
-export async function extractCvForBuilder(
-  source: { kind: "pdf"; base64: string } | { kind: "text"; text: string },
-): Promise<ImportedCv | null> {
-  const content: Anthropic.Beta.BetaContentBlockParam[] =
-    source.kind === "pdf"
-      ? [
-          { type: "document", source: { type: "base64", media_type: "application/pdf", data: source.base64 }, title: "CV" },
-          { type: "text", text: "Extrais le contenu de ce CV, puis analyse-le." },
-        ]
-      : [{ type: "text", text: `<cv>\n${source.text}\n</cv>\n\nExtrais le contenu de ce CV, puis analyse-le.` }];
-  return parseStructured(ImportedCvSchema, IMPORT_CV_SYSTEM, content, { effort: "low", maxTokens: 20000 });
+const IMPORT_CV_SYSTEM = `${IMPORT_EXTRACT_RULES}
+
+Puis, dans « analysis » : ${IMPORT_ANALYSIS_RULES} Elle ne modifie jamais les informations extraites.`;
+
+export type CvSource = { kind: "pdf"; base64: string } | { kind: "text"; text: string };
+
+function cvContent(source: CvSource, instruction: string): Anthropic.Beta.BetaContentBlockParam[] {
+  return source.kind === "pdf"
+    ? [
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: source.base64 }, title: "CV" },
+        { type: "text", text: instruction },
+      ]
+    : [{ type: "text", text: `<cv>\n${source.text}\n</cv>\n\n${instruction}` }];
+}
+
+/** Requête refusée à cause du document lui-même (PDF que l'API ne sait pas lire). */
+function isDocumentError(error: InstanceType<typeof Anthropic.BadRequestError>) {
+  return /pdf|document/i.test(error.message);
+}
+
+/** Extraction et analyse en un seul appel. */
+function extractAndAnalyse(source: CvSource): Promise<ImportedCv | null> {
+  return parseStructured(ImportedCvSchema, IMPORT_CV_SYSTEM, cvContent(source, "Extrais le contenu de ce CV, puis analyse-le."), {
+    effort: "low",
+    maxTokens: 20000,
+  });
+}
+
+/** Extraction et analyse en deux appels parallèles ; l'analyse peut échouer seule. */
+async function extractThenAnalyse(source: CvSource): Promise<ImportedCv | null> {
+  const [content, analysis] = await Promise.all([
+    parseStructured(ImportedCvContentSchema, IMPORT_EXTRACT_RULES, cvContent(source, "Extrais le contenu de ce CV."), {
+      effort: "low",
+      maxTokens: 16000,
+    }),
+    parseStructured(ImportedCvAnalysisSchema, IMPORT_ANALYSIS_RULES, cvContent(source, "Analyse ce CV."), {
+      effort: "low",
+      maxTokens: 4000,
+    }).catch((error) => {
+      logClaudeError("cv-builder import : analyse séparée", error);
+      return null;
+    }),
+  ]);
+  return content && { ...content, analysis };
+}
+
+/**
+ * « Importer un CV » du CV Builder : contenu structuré d'un CV PDF ou Word et son analyse,
+ * en un seul appel ; null si illisible. Requête refusée par l'API (400) :
+ * - PDF que l'API ne sait pas lire : son texte (pdfjs) est transmis à la place ;
+ * - autre cause : extraction et analyse en deux appels séparés.
+ */
+export async function extractCvForBuilder(source: CvSource): Promise<ImportedCv | null> {
+  try {
+    return await extractAndAnalyse(source);
+  } catch (error) {
+    if (!(error instanceof Anthropic.BadRequestError)) throw error;
+    logClaudeError("cv-builder import : appel combiné refusé", error);
+    if (source.kind === "pdf" && isDocumentError(error)) {
+      const text = await extractPdfText(Buffer.from(source.base64, "base64")).catch((e) => {
+        console.error("[cv-builder import] lecture du texte du PDF (pdfjs)", e);
+        return "";
+      });
+      console.info(`[cv-builder import] texte du PDF (pdfjs) : ${text.length} caractères`);
+      // PDF sans texte (scan) : l'erreur d'origine est remontée.
+      if (text.trim().length < 30) throw error;
+      return extractAndAnalyse({ kind: "text", text: text.slice(0, 40_000) });
+    }
+    return extractThenAnalyse(source);
+  }
 }
 
 // ---------------------------------------------------------------------------

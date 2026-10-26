@@ -11,6 +11,7 @@ import {
   adaptCvToOffer,
   claudeErrorMessage,
   extractCvForBuilder,
+  type CvSource,
   generateCvSummary,
   improveCvBullet,
   isClaudeConfigured,
@@ -249,6 +250,7 @@ const clampNote = (value: number, max: number) => Math.min(max, Math.max(0, Math
 
 /** Analyse de l'IA aux bornes du schéma ; null si elle est inutilisable (le CV reste importé). */
 function importedAnalysis({ analysis: a }: ImportedCv): CvAnalysis | null {
+  if (!a) return null;
   const parsed = CvAnalysisSchema.safeParse({
     score: clampNote(a.score, 100),
     criteria: Object.fromEntries(Object.entries(a.criteria).map(([k, v]) => [k, clampNote(v, 10)])),
@@ -390,8 +392,17 @@ export async function importBuilderCvAction(formData: FormData): Promise<ImportC
   if (typeof bytes === "string") return { ok: false, error: bytes };
   if (bytes.length > CV_IMPORT_MAX_BYTES) return { ok: false, error: `Ton CV dépasse ${CV_IMPORT_MAX_LABEL}.` };
 
+  // Fichier reçu identique à celui choisi : même taille que celle annoncée par le navigateur.
+  const expectedSize = Number(formData.get("size"));
+  const signature = bytes.subarray(0, 8).toString("latin1").replace(/[^\x20-\x7e]/g, "?");
+  console.info(`[cv-builder] import : ${bytes.length} octets reçus (annoncés : ${expectedSize || "?"}), début « ${signature} »`);
+  if (expectedSize && expectedSize !== bytes.length) {
+    console.error(`[cv-builder] import : taille reçue ${bytes.length} ≠ taille envoyée ${expectedSize}`);
+    return { ok: false, error: "Le fichier a été mal transmis. Réessaie." };
+  }
+
   // Format reconnu à la signature du fichier, pas seulement à son extension.
-  let source: Parameters<typeof extractCvForBuilder>[0];
+  let source: CvSource;
   if (bytes.subarray(0, 5).toString("latin1") === "%PDF-") {
     source = { kind: "pdf", base64: bytes.toString("base64") };
   } else if (bytes.subarray(0, 2).toString("latin1") === "PK") {
