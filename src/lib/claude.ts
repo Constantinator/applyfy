@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import type { CoverLetter, TranscribedLetter } from "./cover-letter";
 import type { ImprovedCv } from "./cv-html";
+import { GENERIC_JARGON } from "./cv-score";
 import { detectSector, formatSectorContext, getSectorContext } from "./cv-sector-context";
 import type { CvSuggestions } from "./cv-types";
 import { getKeywordsForSector } from "./job-scraper";
@@ -867,11 +868,14 @@ const CoachReplySchema = z.object({
 export type CoachReply = z.infer<typeof CoachReplySchema>;
 export type CoachUpdate = NonNullable<CoachReply["update"]>;
 
-/** Ce que le coach sait du CV : contenu actuel et analyse de l'import (si le CV a été importé). */
+/**
+ * Ce que le coach sait du CV : contenu actuel, score calculé par le code (cv-score.ts, affiché
+ * dans l'éditeur) avec ses corrections prioritaires, et analyse de l'import (CV importé).
+ */
 export type CoachContext = {
   cvJson: string;
+  score: { value: number; corrections: string[] };
   analysis: {
-    score: number;
     criteria: Record<string, number>;
     improvements: string[];
     optimizations: string[];
@@ -883,7 +887,8 @@ export type CoachContext = {
 const COACH_RULES = `Tu es un coach CV expert. Tu poses UNE question à la fois sur un point précis à améliorer. Dès que tu as assez d'infos, tu renvoies le JSON mis à jour de la section concernée.
 
 Méthode :
-- Travaille un point à la fois, en commençant par le plus faible (critères les moins bien notés, points à améliorer de l'analyse).
+- Travaille un point à la fois, en commençant par ceux qui rapportent le plus de points (« Corrections qui rapportent le plus » du score), puis les points à améliorer de l'analyse.
+- Si le candidat te demande une correction du score (ex. « Ajoute des résultats chiffrés à mon expérience X »), traite-la : pose tes questions si des faits te manquent, puis mets la section à jour.
 - Ta question cite un élément réel du CV (poste, projet, formation) et demande des faits concrets : chiffres, résultats, périmètre, outils, contexte.
 - Si la réponse du candidat est encore vague, pose une question de suivi sur le même point (update = null).
 - Dès que tu as assez d'informations : renvoie la section mise à jour dans « update », écris « Parfait, j'intègre ça dans ton CV. » puis enchaîne sur le prochain point à améliorer avec une nouvelle question.
@@ -892,7 +897,7 @@ Méthode :
 
 Règles de mise à jour (à chaque ajout ou reformulation) :
 - Pertinence pour le poste : tout ajout ou reformulation sert le poste visé (« Poste visé » de l'analyse ; à défaut, les « Postes suggérés »). Si une information donnée par le candidat n'est pas pertinente pour ce poste, ne l'intègre pas : explique-lui pourquoi en une phrase, puis continue.
-- Score ATS : chaque modification doit améliorer le score ATS du CV. Utilise les mots-clés du secteur et du poste, des verbes d'action forts et des résultats chiffrés (seulement ceux du CV ou donnés par le candidat). Évite le jargon vague (« dynamique », « polyvalent », « force de proposition », « diverses missions »).
+- Score ATS : chaque modification doit améliorer le score ATS du CV. Utilise les mots-clés du secteur et du poste, des verbes d'action forts et des résultats chiffrés (seulement ceux du CV ou donnés par le candidat). Évite le jargon vague (${GENERIC_JARGON.map((j) => `« ${j} »`).join(", ")}).
 - N'invente RIEN : n'ajoute que des faits présents dans le CV ou donnés par le candidat dans la conversation.
 - Une seule section par réponse. Garde l'« id » des éléments existants. Les champs non concernés restent identiques.
 - Écris dans la langue du CV. Points d'expérience : verbe d'action, concis, orientés résultats, sans point final.
@@ -909,8 +914,20 @@ async function coachSectorContext({ cvJson, analysis }: CoachContext) {
 }
 
 /** Prompt système du coach : contexte sectoriel, règles, contenu du CV et analyse. */
-function coachSystem({ cvJson, analysis }: CoachContext, sectorContext: string) {
-  const parts = [sectorContext, COACH_RULES, `<cv>\n${cvJson}\n</cv>`];
+function coachSystem({ cvJson, score, analysis }: CoachContext, sectorContext: string) {
+  const parts = [
+    sectorContext,
+    COACH_RULES,
+    `<cv>\n${cvJson}\n</cv>`,
+    [
+      "<score>",
+      `Score du CV, calculé par l'application et affiché au candidat : ${score.value}/100 (90 = prêt à postuler)`,
+      score.corrections.length ? `Corrections qui rapportent le plus :\n${score.corrections.map((c) => `- ${c}`).join("\n")}` : null,
+      "</score>",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  ];
   if (analysis) {
     const criteria = Object.entries(analysis.criteria)
       .map(([name, note]) => `${name} ${note}/10`)
@@ -918,8 +935,7 @@ function coachSystem({ cvJson, analysis }: CoachContext, sectorContext: string) 
     parts.push(
       [
         "<analyse>",
-        `Score : ${analysis.score}/100`,
-        `Critères : ${criteria}`,
+        `Critères (analyse de l'import) : ${criteria}`,
         analysis.improvements.length ? `Points faibles :\n${analysis.improvements.map((p) => `- ${p}`).join("\n")}` : null,
         analysis.optimizations.length
           ? `Améliorations prioritaires :\n${analysis.optimizations.map((p) => `- ${p}`).join("\n")}`

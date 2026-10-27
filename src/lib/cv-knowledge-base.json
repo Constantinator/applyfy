@@ -277,7 +277,7 @@
         "Datadog", "Prometheus", "Grafana", "Sentry", "OpenTelemetry"
       ],
       "strong_action_verbs": [
-        "Développer", "Architrecturer", "Refactoriser", "Optimiser", "Déployer",
+        "Développer", "Architecturer", "Refactoriser", "Optimiser", "Déployer",
         "Migrer", "Intégrer", "Automatiser", "Monitorer", "Scaler",
         "Contribuer", "Reviewer", "Documenter", "Tester", "Sécuriser",
         "Concevoir", "Implémenter", "Bootstrapper", "Shipper", "Industrialiser"

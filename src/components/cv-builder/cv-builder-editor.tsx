@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { coachOpeningAction, refineBuilderCvAction, saveBuilderCvAction } from "@/app/actions/cv-builder";
-import { RefineChat } from "@/components/application/refine-chat";
+import {
+  coachOpeningAction,
+  refineBuilderCvAction,
+  saveBuilderCvAction,
+  scoringContextAction,
+} from "@/app/actions/cv-builder";
+import { RefineChat, type RefineChatHandle } from "@/components/application/refine-chat";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
@@ -16,8 +21,10 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { scoreCv, type ScoringContext } from "@/lib/cv-score";
 
 import { CvHtmlPreview } from "./cv-html-preview";
+import { CvScorePanel } from "./cv-score-card";
 
 export type CvBuilderUsage = {
   /** Chat « Affiner avec l'IA » : utilisation du mois. */
@@ -46,7 +53,19 @@ function fileName(title: string, data: CvData) {
  * modifiable d'un clic sur un texte. Le coach ouvre la conversation sur le point le plus
  * faible du CV, pose ses questions et intègre les réponses au CV.
  */
-export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilderUsage }) {
+export function CvBuilderEditor({
+  cv,
+  usage,
+  scoring,
+  initialRequest,
+}: {
+  cv: BuilderCv;
+  usage: CvBuilderUsage;
+  /** Données du secteur pour le score (détecté à l'ouverture). */
+  scoring: ScoringContext;
+  /** Demande envoyée au coach à l'ouverture (optimisation choisie à l'import). */
+  initialRequest?: string;
+}) {
   const [title, setTitle] = useState(cv.title);
   // Modèle choisi à la création du CV : plus modifiable dans l'éditeur.
   const templateId: CvTemplateId = cv.templateId;
@@ -90,6 +109,30 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [status]);
+
+  // Score calculé par le code (cv-score.ts), recalculé à chaque modification du CV.
+  const [scoringContext, setScoringContext] = useState(scoring);
+  const score = useMemo(() => scoreCv(data, scoringContext), [data, scoringContext]);
+  const chatRef = useRef<RefineChatHandle>(null);
+
+  // Poste cible modifié (titre du CV ou poste visé) : secteur redétecté par le serveur.
+  const target = `${data.personal.jobTitle.trim()}|${data.analysis?.targetJob.trim() ?? ""}`;
+  const lastTarget = useRef(target);
+  useEffect(() => {
+    if (target === lastTarget.current) return;
+    const timer = setTimeout(async () => {
+      lastTarget.current = target;
+      const next = await scoringContextAction(cv.id, dataRef.current).catch(() => null);
+      if (next) setScoringContext(next);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [cv.id, target]);
+
+  // Demande reçue à l'ouverture (?demande=) : retirée de l'adresse, pour ne pas la renvoyer
+  // au rechargement de la page.
+  useEffect(() => {
+    if (initialRequest) window.history.replaceState(window.history.state, "", window.location.pathname);
+  }, [initialRequest]);
 
   // Premier message du coach. Gardé dans les données (sans les marquer modifiées) : la
   // sauvegarde automatique conserve ainsi le cache enregistré par le serveur.
@@ -158,9 +201,12 @@ export function CvBuilderEditor({ cv, usage }: { cv: BuilderCv; usage: CvBuilder
       )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
-        {/* Chat « coach » : même composant que le chat de l'éditeur du CV d'une candidature. */}
-        <div className="min-w-0">
+        {/* Score, puis chat « coach » : même composant que le chat de l'éditeur du CV d'une candidature. */}
+        <div className="min-w-0 space-y-4">
+          <CvScorePanel score={score} onPick={(request) => chatRef.current?.send(request)} />
           <RefineChat
+            controlRef={chatRef}
+            initialPrompt={initialRequest}
             document="cvBuilder"
             applicationId={cv.id}
             aiEnabled={usage.aiEnabled}

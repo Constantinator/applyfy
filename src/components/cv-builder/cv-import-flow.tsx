@@ -7,16 +7,19 @@ import { useId, useRef, useState } from "react";
 import { completeCvImportAction, importBuilderCvAction } from "@/app/actions/cv-builder";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import {
-  CV_CRITERIA,
   CV_IMPORT_FOLDER,
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
   type CvAnalysis,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { scoreTone, type CvScore } from "@/lib/cv-score";
 import { createClient } from "@/lib/supabase/client";
 
 import { TemplateChoiceDialog } from "./new-cv-dialog";
+import { SCORE_TONES, ScoreGauge, scoreLabel } from "./cv-score-card";
+
+type ImportedCv = { id: string; analysis: CvAnalysis | null; score: CvScore };
 
 const SUPABASE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
@@ -61,8 +64,10 @@ async function sendForImport(file: File, ext: "pdf" | "docx") {
 export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; aiEnabled: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [imported, setImported] = useState<{ id: string; analysis: CvAnalysis | null } | null>(null);
+  const [imported, setImported] = useState<ImportedCv | null>(null);
   const [targetJob, setTargetJob] = useState("");
+  // Optimisation choisie d'un clic : envoyée au coach à l'ouverture de l'éditeur.
+  const [request, setRequest] = useState("");
   const templateDialogRef = useRef<HTMLDialogElement>(null);
   const [opening, setOpening] = useState(false);
 
@@ -71,7 +76,12 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
     setOpening(true);
     setStep(3);
     await completeCvImportAction(imported.id, { templateId, targetJob });
-    router.push(`/cv-builder/${imported.id}`);
+    router.push(`/cv-builder/${imported.id}${request ? `?demande=${encodeURIComponent(request)}` : ""}`);
+  }
+
+  function chooseTemplate() {
+    setStep(2);
+    templateDialogRef.current?.showModal();
   }
 
   return (
@@ -100,11 +110,16 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
       {step >= 1 && imported && (
         <AnalysisStep
           analysis={imported.analysis}
+          score={imported.score}
           targetJob={targetJob}
           onTargetJob={setTargetJob}
           onContinue={() => {
-            setStep(2);
-            templateDialogRef.current?.showModal();
+            setRequest("");
+            chooseTemplate();
+          }}
+          onPickRequest={(value) => {
+            setRequest(value);
+            chooseTemplate();
           }}
         />
       )}
@@ -180,7 +195,7 @@ function UploadStep({
 }: {
   resetLabel: string;
   aiEnabled: boolean;
-  onImported: (result: { id: string; analysis: CvAnalysis | null }) => void;
+  onImported: (result: ImportedCv) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
@@ -199,7 +214,7 @@ function UploadStep({
     setPending(true);
     try {
       const result = await sendForImport(file, ext as "pdf" | "docx");
-      if (result.ok) return onImported({ id: result.id, analysis: result.analysis });
+      if (result.ok) return onImported({ id: result.id, analysis: result.analysis, score: result.score });
       if ("limitReached" in result && result.limitReached) setLimitReached(true);
       else setError(result.error);
     } catch (e) {
@@ -302,35 +317,25 @@ function UploadStep({
 // Étape 2 : résultats de l'analyse
 // ---------------------------------------------------------------------------
 
-/** Couleur d'une note : rouge sous 50 %, orange sous 75 %, vert au-delà. */
-function tone(ratio: number) {
-  if (ratio < 0.5) return { stroke: "#dc2626", bar: "bg-red-500", text: "text-red-600 dark:text-red-400" };
-  if (ratio < 0.75) return { stroke: "#f97316", bar: "bg-orange-500", text: "text-orange-600 dark:text-orange-400" };
-  return { stroke: "#16a34a", bar: "bg-green-600", text: "text-green-700 dark:text-green-400" };
-}
-
-/** Appréciation du score sur 100. */
-function scoreLabel(score: number) {
-  if (score < 50) return "À retravailler";
-  if (score < 65) return "Correct";
-  if (score < 75) return "Bien";
-  if (score < 85) return "Très bien";
-  return "Excellent";
-}
-
 /** Sous-étapes de l'analyse : un écran chacune, dans l'étape « Analyse » du stepper. */
 const ANALYSIS_SCREENS = ["Score", "Points forts et faibles", "Poste visé", "Optimisations"] as const;
 
 function AnalysisStep({
   analysis,
+  score,
   targetJob,
   onTargetJob,
   onContinue,
+  onPickRequest,
 }: {
   analysis: CvAnalysis | null;
+  /** Score calculé par le code (cv-score.ts), le même que dans l'éditeur. */
+  score: CvScore;
   targetJob: string;
   onTargetJob: (value: string) => void;
   onContinue: () => void;
+  /** Optimisation choisie d'un clic : sa demande sera envoyée au coach. */
+  onPickRequest: (request: string) => void;
 }) {
   const [screen, setScreen] = useState(0);
   const headingRef = useRef<HTMLDivElement>(null);
@@ -375,10 +380,10 @@ function AnalysisStep({
         </div>
       </div>
 
-      {screen === 0 && <ScoreCard analysis={analysis} />}
+      {screen === 0 && <ScoreCard score={score} />}
       {screen === 1 && <PointsCard analysis={analysis} />}
       {screen === 2 && <TargetJobCard suggestions={analysis.suggestedJobs} value={targetJob} onChange={onTargetJob} />}
-      {screen === 3 && <OptimizationsCard analysis={analysis} />}
+      {screen === 3 && <OptimizationsCard analysis={analysis} onPick={onPickRequest} />}
 
       <div className="flex items-center justify-between gap-3">
         {screen > 0 ? (
@@ -408,54 +413,34 @@ function CardTitle({ id, children }: { id: string; children: string }) {
   );
 }
 
-function ScoreCard({ analysis }: { analysis: CvAnalysis }) {
+function ScoreCard({ score }: { score: CvScore }) {
   const titleId = useId();
-  const t = tone(analysis.score / 100);
-  // Jauge circulaire : arc proportionnel au score.
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
+  const t = SCORE_TONES[scoreTone(score.score)];
   return (
     <section aria-labelledby={titleId} className="card space-y-5 p-5">
       <CardTitle id={titleId}>Score de ton CV</CardTitle>
       <div className="flex items-center gap-5">
-        <div className="relative h-32 w-32 shrink-0">
-          <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90" aria-hidden="true">
-            <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="10" className="stroke-slate-100 dark:stroke-slate-800" />
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              fill="none"
-              strokeWidth="10"
-              strokeLinecap="round"
-              stroke={t.stroke}
-              strokeDasharray={circumference}
-              strokeDashoffset={circumference * (1 - analysis.score / 100)}
-            />
-          </svg>
-          <p className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-3xl font-bold ${t.text}`}>{analysis.score}</span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">sur 100</span>
-          </p>
-        </div>
+        <ScoreGauge score={score.score} />
         <div>
-          <p className={`font-semibold ${t.text}`}>{scoreLabel(analysis.score)}</p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Évalué comme le ferait un recruteur.</p>
+          <p className={`font-semibold ${t.text}`}>{scoreLabel(score.score)}</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">90 = prêt à postuler</p>
         </div>
       </div>
 
-      <ul className="space-y-2" aria-label="Critères évalués">
-        {CV_CRITERIA.map((c) => {
-          const value = analysis.criteria[c.id];
-          const ct = tone(value / 10);
+      <ul className="space-y-2" aria-label="Catégories évaluées">
+        {score.categories.map((c) => {
+          // Couleur de la catégorie : même seuils que le score, rapportés à 100.
+          const ct = SCORE_TONES[scoreTone((c.score / c.max) * 100)];
           return (
             <li key={c.id} className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span className="text-slate-700 dark:text-slate-200">{c.label}</span>
-                <span className="font-medium text-slate-500 dark:text-slate-400">{value}/10</span>
+                <span className="font-medium text-slate-500 dark:text-slate-400">
+                  {c.score}/{c.max}
+                </span>
               </div>
               <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div className={`h-full rounded-full ${ct.bar}`} style={{ width: `${value * 10}%` }} />
+                <div className={`h-full rounded-full ${ct.bar}`} style={{ width: `${(c.score / c.max) * 100}%` }} />
               </div>
             </li>
           );
@@ -558,30 +543,39 @@ function TargetJobCard({
   );
 }
 
-function OptimizationsCard({ analysis }: { analysis: CvAnalysis }) {
+function OptimizationsCard({ analysis, onPick }: { analysis: CvAnalysis; onPick: (request: string) => void }) {
   const titleId = useId();
   return (
     <section aria-labelledby={titleId} className="card space-y-4 p-5">
       <div>
         <CardTitle id={titleId}>Optimisations suggérées</CardTitle>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Les priorités pour ton CV. L&apos;assistant IA de l&apos;éditeur te proposera de les corriger.
+          Les priorités pour ton CV. Clique sur l&apos;une d&apos;elles : le coach de l&apos;éditeur commencera par là.
         </p>
       </div>
       {analysis.optimizations.length > 0 ? (
-        <ol className="space-y-3">
+        <ol className="space-y-2">
           {analysis.optimizations.map((o, i) => (
-            <li key={o.title} className="flex gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+            <li key={o.title}>
+              <button
+                type="button"
+                onClick={() => onPick(o.request || o.title)}
+                className="flex w-full gap-3 rounded-lg border border-transparent p-2 text-left transition hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-400/30 dark:hover:bg-blue-500/10"
               >
-                {i + 1}
-              </span>
-              <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-white">{o.title}</p>
-                {o.detail && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{o.detail}</p>}
-              </div>
+                <span
+                  aria-hidden="true"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                >
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-slate-900 dark:text-white">{o.title}</span>
+                  {o.detail && <span className="mt-0.5 block text-sm text-slate-500 dark:text-slate-400">{o.detail}</span>}
+                </span>
+                <span aria-hidden="true" className="self-center text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Corriger →
+                </span>
+              </button>
             </li>
           ))}
         </ol>

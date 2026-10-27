@@ -53,7 +53,11 @@ const DOCUMENTS = {
 } as const;
 
 /** Commandes du chat utilisables par l'éditeur (ex. panneau « Ce qui manque »). */
-export type RefineChatHandle = { insert: (text: string) => void };
+export type RefineChatHandle = {
+  insert: (text: string) => void;
+  /** Envoie une demande (clic sur une correction du score) ; chat occupé ou bloqué : insérée dans le champ. */
+  send: (text: string) => void;
+};
 
 type Message = {
   id: number;
@@ -126,15 +130,23 @@ export function RefineChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Insertion depuis l'éditeur : ajouté au texte déjà saisi, puis le champ prend le focus.
-  useImperativeHandle(controlRef, () => ({
-    insert(text: string) {
+  useImperativeHandle(controlRef, () => {
+    const insert = (text: string) => {
       setInput((current) =>
         (current.trim() ? `${current.trimEnd()}\n${text}` : text).slice(0, REFINE_MESSAGE_MAX_LENGTH),
       );
       inputRef.current?.focus();
       inputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-    },
-  }));
+    };
+    return {
+      insert,
+      send(text: string) {
+        if (pending || disabled) return insert(text);
+        listRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        void send(text);
+      },
+    };
+  });
 
   const limitReached = limitHit || isLimitReached({ used, limit: usage.limit });
   const disabled = !aiEnabled || limitReached;

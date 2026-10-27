@@ -53,6 +53,8 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
+import { loadScoringContext } from "@/lib/cv-score-context";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
@@ -240,7 +242,7 @@ export async function adaptToOfferAction(rawData: CvData, offer: string) {
 // ---------------------------------------------------------------------------
 
 export type ImportCvResult =
-  | { ok: true; id: string; analysis: CvAnalysis | null }
+  | { ok: true; id: string; analysis: CvAnalysis | null; score: CvScore }
   | { ok: false; error: string; limitReached?: boolean };
 
 const clip = (value: string, max: number) => value.trim().slice(0, max);
@@ -446,7 +448,22 @@ export async function importBuilderCvAction(formData: FormData): Promise<ImportC
     return { ok: false, error: claudeErrorMessage(error, "cv-builder import") };
   }
   revalidatePath("/cv-builder");
-  return { ok: true, id, analysis: data.analysis };
+  // Score calculé par le code (cv-score.ts), le même que dans l'éditeur ; l'analyse de l'IA
+  // garde les points forts et faibles, les optimisations et les postes suggérés.
+  return { ok: true, id, analysis: data.analysis, score: scoreCv(data, await loadScoringContext(data)) };
+}
+
+/**
+ * Contexte du score recalculé quand le poste cible change dans l'éditeur (titre du CV ou poste
+ * visé) : le secteur détecté peut changer. Contenu affiché, revalidé ; CV de l'utilisateur.
+ */
+export async function scoringContextAction(id: string, rawData: unknown): Promise<ScoringContext | null> {
+  if (typeof id !== "string") return null;
+  const parsed = CvDataSchema.safeParse(rawData);
+  if (!parsed.success) return null;
+  // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
+  if (!(await getBuilderCv(id))) return null;
+  return loadScoringContext(parsed.data);
 }
 
 /** Fin de l'import d'un CV existant : poste visé (carte « Quel type de poste tu vises ? ») et modèle choisi. */
@@ -478,14 +495,16 @@ export async function completeCvImportAction(
 const COACH_HISTORY_MAX = 12;
 
 /** Contenu du CV transmis au coach, et son empreinte (cache du premier message). */
-function coachContext(data: CvData): CoachContext & { contentKey: string } {
+async function coachContext(data: CvData): Promise<CoachContext & { contentKey: string }> {
   const cvJson = JSON.stringify(chatContent(data));
   const a = data.analysis;
+  // Score calculé par le code, le même que celui affiché dans l'éditeur.
+  const score = scoreCv(data, await loadScoringContext(data));
   return {
     cvJson,
     contentKey: createHash("sha256").update(cvJson).digest("hex").slice(0, 32),
+    score: { value: score.score, corrections: score.corrections.slice(0, 5).map((c) => `${c.message} (+${c.points} pts)`) },
     analysis: a && {
-      score: a.score,
       criteria: Object.fromEntries(CV_CRITERIA.map((c) => [c.label, a.criteria[c.id]])),
       improvements: a.improvements,
       optimizations: a.optimizations.map((o) => o.title),
@@ -506,7 +525,7 @@ export async function coachOpeningAction(
   try {
     const cv = await getBuilderCv(id);
     if (!cv) return { ok: false };
-    const context = coachContext(cv.data);
+    const context = await coachContext(cv.data);
     if (cv.data.coach?.contentKey === context.contentKey) return { ok: true, coach: cv.data.coach };
 
     const rate = await checkAiRateLimit();
@@ -625,7 +644,7 @@ export async function refineBuilderCvAction(
 
   let reply;
   try {
-    reply = await coachBuilderCv(coachContext(current), turns, request);
+    reply = await coachBuilderCv(await coachContext(current), turns, request);
   } catch (error) {
     return { ok: false, error: claudeErrorMessage(error, "cv-builder coach") };
   }

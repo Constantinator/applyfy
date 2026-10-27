@@ -7,22 +7,28 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { getBuilderCv } from "@/lib/cv-builder";
+import { loadScoringContext } from "@/lib/cv-score-context";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
 
 // Chat « Affiner avec l'IA » (Server Action de cette page) : jusqu'à une minute.
 export const maxDuration = 120;
 
-export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-builder/[id]">) {
+export default async function CvBuilderEditorPage({ params, searchParams }: PageProps<"/cv-builder/[id]">) {
   await connection(); // CV et compteurs IA lus à chaque visite
   const { id } = await params;
+  // ?demande= : optimisation choisie à l'import, envoyée au coach à l'ouverture.
+  const { demande } = await searchParams;
   const [cv, usage] = await Promise.all([getBuilderCv(id), readAiUsage()]);
   if (!cv) notFound();
+  const scoring = await loadScoringContext(cv.data);
 
   return (
     <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">
       <CvBuilderEditor
         cv={cv}
+        scoring={scoring}
+        initialRequest={typeof demande === "string" ? demande.trim().slice(0, 200) || undefined : undefined}
         usage={{
           chat: usage.counts.cvb_chat,
           resetLabel: formatResetDate(usage.resetsOn),
