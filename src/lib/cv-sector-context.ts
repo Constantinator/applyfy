@@ -96,6 +96,15 @@ function countMatches(text: string, keywords: string[]) {
   }, 0);
 }
 
+/** Mots-clés ATS du secteur présents dans un texte (mot entier, sans accents ni casse). */
+export function matchSectorKeywords(text: string, sector: Sector): string[] {
+  const haystack = normalize(text);
+  return KNOWLEDGE[sector].ats_keywords.filter((keyword) => {
+    const k = normalize(keyword).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return k && new RegExp(`[^a-z0-9]${k}[^a-z0-9]`).test(haystack);
+  });
+}
+
 type CvShape = {
   personal?: { jobTitle?: unknown };
   experiences?: { position?: unknown; company?: unknown; bullets?: unknown }[];

@@ -2,10 +2,13 @@
 // (migration 0032), lus par src/lib/job-scraper.ts. Deux familles de sources :
 // - API officielles France Travail et Adzuna, via les clients de l'application
 //   (src/lib/france-travail.ts, src/lib/adzuna.ts) et leurs identifiants habituels ;
+// - API publiques des logiciels de recrutement (Greenhouse, Lever, Ashby, SmartRecruiters)
+//   pour les entreprises de scripts/ats-companies.json (source « ats ») ;
 // - pages publiques de WTTJ, Indeed, APEC, Cadremploi et JobTeaser.
+// Les offres collées par les utilisateurs arrivent par l'application (src/lib/user-job-offers.ts).
 //
 // Usage :
-//   node --env-file=.env.local scripts/scrape-jobs.ts [--sector finance] [--source france-travail] [--limit 10] [--dry-run]
+//   node --env-file=.env.local scripts/scrape-jobs.ts [--sector finance] [--source ats] [--limit 10] [--dry-run]
 //
 // Collecte respectueuse des pages publiques : robots.txt lu et appliqué pour chaque site, un
 // robot identifié (USER_AGENT), une requête toutes les 3 s au plus par site (ou le Crawl-delay
@@ -134,6 +137,176 @@ const adzuna: Collector = {
     const offers = await paginate(this.id, limit, async (page) => (await searchAdzuna(search(sector, page))).offers);
     // Adzuna ne renvoie qu'un extrait de la description (≈ 500 caractères).
     return offers.map((offer) => toRaw(offer, offer.id.replace(/^adzuna-/, "")));
+  },
+};
+
+// --- Logiciels de recrutement (ATS) ----------------------------------------------------------
+
+// API publiques, sans clé, des pages carrières d'entreprises listées par secteur dans
+// scripts/ats-companies.json. Seules les offres situées en France sont gardées. Pour cette
+// source, --limit compte les offres par entreprise.
+
+type AtsPlatform = "greenhouse" | "lever" | "lever-eu" | "ashby" | "smartrecruiters";
+type AtsCompany = { name: string; platform: AtsPlatform; slug: string };
+
+const ATS_COMPANIES = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8")) as Record<
+  Sector,
+  AtsCompany[]
+>;
+const ATS_DELAY_MS = 1_000;
+
+const FRANCE =
+  /\bfrance\b|\bparis\b|\blyon\b|marseille|\blille\b|bordeaux|toulouse|nantes|\bnice\b|rennes|strasbourg|montpellier|grenoble|sophia|[iî]le[- ]de[- ]france|la d[ée]fense|boulogne|neuilly|levallois|issy/i;
+/**
+ * Secteurs transverses, lus chez des employeurs de tous domaines : seules les offres dont
+ * l'intitulé correspond sont gardées (stages et alternances ; postes RH).
+ */
+const TITLE_FILTERS: Partial<Record<Sector, RegExp>> = {
+  etudiant: /stag|intern|alternan|apprenti|graduate|\bv\.?i\.?e\b|work[- ]study/i,
+  rh: /\b(rh|hr|drh|rrh|hrbp)\b|ressources humaines|human resources|people|talent|recrut|recruit|paie|payroll|compensation|formation/i,
+};
+
+let atsNextAt = 0;
+
+/** GET JSON avec 1 s au moins entre deux requêtes ; null si la réponse n'est pas exploitable. */
+async function atsGet<T>(url: string): Promise<T | null> {
+  const wait = atsNextAt - Date.now();
+  if (wait > 0) await sleep(wait);
+  atsNextAt = Date.now() + ATS_DELAY_MS;
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      console.warn(`  ats : ${url} → HTTP ${response.status}`);
+      return null;
+    }
+    return (await response.json()) as T;
+  } catch (error) {
+    console.warn(`  ats : ${url} → ${error instanceof Error ? error.message : error}`);
+    return null;
+  }
+}
+
+type GreenhouseJob = {
+  id: number;
+  title: string;
+  absolute_url: string;
+  content?: string;
+  location?: { name?: string };
+  offices?: { name?: string; location?: string | null }[];
+};
+type LeverPosting = {
+  id: string;
+  text: string;
+  hostedUrl: string;
+  country?: string;
+  categories?: { location?: string; allLocations?: string[] };
+  descriptionPlain?: string;
+  lists?: { text?: string; content?: string }[];
+  additionalPlain?: string;
+};
+type AshbyJob = {
+  id: string;
+  title: string;
+  jobUrl: string;
+  isListed?: boolean;
+  location?: string;
+  secondaryLocations?: { location?: string }[];
+  address?: { postalAddress?: { addressCountry?: string } };
+  descriptionPlain?: string;
+};
+type SmartRecruitersPosting = { id: string; name: string; location?: { country?: string } };
+type SmartRecruitersDetail = {
+  postingUrl?: string;
+  jobAd?: { sections?: Record<string, { text?: string } | undefined> };
+};
+
+/** Offres en France d'une entreprise (au plus `limit`), avec leur description. */
+async function atsOffers(company: AtsCompany, limit: number, keep: (title: string) => boolean): Promise<RawOffer[]> {
+  const { platform, slug, name } = company;
+  const offer = (externalId: string, title: string, url: string, description: string): RawOffer => ({
+    externalId: `${platform}-${slug}-${externalId}`,
+    title: decodeHtml(title),
+    company: name,
+    description,
+    url,
+  });
+
+  if (platform === "greenhouse") {
+    const data = await atsGet<{ jobs?: GreenhouseJob[] }>(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`);
+    return (data?.jobs ?? [])
+      .filter(
+        (j) => FRANCE.test(j.location?.name ?? "") || (j.offices ?? []).some((o) => FRANCE.test(`${o.name} ${o.location ?? ""}`)),
+      )
+      .filter((j) => keep(j.title))
+      .slice(0, limit)
+      // Greenhouse renvoie le HTML de l'offre échappé (&lt;p&gt;…) : deux passes.
+      .map((j) => offer(String(j.id), j.title, j.absolute_url, decodeHtml(decodeHtml(j.content ?? ""))));
+  }
+
+  if (platform === "lever" || platform === "lever-eu") {
+    const host = platform === "lever-eu" ? "api.eu.lever.co" : "api.lever.co";
+    const data = await atsGet<LeverPosting[]>(`https://${host}/v0/postings/${slug}?mode=json`);
+    return (Array.isArray(data) ? data : [])
+      .filter((p) => p.country === "FR" || FRANCE.test([p.categories?.location, ...(p.categories?.allLocations ?? [])].join(" ")))
+      .filter((p) => keep(p.text))
+      .slice(0, limit)
+      .map((p) => {
+        const lists = (p.lists ?? []).map((l) => `${l.text ?? ""} ${decodeHtml(l.content ?? "")}`);
+        return offer(p.id, p.text, p.hostedUrl, [p.descriptionPlain ?? "", ...lists, p.additionalPlain ?? ""].join("\n").trim());
+      });
+  }
+
+  if (platform === "ashby") {
+    const data = await atsGet<{ jobs?: AshbyJob[] }>(`https://api.ashbyhq.com/posting-api/job-board/${slug}`);
+    return (data?.jobs ?? [])
+      .filter((j) => j.isListed !== false)
+      .filter(
+        (j) =>
+          /france/i.test(j.address?.postalAddress?.addressCountry ?? "") ||
+          FRANCE.test([j.location, ...(j.secondaryLocations ?? []).map((l) => l.location)].join(" ")),
+      )
+      .filter((j) => keep(j.title))
+      .slice(0, limit)
+      .map((j) => offer(j.id, j.title, j.jobUrl, j.descriptionPlain ?? ""));
+  }
+
+  // SmartRecruiters : la liste ne contient pas la description, lue offre par offre.
+  const list = await atsGet<{ content?: SmartRecruitersPosting[] }>(
+    `https://api.smartrecruiters.com/v1/companies/${slug}/postings?country=fr&limit=100`,
+  );
+  const postings = (list?.content ?? []).filter((p) => p.location?.country === "fr" && keep(p.name)).slice(0, limit);
+  const offers: RawOffer[] = [];
+  for (const posting of postings) {
+    const detail = await atsGet<SmartRecruitersDetail>(`https://api.smartrecruiters.com/v1/companies/${slug}/postings/${posting.id}`);
+    if (!detail) continue;
+    const sections = Object.values(detail.jobAd?.sections ?? {}).map((s) => decodeHtml(s?.text ?? ""));
+    offers.push(
+      offer(
+        posting.id,
+        posting.name,
+        detail.postingUrl ?? `https://jobs.smartrecruiters.com/${slug}/${posting.id}`,
+        sections.join("\n").trim(),
+      ),
+    );
+  }
+  return offers;
+}
+
+const ats: Collector = {
+  id: "ats",
+  async collect(sector, limit) {
+    const filter = TITLE_FILTERS[sector];
+    const keep = (title: string) => !filter || filter.test(title);
+    const offers: RawOffer[] = [];
+    for (const company of ATS_COMPANIES[sector] ?? []) {
+      const found = await atsOffers(company, limit, keep);
+      console.log(`  ${company.name} (${company.platform}/${company.slug}) : ${found.length} offre(s) en France`);
+      offers.push(...found);
+    }
+    return offers;
   },
 };
 
@@ -355,14 +528,11 @@ function siteCollector(site: Site): Collector {
   };
 }
 
-const SOURCE_IDS = [franceTravail.id, adzuna.id, ...SITES.map((s) => s.id)];
+const API_COLLECTORS = [franceTravail, adzuna, ats];
+const SOURCE_IDS = [...API_COLLECTORS.map((c) => c.id), ...SITES.map((s) => s.id)];
 
 function createCollectors(ids: string[]): Collector[] {
-  return ids.map((id) => {
-    if (id === franceTravail.id) return franceTravail;
-    if (id === adzuna.id) return adzuna;
-    return siteCollector(SITES.find((s) => s.id === id)!);
-  });
+  return ids.map((id) => API_COLLECTORS.find((c) => c.id === id) ?? siteCollector(SITES.find((s) => s.id === id)!));
 }
 
 // --- Mots-clés et enregistrement -------------------------------------------------------------
@@ -468,9 +638,10 @@ async function main() {
   for (const collector of createCollectors(sources)) {
     let found = 0;
     let saved = 0;
+    const keywords = new Set<string>();
     try {
       for (const sector of sectors) {
-        console.log(`${collector.id}/${sector} : « ${QUERIES[sector]} »`);
+        console.log(`${collector.id}/${sector}${collector === ats ? "" : ` : « ${QUERIES[sector]} »`}`);
         const offers = (await collector.collect(sector, limit)).map((offer) => ({
           ...offer,
           source: collector.id,
@@ -478,11 +649,14 @@ async function main() {
           keywords: matchKeywords(`${offer.title} ${offer.description}`, knowledge.sectors[sector].ats_keywords),
         }));
         found += offers.length;
-        for (const offer of offers)
-          console.log(`  ${offer.title} — ${offer.keywords.length ? offer.keywords.join(", ") : "aucun mot-clé"}`);
+        for (const offer of offers) for (const keyword of offer.keywords) keywords.add(`${sector}:${keyword}`);
+        const sectorKeywords = new Set(offers.flatMap((o) => o.keywords));
+        console.log(`  → ${offers.length} offre(s), ${sectorKeywords.size} mot(s)-clé(s) distinct(s) : ${[...sectorKeywords].join(", ")}`);
         if (supabase) saved += await save(supabase, offers);
       }
-      report.push(`${collector.id} : ${found} offre(s) lue(s)${supabase ? `, ${saved} nouvelle(s)` : ""}`);
+      report.push(
+        `${collector.id} : ${found} offre(s) lue(s), ${keywords.size} mot(s)-clé(s) distinct(s)${supabase ? `, ${saved} nouvelle(s)` : ""}`,
+      );
     } catch (error) {
       if (!(error instanceof SourceUnavailable)) throw error;
       console.warn(`  ${error.message} : source ignorée.`);

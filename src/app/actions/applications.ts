@@ -17,6 +17,7 @@ import { CONTACT_NAME_MAX_LENGTH, EMAIL_PATTERN, NOTES_MAX_LENGTH } from "@/lib/
 import { normalizeCompanyName } from "@/lib/normalize";
 import { OFFER_DESCRIPTION_MAX_LENGTH, OFFER_SUMMARY_MAX_LENGTH } from "@/lib/offer-limits";
 import { STATUS_LABELS, isApplicationStatus } from "@/lib/types";
+import { recordUserJobOffer } from "@/lib/user-job-offers";
 
 export type ActionState =
   | { status: "idle" }
@@ -289,6 +290,7 @@ export async function createApplicationAction(
     };
   }
 
+  recordUserJobOffer({ title: values.position, company: values.company, description: values.offer_description });
   revalidatePath("/dashboard");
   redirect(`/candidatures/${id}?creee=1`);
 }

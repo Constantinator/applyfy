@@ -1,0 +1,97 @@
+{
+  "finance": [
+    { "name": "Pennylane", "platform": "ashby", "slug": "pennylane" },
+    { "name": "Qonto", "platform": "ashby", "slug": "qonto" },
+    { "name": "Younited", "platform": "lever", "slug": "younited" },
+    { "name": "Agicap", "platform": "lever", "slug": "agicap" },
+    { "name": "Finary", "platform": "ashby", "slug": "finary" },
+    { "name": "Seyna", "platform": "ashby", "slug": "seyna" },
+    { "name": "N26", "platform": "greenhouse", "slug": "n26" },
+    { "name": "Point72", "platform": "greenhouse", "slug": "point72" }
+  ],
+  "conseil": [
+    { "name": "Forvis Mazars", "platform": "smartrecruiters", "slug": "Mazars" },
+    { "name": "Devoteam", "platform": "smartrecruiters", "slug": "Devoteam" },
+    { "name": "Artefact", "platform": "greenhouse", "slug": "artefact" },
+    { "name": "Theodo", "platform": "lever", "slug": "theodo" },
+    { "name": "Alten", "platform": "smartrecruiters", "slug": "Alten" },
+    { "name": "Assystem", "platform": "smartrecruiters", "slug": "Assystem" }
+  ],
+  "tech": [
+    { "name": "Datadog", "platform": "greenhouse", "slug": "datadog" },
+    { "name": "Mirakl", "platform": "greenhouse", "slug": "mirakl" },
+    { "name": "Scaleway", "platform": "lever", "slug": "scaleway" },
+    { "name": "Dataiku", "platform": "greenhouse", "slug": "dataiku" },
+    { "name": "Algolia", "platform": "greenhouse", "slug": "algolia" },
+    { "name": "Dashlane", "platform": "greenhouse", "slug": "dashlane" },
+    { "name": "Ledger", "platform": "ashby", "slug": "ledger" },
+    { "name": "Photoroom", "platform": "ashby", "slug": "photoroom" },
+    { "name": "Dust", "platform": "ashby", "slug": "dust" },
+    { "name": "lemlist", "platform": "ashby", "slug": "lemlist" },
+    { "name": "Sorare", "platform": "ashby", "slug": "sorare" },
+    { "name": "BlaBlaCar", "platform": "lever", "slug": "blablacar" },
+    { "name": "Swile", "platform": "lever", "slug": "swile" },
+    { "name": "Ivalua", "platform": "greenhouse", "slug": "ivalua" },
+    { "name": "MongoDB", "platform": "greenhouse", "slug": "mongodb" }
+  ],
+  "marketing": [
+    { "name": "Brevo", "platform": "lever", "slug": "brevo" },
+    { "name": "SeLoger", "platform": "ashby", "slug": "seloger" },
+    { "name": "Too Good To Go", "platform": "ashby", "slug": "toogoodtogo" },
+    { "name": "Heetch", "platform": "lever", "slug": "heetch" },
+    { "name": "Spotify", "platform": "lever", "slug": "spotify" }
+  ],
+  "creatif": [
+    { "name": "Ubisoft", "platform": "smartrecruiters", "slug": "Ubisoft2" },
+    { "name": "Voodoo", "platform": "ashby", "slug": "voodoo" },
+    { "name": "Gameloft", "platform": "smartrecruiters", "slug": "Gameloft" },
+    { "name": "Believe", "platform": "smartrecruiters", "slug": "Believe" },
+    { "name": "Figma", "platform": "greenhouse", "slug": "figma" }
+  ],
+  "commercial": [
+    { "name": "Doctolib", "platform": "greenhouse", "slug": "doctolib" },
+    { "name": "SumUp", "platform": "greenhouse", "slug": "sumup" },
+    { "name": "Aircall", "platform": "lever", "slug": "aircall" },
+    { "name": "Pigment", "platform": "lever", "slug": "pigment" },
+    { "name": "Deliveroo", "platform": "greenhouse", "slug": "deliveroo" },
+    { "name": "Veepee", "platform": "lever", "slug": "veepee" },
+    { "name": "Doctrine", "platform": "lever", "slug": "doctrine" },
+    { "name": "360Learning", "platform": "lever", "slug": "360learning" },
+    { "name": "Malt", "platform": "lever", "slug": "malt" },
+    { "name": "Stripe", "platform": "greenhouse", "slug": "stripe" },
+    { "name": "Airbnb", "platform": "greenhouse", "slug": "airbnb" },
+    { "name": "Boulanger", "platform": "smartrecruiters", "slug": "Boulanger" },
+    { "name": "Loxam", "platform": "smartrecruiters", "slug": "Loxam" }
+  ],
+  "rh": [
+    { "name": "Accor", "platform": "smartrecruiters", "slug": "Accor" },
+    { "name": "Kiabi", "platform": "smartrecruiters", "slug": "Kiabi" },
+    { "name": "Nexity", "platform": "smartrecruiters", "slug": "Nexity" },
+    { "name": "Saint-Gobain", "platform": "smartrecruiters", "slug": "SaintGobain" },
+    { "name": "Bosch", "platform": "smartrecruiters", "slug": "BoschGroup" }
+  ],
+  "sante": [
+    { "name": "Alan", "platform": "ashby", "slug": "alan" },
+    { "name": "Eurofins", "platform": "smartrecruiters", "slug": "Eurofins" },
+    { "name": "Lifen", "platform": "ashby", "slug": "lifen" },
+    { "name": "Owkin", "platform": "ashby", "slug": "owkin" },
+    { "name": "Inato", "platform": "ashby", "slug": "inato" },
+    { "name": "Nabla", "platform": "ashby", "slug": "nabla" }
+  ],
+  "etudiant": [
+    { "name": "Back Market", "platform": "ashby", "slug": "backmarket" },
+    { "name": "Salomon", "platform": "smartrecruiters", "slug": "Salomon" },
+    { "name": "Ubisoft", "platform": "smartrecruiters", "slug": "Ubisoft2" },
+    { "name": "Alten", "platform": "smartrecruiters", "slug": "Alten" },
+    { "name": "Devoteam", "platform": "smartrecruiters", "slug": "Devoteam" },
+    { "name": "Alan", "platform": "ashby", "slug": "alan" },
+    { "name": "Vestiaire Collective", "platform": "lever", "slug": "vestiairecollective" }
+  ],
+  "luxe": [
+    { "name": "SMCP", "platform": "smartrecruiters", "slug": "SMCP" },
+    { "name": "Sisley", "platform": "smartrecruiters", "slug": "Sisley" },
+    { "name": "Jacquemus", "platform": "lever-eu", "slug": "jacquemus" },
+    { "name": "Vestiaire Collective", "platform": "lever", "slug": "vestiairecollective" },
+    { "name": "Petit Bateau", "platform": "smartrecruiters", "slug": "PetitBateau" }
+  ]
+}

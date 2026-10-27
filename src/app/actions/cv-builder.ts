@@ -58,6 +58,7 @@ import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
 import type { DocumentChatResult } from "@/lib/refine";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { recordUserJobOffer } from "@/lib/user-job-offers";
 
 /**
  * « Créer un nouveau CV » : CV pré-rempli avec le nom et l'email du compte, dans le modèle
@@ -217,6 +218,10 @@ export async function adaptToOfferAction(rawData: CvData, offer: string) {
     if (/^https?:\/\/\S+$/i.test(input)) {
       const imported = await importOfferFromUrl(input);
       offerText = [`Poste : ${imported.position}`, `Entreprise : ${imported.company}`, imported.description].join("\n");
+      recordUserJobOffer({ title: imported.position, company: imported.company, description: imported.description });
+    } else {
+      // Texte collé : la première ligne tient lieu d'intitulé.
+      recordUserJobOffer({ title: input.split("\n")[0].slice(0, 120), company: null, description: input });
     }
     const result = await adaptCvToOffer(experiences, offerText);
     if (!result) return null;
