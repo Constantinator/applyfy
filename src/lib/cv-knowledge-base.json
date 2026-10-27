@@ -1,0 +1,1318 @@
+{
+  "sectors": {
+    "finance": {
+      "name": "Finance & Banque",
+      "ats_keywords": [
+        "analyse financière", "modélisation financière", "DCF", "LBO", "M&A", "due diligence",
+        "Bloomberg", "Reuters Eikon", "Excel avancé", "VBA", "Python", "SQL",
+        "contrôle de gestion", "reporting financier", "budget", "prévisions", "variance",
+        "audit interne", "audit externe", "IFRS", "normes comptables", "clôture comptable",
+        "gestion de trésorerie", "cash flow", "BFR", "besoin en fonds de roulement",
+        "gestion d'actifs", "asset management", "portefeuille", "allocation d'actifs",
+        "risk management", "gestion des risques", "conformité", "compliance", "KYC", "AML",
+        "financement structuré", "dette", "capital-investissement", "private equity",
+        "marchés financiers", "produits dérivés", "fixed income", "equity",
+        "CFA", "ACCA", "DSCG", "analyse crédit", "notation", "rating",
+        "tableau de bord", "KPI", "indicateurs de performance", "ROI", "EBITDA",
+        "plan d'affaires", "business plan", "valorisation", "multiple", "comparable"
+      ],
+      "strong_action_verbs": [
+        "Modéliser", "Analyser", "Valoriser", "Structurer", "Piloter",
+        "Optimiser", "Consolider", "Auditer", "Anticiper", "Réduire",
+        "Négocier", "Déployer", "Superviser", "Contrôler", "Sécuriser",
+        "Identifier", "Quantifier", "Arbitrer", "Diversifier", "Clôturer"
+      ],
+      "avoid": [
+        "bonne maîtrise de", "notions de", "sensibilité aux chiffres",
+        "travail en équipe", "rigoureux", "dynamique", "polyvalent",
+        "force de proposition", "diverses missions financières",
+        "participation à des projets", "contribution à l'équipe",
+        "intérêt pour la finance", "autonome et organisé",
+        "bonne communication", "motivé"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Participation à des analyses financières",
+          "good": "Modélisation de 12 DCF et analyses comparables sur des cibles mid-cap (50-500M€) pour l'équipe M&A",
+          "why": "Chiffré, périmètre précis, verbe d'action fort"
+        },
+        {
+          "bad": "Travail sur le reporting mensuel",
+          "good": "Refonte du reporting mensuel pour le COMEX : réduction du délai de production de 5 à 2 jours, automatisation sous VBA",
+          "why": "Impact mesurable, technologie citée, résultat concret"
+        },
+        {
+          "bad": "Gestion du budget",
+          "good": "Pilotage du budget opérationnel de 8M€ : suivi mensuel des écarts budget/réalisé, analyse des causes et proposition de plans correctifs",
+          "why": "Montant précis, méthode détaillée"
+        },
+        {
+          "bad": "Aide à la due diligence",
+          "good": "Réalisation de la due diligence financière sur 3 cibles (CA agrégé : 120M€) : analyse de la qualité du résultat, identification de 2,4M€ de passifs latents",
+          "why": "Périmètre chiffré, valeur apportée quantifiée"
+        },
+        {
+          "bad": "Suivi de la trésorerie",
+          "good": "Optimisation de la gestion de trésorerie : mise en place d'un cash pooling sur 6 filiales, gain de 340K€ d'intérêts annuels",
+          "why": "Technologie précise, gain financier chiffré"
+        },
+        {
+          "bad": "Participation aux clôtures comptables",
+          "good": "Pilotage de 4 clôtures trimestrielles IFRS (périmètre : 12 entités, CA consolidé 450M€) avec réduction du délai de 10 à 7 jours",
+          "why": "Norme citée, périmètre précis, amélioration mesurée"
+        },
+        {
+          "bad": "Analyse du portefeuille",
+          "good": "Analyse fondamentale de 35 valeurs du CAC40 et EuroStoxx50 : notes sectorielles diffusées à 150 clients institutionnels, contribution à une surperformance de 280bps vs benchmark",
+          "why": "Volume précis, audience citée, surperformance chiffrée"
+        },
+        {
+          "bad": "Travail sur des modèles financiers",
+          "good": "Construction de 8 modèles LBO (equity ticket : 20-80M€) : modélisation des structures de dette, sensibilités TRI et scénarios de sortie",
+          "why": "Nombre et détail technique, fourchette de valeurs"
+        },
+        {
+          "bad": "Réduction des coûts",
+          "good": "Identification et mise en œuvre de 15 leviers de réduction de coûts : économies réalisées de 2,1M€ sur 18 mois (-12% des charges opérationnelles)",
+          "why": "Nombre de leviers, économie absolue et relative"
+        },
+        {
+          "bad": "Gestion de la conformité",
+          "good": "Déploiement du programme KYC/AML sur 3 000 clients corporates : zéro sanction régulateur sur 2 exercices, réduction des alertes de 40%",
+          "why": "Périmètre précis, résultat réglementaire quantifié"
+        },
+        {
+          "bad": "Présentation aux dirigeants",
+          "good": "Production de 6 mémos d'investissement et présentations Comité d'Investissement pour des opérations de 15M€ à 200M€",
+          "why": "Nombre de livrables, fourchette de valeurs"
+        },
+        {
+          "bad": "Travail sur Excel",
+          "good": "Développement d'un outil VBA de consolidation automatique de 40 reportings filiales : gain de 8h/mois par contrôleur de gestion",
+          "why": "Technologie, volume, gain de temps quantifié"
+        },
+        {
+          "bad": "Analyse des risques",
+          "good": "Cartographie des risques financiers du portefeuille (Value at Risk 99%, stress tests ESMA) : réduction de l'exposition aux risques de contrepartie de 22%",
+          "why": "Méthode citée, norme réglementaire, impact mesuré"
+        },
+        {
+          "bad": "Stage en banque d'investissement",
+          "good": "Stagiaire analyste M&A — Lazard (Paris) : participation au closing d'une acquisition à 380M€, modélisation financière et rédaction de mémos",
+          "why": "Nom de l'employeur, montant de l'opération, livrables"
+        },
+        {
+          "bad": "Bonne connaissance des marchés",
+          "good": "Certifié Bloomberg (Finance Fundamentals, Markets Concepts, ESG) — suivi quotidien des flux obligataires et actions zone euro",
+          "why": "Certifications nommées, périmètre de marché précis"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Stage ou alternance en banque/finance, maîtrise d'Excel et Bloomberg, une première certification (Bloomberg, AMF), école de commerce ou université Paris Dauphine / grandes écoles. L'école et les stages priment sur l'expérience.",
+        "mid": "3-5 ans minimum dans un poste similaire, spécialisation marquée (M&A, audit, contrôle de gestion…), capacité à gérer des projets en autonomie, premières responsabilités managériales ou de pilotage. Certifications professionnelles (CFA Level 1-2, DSCG) valorisées.",
+        "senior": "Track record chiffré sur des opérations ou missions significatives (>100M€, équipe de 5+), expertise sectorielle reconnue, capacité à développer des clients ou à piloter une P&L, certifications avancées (CFA charterholder, ACCA)."
+      },
+      "recruiter_tips": [
+        "Les recruteurs en finance scrutent d'abord l'école et le classement. HEC, ESSEC, X, Dauphine ouvrent des portes que d'autres ferment — mentionne le ranking si tu es major ou dans le top 10%.",
+        "Les montants des opérations et des portefeuilles sont des signaux forts : ne laisse jamais une expérience sans chiffre de taille (CA, AuM, taille de deal).",
+        "La maîtrise de Bloomberg Terminal et d'Excel avancé (VBA, Power Query) est un prérequis — si tu les as, mets-les en évidence dès les compétences.",
+        "En M&A et Private Equity, le recruteur veut voir le nombre de deals et leur stade (origination, execution, closing). Mentionne le secteur des cibles.",
+        "Pour les postes en asset management, la surperformance vs benchmark est le KPI roi. Si tu en as une, place-la en premier bullet."
+      ],
+      "common_mistakes": [
+        "Lister des logiciels sans préciser le niveau : 'Excel' sans dire 'modèles DCF, tableaux croisés dynamiques, VBA' ne dit rien à un recruteur.",
+        "Décrire des tâches sans résultats : 'analyse du P&L' sans préciser le périmètre ni l'impact ne convainc personne.",
+        "Mettre un objectif de poste générique ('intégrer une structure dynamique') à la place d'un résumé de profil chiffré.",
+        "Ne pas mentionner les certifications professionnelles (CFA, AMF, Bloomberg) alors qu'elles sont discriminantes.",
+        "Ordre des sections inversé pour les juniors : l'école doit venir AVANT les expériences, car c'est ce que les recruteurs regardent en premier pour les profils <3 ans."
+      ]
+    },
+    "conseil": {
+      "name": "Conseil en stratégie & Management",
+      "ats_keywords": [
+        "stratégie d'entreprise", "transformation", "restructuration", "optimisation opérationnelle",
+        "due diligence stratégique", "analyse sectorielle", "benchmark", "business case",
+        "plan stratégique", "feuille de route", "roadmap", "change management",
+        "PowerPoint exécutif", "livrables C-suite", "présentation Board",
+        "modélisation", "analyse de données", "Excel", "Python", "SQL",
+        "gestion de projet", "PMO", "Agile", "Scrum", "Prince2",
+        "McKinsey", "BCG", "Bain", "Roland Berger", "Deloitte", "PwC", "EY", "KPMG",
+        "consulting", "mission de conseil", "engagement", "client",
+        "création de valeur", "synergies", "M&A post-merger integration",
+        "performance opérationnelle", "lean management", "Six Sigma",
+        "go-to-market", "business development", "croissance organique",
+        "développement durable", "ESG", "stratégie RSE",
+        "management de transition", "interim management",
+        "analyse coût-bénéfice", "ROI", "business model", "canvas",
+        "étude de marché", "analyse concurrentielle", "Porter", "SWOT",
+        "accompagnement au changement", "formation", "conduite du changement"
+      ],
+      "strong_action_verbs": [
+        "Structurer", "Piloter", "Orchestrer", "Délivrer", "Accélérer",
+        "Transformer", "Diagnostiquer", "Recommander", "Arbitrer", "Fédérer",
+        "Challenger", "Aligner", "Déployer", "Consolider", "Industrialiser",
+        "Cartographier", "Prioriser", "Modéliser", "Synthétiser", "Convaincre"
+      ],
+      "avoid": [
+        "bonne capacité d'analyse", "esprit de synthèse", "sens du client",
+        "travail en équipe", "rigueur", "polyvalence", "proactivité",
+        "participation à des missions", "contribution aux livrables",
+        "intérêt pour le conseil", "implication dans des projets",
+        "force de proposition", "diverses missions de conseil",
+        "autonomie", "adaptabilité"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Participation à une mission de transformation",
+          "good": "Pilotage de la transformation opérationnelle d'un acteur bancaire régional (1,2Md€ PNB) : réduction de 18% des charges sur 18 mois, management d'une équipe projet de 6 personnes",
+          "why": "Taille du client, résultat chiffré, responsabilités managériales"
+        },
+        {
+          "bad": "Aide à la réalisation d'analyses sectorielles",
+          "good": "Réalisation d'un benchmark stratégique sur 12 acteurs européens de la mobilité électrique : identification de 4 axes de différenciation pour un OEM français, présenté au Comité Exécutif",
+          "why": "Périmètre précis, output clair, niveau de présentation"
+        },
+        {
+          "bad": "Travail sur des présentations clients",
+          "good": "Production de 8 livrables C-suite (Board et COMEX) pour 3 clients Fortune 500 : decks de 20-40 slides validés sans itération en moyenne",
+          "why": "Nombre précis, niveau client, qualité mesurée"
+        },
+        {
+          "bad": "Analyse des synergies post-acquisition",
+          "good": "Modélisation des synergies post-fusion pour une acquisition à 450M€ : identification de 28M€ de synergies de coûts et 15M€ de synergies de revenus sur 3 ans",
+          "why": "Montant de l'opération, synergies chiffrées, horizon temporel"
+        },
+        {
+          "bad": "Gestion d'un projet de transformation digitale",
+          "good": "Pilotage de la digitalisation des processus achat d'un groupe industriel (CA 2,3Md€) : déploiement sur 8 pays, 40% de réduction du cycle procure-to-pay",
+          "why": "Taille du client, périmètre géographique, résultat mesuré"
+        },
+        {
+          "bad": "Réalisation d'études de marché",
+          "good": "Conduite de 3 études de marché (entretiens experts, analyse donnéess secondaires) pour définir la stratégie d'entrée en France d'un groupe américain : TAM estimé à 800M€",
+          "why": "Méthode précise, objectif stratégique, output quantifié"
+        },
+        {
+          "bad": "Participation à des projets de restructuration",
+          "good": "Co-pilotage d'un plan de restructuration de 200 personnes (volet social, communication, outplacement) : 0 contentieux prud'homal, reclassement de 85% des salariés",
+          "why": "Périmètre, KPIs sociaux, résultats RH"
+        },
+        {
+          "bad": "Travail sur le plan stratégique",
+          "good": "Élaboration du plan stratégique 2025-2028 d'un acteur de la grande distribution (800 magasins) : 5 chantiers prioritaires, objectif de +12% de CA en 3 ans",
+          "why": "Horizon, périmètre client, ambition chiffrée"
+        },
+        {
+          "bad": "Management de consultants juniors",
+          "good": "Management de 4 analystes et consultants juniors sur 3 missions simultanées : revues hebdomadaires, coaching et évaluation semestrielle",
+          "why": "Nombre précis, missions simultanées, pratiques managériales"
+        },
+        {
+          "bad": "Développement commercial",
+          "good": "Contribution au développement commercial : 3 propositions commerciales rédigées, 2 nouveaux clients signés (CA combiné : 1,8M€)",
+          "why": "Nombre de propositions, taux de conversion, CA généré"
+        },
+        {
+          "bad": "Analyse de la performance opérationnelle",
+          "good": "Diagnostic de la performance opérationnelle d'une usine automobile (1 200 employés) : identification de 15 leviers lean, gain de productivité de 8% en 6 mois",
+          "why": "Taille du site, méthode lean, résultat temporisé"
+        },
+        {
+          "bad": "Mise en place d'un PMO",
+          "good": "Mise en place d'un PMO pour un programme de transformation IT de 45M€ : pilotage de 12 chantiers, réduction du délai de déploiement de 3 mois",
+          "why": "Budget du programme, nombre de chantiers, gain calendaire"
+        },
+        {
+          "bad": "Travail sur la stratégie RSE",
+          "good": "Élaboration de la feuille de route RSE d'un groupe du CAC 40 : fixation de 20 objectifs mesurables, alignement avec les ODD et la CSRD",
+          "why": "Nombre d'objectifs, référentiels cités"
+        },
+        {
+          "bad": "Présentation de recommandations",
+          "good": "Présentation des recommandations stratégiques au Comité de Direction de LVMH : adoption de 4 recommandations sur 5, mise en œuvre en cours",
+          "why": "Nom du client, niveau de présentation, taux d'adoption"
+        },
+        {
+          "bad": "Stage en cabinet de conseil",
+          "good": "Stagiaire consultant — BCG Paris (6 mois) : contribution à 2 missions stratégiques (secteurs télécoms et retail), production de 3 modules d'analyse autonomes",
+          "why": "Nom du cabinet, durée, secteurs, autonomie"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Analyste ou consultant junior issu d'une grande école (HEC, ESSEC, X, Mines, CentraleSupélec). 1-2 missions de conseil ou stages significatifs. Excellente maîtrise de PowerPoint et Excel. Capacité à produire des analyses structurées en autonomie.",
+        "mid": "Consultant ou Senior Consultant avec 3-6 ans en cabinet. Pilotage de workstreams en autonomie, premiers contacts clients, management de 1-2 analystes. Expertise sectorielle ou fonctionnelle émergente. Track record de livrables validés sans itération.",
+        "senior": "Manager ou Principal avec 6-10 ans. Responsabilité de l'ensemble d'une mission (P&L, satisfaction client, développement commercial). Leadership d'équipes de 3-8 consultants. Apport de nouveaux clients ou d'extensions de missions (>500K€ de CA développé)."
+      },
+      "recruiter_tips": [
+        "L'école est le filtre numéro un en conseil stratégique : les cabinets top-tier (MBB) recrutent quasi-exclusivement dans les 10 premières grandes écoles et les IEP. Mentionne ton classement si tu es dans le top 15%.",
+        "Le format 'situation → action → résultat' (SAR) est ce que les recruteurs en conseil attendent pour chaque bullet. Chaque expérience doit démontrer l'impact, pas seulement la participation.",
+        "Les certifications de langues (TOEFL 110+, IELTS 8+) sont valorisées car le conseil implique souvent des missions internationales. Les nommer avec le score rassure.",
+        "Les activités extra-professionnelles sont scrutées en conseil, notamment les postes de responsabilité (BDE, associations, compétitions de cas). Elles témoignent du leadership.",
+        "La mobilité géographique et sectorielle est un plus : l'indiquer explicitement ('ouvert à la mobilité internationale') peut faire la différence sur des missions globales."
+      ],
+      "common_mistakes": [
+        "Décrire des 'participations' plutôt que des responsabilités : 'j'ai aidé à' ou 'j'ai participé à' signalent un profil junior ou peu impliqué.",
+        "Ne pas nommer les clients (même de façon anonymisée : 'leader européen de l'énergie') — ça prive le recruteur du contexte de la mission.",
+        "CV trop long (>1 page pour moins de 5 ans) : en conseil, la synthèse est une compétence clé. Un CV de 2 pages pour un junior est éliminatoire.",
+        "Mélanger les missions en un seul bloc plutôt que de détailler 2-3 missions phares. Les recruteurs veulent voir le type de missions, pas juste le nom du cabinet.",
+        "Oublier la section 'Publications/Conférences' pour les profils senior : en conseil, la visibilité intellectuelle (articles, prises de parole) est un différenciateur fort."
+      ]
+    },
+    "tech": {
+      "name": "Tech & Développement",
+      "ats_keywords": [
+        "JavaScript", "TypeScript", "Python", "Java", "Go", "Rust", "C++",
+        "React", "Next.js", "Vue.js", "Angular", "Node.js", "Express", "NestJS",
+        "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch",
+        "AWS", "GCP", "Azure", "Kubernetes", "Docker", "Terraform", "CI/CD",
+        "Git", "GitHub", "GitLab", "DevOps", "SRE", "microservices", "API REST",
+        "GraphQL", "gRPC", "WebSocket", "architecture événementielle",
+        "machine learning", "deep learning", "LLM", "RAG", "data science",
+        "Pandas", "NumPy", "scikit-learn", "TensorFlow", "PyTorch", "Spark",
+        "Agile", "Scrum", "Kanban", "Product Owner", "Tech Lead",
+        "performance", "scalabilité", "disponibilité", "99.9% uptime", "SLA",
+        "sécurité", "OWASP", "authentification", "OAuth2", "JWT",
+        "open source", "contribution", "code review", "tests unitaires", "TDD",
+        "clean code", "refactoring", "dette technique", "observabilité",
+        "Datadog", "Prometheus", "Grafana", "Sentry", "OpenTelemetry"
+      ],
+      "strong_action_verbs": [
+        "Développer", "Architrecturer", "Refactoriser", "Optimiser", "Déployer",
+        "Migrer", "Intégrer", "Automatiser", "Monitorer", "Scaler",
+        "Contribuer", "Reviewer", "Documenter", "Tester", "Sécuriser",
+        "Concevoir", "Implémenter", "Bootstrapper", "Shipper", "Industrialiser"
+      ],
+      "avoid": [
+        "bonne connaissance de", "notions en", "familier avec",
+        "curieux des nouvelles technologies", "passionné d'informatique",
+        "équipe dynamique", "environnement stimulant",
+        "participation au développement", "contribution à des projets",
+        "travail sur diverses technologies", "polyvalent",
+        "autonome", "force de proposition", "bonne capacité d'adaptation"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Développement d'une application web",
+          "good": "Développement d'une SaaS B2B de gestion RH (Next.js 14 + Supabase) : 420 utilisateurs actifs, 99.97% uptime, temps de chargement <800ms",
+          "why": "Stack précise, métriques business et techniques"
+        },
+        {
+          "bad": "Optimisation des performances",
+          "good": "Optimisation de l'API principale : réduction de la latence moyenne de 340ms à 48ms (-86%) via mise en cache Redis et requêtes N+1 éliminées",
+          "why": "Avant/après chiffré, technique précise"
+        },
+        {
+          "bad": "Travail sur l'infrastructure",
+          "good": "Migration de l'infrastructure vers Kubernetes (GKE) : réduction des coûts cloud de 35% et déploiement 0-downtime sur 12 microservices",
+          "why": "Technologie précise, économie chiffrée, périmètre"
+        },
+        {
+          "bad": "Refonte du site",
+          "good": "Refonte complète du front-end (React → Next.js App Router) : score Lighthouse 41 → 94, SEO +60%, Core Web Vitals LCP réduit de 4.2s à 1.1s",
+          "why": "Scores avant/après, métriques Google"
+        },
+        {
+          "bad": "Mise en place de tests",
+          "good": "Introduction du TDD sur le backend Node.js : couverture de tests de 12% à 87%, réduction des bugs en production de 60% sur 6 mois",
+          "why": "Méthode citée, avant/après, impact métier"
+        },
+        {
+          "bad": "Développement d'un modèle de machine learning",
+          "good": "Entraînement d'un modèle de classification NLP (BERT fine-tuné) pour la modération de contenu : précision de 94.2%, traitement de 50K textes/jour",
+          "why": "Architecture précise, métriques ML, volume"
+        },
+        {
+          "bad": "Contribution open source",
+          "good": "Mainteneur de QueryFlow (npm) : 2,8K étoiles GitHub, 180 contributeurs, 3 PRs mergées dans des dépendances tierces (express, zod)",
+          "why": "Métriques GitHub, rôle précis, contributions amont"
+        },
+        {
+          "bad": "Travail en équipe Agile",
+          "good": "Lead technique d'une équipe de 5 développeurs en Scrum (sprints 2 semaines) : vélocité améliorée de 34 à 52 points story sur 4 mois",
+          "why": "Taille équipe, méthode, vélocité mesurée"
+        },
+        {
+          "bad": "Sécurisation de l'application",
+          "good": "Audit de sécurité OWASP Top 10 et mise en conformité : correction de 3 vulnérabilités critiques (XSS, IDOR, injection SQL), zéro incident sécurité depuis 18 mois",
+          "why": "Standard cité, nombre de vulnérabilités, résultat"
+        },
+        {
+          "bad": "Mise en place du CI/CD",
+          "good": "Implémentation du pipeline CI/CD (GitHub Actions + ArgoCD) : temps de déploiement de 45min à 8min, 4 déploiements/jour en moyenne",
+          "why": "Outils précis, gain de temps, fréquence de déploiement"
+        },
+        {
+          "bad": "Développement de l'API",
+          "good": "Conception et développement d'une API REST (Node.js/Express) : 85K requêtes/jour, documentation OpenAPI complète, versioning sémantique",
+          "why": "Stack, volume, pratiques de qualité"
+        },
+        {
+          "bad": "Travail sur la base de données",
+          "good": "Optimisation des requêtes PostgreSQL sur une table de 200M de lignes : ajout de 8 index composites, réduction de 70% du temps de réponse des requêtes critiques",
+          "why": "Volume de données, technique précise, gain mesuré"
+        },
+        {
+          "bad": "Mise en place du monitoring",
+          "good": "Déploiement d'une stack d'observabilité (Datadog APM + logs + synthetics) : MTTD réduit de 45min à 4min, taux d'incidents P1 divisé par 3",
+          "why": "Outils précis, métriques SRE avant/après"
+        },
+        {
+          "bad": "Participation à un hackathon",
+          "good": "1er prix Hackathon BNP Paribas 2024 (120 équipes) : solution de détection de fraude en temps réel (Python/Kafka), prototype fonctionnel en 48h",
+          "why": "Classement, périmètre, stack, contrainte temps"
+        },
+        {
+          "bad": "Gestion de projet technique",
+          "good": "Tech Lead d'une refonte de système de paiement (PCI-DSS) : livraison en 6 mois (vs 9 planifiés), budget respecté à 98%, équipe de 4 développeurs",
+          "why": "Contrainte réglementaire, délai, budget, équipe"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Diplôme ingénieur ou licence info, 1-2 projets persos ou stages significatifs, maîtrise d'un stack principal (ex: React + Node), profil GitHub actif avec des projets démontrables. Les projets persos et contributions open source compensent le manque d'expérience pro.",
+        "mid": "3-5 ans, capacité à owneriser des features end-to-end, premières contributions à l'architecture, revues de code régulières, mentoring informel de juniors. Spécialisation émergente (backend, ML, DevOps...).",
+        "senior": "5+ ans, décisions d'architecture structurantes, leadership technique d'une équipe, amélioration mesurable de la qualité/performance du système, capacité à estimer et planifier des projets complexes. Visibilité externe (conférences, open source, blog) appréciée."
+      },
+      "recruiter_tips": [
+        "Le profil GitHub est souvent regardé avant le CV : ajoute l'URL et assure-toi que tes repos ont des README clairs et du code récent.",
+        "Les métriques techniques (latence, uptime, couverture de tests) sont les KPIs des recruteurs tech. Chaque expérience sans chiffre technique est une opportunité manquée.",
+        "Précise les versions des technologies (React 18, Next.js 14, Python 3.11) — ça montre que tu suis les évolutions du domaine.",
+        "Les contributions open source, même mineures (issues, PRs), sont très valorisées — elles prouvent la capacité à travailler sur un code qu'on n'a pas écrit.",
+        "Pour les startups/scale-ups, les recruteurs veulent voir que tu as 'shipé' des choses en prod. Utilise des termes comme 'mis en production', 'utilisateurs actifs', 'en production depuis X mois'."
+      ],
+      "common_mistakes": [
+        "Lister les technologies sans contexte : '5 ans de Python' ne dit rien — précise ce que tu as construit avec.",
+        "Ne pas quantifier les projets : une appli sans nombre d'utilisateurs, un système sans métriques de performance, ça ne convainc pas.",
+        "Mettre un objectif de poste générique ('rejoindre une startup innovante') au lieu d'un résumé technique précis.",
+        "CV de 3-4 pages : en tech, 1 page pour junior, 2 max pour senior. Les recruteurs passent 30 secondes sur le CV.",
+        "Oublier de mentionner les projets personnels ou contributions open source pour les profils avec peu d'expérience pro : ils comptent autant qu'un stage."
+      ]
+    },
+    "marketing": {
+      "name": "Marketing & Communication",
+      "ats_keywords": [
+        "SEO", "SEM", "Google Ads", "Meta Ads", "LinkedIn Ads", "programmatique",
+        "Google Analytics 4", "GA4", "Google Tag Manager", "GTM",
+        "HubSpot", "Salesforce", "Marketo", "ActiveCampaign", "Klaviyo",
+        "content marketing", "inbound marketing", "lead generation", "nurturing",
+        "conversion rate optimization", "CRO", "A/B testing", "landing page",
+        "email marketing", "automation", "workflow", "segmentation",
+        "social media", "community management", "influence marketing",
+        "brand strategy", "brand awareness", "notoriété", "positionnement",
+        "MQL", "SQL", "funnel", "pipeline", "CAC", "LTV", "ROAS", "CPC", "CPL", "CTR",
+        "growth hacking", "product-led growth", "PLG", "freemium",
+        "content SEO", "copywriting", "UX writing", "storytelling",
+        "data-driven", "analytics", "tableau de bord", "KPI", "reporting",
+        "Mixpanel", "Amplitude", "Hotjar", "Semrush", "Ahrefs",
+        "Adobe Analytics", "Looker Studio", "Power BI",
+        "stratégie omnicanal", "retail marketing", "marketing opérationnel",
+        "plan marketing", "budget marketing", "P&L marketing",
+        "relations presse", "RP", "événementiel", "sponsoring"
+      ],
+      "strong_action_verbs": [
+        "Lancer", "Déployer", "Scaler", "Optimiser", "Générer",
+        "Multiplier", "Réduire", "Convertir", "Fidéliser", "Acquérir",
+        "Animer", "Coordonner", "Piloter", "Tester", "Mesurer",
+        "Segmenter", "Cibler", "Activer", "Engager", "Automatiser"
+      ],
+      "avoid": [
+        "passion pour le digital", "créativité", "sens du détail",
+        "bonne plume", "goût pour la communication", "polyvalence",
+        "force de proposition", "participation à des campagnes",
+        "contribution aux réseaux sociaux", "aide à la création de contenu",
+        "esprit d'équipe", "dynamisme", "enthousiasme",
+        "curiosité intellectuelle", "ouverture d'esprit"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Gestion des réseaux sociaux",
+          "good": "Animation des réseaux sociaux (LinkedIn, Instagram, TikTok) : +340% de followers en 8 mois, taux d'engagement moyen de 4,2% (vs 1,1% secteur)",
+          "why": "Canaux précis, croissance et benchmark secteur"
+        },
+        {
+          "bad": "Campagnes Google Ads",
+          "good": "Pilotage des campagnes Google Ads (budget : 45K€/mois) : ROAS de 4,8×, CAC réduit de 68€ à 41€ en 6 mois (-40%)",
+          "why": "Budget, ROAS, CAC avant/après"
+        },
+        {
+          "bad": "Amélioration du SEO",
+          "good": "Stratégie SEO content : 48 articles publiés en 12 mois, +280% de trafic organique, 12 mots-clés en position 1 sur Google France",
+          "why": "Volume de contenu, croissance trafic, positions"
+        },
+        {
+          "bad": "Email marketing",
+          "good": "Déploiement d'une séquence d'onboarding email (8 emails, HubSpot) : taux d'ouverture de 38% (vs 22% industrie), activation J+7 améliorée de 31%",
+          "why": "Nombre d'emails, outil, métriques avec benchmark"
+        },
+        {
+          "bad": "Lancement d'un produit",
+          "good": "Pilotage du go-to-market d'une nouvelle ligne SaaS B2B : 500 leads qualifiés en 3 mois, 42 clients signés, MRR de 85K€ à M+3",
+          "why": "Volume leads, conversion clients, MRR chiffré"
+        },
+        {
+          "bad": "A/B testing de landing pages",
+          "good": "Programme d'A/B testing (Optimizely) : 24 tests sur 6 mois, taux de conversion landing pages amélioré de 2,1% à 5,8% (+176%)",
+          "why": "Outil, volume de tests, avant/après conversion"
+        },
+        {
+          "bad": "Gestion du budget marketing",
+          "good": "Pilotage du budget marketing de 1,8M€ : réallocation vers les canaux à meilleur ROAS, économie de 220K€ avec maintien du volume de leads",
+          "why": "Budget précis, décision stratégique, économie chiffrée"
+        },
+        {
+          "bad": "Stratégie d'influence",
+          "good": "Pilotage d'un programme d'influence (80 créateurs, micro et macro) : +18% de brand awareness (étude Kantar), 2,4M d'impressions organiques",
+          "why": "Volume de créateurs, méthode de mesure, impressions"
+        },
+        {
+          "bad": "Création de contenu",
+          "good": "Production de 4 livres blancs et 2 webinaires (800 inscrits cumulés) : génération de 320 MQL directement attribués au content marketing",
+          "why": "Volume précis, inscrits, MQL générés"
+        },
+        {
+          "bad": "Reporting des performances",
+          "good": "Mise en place d'un tableau de bord marketing (Looker Studio + GA4 + HubSpot) : reporting hebdomadaire pour le CODIR, réduction du temps de reporting de 6h à 1h",
+          "why": "Outils précis, fréquence, gain de temps"
+        },
+        {
+          "bad": "CRM et automation",
+          "good": "Déploiement de la stratégie marketing automation (Marketo) : 35 workflows actifs, 12% de leads réactivés, -25% de charge manuelle pour l'équipe sales",
+          "why": "Outil, volume de workflows, résultats métier"
+        },
+        {
+          "bad": "Coordination avec les équipes",
+          "good": "Coordination des équipes product, sales et design pour le lancement de 3 features : 100% des lancements dans les délais, documentation rédigée pour 2 000 clients",
+          "why": "Équipes impliquées, délais respectés, volume clients"
+        },
+        {
+          "bad": "Travail sur la brand strategy",
+          "good": "Refonte de l'identité de marque (positionnement, charte graphique, ton of voice) : notoriété assistée +14 points en 12 mois (étude Harris Interactive)",
+          "why": "Périmètre de la refonte, gain notoriété avec source"
+        },
+        {
+          "bad": "Relations presse",
+          "good": "Pilotage des relations presse : 42 articles dans des médias cibles (Les Echos, BFM Business, TechCrunch FR), DRP de 4,2M€",
+          "why": "Nombre d'articles, médias nommés, valeur RP"
+        },
+        {
+          "bad": "Stage en marketing",
+          "good": "Stagiaire Growth Marketing — Qonto (6 mois) : gestion autonome du canal LinkedIn Ads (15K€/mois), -18% de CPL vs objectif",
+          "why": "Employeur, durée, canal, budget, résultat"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Formation marketing/communication (école de commerce, IAE, IUT), 1-2 stages en marketing digital ou contenu, maîtrise des outils de base (GA4, réseaux sociaux, Canva). Les certifications Google (Analytics, Ads) et Meta Blueprint compensent le manque d'expérience.",
+        "mid": "3-5 ans, ownership d'un canal ou d'un segment (SEO, Paid, Email...), premières expériences de management de prestataires ou d'une équipe de 1-2, capacité à produire des reportings autonomes et à proposer des optimisations data-driven.",
+        "senior": "5+ ans, pilotage d'un budget marketing significatif (>500K€), management d'équipe de 3-8 personnes, track record de croissance mesurable (CA, leads, notoriété), contribution à la stratégie globale de l'entreprise."
+      },
+      "recruiter_tips": [
+        "Les KPIs sont le langage des recruteurs marketing. Chaque expérience doit avoir au moins 2 métriques : une de volume (impressions, leads) et une de performance (ROAS, taux de conversion).",
+        "Les certifications Google (Analytics, Ads), Meta Blueprint et HubSpot sont devenues des prérequis de facto pour les postes digital. Les ajouter à une section dédiée les rend immédiatement visibles.",
+        "Pour les postes B2B, distinguer MQL et SQL montre que tu comprends l'alignement marketing-sales — c'est un signal fort pour les recruteurs en SaaS et tech.",
+        "Le marketing évoluant vite, mentionner des outils récents (GA4 plutôt que Universal Analytics, des outils IA comme Jasper ou Midjourney) montre que tu te formes en continu.",
+        "Pour les postes de direction, les recruteurs veulent voir la capacité à gérer un P&L marketing, pas seulement des campagnes. Mentionne les budgets gérés et le ROI global."
+      ],
+      "common_mistakes": [
+        "Lister des tâches ('gestion des réseaux sociaux') sans résultats : en marketing tout est mesurable, l'absence de métriques est rédhibitoire.",
+        "Confondre outil et compétence : 'maîtrise de Canva' n'est pas une compétence marketing stratégique — précise ce que tu as créé avec et l'impact.",
+        "Oublier de distinguer B2B et B2C : les recruteurs recherchent souvent l'un ou l'autre, et les métriques sont très différentes.",
+        "Section compétences avec des termes génériques ('créativité', 'sens du détail') plutôt que des outils et méthodes précis.",
+        "Ne pas mentionner les budgets gérés : un marketer qui ne met pas de chiffre sur ses budgets semble manquer de maturité business."
+      ]
+    },
+    "creatif": {
+      "name": "Créatif & Design",
+      "ats_keywords": [
+        "direction artistique", "identité visuelle", "branding", "brand design",
+        "UX design", "UI design", "UX/UI", "product design", "design system",
+        "Figma", "Adobe Creative Suite", "Photoshop", "Illustrator", "InDesign",
+        "After Effects", "Premiere Pro", "Cinema 4D", "Blender", "SketchUp",
+        "motion design", "animation", "vidéo", "3D",
+        "typographie", "colorimétrie", "composition", "maquette", "prototype",
+        "wireframe", "user research", "test utilisateur", "persona", "parcours utilisateur",
+        "accessibilité", "WCAG", "responsive design", "mobile first",
+        "packaging", "print", "signalétique", "PLV", "affichage",
+        "direction de création", "brief créatif", "présentation client",
+        "stratégie de marque", "positionnement", "charte graphique",
+        "portfolio", "Behance", "Dribbble",
+        "agence de publicité", "studio de design", "freelance",
+        "Cannes Lions", "European Design Awards", "prix ADC", "D&AD",
+        "Procreate", "Sketch", "Zeplin", "Abstract", "Notion"
+      ],
+      "strong_action_verbs": [
+        "Concevoir", "Diriger", "Créer", "Décliner", "Sublimer",
+        "Définir", "Produire", "Illustrer", "Animer", "Prototyper",
+        "Collaborer", "Présenter", "Piloter", "Repenser", "Valoriser",
+        "Déployer", "Challenger", "Affiner", "Traduire", "Imaginer"
+      ],
+      "avoid": [
+        "passionné de design", "créativité", "sens esthétique",
+        "bonne maîtrise des outils", "polyvalent", "autonome",
+        "participation à des projets créatifs", "aide à la création",
+        "gestion des fichiers graphiques", "travail sur des visuels",
+        "bonne communication", "esprit d'équipe", "dynamique",
+        "force de proposition", "ouverture d'esprit"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Création de l'identité visuelle d'une marque",
+          "good": "Conception de l'identité visuelle complète d'une marque de cosmétiques bio (logo, charte, packaging, signalétique) : déploiement dans 45 points de vente, +22% de sell-out vs packaging précédent",
+          "why": "Périmètre complet, distribution, impact commercial"
+        },
+        {
+          "bad": "Direction artistique d'une campagne",
+          "good": "Direction artistique de la campagne 'Rentrée 2024' Lacoste (TV, digital, OOH) : Cannes Lions Shortlist Bronze, 4,2M de vues cumulées en organique",
+          "why": "Client nommé, canaux, récompense, métriques"
+        },
+        {
+          "bad": "Travail sur le design system",
+          "good": "Construction du design system de Doctolib (Figma) : 240 composants, adoption par 18 équipes produit, réduction de 40% du temps de prototypage",
+          "why": "Outil, volume de composants, adoption, gain"
+        },
+        {
+          "bad": "Réalisation de maquettes",
+          "good": "Conception UX/UI d'une application mobile de livraison (iOS/Android) : 28 écrans, 3 rounds de tests utilisateurs (n=15), taux de complétion du tunnel +34%",
+          "why": "Plateforme, volume, méthode user research, résultat"
+        },
+        {
+          "bad": "Motion design",
+          "good": "Réalisation de 12 vidéos motion design (After Effects) pour la campagne digitale BNP Paribas : 8,4M d'impressions, taux de complétion vidéo 74% (vs 55% secteur)",
+          "why": "Volume, outil, client, métriques avec benchmark"
+        },
+        {
+          "bad": "Packaging produit",
+          "good": "Conception de 3 lignes de packaging alimentaire (Monoprix) : primé European Design Awards 2024, mise en rayon dans 320 magasins",
+          "why": "Client, récompense, distribution"
+        },
+        {
+          "bad": "Présentation au client",
+          "good": "Présentation et défense de 15 concepts créatifs devant les équipes marketing et C-suite de Renault, L'Oréal et SNCF : taux d'adoption du concept présenté en 1er : 73%",
+          "why": "Nombre de présentations, clients nommés, taux d'adoption"
+        },
+        {
+          "bad": "Direction d'une équipe créative",
+          "good": "Direction créative d'un studio de 6 personnes (3 designers, 2 motion designers, 1 intégrateur) : 40 livrables par trimestre, 0 révision majeure demandée par les clients",
+          "why": "Composition de l'équipe, volume, qualité mesurée"
+        },
+        {
+          "bad": "Travail en freelance",
+          "good": "Activité freelance (3 ans) : 28 clients, CA moyen 85K€/an, spécialisation branding startup — dont 3 levées de fonds >1M€ pour des clients coachés",
+          "why": "Volume clients, CA, spécialisation, impact clients"
+        },
+        {
+          "bad": "Refonte d'un site web",
+          "good": "Refonte UX/UI du site e-commerce Petit Bateau (Figma → Webflow) : taux de rebond -28%, durée de session +45s, taux de conversion +1,8 point",
+          "why": "Client, outils, 3 métriques e-commerce"
+        },
+        {
+          "bad": "Création de contenus pour les réseaux sociaux",
+          "good": "Conception des formats créatifs Instagram et TikTok pour Sézane (18 formats/mois) : taux d'engagement 6,4% (×3 vs moyenne marques mode)",
+          "why": "Canaux, cadence, client, benchmark secteur"
+        },
+        {
+          "bad": "Illustration",
+          "good": "Production de 60 illustrations vectorielles pour le rapport RSE de Michelin : publication en 8 langues, tirage à 15 000 exemplaires",
+          "why": "Volume, client, distribution internationale"
+        },
+        {
+          "bad": "Travail sur l'accessibilité",
+          "good": "Audit et mise en conformité WCAG 2.1 AA du portail client d'AXA : 98/100 au score Axe, validation par des testeurs malvoyants",
+          "why": "Standard cité, score, validation externe"
+        },
+        {
+          "bad": "Participation à des concours",
+          "good": "1er prix D&AD New Blood 2024 (catégorie Brand Identity, 2 400 participants) : brief fictif — refonte de l'identité Amnesty International pour les 18-25 ans",
+          "why": "Récompense, périmètre du concours, brief détaillé"
+        },
+        {
+          "bad": "Réalisation d'un portfolio",
+          "good": "Portfolio en ligne (inesfontaine.fr) : 18 projets, 4 200 visites/mois, sélectionné dans le top 10 Behance France catégorie Brand Design",
+          "why": "URL, volume projets, trafic, reconnaissance"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Diplôme école d'art ou design (ENSAD, ESAG, Arts Déco, Gobelins, ESDI) ou école de design produit. Portfolio solide de 6-10 projets (persos inclus), maîtrise de la suite Adobe et Figma. La qualité du portfolio prime sur les diplômes.",
+        "mid": "3-5 ans en agence ou studio, ownership de projets clients de bout en bout, premières collaborations directes avec des clients ou directeurs de création, spécialisation (UX, motion, branding, packaging...). Récompenses créatives appréciées.",
+        "senior": "6+ ans, direction de création ou lead designer, management d'équipes créatives de 3-10 personnes, track record de campagnes ou identités pour des marques reconnues, récompenses (Cannes Lions, D&AD, Grand Prix EPICA). Capacité à défendre un concept en C-suite."
+      },
+      "recruiter_tips": [
+        "Le portfolio est plus important que le CV : ajoute l'URL en haut du CV, avec une sélection de 5-8 projets les plus représentatifs de ton positionnement.",
+        "Mentionne les clients par nom (ou 'grande marque automobile française' si NDA) : un projet pour LVMH ou Apple pèse plus qu'un projet anonyme.",
+        "Les récompenses créatives (Cannes Lions, D&AD, Grand Prix Stratégies) sont des différenciateurs très forts — mets-les en évidence même si tu n'as qu'un shortlist.",
+        "Pour les postes UX/UI, les recruteurs cherchent des métriques business (taux de conversion, adoption) pas seulement des principes de design. Montre l'impact.",
+        "En agence, les recruteurs regardent la liste des clients et la diversité sectorielle. En studio/produit, ils cherchent la profondeur sur un secteur. Adapte ton CV à l'une ou l'autre cible."
+      ],
+      "common_mistakes": [
+        "CV sans URL de portfolio : c'est éliminatoire. Même un Behance ou Dribbble vaut mieux que rien.",
+        "Lister des outils plutôt que des projets : 'maîtrise de Figma' sans exemple de ce que tu as créé avec ne dit rien.",
+        "Portfolio trop généraliste : montrer 15 projets de types très différents dilue le positionnement. Mieux vaut 8 projets cohérents.",
+        "Ne pas mentionner le contexte des projets (brief, contraintes, itérations) — les recruteurs veulent comprendre ta démarche créative, pas juste voir le résultat final.",
+        "CV graphiquement sur-designé avec des colonnes illisibles, des barres de compétences et des icônes partout : ça complique la lecture ATS et humaine. Préfère un design sobre qui laisse parler les projets."
+      ]
+    },
+    "commercial": {
+      "name": "Commercial & Vente",
+      "ats_keywords": [
+        "développement commercial", "business development", "BizDev",
+        "chasse", "acquisition client", "prospection", "cold calling", "outreach",
+        "cycle de vente", "pipeline", "qualification", "découverte", "closing",
+        "account management", "account executive", "AE", "SDR", "BDR",
+        "Salesforce", "HubSpot CRM", "Pipedrive", "Outreach", "SalesLoft",
+        "MEDDIC", "SPIN Selling", "challenger sale", "solution selling",
+        "négociation", "proposition commerciale", "appel d'offre", "RFP",
+        "B2B", "B2C", "SaaS", "enterprise", "mid-market", "SMB",
+        "chiffre d'affaires", "CA", "quota", "objectif", "target",
+        "MRR", "ARR", "ACV", "deal size", "taux de conversion", "win rate",
+        "LTV", "CAC", "churn", "rétention", "expansion", "upsell", "cross-sell",
+        "partenariats", "channel sales", "indirect", "revendeurs",
+        "account plan", "plan de compte", "grand compte", "key account", "KAM",
+        "présentation commerciale", "demo", "proof of concept", "POC",
+        "President's Club", "top performer", "dépassement d'objectif"
+      ],
+      "strong_action_verbs": [
+        "Décrocher", "Closer", "Développer", "Négocier", "Dépasser",
+        "Conquérir", "Fidéliser", "Accélérer", "Multiplier", "Structurer",
+        "Pitcher", "Convaincre", "Signer", "Prospecter", "Qualifier",
+        "Gérer", "Développer", "Piloter", "Recruter", "Former"
+      ],
+      "avoid": [
+        "goût du challenge", "sens du contact", "aisance relationnelle",
+        "capacité à convaincre", "dynamisme", "enthousiasme",
+        "participation aux ventes", "aide au développement commercial",
+        "travail en équipe", "polyvalence", "autonomie",
+        "force de proposition", "motivé par les résultats",
+        "bonne présentation", "mobilité"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Développement du portefeuille clients",
+          "good": "Développement du portefeuille grands comptes (segement >500 salariés) : 12 nouveaux clients signés en 12 mois, CA additionnel de 1,8M€, dépassement d'objectif à 134%",
+          "why": "Segment précis, volume, CA, % objectif"
+        },
+        {
+          "bad": "Atteinte des objectifs de vente",
+          "good": "127% d'atteinte objectif en 2024 (quota : 2,4M€) — President's Club 2023 et 2024, top 5% de la force de vente nationale",
+          "why": "% précis, quota, récompense, classement"
+        },
+        {
+          "bad": "Gestion de comptes stratégiques",
+          "good": "Gestion de 8 comptes CAC 40 (CA géré : 6,2M€/an) : taux de rétention de 96%, upsell moyen de 28% par renouvellement",
+          "why": "Nombre de comptes, CA, rétention, expansion"
+        },
+        {
+          "bad": "Négociation de contrats",
+          "good": "Négociation et closing de 3 contrats pluriannuels (3 ans, 800K€ à 1,2M€/an) avec des directions achat niveau C-suite",
+          "why": "Durée, montant, niveau de négociation"
+        },
+        {
+          "bad": "Réduction du cycle de vente",
+          "good": "Déploiement de la méthode MEDDIC : cycle de vente moyen réduit de 7 à 4,5 mois (-36%), taux de qualification des opportunités +40%",
+          "why": "Méthode nommée, avant/après, impact qualification"
+        },
+        {
+          "bad": "Prospection de nouveaux clients",
+          "good": "Mise en place d'une stratégie outreach multicanal (LinkedIn + cold email + calling) : 85 opportunités qualifiées/mois, taux de réponse 14% (vs 3% secteur)",
+          "why": "Canaux, volume mensuel, benchmark secteur"
+        },
+        {
+          "bad": "Management d'une équipe commerciale",
+          "good": "Management d'une équipe de 6 Account Executives (marché ETI/Grand Compte) : CA d'équipe de 4,2M€ à 8,8M€ en 2 ans, 100% des objectifs individuels atteints en 2024",
+          "why": "Taille équipe, segment, croissance CA, atteinte objectifs"
+        },
+        {
+          "bad": "Participation à des salons professionnels",
+          "good": "Représentation au salon Viva Technology 2024 : 120 leads qualifiés générés en 3 jours, 8 démos planifiées, 2 deals signés à M+2 (CA : 180K€)",
+          "why": "Événement, volume leads, pipeline, conversion"
+        },
+        {
+          "bad": "Développement du channel indirect",
+          "good": "Création d'un réseau de 12 partenaires revendeurs (intégrateurs et ESN) : CA indirect de 0 à 1,4M€ en 18 mois, 3 partenaires Gold certifiés",
+          "why": "Nombre de partenaires, croissance CA, certification"
+        },
+        {
+          "bad": "Travail sur les propositions commerciales",
+          "good": "Production de 24 propositions commerciales personnalisées : taux de transformation de 38% (vs 18% moyenne équipe), délai moyen de réponse 48h",
+          "why": "Volume, taux vs benchmark interne, réactivité"
+        },
+        {
+          "bad": "Expansion chez les clients existants",
+          "good": "Programme d'expansion compte (upsell/cross-sell) : NRR de 118% sur le portefeuille, identification et closing de 15 opportunités d'expansion pour 620K€",
+          "why": "NRR précis, volume d'opportunités, CA expansion"
+        },
+        {
+          "bad": "Formation de nouveaux commerciaux",
+          "good": "Onboarding et formation de 4 nouveaux AEs : ramp-up ramené de 6 à 3,5 mois, 3 des 4 ont atteint leur quota dès le 2e trimestre",
+          "why": "Nombre formés, gain de ramp-up, résultats"
+        },
+        {
+          "bad": "Vente de solutions complexes",
+          "good": "Closing d'une solution ERP à 450K€ pour un groupe industriel de 1 200 salariés : cycle de 9 mois, 8 parties prenantes impliquées, bascule en 4 mois",
+          "why": "Montant, complexité organisation, durée, stakeholders"
+        },
+        {
+          "bad": "Gestion du CRM",
+          "good": "Administration et optimisation du CRM Salesforce (500 comptes, 1 200 contacts) : taux de remplissage des champs critiques porté à 94%, réduction des doublons de 60%",
+          "why": "Outil, périmètre, métriques qualité données"
+        },
+        {
+          "bad": "Stage en vente",
+          "good": "Stagiaire Sales Development Representative — Lemlist (5 mois) : 320 emails de prospection envoyés, 45 rendez-vous qualifiés générés, 3 deals contribués pour 28K€",
+          "why": "Titre, employeur, volume, contribution pipeline"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "SDR ou AE junior, capacité à prospecter en autonomie, maîtrise d'un CRM (HubSpot ou Salesforce), premières signatures à son actif même petites. La ténacité et les métriques de prospection comptent plus que l'école.",
+        "mid": "AE ou Chargé d'affaires avec 3-5 ans, track record de dépassement d'objectif, capacité à gérer des cycles de vente complexes (>3 mois, >50K€), premières expériences d'upsell et de gestion de compte, maîtrise d'une méthodologie (MEDDIC, SPIN).",
+        "senior": "Directeur commercial ou Key Account Manager Senior avec 7+ ans, management d'une équipe de 5-15 commerciaux, P&L commercial significatif (>5M€), capacité à ouvrir de nouveaux marchés ou segments, relations C-suite établies."
+      },
+      "recruiter_tips": [
+        "Le % d'atteinte d'objectif est le KPI numéro un : si tu ne le mets pas, le recruteur suppose que tu ne l'as pas atteint. Mets-le même si c'est 95%.",
+        "Les récompenses commerciales (President's Club, top performer, classement) sont des preuves sociales très fortes — les recruteurs les adorent.",
+        "Distingue la chasse (acquisition) de l'élevage (fidélisation) : précise si tu faisais de la prospection pure ou de la gestion de compte. C'est très différent et les recruteurs cherchent l'un ou l'autre.",
+        "Les montants des deals et du quota donnent immédiatement le marché sur lequel tu opères (PME vs ETI vs Grand Compte). Ne les omets jamais.",
+        "Les certifications de méthodes (MEDDIC, Challenger Sale) et les CRM (Salesforce Administrator) sont des plus valorisés sur le marché."
+      ],
+      "common_mistakes": [
+        "Ne pas mettre le % d'atteinte d'objectif — c'est la première chose que cherche un recruteur commercial.",
+        "Confondre activités (prospecter, présenter) et résultats (CA signé, deals closés). Les recruteurs commerciaux veulent des chiffres, pas des verbes.",
+        "Oublier de distinguer B2B et B2C, et SMB vs Mid-Market vs Enterprise : le profil et les compétences sont très différents.",
+        "Section compétences avec des traits de personnalité ('goût du challenge', 'aisance relationnelle') au lieu de méthodes et outils ('MEDDIC', 'Salesforce', 'Outreach').",
+        "CV de plus de 2 pages : en commercial, l'efficacité et la synthèse sont des compétences clés. Un CV trop long signale un problème de priorisation."
+      ]
+    },
+    "rh": {
+      "name": "Ressources Humaines & Management",
+      "ats_keywords": [
+        "gestion des ressources humaines", "HRBP", "HR Business Partner",
+        "recrutement", "sourcing", "talent acquisition", "chasse de têtes",
+        "onboarding", "intégration", "marque employeur", "employer branding",
+        "formation", "développement des compétences", "GPEC", "GEPP",
+        "gestion de la performance", "entretiens annuels", "objectifs", "OKR",
+        "relations sociales", "dialogue social", "partenaires sociaux", "CSE",
+        "négociation", "accord d'entreprise", "NAO", "plan de sauvegarde de l'emploi", "PSE",
+        "droit du travail", "conformité RH", "compliance", "Code du travail",
+        "paie", "administration du personnel", "SIRH", "SAP HR", "Workday", "ADP",
+        "People Analytics", "données RH", "tableaux de bord RH", "KPIs RH",
+        "QVT", "qualité de vie au travail", "bien-être", "engagement", "eNPS",
+        "diversité", "inclusion", "égalité H/F", "Index Pénicaud",
+        "mobilité interne", "plan de carrière", "succession planning",
+        "management interculturel", "management à distance", "télétravail",
+        "conduite du changement", "transformation RH", "culture d'entreprise",
+        "LinkedIn Recruiter", "Greenhouse", "Workable", "BambooHR",
+        "budget RH", "masse salariale", "coût par recrutement"
+      ],
+      "strong_action_verbs": [
+        "Recruter", "Déployer", "Négocier", "Réduire", "Améliorer",
+        "Piloter", "Accompagner", "Animer", "Structurer", "Fédérer",
+        "Mettre en place", "Développer", "Former", "Évaluer", "Retenir",
+        "Diagnostiquer", "Concilier", "Transformer", "Fidéliser", "Outiller"
+      ],
+      "avoid": [
+        "sens de l'écoute", "empathie", "aisance relationnelle",
+        "goût pour les relations humaines", "polyvalence",
+        "participation au recrutement", "aide à la formation",
+        "contribution aux projets RH", "travail en équipe",
+        "dynamisme", "autonomie", "rigueur",
+        "force de proposition", "bonne communication"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Recrutement de profils variés",
+          "good": "Pilotage du recrutement de 85 postes en 12 mois (cadres et non-cadres) : TTFH réduit de 62 à 38 jours, coût par recrutement de 4 200€ à 2 800€ (-33%)",
+          "why": "Volume, types de profils, TTFH, coût avant/après"
+        },
+        {
+          "bad": "Réduction du turnover",
+          "good": "Déploiement d'un plan de rétention (entretiens 'stay', plan carrière, revalorisation) : turnover réduit de 24% à 14% en 18 mois, économie estimée à 380K€ de coûts de remplacement",
+          "why": "Actions citées, avant/après, économie chiffrée"
+        },
+        {
+          "bad": "Amélioration de l'engagement",
+          "good": "Mise en place d'un baromètre social annuel (2 400 répondants, taux de participation 78%) : eNPS passé de -12 à +24 en 2 ans, 3 plans d'action déployés par thème",
+          "why": "Méthode, taille périmètre, évolution eNPS, actions"
+        },
+        {
+          "bad": "Négociation d'accords d'entreprise",
+          "good": "Négociation de 4 accords d'entreprise (télétravail, NAO, égalité H/F, intéressement) : signature à l'unanimité des organisations syndicales, 0 journée de grève sur la période",
+          "why": "Nombre et type d'accords, résultat social, paix sociale"
+        },
+        {
+          "bad": "Gestion de la formation",
+          "good": "Pilotage du plan de formation (budget : 1,2M€, 850 salariés concernés) : taux de réalisation de 96%, déploiement d'une plateforme LMS (Docebo) — 340 modules disponibles",
+          "why": "Budget, périmètre, taux, outil, volume de contenus"
+        },
+        {
+          "bad": "Développement de la marque employeur",
+          "good": "Refonte de la marque employeur (site carrières, réseaux sociaux, témoignages salariés) : +68% de candidatures spontanées, score Glassdoor de 3,2 à 4,1/5",
+          "why": "Actions, augmentation candidatures, score Glassdoor"
+        },
+        {
+          "bad": "Accompagnement des managers",
+          "good": "Déploiement d'un programme de formation managériale pour 120 managers (12h/an) : score de satisfaction 4,4/5, compétences managériales auto-évaluées +28%",
+          "why": "Volume, durée, satisfaction, impact auto-évalué"
+        },
+        {
+          "bad": "Gestion du SIRH",
+          "good": "Pilotage de la migration SIRH (SAP HR → Workday) pour 3 500 salariés : go-live en 14 mois (vs 18 planifiés), 0 erreur de paie lors du basculement",
+          "why": "Outil avant/après, périmètre, délai, qualité"
+        },
+        {
+          "bad": "Travail sur la GEPP",
+          "good": "Élaboration et déploiement du plan GEPP : cartographie de 180 métiers, identification de 12 métiers en tension, plan de reconversion de 45 salariés",
+          "why": "Périmètre, méthodologie, plans d'action"
+        },
+        {
+          "bad": "Diversité et inclusion",
+          "good": "Déploiement d'une politique D&I : Index Pénicaud amélioré de 74 à 88/100, parité atteinte dans les 10 premières promotions internes, 3 accords égalité H/F signés",
+          "why": "Indicateur légal, évolution mesurée, réalisations"
+        },
+        {
+          "bad": "PSE",
+          "good": "Pilotage d'un PSE de 200 postes (volet social, communication, outplacement) : 0 recours prud'homal, taux de reclassement de 82% à M+6",
+          "why": "Périmètre, résultats social et reclassement"
+        },
+        {
+          "bad": "Recrutement de cadres supérieurs",
+          "good": "Recrutement de 8 postes de direction (N-1 et N-2 de DG) en sourcing direct : économie de 320K€ de frais de cabinet, délai moyen 52 jours",
+          "why": "Volume, niveau de poste, économie, délai"
+        },
+        {
+          "bad": "Administration du personnel",
+          "good": "Fiabilisation de la paie de 650 salariés (multi-conventions) : taux d'anomalies réduit de 3,8% à 0,4%, certification silae payroll obtenue",
+          "why": "Périmètre, avant/après anomalies, certification"
+        },
+        {
+          "bad": "Relations avec le CSE",
+          "good": "Animation de 12 réunions CSE/mois (ordinaires + extraordinaires) : 0 procédure contentieuse sur 3 exercices, élaboration de 2 accords de méthode",
+          "why": "Volume, résultat juridique, accords"
+        },
+        {
+          "bad": "Stage en RH",
+          "good": "Stagiaire RH — Danone (6 mois) : participation au recrutement de 18 postes, rédaction de 35 offres d'emploi, mise en place du module onboarding digital (400 utilisateurs)",
+          "why": "Employeur, volume, livrables, impact"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Master 2 RH (IAE, Sciences Po, Paris 2 Panthéon-Assas), 1-2 stages en RH généraliste ou recrutement, connaissance du droit du travail et des outils SIRH. Les certifications (SHRM, CPF) commencent à valoriser le profil.",
+        "mid": "3-6 ans, HRBP ou RRH sur un périmètre de 200-500 personnes, autonomie sur les relations sociales, recrutement et formation, premières négociations syndicales, maîtrise d'un SIRH (Workday, SAP). Expertise émergente (recrutement tech, droit social...).",
+        "senior": "7+ ans, DRH ou RH Senior sur des périmètres de 500-5000 personnes, track record de transformation RH mesurable (turnover, engagement, coûts), leadership d'une équipe RH de 5-20 personnes, gestion de PSE ou grandes négociations."
+      },
+      "recruiter_tips": [
+        "Les KPIs RH (TTFH, taux de turnover, eNPS, coût par recrutement) sont attendus : un CV RH sans chiffres manque de crédibilité auprès des DG et DRH.",
+        "Les recruteurs RH scrutent les conventions collectives et branches connues — précise le secteur (industrie, services, santé) car les pratiques RH varient beaucoup.",
+        "Pour les profils relations sociales, le nombre et la nature des accords négociés + l'absence de conflits sociaux sont les signaux forts à mettre en avant.",
+        "La maîtrise des SIRH (Workday, SAP, ADP, Sage) est de plus en plus discriminante — précise ton niveau et les modules maîtrisés.",
+        "Pour les postes HRBP, les recruteurs veulent voir la capacité à être business partner : montre que tu comprends les enjeux métier (CA, coûts, croissance) pas seulement les processus RH."
+      ],
+      "common_mistakes": [
+        "CV axé sur les processus ('mise en place de...', 'gestion de...') sans résultats mesurables. Les RH sont aussi un centre de coût et de valeur — quantifie.",
+        "Lister des soft skills ('empathie', 'sens de l'écoute') au lieu de compétences professionnelles : les recruteurs veulent des faits, pas des traits de personnalité.",
+        "Ne pas préciser les conventions collectives et périmètres gérés : 500 personnes en industrie ≠ 500 personnes en startup, les recruteurs veulent cette précision.",
+        "Section 'Relations sociales' vide ou absente pour les profils 5+ ans : c'est une compétence distinctive que beaucoup de RH Senior négligent de mettre en valeur.",
+        "Oublier les certifications et formations continues (droit social, People Analytics, certifications recrutement) qui montrent la montée en compétences."
+      ]
+    },
+    "sante": {
+      "name": "Santé & Pharmacie",
+      "ats_keywords": [
+        "diplôme d'État", "licence", "master", "doctorat", "internat", "résidanat",
+        "médecine", "pharmacie", "soins infirmiers", "kinésithérapie", "sage-femme",
+        "chirurgie", "anesthésie", "réanimation", "urgences", "médecine interne",
+        "oncologie", "cardiologie", "neurologie", "pédiatrie", "psychiatrie",
+        "biologie médicale", "imagerie médicale", "radiologie",
+        "dispositifs médicaux", "DM", "pharmacovigilance", "matériovigilance",
+        "essais cliniques", "recherche clinique", "ARC", "TEC", "investigateur",
+        "bonnes pratiques cliniques", "BPC", "ICH GCP", "protocole", "CRF",
+        "réglementation", "HAS", "ANSM", "EMA", "FDA", "AMM", "CE",
+        "qualité", "ISO 9001", "ISO 13485", "certification", "accréditation",
+        "management de la qualité", "CLIN", "CLUD", "CME",
+        "dossier patient informatisé", "DPI", "logiciel médical",
+        "télémédecine", "e-santé", "health tech",
+        "santé publique", "épidémiologie", "biostatistiques", "R", "SAS",
+        "industrie pharmaceutique", "affaires réglementaires", "accès au marché",
+        "market access", "ASMR", "SMR", "IQVIA", "DREES",
+        "management d'équipe soignante", "chef de service", "cadre de santé"
+      ],
+      "strong_action_verbs": [
+        "Diagnostiquer", "Traiter", "Prendre en charge", "Coordonner", "Superviser",
+        "Valider", "Optimiser", "Déployer", "Former", "Rédiger",
+        "Contribuer", "Participer", "Évaluer", "Certifier", "Investiguer",
+        "Implémenter", "Améliorer", "Sécuriser", "Animer", "Réduire"
+      ],
+      "avoid": [
+        "passion pour la médecine", "vocation soignante", "empathie",
+        "sens du contact humain", "rigueur scientifique",
+        "participation aux soins", "aide à la prise en charge",
+        "travail en équipe pluridisciplinaire", "polyvalence",
+        "bonne communication", "autonomie", "dynamisme",
+        "intérêt pour la recherche", "curiosité scientifique"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Participation aux essais cliniques",
+          "good": "Co-investigateur sur 3 essais cliniques de phase II/III (INCa/PHRC) : inclusion de 48 patients, 0 déviation majeure au protocole, rapport final soumis dans les délais",
+          "why": "Rôle précis, volume, qualité protocolaire, délais"
+        },
+        {
+          "bad": "Gestion des chimiothérapies",
+          "good": "Validation et suivi de 4 800 préparations de chimiothérapie/an (unité de pharmacie centralisée) : taux d'erreur de prescription détectée 2,4%, zéro incident iatrogène déclaré",
+          "why": "Volume annuel, rôle qualité, métriques sécurité"
+        },
+        {
+          "bad": "Obtention de la certification ISO",
+          "good": "Pilotage de la certification ISO 9001 v2015 du service anatomopathologie : audit de certification réussi du premier coup, 3 points forts cités par l'auditeur, zéro non-conformité majeure",
+          "why": "Norme précise, résultat certif, qualité de l'audit"
+        },
+        {
+          "bad": "Formation des internes",
+          "good": "Encadrement de 12 internes/an (pharmacie hospitalière) : 100% de succès à l'examen national de DES, programme de formation structuré sur 12 modules",
+          "why": "Volume, résultat pédagogique, programme structuré"
+        },
+        {
+          "bad": "Travail sur les dossiers réglementaires",
+          "good": "Rédaction de 4 dossiers CTD Module 1 (ANSM) pour des demandes d'AMM en procédure nationale : 3 autorisations obtenues, 1 en cours — délai moyen de 14 mois",
+          "why": "Format réglementaire, autorité, résultats, délai"
+        },
+        {
+          "bad": "Gestion de la qualité",
+          "good": "Mise en place du système de management de la qualité (accréditation COFRAC section 15 LAB) : 250 SOP rédigées, délai d'accréditation réduit de 18 à 12 mois",
+          "why": "Accréditation précise, volume procédures, délai"
+        },
+        {
+          "bad": "Réduction des infections nosocomiales",
+          "good": "Coordination du CLIN (300 lits, 4 services) : taux d'IAS réduit de 3,8% à 2,1% en 24 mois (-45%), campagne de formation hygiène des mains (250 soignants formés)",
+          "why": "Périmètre, avant/après IAS, formation"
+        },
+        {
+          "bad": "Publications scientifiques",
+          "good": "Auteur/co-auteur de 6 articles dans des revues indexées (NEJM, Lancet Oncology, Annals of Oncology) : h-index : 8, 240 citations cumulées",
+          "why": "Nombre, revues nommées, h-index, citations"
+        },
+        {
+          "bad": "Télémédecine",
+          "good": "Déploiement d'une plateforme de télédermatologie (4 hôpitaux partenaires) : 1 200 téléconsultations/an, délai d'accès à la spécialité réduit de 4 mois à 12 jours",
+          "why": "Périmètre, volume, impact accès aux soins"
+        },
+        {
+          "bad": "Gestion du service",
+          "good": "Direction d'un service de médecine interne (32 lits, équipe de 18 soignants) : DMS réduite de 8,2 à 6,8 jours (-17%), taux de réhospitalisation à 30 jours : 7,2% (vs 11% national)",
+          "why": "Taille service, métriques hospitalières, benchmark"
+        },
+        {
+          "bad": "Travail sur le dossier patient",
+          "good": "Déploiement du DPI (Hopital Manager) sur 2 services pilotes (350 admissions/mois) : dématérialisation à 100% en 4 mois, satisfaction soignants 4,1/5",
+          "why": "Logiciel, périmètre, délai, satisfaction"
+        },
+        {
+          "bad": "Formation médicale continue",
+          "good": "Organisation de 4 symposiums annuels en oncologie thoracique (200 à 350 participants) : 3,8 heures de DPC validées par session, labellisation FMC obtenue",
+          "why": "Nombre, audience, validation DPC, label"
+        },
+        {
+          "bad": "Collaboration pluridisciplinaire",
+          "good": "Animation de 52 réunions de concertation pluridisciplinaire (RCP) oncologie/an : 100% des dossiers discutés conformes aux référentiels INCa, participation de 8 spécialités",
+          "why": "Volume annuel, conformité réglementaire, diversité"
+        },
+        {
+          "bad": "Stage hospitalier",
+          "good": "Interne en pharmacie — CHU Bordeaux (semestre oncologie) : validation et dispensation de 2 400 traitements, rédaction de 3 fiches médicamenteuses validées par le service",
+          "why": "Lieu, spécialité, volume, livrables"
+        },
+        {
+          "bad": "Market access",
+          "good": "Élaboration du dossier ASMR pour l'inscription au remboursement d'un anticancéreux (HAS) : ASMR IV obtenu, prix net négocié à 12% au-dessous du prix de liste",
+          "why": "Processus HAS, résultat ASMR, gain prix"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Étudiant ou jeune diplômé (interne, AHU, assistant hospitalo-universitaire), diplômes nationaux mentionnés avec mention, stages hospitaliers détaillés, premières publications ou communications poster.",
+        "mid": "Praticien hospitalier ou pharmacien hospitalier avec 3-7 ans, responsabilités de service ou d'unité, premières publications en premier auteur, participation aux comités (CLIN, CME), compétences spécialisées (essais cliniques, réglementation...).",
+        "senior": "PH temps plein ou chef de service, track record de publications (h-index >10), direction d'une équipe soignante ou d'un service (>20 personnes), responsabilités institutionnelles (CME, présidence de société savante), expertise reconnue nationalement."
+      },
+      "recruiter_tips": [
+        "Les diplômes et leurs mentions sont le premier filtre en santé — place-les en premier, avec le lieu de formation et la mention si elle est bonne.",
+        "Les publications et communications sont très importantes pour les postes hospitaliers et de recherche : mentionne le h-index et les revues si elles sont reconnues.",
+        "Les accréditations et certifications obtenues (ISO, COFRAC, HAS) sont des preuves de qualité que les recruteurs cherchent, surtout pour l'industrie pharmaceutique.",
+        "Pour l'industrie pharmaceutique, les recruteurs cherchent la compréhension du parcours réglementaire complet (ANSM, HAS, accès marché). Montre que tu connais les deux faces (médical et économique).",
+        "Le leadership clinique (nombre de lits, taille d'équipe, DMS, taux de réhospitalisation) est attendu pour les postes de chef de service ou cadre de santé."
+      ],
+      "common_mistakes": [
+        "CV sans aucun chiffre : même en santé, les métriques existent (volume de patients, taux d'erreur, DMS, taux de satisfaction). Les omettre affaiblit considérablement le CV.",
+        "Ne pas distinguer les expériences cliniques, de recherche et d'enseignement : les recruteurs cherchent souvent un équilibre précis entre ces 3 missions.",
+        "Oublier les congrès et communications orales ou poster : en médecine hospitalière, la visibilité scientifique est une composante clé du profil.",
+        "CV trop chronologique sans mise en valeur des projets transversaux ou des responsabilités institutionnelles (CLIN, CME, représentant étudiant...).",
+        "Ne pas mentionner les logiciels médicaux maîtrisés (DPI, logiciels de pharmacie, outils biostatistiques comme SAS ou R) — c'est de plus en plus attendu."
+      ]
+    },
+    "etudiant": {
+      "name": "Étudiant Grande École",
+      "ats_keywords": [
+        "HEC Paris", "ESSEC", "ESCP", "EM Lyon", "EDHEC", "Audencia", "Neoma", "Kedge",
+        "CentraleSupélec", "Polytechnique", "Mines Paris", "Ponts et Chaussées",
+        "Sciences Po", "ENA", "ENSAE", "ENSAI",
+        "classes préparatoires", "CPGE", "prépa ECS", "prépa ECE", "prépa MP", "prépa PC",
+        "double diplôme", "master", "MBA", "échange international",
+        "stage", "alternance", "PFE", "projet de fin d'études",
+        "Bureau des Étudiants", "BDE", "bureau associatif", "association étudiante",
+        "responsabilité associative", "junior entreprise", "JE",
+        "compétition de cas", "concours", "hackathon", "prix",
+        "mention bien", "mention très bien", "major de promotion", "classement",
+        "tutorat", "enseignement", "assistant pédagogique",
+        "projets académiques", "mémoire de recherche", "thèse professionnelle",
+        "Excel", "PowerPoint", "Python", "R", "MATLAB", "VBA",
+        "Bloomberg", "Thomson Reuters", "FactSet",
+        "TOEFL", "TOEIC", "IELTS", "GMAT", "GRE",
+        "mobilité internationale", "semestre à l'étranger",
+        "langues", "bilingue", "trilingue",
+        "sport de haut niveau", "compétition nationale", "équipe nationale"
+      ],
+      "strong_action_verbs": [
+        "Présider", "Organiser", "Créer", "Gérer", "Représenter",
+        "Développer", "Animer", "Piloter", "Coordonner", "Former",
+        "Analyser", "Modéliser", "Rédiger", "Présenter", "Collaborer",
+        "Diriger", "Contribuer", "Concevoir", "Lancer", "Obtenir"
+      ],
+      "avoid": [
+        "très motivé", "passionné par", "grande curiosité intellectuelle",
+        "ouverture d'esprit", "capacité à apprendre rapidement",
+        "sens des responsabilités", "polyvalence", "autonomie",
+        "bonne capacité d'adaptation", "esprit d'initiative",
+        "dynamisme", "rigueur", "sérieux", "implication"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Président du BDE",
+          "good": "Président du BDE Audencia (2 500 membres) : gestion d'un budget de 320K€, management d'une équipe de 38 bénévoles, organisation de 45 événements dont le Gala annuel (1 400 participants, 200K€ de budget)",
+          "why": "Budget précis, équipe, volume événements, flagship event"
+        },
+        {
+          "bad": "Stage en M&A",
+          "good": "Stagiaire Analyste M&A — Natixis Corporate (3 mois) : modélisation de 5 LBO (cibles 30-200M€), contribution à 2 mémos d'investissement présentés au Managing Director",
+          "why": "Employeur, durée, volume, fourchette deal, livrables"
+        },
+        {
+          "bad": "Major de promo",
+          "good": "Major de la promotion 2024 (1er/92) en Modélisation Financière, 9e/290 en Marchés Financiers (sur 360 étudiants)",
+          "why": "Position absolue ET relative, matières précises"
+        },
+        {
+          "bad": "Projet académique en groupe",
+          "good": "Mémoire de recherche : 'Impact de l'IA générative sur le métier d'analyste financier' — mention Excellent (18/20), cité dans la revue académique Finéco",
+          "why": "Sujet, note, distinction externe"
+        },
+        {
+          "bad": "Semestre à l'étranger",
+          "good": "Semestre d'échange — University of California Berkeley, Haas School of Business (2024) : cours en finance d'entreprise et venture capital, GPA 3.8/4.0",
+          "why": "Université et école précises, cours, note"
+        },
+        {
+          "bad": "Participation à un concours de cas",
+          "good": "Finaliste L'Oréal Brandstorm 2024 (top 3 nationale / 2 800 équipes) : présentation de la stratégie de lancement d'un produit capillaire en Asie du Sud-Est devant le jury international",
+          "why": "Classement, périmètre, brief du concours"
+        },
+        {
+          "bad": "Tutorat de collègues",
+          "good": "Tuteur bénévole en mathématiques financières pour 12 étudiants de L3 : 100% de taux de réussite aux partiels, 4,6/5 de satisfaction étudiants",
+          "why": "Volume, résultat pédagogique, satisfaction"
+        },
+        {
+          "bad": "Compétition sportive",
+          "good": "Capitaine de l'équipe de handball de CentraleSupélec (25 joueurs) : finaliste du championnat de France des Grandes Écoles 2023, entraînement 12h/semaine cumulé avec les études",
+          "why": "Rôle leadership, taille équipe, résultat, effort"
+        },
+        {
+          "bad": "Junior Entreprise",
+          "good": "Directeur des études de la Junior Entreprise HEC (60 missions/an, CA 280K€) : management de 12 chefs de projet, acquisition de 3 nouveaux clients Fortune 500",
+          "why": "Rôle, volume missions, CA, équipe, clients"
+        },
+        {
+          "bad": "Hackathon",
+          "good": "1er prix Hackathon BNP Paribas 'Finance of the Future' 2024 (320 équipes) : solution de scoring ESG automatisé (Python + NLP), prototype présenté au CEO",
+          "why": "Récompense, périmètre, solution technique, niveau audience"
+        },
+        {
+          "bad": "Création d'une association",
+          "good": "Co-fondateur de l'association 'Finance Solidaire ESSEC' (120 membres) : organisation de 8 conférences avec des professionnels du secteur, levée de 15K€ pour 2 associations caritatives",
+          "why": "Rôle fondateur, taille, activités, impact philanthropique"
+        },
+        {
+          "bad": "Alternance en contrôle de gestion",
+          "good": "Alternant Contrôle de gestion — Saint-Gobain (12 mois) : production du reporting mensuel de 3 BU (CA agrégé 180M€), automatisation de 4 tableaux de bord sous VBA (-6h/mois)",
+          "why": "Employeur, durée, périmètre, livrable, gain"
+        },
+        {
+          "bad": "Bonne maîtrise de l'anglais",
+          "good": "Anglais : bilingue (TOEFL IBT 112/120, échange UC Berkeley) — Espagnol : courant (B2, 3 mois en Espagne) — Mandarin : notions (HSK 2)",
+          "why": "Score, preuve concrète, niveaux différenciés"
+        },
+        {
+          "bad": "Projet de fin d'études",
+          "good": "Thèse professionnelle (EM Lyon) : 'Stratégie de croissance international d'une PME industrielle' — réalisée pour Somfy, 18 recommandations présentées au Comex, 4 adoptées",
+          "why": "École, entreprise partenaire, recommandations, adoption"
+        },
+        {
+          "bad": "Sport en compétition",
+          "good": "Athlète de haut niveau — escrime (épée) : Champion régional Île-de-France 2023, 8e au championnat de France universitaire, entraînement 15h/semaine",
+          "why": "Discipline, palmarès précis, effort quantifié"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Pour un étudiant, le classement, l'école, les stages et les responsabilités associatives priment sur l'expérience pro. L'objectif est de montrer que tu es sérieux, engagé et capable de gérer plusieurs priorités.",
+        "mid": "N/A pour les étudiants (ce profil concerne surtout les 0-2 ans d'expérience post-diplôme). Les premiers emplois doivent montrer une montée en responsabilités rapide et des résultats mesurables.",
+        "senior": "N/A pour les profils étudiant. Pour les jeunes diplômés avec 1-2 ans d'expérience, la progressivité des responsabilités et les premiers impacts business sont les signaux recherchés."
+      },
+      "recruiter_tips": [
+        "Pour les recruteurs de stage et alternance en grandes entreprises, le nom de l'école et le classement interne (rang/total) sont souvent les premiers filtres — mets-les en évidence.",
+        "Les responsabilités associatives (BDE, JE, associations sportives) sont très valorisées car elles prouvent la capacité à gérer des projets réels avec des contraintes de temps — quantifie budgets et équipes.",
+        "Les certifications linguistiques (TOEFL 110+, TOEIC 950+, IELTS 7+) et les scores (GMAT 720+ pour les MBA) doivent être mentionnés avec le score exact, pas juste 'bilingue anglais'.",
+        "Pour les profils Grande École orientés finance/conseil, les compétitions de cas (L'Oréal Brandstorm, BCG Strategy Competition, CFA Research Challenge) sont très discriminantes — même un top 10 national vaut la mention.",
+        "Les projets personnels (startup en cours, app créée, blog technique actif, contribution open source) différencient fortement les profils tech et entrepreneuriat."
+      ],
+      "common_mistakes": [
+        "CV de 2 pages pour un profil étudiant ou junior <2 ans : 1 page maximum, soyez sélectif sur les expériences à mettre.",
+        "Lister toutes les activités extra sans prioriser : 10 lignes d'activités diverses diluent l'impact. Choisis 3-4 engagements forts avec des résultats.",
+        "Mettre 'bonne maîtrise de l'anglais' sans score certifié : pour un recruteur en conseil ou finance, c'est insuffisant. Mets le score TOEFL ou TOEIC.",
+        "Oublier de mettre les classements internes : 'master finance' sans rang ne dit rien. '3e/85' dit tout.",
+        "Présenter les expériences associatives comme du bénévolat sans responsabilités : un BDE de 2 500 membres avec un budget de 300K€ est une PME en miniature — traite-le comme tel."
+      ]
+    },
+    "luxe": {
+      "name": "Luxe, Mode & Retail Premium",
+      "ats_keywords": [
+        "luxe", "haute couture", "prêt-à-porter", "mode", "fashion",
+        "LVMH", "Kering", "Richemont", "Hermès", "Chanel", "Dior", "Louis Vuitton",
+        "développement produit", "stylisme", "collection", "capsule",
+        "sourcing matières premières", "approvisionnement", "supply chain luxe",
+        "artisanat", "savoir-faire", "patrimoine", "maison", "atelier",
+        "retail", "boutique", "flagship", "pop-up store", "corners",
+        "expérience client", "customer experience", "CX", "VIC", "HNWI",
+        "clientèle internationale", "clientélisme", "CRM luxe",
+        "retail management", "visual merchandising", "VM", "styling",
+        "e-commerce luxe", "digital luxury", "omnicanal",
+        "international", "export", "expansion", "Asie", "Chine", "Japon", "Moyen-Orient",
+        "marketing luxe", "brand equity", "desirability", "brand awareness",
+        "communication luxe", "RP luxe", "événementiel", "défilé", "presentation",
+        "production", "prototypage", "modèle", "grading", "coupe",
+        "matières", "cuir", "soie", "cachemire", "broderie", "plissé",
+        "Institut Français de la Mode", "IFM", "ESMOD", "Studio Berçot",
+        "sustainability", "durabilité", "matières responsables", "traçabilité",
+        "Comité Colbert", "Fédération de la Haute Couture"
+      ],
+      "strong_action_verbs": [
+        "Concevoir", "Développer", "Piloter", "Coordonner", "Déployer",
+        "Sublimer", "Animer", "Fidéliser", "Produire", "Sourcer",
+        "Présenter", "Décliner", "Lancer", "Négocier", "Accompagner",
+        "Incarner", "Valoriser", "Créer", "Diriger", "Référencer"
+      ],
+      "avoid": [
+        "passion pour la mode", "sens de l'esthétique", "goût pour le luxe",
+        "élégance naturelle", "polyvalence", "dynamisme",
+        "participation au développement produit", "aide aux collections",
+        "bonne présentation", "attrait pour le secteur",
+        "sens du détail", "créativité", "esprit d'équipe",
+        "ouverture d'esprit", "curiosité"
+      ],
+      "bullet_examples": [
+        {
+          "bad": "Développement de collections",
+          "good": "Pilotage du développement de la collection Haute Couture Printemps-Été 2025 Maison Dior (180 pièces) : coordination de 38 ateliers partenaires, 12 matières exclusives sourcées en France et Italie",
+          "why": "Maison précise, volume, périmètre fournisseurs, exclusivité"
+        },
+        {
+          "bad": "Gestion de boutique",
+          "good": "Direction de la boutique Louis Vuitton Champs-Élysées (CA 28M€/an, 42 collaborateurs) : best practice mondiale VM déployée en premier, NPS clients 4,8/5",
+          "why": "CA précis, équipe, ranking mondial, NPS"
+        },
+        {
+          "bad": "Suivi des ventes",
+          "good": "Développement d'un portefeuille de 85 clients VIC (Very Important Clients, ACV >50K€/an) : taux de fidélisation de 92%, +38% de fréquence d'achat moyenne en 2 ans",
+          "why": "Volume VIC, seuil défini, métriques fidélisation"
+        },
+        {
+          "bad": "Travail sur le merchandising",
+          "good": "Coordination du visual merchandising de 54 boutiques Cartier sur 12 marchés : déploiement des guidelines Collection (4 vitrines simultanées), best practice reconnue par le siège",
+          "why": "Maison, nombre boutiques, marchés, résultat siège"
+        },
+        {
+          "bad": "Développement international",
+          "good": "Ouverture de 3 points de vente en Asie (Shanghai, Tokyo, Séoul) : pilotage de A à Z (sélection emplacement, recrutement, formation équipe, VM), CA cumulé Year 1 : 12M€",
+          "why": "Villes précises, périmètre complet, CA Year 1"
+        },
+        {
+          "bad": "Communication et événementiel",
+          "good": "Organisation du défilé Valentino Paris Fashion Week SS25 (450 invités, 280 presses, 120 buyers) : couverture médiatique dans 85 pays, Vogue.fr + WWD 'best show of the season'",
+          "why": "Maison, périmètre complet, résultats médiatiques"
+        },
+        {
+          "bad": "Sourcing de matières premières",
+          "good": "Développement d'un nouveau filière soie (Cévennes, France) pour Hermès : 3 éleveurs de vers à soie certifiés, 800kg/an sécurisés, traçabilité blockchain déployée",
+          "why": "Maison, filière précise, volume, innovation tech"
+        },
+        {
+          "bad": "Relations presse",
+          "good": "Pilotage des relations presse France de Bottega Veneta : 68 parutions dans des titres tier-1 (Vogue, Madame Figaro, Le Monde) sur 12 mois, DRP estimée à 2,8M€",
+          "why": "Maison, volume, titres nommés, valeur RP"
+        },
+        {
+          "bad": "E-commerce",
+          "good": "Lancement du site e-commerce de la maison Jacquemus (12 pays, 4 langues) : 380K€ de CA le premier mois, taux de conversion 4,2% (×2 secteur luxe digital)",
+          "why": "Maison, périmètre, CA lancement, benchmark secteur"
+        },
+        {
+          "bad": "Formation des vendeurs",
+          "good": "Conception et déploiement du programme de formation 'Excellence Client' pour 1 200 conseillers de vente Bulgari (12 pays) : certification interne, NPS +12 points",
+          "why": "Maison, volume formés, périmètre, résultat NPS"
+        },
+        {
+          "bad": "Suivi des indicateurs",
+          "good": "Implémentation d'un tableau de bord retail (Salesforce + Looker) pour 8 directeurs de réseau Chloé : réduction du reporting mensuel de 12h à 2h, données temps réel",
+          "why": "Maison, outils, audience, gain de temps"
+        },
+        {
+          "bad": "Travail sur la durabilité",
+          "good": "Pilotage du programme de traçabilité matières Kering (12 maisons, 250 fournisseurs) : 60% des matières premières tracées à la source, rapport Kering Standards 2024 publié",
+          "why": "Groupe, périmètre, métrique, rapport externe"
+        },
+        {
+          "bad": "Stage en maison de luxe",
+          "good": "Stagiaire Product Development — Chanel (6 mois) : suivi de 3 lignes de produits accessoires de la matière au showroom, participation aux présentations collection acheteurs internationaux",
+          "why": "Maison, durée, périmètre suivi, niveau audience"
+        },
+        {
+          "bad": "Gestion des stocks",
+          "good": "Optimisation de la supply chain de Maje (580 points de vente, 20 marchés) : taux de rupture réduit de 8,2% à 3,4%, réduction des invendus de 22% en 2 saisons",
+          "why": "Maison, périmètre, avant/après ruptures, invendus"
+        },
+        {
+          "bad": "Coaching d'équipe",
+          "good": "Management d'une équipe de 18 conseillers de vente (flagship Gucci Avenue Montaigne) : CA/ETP +24% en 12 mois, classement 3e/42 boutiques Europe",
+          "why": "Maison, adresse flagship, métriques équipe, ranking"
+        }
+      ],
+      "seniority_expectations": {
+        "junior": "Formation spécialisée luxe/mode (IFM, ESMOD, Studio Berçot, grande école avec option luxe), 1-2 stages en maison de luxe ou agence de communication luxe, connaissance des codes du secteur (protocole, vocabulaire, maisons de référence). La présentation et la culture luxe comptent autant que les compétences techniques.",
+        "mid": "3-5 ans dans le secteur, expertise sur un métier (retail management, product development, communication...), premières responsabilités de gestion d'équipe ou de marché, connaissance des marchés internationaux clés (Asie, Moyen-Orient), maîtrise du CRM luxe.",
+        "senior": "7+ ans, direction d'un réseau retail ou d'une catégorie de produits, management d'équipes de 10-50 personnes, track record de lancement de produits ou d'ouverture de marchés avec résultats mesurables, réseau relationnel dans le secteur (buyers, presse, directeurs artistiques)."
+      },
+      "recruiter_tips": [
+        "Les maisons dans lesquelles tu as travaillé sont le premier signal : LVMH, Kering, Richemont, Hermès, Chanel ouvrent des portes. Si tu viens d'une marque moins connue, mets en avant le tier de clientèle et les prix de vente.",
+        "Dans le luxe, la présentation écrite du CV doit être irréprochable : zéro faute, mise en page sobre et élégante, langage précis. Un CV avec des fautes est éliminatoire.",
+        "La connaissance des marchés internationaux est très valorisée : précise les pays et cultures avec lesquels tu as travaillé (Chine, Japon, Moyen-Orient sont les plus recherchés).",
+        "Les langues sont critiques : anglais courant minimum, une troisième langue (mandarin, japonais, arabe) est un différenciateur fort pour les postes internationaux.",
+        "Pour le retail luxe, les recruteurs cherchent l'équilibre entre les chiffres (CA, NPS, ranking boutique) et la compréhension des codes de la marque. Montre les deux."
+      ],
+      "common_mistakes": [
+        "Mettre des descriptions de tâches sans résultats : 'gestion de la boutique' sans CA ni métriques NPS ni classement ne convainc pas.",
+        "Ne pas nommer les maisons de luxe avec lesquelles tu as travaillé (même en stage) — dans ce secteur, le prestige des employeurs précédents est un signal fort.",
+        "CV trop coloré ou chargé graphiquement : le luxe prône la sobriété et l'élégance. Un CV épuré en noir et blanc avec une belle typographie est plus approprié qu'un CV design chargé.",
+        "Oublier de mentionner les langues avec les niveaux précis : en luxe international, 'anglais courant' sans précision est insuffisant. Mets les diplômes ou le niveau CECRL.",
+        "Section compétences générique ('sens du détail', 'passion pour la mode') : ça ne dit rien à un recruteur LVMH. Remplace par des maisons connues, des marchés maîtrisés, des outils spécifiques."
+      ]
+    }
+  },
+  "meta": {
+    "version": "1.0.0",
+    "created": "2026-10-26",
+    "usage": "Injecter le secteur correspondant au poste visé dans le prompt système du coach IA CV. Utiliser ats_keywords pour vérifier la présence de mots-clés, bullet_examples pour proposer des reformulations, recruiter_tips pour les conseils personnalisés, common_mistakes pour détecter les erreurs fréquentes.",
+    "injection_template": "Tu es un coach CV expert pour le secteur {name}. Voici les mots-clés ATS attendus : {ats_keywords}. Voici des exemples de reformulations de qualité : {bullet_examples}. Conseils recruteurs spécifiques : {recruiter_tips}. Erreurs fréquentes à corriger : {common_mistakes}."
+  }
+}
