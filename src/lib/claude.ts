@@ -962,6 +962,30 @@ export async function coachOpening(context: CoachContext): Promise<string | null
   return result?.message.trim() || null;
 }
 
+/**
+ * Question ciblée du coach sur un point choisi par le candidat (correction du score, optimisation
+ * de l'import) : une seule question pour obtenir le fait qui manque, sans modifier le CV.
+ */
+export async function coachQuestion(context: CoachContext, history: RefineChatTurn[], point: string): Promise<string | null> {
+  const transcript = history
+    .map((turn) => `${turn.role === "user" ? "Candidat" : "Coach"} : ${turn.content}`)
+    .join("\n\n");
+  const text = [
+    transcript ? `<conversation>\n${transcript}\n</conversation>` : null,
+    `<point_a_corriger>\n${point}\n</point_a_corriger>`,
+    "Le candidat veut corriger ce point de son CV. Pose-lui UNE seule question précise pour obtenir le fait qui manque (un chiffre, un résultat, un périmètre, une date…), en citant l'élément concerné du CV (par exemple l'une des puces visées). Ne modifie rien : tu mettras le CV à jour quand il aura répondu.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const result = await parseStructured(
+    z.object({ message: z.string().describe("La question au candidat, 3 phrases maximum") }),
+    coachSystem(context, await coachSectorContext(context)),
+    text,
+    { effort: "low", maxTokens: 2000 },
+  );
+  return result?.message.trim() || null;
+}
+
 /** Réponse du coach au dernier message du candidat (question de suivi ou section mise à jour). */
 export async function coachBuilderCv(
   context: CoachContext,

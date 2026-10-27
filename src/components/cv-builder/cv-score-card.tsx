@@ -1,8 +1,8 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 
-import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
+import { READY_SCORE, scoreTone, type CvCorrection, type CvScore } from "@/lib/cv-score";
 
 /** Couleurs du score : rouge sous 70, orange de 70 à 89, vert à partir de 90. */
 export const SCORE_TONES = {
@@ -49,12 +49,19 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
 
 /**
  * Score du CV dans l'éditeur, recalculé à chaque modification : jauge, repère « 90 = prêt à
- * postuler » et les 3 corrections qui rapportent le plus (un clic les envoie au coach).
+ * postuler » et les 3 corrections qui rapportent le plus. Un clic fait poser au coach une
+ * question sur ce point ; `onPick` renvoie pourquoi rien n'est demandé (coach occupé, limite).
  */
-export function CvScorePanel({ score, onPick }: { score: CvScore; onPick: (request: string) => void }) {
+export function CvScorePanel({ score, onPick }: { score: CvScore; onPick: (correction: CvCorrection) => string | null }) {
   const titleId = useId();
   const t = SCORE_TONES[scoreTone(score.score)];
   const top = score.corrections.slice(0, 3);
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
   return (
     <section aria-labelledby={titleId} className="card space-y-4 p-4">
       <div className="flex items-center gap-4">
@@ -77,8 +84,8 @@ export function CvScorePanel({ score, onPick }: { score: CvScore; onPick: (reque
               <li key={`${c.category}-${c.elementId}-${c.message}`}>
                 <button
                   type="button"
-                  onClick={() => onPick(c.request)}
-                  title="Demander au coach de corriger ce point"
+                  onClick={() => setNotice(onPick(c))}
+                  title="Le coach te pose une question pour corriger ce point"
                   className="flex w-full items-start justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 dark:border-slate-700 dark:text-slate-200 dark:hover:border-blue-400/40 dark:hover:bg-blue-500/10 dark:hover:text-blue-200"
                 >
                   <span>{c.message}</span>
@@ -87,6 +94,11 @@ export function CvScorePanel({ score, onPick }: { score: CvScore; onPick: (reque
               </li>
             ))}
           </ul>
+          {notice && (
+            <p role="status" className="text-xs text-slate-500 dark:text-slate-400">
+              {notice}
+            </p>
+          )}
         </div>
       )}
     </section>

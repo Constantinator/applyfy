@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   coachOpeningAction,
+  coachQuestionAction,
   refineBuilderCvAction,
   saveBuilderCvAction,
   scoringContextAction,
@@ -57,14 +58,11 @@ export function CvBuilderEditor({
   cv,
   usage,
   scoring,
-  initialRequest,
 }: {
   cv: BuilderCv;
   usage: CvBuilderUsage;
   /** Données du secteur pour le score (détecté à l'ouverture). */
   scoring: ScoringContext;
-  /** Demande envoyée au coach à l'ouverture (optimisation choisie à l'import). */
-  initialRequest?: string;
 }) {
   const [title, setTitle] = useState(cv.title);
   // Modèle choisi à la création du CV : plus modifiable dans l'éditeur.
@@ -127,12 +125,6 @@ export function CvBuilderEditor({
     }, 800);
     return () => clearTimeout(timer);
   }, [cv.id, target]);
-
-  // Demande reçue à l'ouverture (?demande=) : retirée de l'adresse, pour ne pas la renvoyer
-  // au rechargement de la page.
-  useEffect(() => {
-    if (initialRequest) window.history.replaceState(window.history.state, "", window.location.pathname);
-  }, [initialRequest]);
 
   // Premier message du coach. Gardé dans les données (sans les marquer modifiées) : la
   // sauvegarde automatique conserve ainsi le cache enregistré par le serveur.
@@ -203,10 +195,16 @@ export function CvBuilderEditor({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
         {/* Score, puis chat « coach » : même composant que le chat de l'éditeur du CV d'une candidature. */}
         <div className="min-w-0 space-y-4">
-          <CvScorePanel score={score} onPick={(request) => chatRef.current?.send(request)} />
+          <CvScorePanel
+            score={score}
+            onPick={(c) =>
+              chatRef.current?.ask(`${c.message}${c.elementId ? ` (élément « ${c.elementId} » du CV)` : ""}`) ??
+              "Le chat n'est pas encore prêt."
+            }
+          />
           <RefineChat
             controlRef={chatRef}
-            initialPrompt={initialRequest}
+            askCoach={coachQuestionAction}
             document="cvBuilder"
             applicationId={cv.id}
             aiEnabled={usage.aiEnabled}

@@ -66,11 +66,41 @@ const GENERAL_VERBS = [
   "construire", "élaborer", "définir", "obtenir", "obtenu", "atteindre", "atteint", "dépasser", "remporter", "signer",
   "fidéliser", "prospecter", "vendre", "vendu", "produire", "produit", "refondre", "migrer", "intégrer", "sécuriser",
   "tester", "modéliser", "auditer", "planifier", "prioriser", "transformer", "moderniser", "standardiser", "digitaliser",
+  "sélectionner",
   "lead", "led", "manage", "build", "built", "create", "design", "develop", "launch", "deliver", "drive", "drove",
   "increase", "reduce", "grow", "grew", "improve", "implement", "automate", "analyze", "analyse", "negotiate",
   "coordinate", "organize", "supervise", "own", "ship", "scale", "optimize", "generate", "close", "win", "won", "train",
   "mentor", "hire", "write", "wrote", "produce", "run", "ran",
 ];
+
+/**
+ * Noms d'action courants en tête de puce, à la française (« Pilotage », « Gestion »,
+ * « Reporting »…) : comptent comme des verbes d'action. Les formes régulières (« Pilotage »,
+ * « Organisation ») sont déjà trouvées par le radical du verbe ; celles-ci ne le sont pas.
+ */
+const ACTION_NOUNS = [
+  "gestion", "direction", "rédaction", "coordination", "conception", "création", "vente", "reporting", "suivi",
+  "mise en place", "conseil", "pilotage", "organisation", "accompagnement", "encadrement", "management", "animation",
+  "prospection", "négociation", "développement", "lancement", "analyse", "audit", "refonte", "migration", "déploiement",
+  "optimisation", "automatisation", "supervision", "formation", "recrutement", "élaboration", "définition", "réalisation",
+  "production", "construction", "réduction", "amélioration", "augmentation", "administration", "implémentation",
+  "conduite", "veille", "budgétisation", "planification", "coaching", "mentorat", "tutorat",
+];
+
+/**
+ * Formes nominales irrégulières d'un verbe (le radical ne les trouve pas) : « réduire » →
+ * « réduction », « déployer » → « déploiement », « créer » → « création », « coordonner » →
+ * « coordination », « sélectionner » → « sélection ».
+ */
+function nominalForms(verb: string): string[] {
+  const w = firstWord(verb);
+  if (w.endsWith("uire")) return [`${w.slice(0, -4)}uction`];
+  if (w.endsWith("yer")) return [`${w.slice(0, -3)}iement`];
+  if (w.endsWith("eer")) return [`${w.slice(0, -2)}ation`];
+  if (w.endsWith("ionner")) return [w.slice(0, -3)];
+  if (w.endsWith("onner")) return [`${w.slice(0, -5)}ination`];
+  return [];
+}
 
 const POINTS = {
   figures: 20,
@@ -152,8 +182,11 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   const experiences = data.experiences.filter((e) => plain(e.position) || plain(e.company) || e.bullets.some((b) => plain(b)));
   const bullets = experiences.flatMap((e) => e.bullets.map(plain).filter(Boolean).map((text) => ({ experience: e, text })));
 
-  // --- Impact (35) : chiffres, verbes d'action -------------------------------------------------
-  const stems = [...new Set([...context.actionVerbs, ...GENERAL_VERBS].map(verbStem).filter((s) => s.length >= 3))];
+  // --- Impact (35) : chiffres, verbes d'action (ou noms d'action : « Pilotage », « Gestion ») ---
+  const verbs = [...context.actionVerbs, ...GENERAL_VERBS];
+  const stems = [
+    ...new Set([...verbs, ...verbs.flatMap(nominalForms), ...ACTION_NOUNS].map(verbStem).filter((s) => s.length >= 3)),
+  ];
   const isAction = (text: string) => {
     const word = firstWord(text);
     return stems.some((s) => word.startsWith(s) && (s.length >= 4 || word.length <= s.length + 3));

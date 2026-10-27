@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 
-import { completeCvImportAction, importBuilderCvAction } from "@/app/actions/cv-builder";
+import { checkCoachQuestionAction, completeCvImportAction, importBuilderCvAction } from "@/app/actions/cv-builder";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import {
   CV_IMPORT_FOLDER,
@@ -66,8 +66,8 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
   const [step, setStep] = useState(0);
   const [imported, setImported] = useState<ImportedCv | null>(null);
   const [targetJob, setTargetJob] = useState("");
-  // Optimisation choisie d'un clic : envoyée au coach à l'ouverture de l'éditeur.
-  const [request, setRequest] = useState("");
+  // Optimisation choisie d'un clic : le premier message du coach sera une question sur ce point.
+  const [focus, setFocus] = useState("");
   const templateDialogRef = useRef<HTMLDialogElement>(null);
   const [opening, setOpening] = useState(false);
 
@@ -75,8 +75,8 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
     if (!imported) return;
     setOpening(true);
     setStep(3);
-    await completeCvImportAction(imported.id, { templateId, targetJob });
-    router.push(`/cv-builder/${imported.id}${request ? `?demande=${encodeURIComponent(request)}` : ""}`);
+    await completeCvImportAction(imported.id, { templateId, targetJob, focus });
+    router.push(`/cv-builder/${imported.id}`);
   }
 
   function chooseTemplate() {
@@ -114,11 +114,11 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
           targetJob={targetJob}
           onTargetJob={setTargetJob}
           onContinue={() => {
-            setRequest("");
+            setFocus("");
             chooseTemplate();
           }}
-          onPickRequest={(value) => {
-            setRequest(value);
+          onPickFocus={(point) => {
+            setFocus(point);
             chooseTemplate();
           }}
         />
@@ -326,7 +326,7 @@ function AnalysisStep({
   targetJob,
   onTargetJob,
   onContinue,
-  onPickRequest,
+  onPickFocus,
 }: {
   analysis: CvAnalysis | null;
   /** Score calculé par le code (cv-score.ts), le même que dans l'éditeur. */
@@ -334,8 +334,8 @@ function AnalysisStep({
   targetJob: string;
   onTargetJob: (value: string) => void;
   onContinue: () => void;
-  /** Optimisation choisie d'un clic : sa demande sera envoyée au coach. */
-  onPickRequest: (request: string) => void;
+  /** Optimisation choisie d'un clic : le coach ouvrira l'éditeur par une question sur ce point. */
+  onPickFocus: (point: string) => void;
 }) {
   const [screen, setScreen] = useState(0);
   const headingRef = useRef<HTMLDivElement>(null);
@@ -383,7 +383,7 @@ function AnalysisStep({
       {screen === 0 && <ScoreCard score={score} />}
       {screen === 1 && <PointsCard analysis={analysis} />}
       {screen === 2 && <TargetJobCard suggestions={analysis.suggestedJobs} value={targetJob} onChange={onTargetJob} />}
-      {screen === 3 && <OptimizationsCard analysis={analysis} onPick={onPickRequest} />}
+      {screen === 3 && <OptimizationsCard analysis={analysis} onPick={onPickFocus} />}
 
       <div className="flex items-center justify-between gap-3">
         {screen > 0 ? (
@@ -543,14 +543,29 @@ function TargetJobCard({
   );
 }
 
-function OptimizationsCard({ analysis, onPick }: { analysis: CvAnalysis; onPick: (request: string) => void }) {
+function OptimizationsCard({ analysis, onPick }: { analysis: CvAnalysis; onPick: (point: string) => void }) {
   const titleId = useId();
+  const [checking, setChecking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Coach disponible (quota) avant de retenir le point ; sinon un message, rien n'est demandé.
+  async function pick(point: string) {
+    if (checking) return;
+    setChecking(true);
+    setNotice(null);
+    const result = await checkCoachQuestionAction().catch(() => ({ ok: false as const, error: "Réessaie dans un instant." }));
+    setChecking(false);
+    if (result.ok) onPick(point);
+    else setNotice(result.error);
+  }
+
   return (
     <section aria-labelledby={titleId} className="card space-y-4 p-5">
       <div>
         <CardTitle id={titleId}>Optimisations suggérées</CardTitle>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Les priorités pour ton CV. Clique sur l&apos;une d&apos;elles : le coach de l&apos;éditeur commencera par là.
+          Les priorités pour ton CV. Clique sur l&apos;une d&apos;elles : dans l&apos;éditeur, le coach te posera
+          d&apos;abord une question sur ce point.
         </p>
       </div>
       {analysis.optimizations.length > 0 ? (
@@ -559,8 +574,9 @@ function OptimizationsCard({ analysis, onPick }: { analysis: CvAnalysis; onPick:
             <li key={o.title}>
               <button
                 type="button"
-                onClick={() => onPick(o.request || o.title)}
-                className="flex w-full gap-3 rounded-lg border border-transparent p-2 text-left transition hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-400/30 dark:hover:bg-blue-500/10"
+                onClick={() => void pick(o.detail ? `${o.title} — ${o.detail}` : o.title)}
+                disabled={checking}
+                className="flex w-full gap-3 rounded-lg disabled:opacity-60 border border-transparent p-2 text-left transition hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-400/30 dark:hover:bg-blue-500/10"
               >
                 <span
                   aria-hidden="true"
@@ -581,6 +597,11 @@ function OptimizationsCard({ analysis, onPick }: { analysis: CvAnalysis; onPick:
         </ol>
       ) : (
         <p className="text-sm text-slate-500 dark:text-slate-400">Aucune optimisation prioritaire : ton CV est déjà solide.</p>
+      )}
+      {notice && (
+        <p role="status" className="text-sm text-slate-500 dark:text-slate-400">
+          {notice}
+        </p>
       )}
     </section>
   );

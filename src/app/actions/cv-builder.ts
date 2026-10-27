@@ -24,6 +24,7 @@ import {
   isClaudeConfigured,
   coachBuilderCv,
   coachOpening,
+  coachQuestion,
   type CoachContext,
   type CoachUpdate,
   type ImportedCv,
@@ -466,18 +467,38 @@ export async function scoringContextAction(id: string, rawData: unknown): Promis
   return loadScoringContext(parsed.data);
 }
 
-/** Fin de l'import d'un CV existant : poste visé (carte « Quel type de poste tu vises ? ») et modèle choisi. */
+/**
+ * Fin de l'import d'un CV existant : poste visé (carte « Quel type de poste tu vises ? ») et
+ * modèle choisi. `focus` : optimisation cliquée ; le premier message du coach est alors une
+ * question ciblée sur ce point (cvb_coach), sinon le message d'accueil habituel.
+ */
 export async function completeCvImportAction(
   id: string,
-  input: { templateId: CvTemplateId; targetJob: string },
+  input: { templateId: CvTemplateId; targetJob: string; focus?: string },
 ): Promise<{ ok: boolean }> {
   const templateId = isTemplateId(input?.templateId) ? input.templateId : "minimaliste";
   const targetJob = String(input?.targetJob ?? "").trim().slice(0, 120);
+  const focus = String(input?.focus ?? "").trim().slice(0, 500);
   try {
     const cv = await getBuilderCv(String(id));
     if (!cv) return { ok: false };
     const analysis = cv.data.analysis && { ...cv.data.analysis, targetJob };
-    await saveBuilderCv(cv.id, { title: cv.title, templateId, data: { ...cv.data, analysis } });
+    let data: CvData = { ...cv.data, analysis };
+    if (focus && isClaudeConfigured() && (await coachGate()).ok) {
+      try {
+        const context = await coachContext(data);
+        const question = (await coachQuestion(context, [], focus))?.slice(0, 2000);
+        if (question) {
+          // Gardé comme premier message du coach (même cache que coachOpeningAction).
+          data = { ...data, coach: { opening: question, contentKey: context.contentKey } };
+          await recordAiUsage("cvb_coach");
+        }
+      } catch (error) {
+        // Sans question ciblée, l'éditeur affiche le message d'accueil habituel.
+        claudeErrorMessage(error, "cv-builder coach : question de l'import"); // journalisation
+      }
+    }
+    await saveBuilderCv(cv.id, { title: cv.title, templateId, data });
     revalidatePath("/cv-builder");
     return { ok: true };
   } catch (error) {
@@ -587,6 +608,100 @@ function applyCoachUpdate(current: CvData, update: CoachUpdate): CvData | null {
  * Quota : seules les réponses qui modifient le CV comptent (cvb_chat, 2 par mois avec le
  * plan gratuit) ; les autres sont limitées à CVB_COACH_DAILY_LIMIT par jour (cvb_coach).
  */
+/**
+ * Accès au coach : chat du mois non épuisé (sinon bloqué, Premium proposé), puis limite du jour
+ * des échanges sans modification (cvb_coach) avec le plan gratuit.
+ */
+async function coachGate() {
+  const gate = await checkAiAccess("cvb_chat");
+  if (!gate.ok) {
+    return { ok: false as const, error: gate.limitReached ? CVB_CHAT_LIMIT_MESSAGE : gate.message, limitReached: gate.limitReached };
+  }
+  if (gate.count.limit !== null && (await countAiUsageToday("cvb_coach")) >= CVB_COACH_DAILY_LIMIT) {
+    return { ok: false as const, error: CVB_COACH_DAILY_MESSAGE, limitReached: false };
+  }
+  return { ok: true as const, count: gate.count };
+}
+
+/**
+ * CV affiché dans l'éditeur (modifications non enregistrées comprises), avec la photo, les
+ * réglages et l'analyse enregistrés ; message d'erreur s'il est invalide ou n'est pas à l'utilisateur.
+ */
+async function readShownCv(id: string, json: string): Promise<CvData | string> {
+  if (json.length > 200_000) return "Le CV est trop long.";
+  let shown: CvData;
+  try {
+    const parsed = CvDataSchema.safeParse(JSON.parse(json));
+    if (!parsed.success) return "Le CV contient des informations invalides.";
+    shown = parsed.data;
+  } catch {
+    return "Requête invalide.";
+  }
+  // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
+  const stored = await getBuilderCv(id);
+  if (!stored) return "Ce CV n'existe plus.";
+  return {
+    ...shown,
+    personal: { ...shown.personal, photo: stored.data.personal.photo },
+    style: stored.data.style,
+    analysis: stored.data.analysis,
+    coach: null,
+  };
+}
+
+/** Échanges précédents du chat, revalidés et limités aux plus récents. */
+function coachTurns(history: unknown) {
+  return Array.isArray(history)
+    ? history
+        .filter(
+          (t): t is { role: "user" | "assistant"; content: string } =>
+            Boolean(t) && (t.role === "user" || t.role === "assistant") && typeof t.content === "string",
+        )
+        .slice(-COACH_HISTORY_MAX)
+        .map(({ role, content }) => ({ role, content: content.slice(0, 2000) }))
+    : [];
+}
+
+export type CoachQuestionResult = { ok: true; reply: string } | { ok: false; error: string; limitReached?: boolean };
+
+/**
+ * Clic sur une correction du score : le coach pose UNE question ciblée sur ce point (message du
+ * coach, rien n'est envoyé au nom du candidat), puis la conversation continue normalement.
+ * Compte comme un échange sans modification (cvb_coach).
+ */
+export async function coachQuestionAction(
+  id: string,
+  json: string,
+  point: string,
+  history: unknown,
+): Promise<CoachQuestionResult> {
+  if (typeof id !== "string" || typeof json !== "string" || typeof point !== "string" || !point.trim()) {
+    return { ok: false, error: "Requête invalide." };
+  }
+  if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
+  const current = await readShownCv(id, json);
+  if (typeof current === "string") return { ok: false, error: current };
+  const gate = await coachGate();
+  if (!gate.ok) return gate;
+
+  let question;
+  try {
+    question = await coachQuestion(await coachContext(current), coachTurns(history), point.trim().slice(0, 500));
+  } catch (error) {
+    return { ok: false, error: claudeErrorMessage(error, "cv-builder coach : question") };
+  }
+  if (!question) return { ok: false, error: "Le coach n'a pas pu formuler sa question. Réessaie." };
+  await recordAiUsage("cvb_coach");
+  return { ok: true, reply: question.slice(0, 2000) };
+}
+
+/** Clic sur une optimisation de l'import : coach disponible (quota) avant d'aller plus loin. */
+export async function checkCoachQuestionAction(): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
+  const gate = await coachGate();
+  return gate.ok ? { ok: true } : { ok: false, error: gate.error };
+}
+
 export async function refineBuilderCvAction(
   id: string,
   json: string,
@@ -599,48 +714,13 @@ export async function refineBuilderCvAction(
   const request = message.trim();
   if (!request) return { ok: false, error: "Écris ta réponse." };
   if (request.length > REFINE_MESSAGE_MAX_LENGTH) return { ok: false, error: "Ton message est trop long." };
-  if (json.length > 200_000) return { ok: false, error: "Le CV est trop long." };
   if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
 
-  let shown: CvData;
-  try {
-    const parsed = CvDataSchema.safeParse(JSON.parse(json));
-    if (!parsed.success) return { ok: false, error: "Le CV contient des informations invalides." };
-    shown = parsed.data;
-  } catch {
-    return { ok: false, error: "Requête invalide." };
-  }
-  // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
-  const stored = await getBuilderCv(id);
-  if (!stored) return { ok: false, error: "Ce CV n'existe plus." };
-  // Contenu affiché, avec la photo, les réglages et l'analyse enregistrés.
-  const current: CvData = {
-    ...shown,
-    personal: { ...shown.personal, photo: stored.data.personal.photo },
-    style: stored.data.style,
-    analysis: stored.data.analysis,
-    coach: null,
-  };
-
-  // Adaptations du mois épuisées : le chat est bloqué (Premium proposé).
-  const gate = await checkAiAccess("cvb_chat");
-  if (!gate.ok) {
-    return { ok: false, error: gate.limitReached ? CVB_CHAT_LIMIT_MESSAGE : gate.message, limitReached: gate.limitReached };
-  }
-  // Échanges sans modification : limite du jour avec le plan gratuit.
-  if (gate.count.limit !== null && (await countAiUsageToday("cvb_coach")) >= CVB_COACH_DAILY_LIMIT) {
-    return { ok: false, error: CVB_COACH_DAILY_MESSAGE };
-  }
-
-  const turns = Array.isArray(history)
-    ? history
-        .filter(
-          (t): t is { role: "user" | "assistant"; content: string } =>
-            Boolean(t) && (t.role === "user" || t.role === "assistant") && typeof t.content === "string",
-        )
-        .slice(-COACH_HISTORY_MAX)
-        .map(({ role, content }) => ({ role, content: content.slice(0, 2000) }))
-    : [];
+  const current = await readShownCv(id, json);
+  if (typeof current === "string") return { ok: false, error: current };
+  const gate = await coachGate();
+  if (!gate.ok) return gate;
+  const turns = coachTurns(history);
 
   let reply;
   try {

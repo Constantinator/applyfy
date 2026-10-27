@@ -55,9 +55,20 @@ const DOCUMENTS = {
 /** Commandes du chat utilisables par l'éditeur (ex. panneau « Ce qui manque »). */
 export type RefineChatHandle = {
   insert: (text: string) => void;
-  /** Envoie une demande (clic sur une correction du score) ; chat occupé ou bloqué : insérée dans le champ. */
-  send: (text: string) => void;
+  /**
+   * Fait poser au coach une question ciblée sur `point` (clic sur une correction du score),
+   * affichée comme son message. Renvoie null si elle est demandée, sinon pourquoi rien n'est envoyé.
+   */
+  ask: (point: string) => string | null;
 };
+
+/** Question ciblée du coach (Server Action) : son texte, ou l'erreur à afficher. */
+export type AskCoach = (
+  id: string,
+  json: string,
+  point: string,
+  history: unknown,
+) => Promise<{ ok: true; reply: string } | { ok: false; error: string; limitReached?: boolean }>;
 
 type Message = {
   id: number;
@@ -88,6 +99,7 @@ export function RefineChat({
   initialPrompt,
   controlRef,
   opening,
+  askCoach,
   limitMessage,
   tall = false,
 }: {
@@ -111,6 +123,8 @@ export function RefineChat({
   controlRef?: React.Ref<RefineChatHandle>;
   /** Premier message de l'assistant, demandé à l'ouverture (null : pas de message). */
   opening?: () => Promise<string | null>;
+  /** Question ciblée du coach, demandée par `controlRef.ask` (CV Builder). */
+  askCoach?: AskCoach;
   /** Message du bandeau Premium quand la limite du mois est atteinte. */
   limitMessage?: string;
   /** Historique plus haut (chat en colonne à côté de l'aperçu). */
@@ -140,13 +154,36 @@ export function RefineChat({
     };
     return {
       insert,
-      send(text: string) {
-        if (pending || disabled) return insert(text);
-        listRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        void send(text);
+      ask(point: string) {
+        if (!askCoach || !aiEnabled) return "L'assistant n'est pas disponible pour le moment.";
+        if (pending) return "Le coach est occupé : attends sa réponse.";
+        if (limitReached) return limitMessage ?? "Limite du chat atteinte pour ce mois-ci.";
+        void ask(askCoach, point);
+        return null;
       },
     };
   });
+
+  /** Question ciblée du coach : affichée comme son message, sans message du candidat. */
+  async function ask(action: AskCoach, point: string) {
+    const history = messages.filter((m) => !m.error).map(({ role, content }) => ({ role, content }));
+    setPending(true);
+    onPendingChange(true);
+    listRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    try {
+      const result = await action(applicationId, readDocument(), point, history);
+      if (result.ok) add({ role: "assistant", content: result.reply });
+      else {
+        if (result.limitReached) setLimitHit(true);
+        add({ role: "assistant", content: result.error, error: true });
+      }
+    } catch {
+      add({ role: "assistant", content: "La demande n'a pas abouti. Réessaie dans un instant.", error: true });
+    } finally {
+      setPending(false);
+      onPendingChange(false);
+    }
+  }
 
   const limitReached = limitHit || isLimitReached({ used, limit: usage.limit });
   const disabled = !aiEnabled || limitReached;
