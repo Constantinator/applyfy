@@ -9,6 +9,8 @@
 //
 // Usage :
 //   node --env-file=.env.local scripts/scrape-jobs.ts [--sector finance] [--source ats] [--limit 10] [--dry-run]
+//   node --env-file=.env.local scripts/scrape-jobs.ts --recount [--sector finance] [--dry-run]
+//     (job_keywords recalculé depuis les offres stockées, après un changement des règles)
 //
 // Collecte respectueuse des pages publiques : robots.txt lu et appliqué pour chaque site, un
 // robot identifié (USER_AGENT), une requête toutes les 3 s au plus par site (ou le Crawl-delay
@@ -25,7 +27,7 @@ import { fileURLToPath } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
 
-import type { Sector, SectorContext } from "../src/lib/cv-sector-context";
+import type { Sector } from "../src/lib/cv-sector-context";
 import type { OfferListing } from "../src/lib/offer-types";
 
 const USER_AGENT = `ApplyfyBot/0.1 (+${process.env.APP_URL || "https://applyfy.fr"})`;
@@ -33,15 +35,19 @@ const MIN_DELAY_MS = 3_000;
 const TIMEOUT_MS = 20_000;
 const TOP_TRENDS = 30;
 
-// Les clients d'API de l'application sont écrits pour Next.js : « server-only », alias « @/ »
-// et imports sans extension. Ces hooks les rendent chargeables par Node (Node 24).
+// Les modules de l'application sont écrits pour Next.js : « server-only », alias « @/ », imports
+// sans extension et JSON importé sans attribut. Ces hooks les rendent chargeables par Node
+// (Node 24) ; ils sont donc importés dynamiquement, une fois les hooks en place.
 const SRC = new URL("../src/", import.meta.url);
-type ResolveHook = (
-  specifier: string,
-  context: { parentURL?: string },
-  next: (specifier: string, context: { parentURL?: string }) => unknown,
-) => unknown;
-(nodeModule as unknown as { registerHooks(hooks: { resolve: ResolveHook }): void }).registerHooks({
+type Hooks = {
+  resolve(
+    specifier: string,
+    context: { parentURL?: string },
+    next: (specifier: string, context: { parentURL?: string }) => unknown,
+  ): unknown;
+  load(url: string, context: object, next: (url: string, context: object) => unknown): unknown;
+};
+(nodeModule as unknown as { registerHooks(hooks: Hooks): void }).registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "server-only") return { url: "data:text/javascript,", shortCircuit: true };
     const target = specifier.startsWith("@/")
@@ -53,12 +59,15 @@ type ResolveHook = (
       return next(`${target.href}.ts`, context);
     return next(target?.href ?? specifier, context);
   },
+  load(url, context, next) {
+    // JSON de l'application servi comme module ES (export default).
+    if (url.startsWith(SRC.href) && url.endsWith(".json"))
+      return { format: "module", source: `export default ${readFileSync(new URL(url), "utf8")};`, shortCircuit: true };
+    return next(url, context);
+  },
 });
 
-const knowledge = JSON.parse(
-  readFileSync(new URL("../src/lib/cv-knowledge-base.json", import.meta.url), "utf8"),
-) as { sectors: Record<Sector, SectorContext> };
-const SECTORS = Object.keys(knowledge.sectors) as Sector[];
+const { SECTORS, matchSectorKeywords } = await import("../src/lib/cv-sector-context");
 
 /** Recherche lancée sur chaque source pour un secteur. */
 const QUERIES: Record<Sector, string> = {
@@ -74,8 +83,18 @@ const QUERIES: Record<Sector, string> = {
   luxe: "luxe",
 };
 
-/** Offre lue sur une source, avant extraction des mots-clés. */
-type RawOffer = { externalId: string; title: string; company: string | null; description: string; url: string };
+/**
+ * Offre lue sur une source, avant extraction des mots-clés. `products` : produits de
+ * l'entreprise, exclus des mots-clés comme son nom.
+ */
+type RawOffer = {
+  externalId: string;
+  title: string;
+  company: string | null;
+  products?: string[];
+  description: string;
+  url: string;
+};
 
 /** Une source : ses offres pour un secteur (au plus `limit`). */
 type Collector = { id: string; collect: (sector: Sector, limit: number) => Promise<RawOffer[]> };
@@ -145,9 +164,13 @@ const adzuna: Collector = {
 // API publiques, sans clé, des pages carrières d'entreprises listées par secteur dans
 // scripts/ats-companies.json. Seules les offres situées en France sont gardées. Pour cette
 // source, --limit compte les offres par entreprise.
+//
+// Dans ats-companies.json, `products` liste les produits de l'entreprise, exclus des mots-clés
+// comme son nom ; `filterTitles` ne garde que les offres du métier du secteur (marque grand
+// public classée en marketing : postes marketing seulement).
 
 type AtsPlatform = "greenhouse" | "lever" | "lever-eu" | "ashby" | "smartrecruiters";
-type AtsCompany = { name: string; platform: AtsPlatform; slug: string };
+type AtsCompany = { name: string; platform: AtsPlatform; slug: string; products?: string[]; filterTitles?: boolean };
 
 const ATS_COMPANIES = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8")) as Record<
   Sector,
@@ -158,13 +181,19 @@ const ATS_DELAY_MS = 1_000;
 const FRANCE =
   /\bfrance\b|\bparis\b|\blyon\b|marseille|\blille\b|bordeaux|toulouse|nantes|\bnice\b|rennes|strasbourg|montpellier|grenoble|sophia|[iî]le[- ]de[- ]france|la d[ée]fense|boulogne|neuilly|levallois|issy/i;
 /**
- * Secteurs transverses, lus chez des employeurs de tous domaines : seules les offres dont
- * l'intitulé correspond sont gardées (stages et alternances ; postes RH).
+ * Intitulés du métier de chaque secteur filtré. Toujours appliqué aux secteurs transverses, lus
+ * chez des employeurs de tous domaines (stages et alternances ; postes RH) ; ailleurs, seulement
+ * pour les entreprises marquées `filterTitles`.
  */
 const TITLE_FILTERS: Partial<Record<Sector, RegExp>> = {
   etudiant: /stag|intern|alternan|apprenti|graduate|\bv\.?i\.?e\b|work[- ]study/i,
   rh: /\b(rh|hr|drh|rrh|hrbp)\b|ressources humaines|human resources|people|talent|recrut|recruit|paie|payroll|compensation|formation/i,
+  marketing:
+    /marketing|brand|marque|communication|growth|\bseo\b|\bsea\b|acquisition|\bcrm\b|content|contenu|social media|community|m[ée]dia|digital|e-?commerce|chef de produit|relations presse|\bpr\b|influence|[ée]v[ée]nementiel|event/i,
+  creatif:
+    /design|graphi|artist|art director|directeur artistique|direction artistique|motion|vid[ée]o|\b3d\b|animat|illustr|\bux\b|\bui\b|creative|cr[ée]atif|cr[ée]ative|photo|monteu|sound|game designer|level designer|concept|r[ée]alisat|post-production|dubbing|doublage|subtitl|sous-titr|maquett|stylis|mod[ée]lis/i,
 };
+const ALWAYS_FILTERED = new Set<Sector>(["etudiant", "rh"]);
 
 let atsNextAt = 0;
 
@@ -273,11 +302,18 @@ async function atsOffers(company: AtsCompany, limit: number, keep: (title: strin
       .map((j) => offer(j.id, j.title, j.jobUrl, j.descriptionPlain ?? ""));
   }
 
-  // SmartRecruiters : la liste ne contient pas la description, lue offre par offre.
-  const list = await atsGet<{ content?: SmartRecruitersPosting[] }>(
-    `https://api.smartrecruiters.com/v1/companies/${slug}/postings?country=fr&limit=100`,
-  );
-  const postings = (list?.content ?? []).filter((p) => p.location?.country === "fr" && keep(p.name)).slice(0, limit);
+  // SmartRecruiters : 100 offres par page (5 pages au plus, pour trouver les postes filtrés chez
+  // les grands employeurs) ; la liste ne contient pas la description, lue offre par offre.
+  const postings: SmartRecruitersPosting[] = [];
+  for (let offset = 0; offset < 500 && postings.length < limit; offset += 100) {
+    const page = await atsGet<{ content?: SmartRecruitersPosting[] }>(
+      `https://api.smartrecruiters.com/v1/companies/${slug}/postings?country=fr&limit=100&offset=${offset}`,
+    );
+    const content = page?.content ?? [];
+    postings.push(...content.filter((p) => p.location?.country === "fr" && keep(p.name)));
+    if (content.length < 100) break;
+  }
+  postings.splice(limit);
   const offers: RawOffer[] = [];
   for (const posting of postings) {
     const detail = await atsGet<SmartRecruitersDetail>(`https://api.smartrecruiters.com/v1/companies/${slug}/postings/${posting.id}`);
@@ -298,11 +334,13 @@ async function atsOffers(company: AtsCompany, limit: number, keep: (title: strin
 const ats: Collector = {
   id: "ats",
   async collect(sector, limit) {
-    const filter = TITLE_FILTERS[sector];
-    const keep = (title: string) => !filter || filter.test(title);
     const offers: RawOffer[] = [];
     for (const company of ATS_COMPANIES[sector] ?? []) {
-      const found = await atsOffers(company, limit, keep);
+      const filter = company.filterTitles || ALWAYS_FILTERED.has(sector) ? TITLE_FILTERS[sector] : undefined;
+      const found = (await atsOffers(company, limit, (title) => !filter || filter.test(title))).map((offer) => ({
+        ...offer,
+        products: company.products,
+      }));
       console.log(`  ${company.name} (${company.platform}/${company.slug}) : ${found.length} offre(s) en France`);
       offers.push(...found);
     }
@@ -456,9 +494,8 @@ function createFetcher(site: Site) {
   };
 }
 
-function decodeHtml(text: string) {
+function decodeEntities(text: string) {
   return text
-    .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
@@ -466,6 +503,11 @@ function decodeHtml(text: string) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)));
+}
+
+function decodeHtml(text: string) {
+  return decodeEntities(text.replace(/<[^>]+>/g, " "))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -537,20 +579,15 @@ function createCollectors(ids: string[]): Collector[] {
 
 // --- Mots-clés et enregistrement -------------------------------------------------------------
 
-function normalize(text: string) {
-  return ` ${text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()} `;
-}
-
-/** Mots-clés ATS du secteur présents dans l'offre (mot entier, sans accents ni casse). */
-function matchKeywords(text: string, keywords: string[]) {
-  const haystack = normalize(text);
-  return keywords.filter((keyword) => {
-    const k = normalize(keyword).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return k && new RegExp(`(^|[^a-z0-9])${k}($|[^a-z0-9])`).test(haystack);
-  });
-}
-
 type Offer = RawOffer & { source: string; sector: Sector; keywords: string[] };
+
+/** Produits des entreprises de ats-companies.json, par nom d'entreprise. */
+const PRODUCTS = new Map(
+  Object.values(ATS_COMPANIES)
+    .flat()
+    .filter((company) => company.products?.length)
+    .map((company) => [company.name, company.products!]),
+);
 
 function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -595,6 +632,47 @@ async function save(supabase: Supabase, offers: Offer[]) {
   return saved;
 }
 
+/**
+ * Recompte job_keywords d'un secteur à partir des offres stockées (y compris celles collées par
+ * les utilisateurs), avec les règles actuelles : à lancer après un changement de la base
+ * sectorielle ou des règles de cv-sector-context.ts. Sans `write`, calcule seulement.
+ */
+async function recount(supabase: Supabase, sector: Sector, write: boolean) {
+  const counts = new Map<string, { frequency: number; source: string; lastSeen: string }>();
+  let offers = 0;
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("job_offers_raw")
+      .select("source, company, title, description, scraped_at")
+      .eq("sector", sector)
+      .order("scraped_at")
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const row of data) {
+      offers++;
+      const keywords = matchSectorKeywords(`${row.title} ${decodeEntities(row.description ?? "")}`, sector, [
+        row.company,
+        ...(PRODUCTS.get(row.company) ?? []),
+      ]);
+      // Même forme que increment_job_keywords (minuscules, sans espaces autour).
+      for (const keyword of new Set(keywords.map((k) => k.trim().toLowerCase()))) {
+        counts.set(keyword, { frequency: (counts.get(keyword)?.frequency ?? 0) + 1, source: row.source, lastSeen: row.scraped_at });
+      }
+    }
+    if (data.length < 1000) break;
+  }
+  const rows = [...counts].map(([keyword, c]) => ({ sector, keyword, frequency: c.frequency, source: c.source, last_seen: c.lastSeen }));
+  if (write) {
+    const { error: deleteError } = await supabase.from("job_keywords").delete().eq("sector", sector);
+    if (deleteError) throw deleteError;
+    if (rows.length) {
+      const { error } = await supabase.from("job_keywords").insert(rows);
+      if (error) throw error;
+    }
+  }
+  return { offers, top: rows.sort((a, b) => b.frequency - a.frequency).slice(0, 10), keywords: rows.length };
+}
+
 async function refreshTrends(supabase: Supabase, sector: Sector) {
   const { data, error } = await supabase
     .from("job_keywords")
@@ -623,15 +701,30 @@ function parseArgs(argv: string[]) {
   if (source && !SOURCE_IDS.includes(source)) throw new Error(`Source inconnue : ${source} (${SOURCE_IDS.join(", ")})`);
   if (!Number.isInteger(limit) || limit < 1) throw new Error("--limit doit être un entier positif.");
   return {
-    sectors: sector ? [sector as Sector] : SECTORS,
+    sectors: sector ? [sector as Sector] : [...SECTORS],
     sources: source ? [source] : SOURCE_IDS,
     limit,
     dryRun: argv.includes("--dry-run"),
+    recount: argv.includes("--recount"),
   };
 }
 
+/** --recount : job_keywords recalculé depuis job_offers_raw, sans collecte (--dry-run : affichage seul). */
+async function recountSectors(sectors: Sector[], dryRun: boolean) {
+  const supabase = createAdminClient();
+  for (const sector of sectors) {
+    const result = await recount(supabase, sector, !dryRun);
+    if (!dryRun) await refreshTrends(supabase, sector);
+    console.log(
+      `${sector} : ${result.offers} offre(s), ${result.keywords} mot(s)-clé(s) — ${result.top.map((k) => `${k.keyword} (${k.frequency})`).join(", ")}`,
+    );
+  }
+  console.log(dryRun ? "\n(dry-run, job_keywords inchangé)" : "\njob_keywords et sector_trends recalculés.");
+}
+
 async function main() {
-  const { sectors, sources, limit, dryRun } = parseArgs(process.argv.slice(2));
+  const { sectors, sources, limit, dryRun, recount } = parseArgs(process.argv.slice(2));
+  if (recount) return recountSectors(sectors, dryRun);
   const supabase = dryRun ? null : createAdminClient();
   const report: string[] = [];
 
@@ -646,7 +739,7 @@ async function main() {
           ...offer,
           source: collector.id,
           sector,
-          keywords: matchKeywords(`${offer.title} ${offer.description}`, knowledge.sectors[sector].ats_keywords),
+          keywords: matchSectorKeywords(`${offer.title} ${offer.description}`, sector, [offer.company, ...(offer.products ?? [])]),
         }));
         found += offers.length;
         for (const offer of offers) for (const keyword of offer.keywords) keywords.add(`${sector}:${keyword}`);

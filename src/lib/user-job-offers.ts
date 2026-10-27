@@ -63,7 +63,7 @@ async function saveUserJobOffer({ title, company, description }: { title: string
   if (error) throw error;
   if (!data?.length) return;
 
-  const keywords = matchSectorKeywords(`${title} ${text}`, sector);
+  const keywords = matchSectorKeywords(`${title} ${text}`, sector, [company]);
   if (!keywords.length) return;
   const { error: rpcError } = await supabase.rpc("increment_job_keywords", {
     p_sector: sector,
