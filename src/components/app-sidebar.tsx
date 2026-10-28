@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { logoutAction } from "@/app/actions/auth";
 import {
@@ -21,6 +22,8 @@ import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { DARK_MODE_ENABLED } from "@/lib/theme";
 import { Logo } from "@/components/logo";
+
+import { isFullscreenPath, useAppNav } from "./app-nav-context";
 
 type NavItem = {
   href: string;
@@ -127,6 +130,7 @@ export function AppSidebar({
   unreadAdmin?: number;
 }) {
   const pathname = usePathname();
+  const appNav = useAppNav();
   const isDemo = email === null;
   // Ordre : … Mon profil, Extension Chrome, CV Builder, Beta testing, Admin, Beta testeurs, Roadmap.
   const nav = [...NAV, ...(isBetaTester ? [BETA_ITEM] : []), ...(isAdmin ? ADMIN_ITEMS : [])];
@@ -139,6 +143,84 @@ export function AppSidebar({
         <span className="sr-only"> message{badges[href] > 1 ? "s" : ""} non lu{badges[href] > 1 ? "s" : ""}</span>
       </span>
     ) : null;
+
+  const sidebarContent = (
+    <>
+      <div className="px-5 pt-6 pb-8">
+        <Link href="/dashboard" aria-label="Applyfy, tableau de bord">
+          <Logo />
+        </Link>
+      </div>
+
+      <nav aria-label="Navigation principale" className="flex-1 space-y-1 px-3">
+        {nav.map((item) => {
+          const active = item.isActive(pathname);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                active
+                  ? "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-500/20"
+                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <item.icon
+                className={`h-5 w-5 ${active ? "text-blue-600 dark:text-blue-400" : "text-blue-600 dark:text-blue-400"}`}
+              />
+              {item.label}
+              {badge(item.href)}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="space-y-1 border-t border-slate-200 dark:border-slate-800 p-3">
+        {!isDemo && <FeedbackDialog />}
+        <Link
+          href="/"
+          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+        >
+          <IconHome className="text-blue-600 dark:text-blue-400 h-5 w-5" />
+          Retour à l&apos;accueil
+        </Link>
+        {DARK_MODE_ENABLED && <ThemeToggle className="w-full px-3 py-2" />}
+        {isDemo ? (
+          <p className="px-3 py-2">
+            <span className="rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30">
+              Mode démo
+            </span>
+          </p>
+        ) : (
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2">
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300" title={email}>
+              {email}
+            </span>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                title="Se déconnecter"
+                aria-label="Se déconnecter"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+              >
+                <IconLogout className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // Éditeur en plein écran : ni barre latérale ni en-tête, la navigation s'ouvre dans un panneau.
+  if (isFullscreenPath(pathname)) {
+    return (
+      <MenuDrawer open={appNav.menuOpen} onClose={appNav.closeMenu} canLeave={appNav.canLeave}>
+        {sidebarContent}
+      </MenuDrawer>
+    );
+  }
 
   return (
     <>
@@ -186,71 +268,72 @@ export function AppSidebar({
 
       {/* Desktop : sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 lg:flex print:hidden">
-        <div className="px-5 pt-6 pb-8">
-          <Link href="/dashboard" aria-label="Applyfy, tableau de bord">
-            <Logo />
-          </Link>
-        </div>
-
-        <nav aria-label="Navigation principale" className="flex-1 space-y-1 px-3">
-          {nav.map((item) => {
-            const active = item.isActive(pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-500/20"
-                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
-                }`}
-              >
-                <item.icon
-                  className={`h-5 w-5 ${active ? "text-blue-600 dark:text-blue-400" : "text-blue-600 dark:text-blue-400"}`}
-                />
-                {item.label}
-                {badge(item.href)}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="space-y-1 border-t border-slate-200 dark:border-slate-800 p-3">
-          {!isDemo && <FeedbackDialog />}
-          <Link
-            href="/"
-            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
-          >
-            <IconHome className="text-blue-600 dark:text-blue-400 h-5 w-5" />
-            Retour à l&apos;accueil
-          </Link>
-          {DARK_MODE_ENABLED && <ThemeToggle className="w-full px-3 py-2" />}
-          {isDemo ? (
-            <p className="px-3 py-2">
-              <span className="rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30">
-                Mode démo
-              </span>
-            </p>
-          ) : (
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2">
-              <span className="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300" title={email}>
-                {email}
-              </span>
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  title="Se déconnecter"
-                  aria-label="Se déconnecter"
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
-                >
-                  <IconLogout className="h-4 w-4" />
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
+        {sidebarContent}
       </aside>
     </>
+  );
+}
+
+/**
+ * Navigation de l'application dans un panneau par-dessus la page (pages en plein écran). Avant
+ * de quitter la page (lien, déconnexion), la garde de la page est consultée : modifications non
+ * enregistrées, confirmation.
+ */
+function MenuDrawer({
+  open,
+  onClose,
+  canLeave,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  canLeave: () => boolean;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  return (
+    <dialog
+      ref={ref}
+      aria-label="Menu"
+      onClose={onClose}
+      // Clic sur le fond (hors du panneau) : fermeture.
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onClickCapture={(e) => {
+        if (!(e.target as HTMLElement).closest("a[href]")) return;
+        if (!canLeave()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        onClose();
+      }}
+      onSubmitCapture={(e) => {
+        if (!canLeave()) e.preventDefault();
+      }}
+      className="m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-white p-0 text-left shadow-xl backdrop:bg-slate-900/40 dark:bg-slate-900 print:hidden"
+    >
+      <div className="flex h-full flex-col overflow-y-auto">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer le menu"
+          className="absolute top-5 right-4 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+        >
+          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+            <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
+          </svg>
+        </button>
+        {children}
+      </div>
+    </dialog>
   );
 }

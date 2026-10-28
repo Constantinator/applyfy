@@ -4,57 +4,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 
-import { completeCvImportAction, importBuilderCvAction } from "@/app/actions/cv-builder";
+import { completeCvImportAction } from "@/app/actions/cv-builder";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import {
-  CV_IMPORT_FOLDER,
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
   type CvAnalysis,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { scoreTone, type CvScore } from "@/lib/cv-score";
-import { createClient } from "@/lib/supabase/client";
 
+import { CvImportProgress, type ImportedCv } from "./cv-import-progress";
 import { TemplateChoiceDialog } from "./new-cv-dialog";
 import { SCORE_TONES, ScoreGauge, scoreLabel } from "./cv-score-card";
 
-type ImportedCv = { id: string; analysis: CvAnalysis | null; score: CvScore };
-
-const SUPABASE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
-
-const TYPES: Record<string, { ext: "pdf" | "docx"; mime: string }> = {
-  pdf: { ext: "pdf", mime: "application/pdf" },
-  docx: { ext: "docx", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
-};
-
 const STEPS = ["Import", "Analyse", "Modèle", "Éditeur"] as const;
-
-/**
- * Le fichier est déposé dans le stockage privé de l'utilisateur puis lu par le serveur : un
- * CV de 5 Mo dépasse la taille maximale d'une requête vers le serveur (4,5 Mo sur Vercel).
- * Mode démo (sans Supabase) : envoyé avec la requête.
- */
-async function sendForImport(file: File, ext: "pdf" | "docx") {
-  const formData = new FormData();
-  // Taille d'origine : le serveur vérifie qu'il lit bien le fichier entier.
-  formData.set("size", String(file.size));
-  if (!SUPABASE_CONFIGURED) {
-    formData.set("file", file);
-    return importBuilderCvAction(formData);
-  }
-  const supabase = createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return { ok: false as const, error: "Ta session a expiré : reconnecte-toi." };
-  const path = `${data.user.id}/${CV_IMPORT_FOLDER}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("documents").upload(path, file, { contentType: TYPES[ext].mime });
-  if (error) {
-    console.error("[cv-builder] dépôt de l'import", error.message);
-    return { ok: false as const, error: "Le fichier n'a pas pu être envoyé. Réessaie." };
-  }
-  formData.set("path", path);
-  return importBuilderCvAction(formData);
-}
 
 /**
  * « Créer un CV à partir d'un CV existant », en étapes : 1. import (lecture et analyse par
@@ -189,12 +153,13 @@ function UploadStep({
   onImported: (result: ImportedCv) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState(false);
+  // Fichier en cours d'import (étapes de CvImportProgress).
+  const [pending, setPending] = useState<{ file: File; ext: "pdf" | "docx" } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [limitReached, setLimitReached] = useState(false);
 
-  async function onFile(file: File) {
+  function onFile(file: File) {
     if (pending) return;
     setError(null);
     setLimitReached(false);
@@ -202,33 +167,21 @@ function UploadStep({
     if (!ext) return setError("Choisis un fichier PDF ou Word (.docx).");
     if (file.size > CV_IMPORT_MAX_BYTES) return setError(`Ton CV dépasse ${CV_IMPORT_MAX_LABEL}.`);
 
-    setPending(true);
-    try {
-      const result = await sendForImport(file, ext as "pdf" | "docx");
-      if (result.ok) return onImported({ id: result.id, analysis: result.analysis, score: result.score });
-      if ("limitReached" in result && result.limitReached) setLimitReached(true);
-      else setError(result.error);
-    } catch (e) {
-      console.error("[cv-builder] import", e);
-      setError("L'import a échoué. Réessaie dans un instant.");
-    }
-    setPending(false);
+    setPending({ file, ext: ext as "pdf" | "docx" });
   }
 
   if (pending) {
     return (
-      <div role="status" className="card flex flex-col items-center gap-4 p-10 text-center">
-        <span
-          aria-hidden="true"
-          className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 motion-reduce:animate-none dark:border-blue-500/20 dark:border-t-blue-400"
-        />
-        <div>
-          <h2 className="font-semibold text-slate-900 dark:text-white">Analyse de ton CV en cours…</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Applyfy récupère tes informations pour remplir ton nouveau CV. Cela prend quelques secondes.
-          </p>
-        </div>
-      </div>
+      <CvImportProgress
+        file={pending.file}
+        ext={pending.ext}
+        onDone={onImported}
+        onCancel={() => setPending(null)}
+        onLimitReached={() => {
+          setPending(null);
+          setLimitReached(true);
+        }}
+      />
     );
   }
 

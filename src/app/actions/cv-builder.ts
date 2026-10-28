@@ -18,7 +18,8 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   adaptCvToOffer,
   claudeErrorMessage,
-  extractCvForBuilder,
+  extractCvContent,
+  analyseCv,
   type CvSource,
   generateCvSummary,
   improveCvBullet,
@@ -27,7 +28,8 @@ import {
   coachOpening,
   type CoachContext,
   type CoachReply,
-  type ImportedCv,
+  type ImportedCvAnalysis,
+  type ImportedCvContent,
 } from "@/lib/claude";
 import { applyCoachChange, buildProposal, checkProposal, withoutProblems } from "@/lib/coach-proposals";
 import {
@@ -58,6 +60,7 @@ import {
 import { bannedPhrasesInCv, scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
 import { loadScoringContext } from "@/lib/cv-score-context";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
+import { matchKeywords } from "@/lib/keyword-match";
 import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
 import type { DocumentChatResult } from "@/lib/refine";
@@ -243,10 +246,6 @@ export async function adaptToOfferAction(rawData: CvData, offer: string) {
 // « Importer un CV » : PDF ou Word lu par l'IA, puis nouveau CV pré-rempli
 // ---------------------------------------------------------------------------
 
-export type ImportCvResult =
-  | { ok: true; id: string; analysis: CvAnalysis | null; score: CvScore }
-  | { ok: false; error: string; limitReached?: boolean };
-
 const clip = (value: string, max: number) => value.trim().slice(0, max);
 
 /** Puces regroupées dans un seul élément (« a • b », ou une par ligne) : séparées. */
@@ -269,7 +268,7 @@ const clipList = (items: string[], max: number, count: number) =>
 const clampNote = (value: number, max: number) => Math.min(max, Math.max(0, Math.round(Number(value) || 0)));
 
 /** Analyse de l'IA aux bornes du schéma ; null si elle est inutilisable (le CV reste importé). */
-function importedAnalysis({ analysis: a }: ImportedCv): CvAnalysis | null {
+function importedAnalysis(a: ImportedCvAnalysis | null): CvAnalysis | null {
   if (!a) return null;
   const parsed = CvAnalysisSchema.safeParse({
     score: clampNote(a.score, 100),
@@ -288,7 +287,7 @@ function importedAnalysis({ analysis: a }: ImportedCv): CvAnalysis | null {
 }
 
 /** Contenu extrait → données du CV, aux bornes du formulaire (un champ trop long est coupé). */
-function importedToCvData(cv: ImportedCv): CvData {
+function importedToCvData(cv: ImportedCvContent): CvData {
   const L = CV_LIMITS;
   const url = (value: string) => clip(value, L.url);
   return CvDataSchema.parse({
@@ -348,7 +347,6 @@ function importedToCvData(cv: ImportedCv): CvData {
         .join(", "),
       500,
     ),
-    analysis: importedAnalysis(cv),
   });
 }
 
@@ -389,70 +387,160 @@ async function readImportFile(formData: FormData, userId: string | null): Promis
   return Buffer.from(await file.arrayBuffer());
 }
 
-/**
- * « Créer un CV à partir d'un CV existant », étape 1 : extraction et analyse par l'IA (un
- * seul appel), puis création du CV pré-rempli (modèle Minimaliste) avec son analyse. Le
- * poste visé et le modèle sont choisis ensuite (completeCvImportAction).
- */
-export async function importBuilderCvAction(formData: FormData): Promise<ImportCvResult> {
-  const user = await getCurrentUser();
-  if (isSupabaseConfigured() && !user) return { ok: false, error: "Ta session a expiré : reconnecte-toi." };
+/** Résultat d'une étape de l'import : sa valeur, ou l'erreur à afficher (bouton Réessayer). */
+export type ImportStepResult<T> = { ok: true; value: T } | { ok: false; error: string; limitReached?: boolean };
 
-  const gate = isClaudeConfigured()
-    ? await checkAiAccess("cvb_import")
-    : ({ ok: false, message: "L'import n'est pas activé (clé API Claude manquante).", limitReached: false } as const);
-  if (!gate.ok) {
-    // Le fichier déjà déposé ne sera pas lu : il est supprimé.
-    const path = isSupabaseConfigured() ? importPath(formData, user?.id ?? null) : null;
-    if (path) await removeImport(path);
-    return { ok: false, error: gate.message, limitReached: gate.limitReached };
-  }
+/** Vérifications avant une étape de l'IA : clé API, essai du mois (cvb_import), anti-rafale. */
+async function importGate(): Promise<ImportStepResult<null>> {
+  if (!isClaudeConfigured()) return { ok: false, error: "L'import n'est pas activé (clé API Claude manquante)." };
+  const gate = await checkAiAccess("cvb_import");
+  return gate.ok ? { ok: true, value: null } : { ok: false, error: gate.message, limitReached: gate.limitReached };
+}
 
-  const bytes = await readImportFile(formData, user?.id ?? null);
-  if (typeof bytes === "string") return { ok: false, error: bytes };
-  if (bytes.length > CV_IMPORT_MAX_BYTES) return { ok: false, error: `Ton CV dépasse ${CV_IMPORT_MAX_LABEL}.` };
+/** Fichier de l'import lu et reconnu (PDF, ou texte d'un .docx) ; sinon le message d'erreur. */
+async function readImportSource(formData: FormData, userId: string | null): Promise<CvSource | string> {
+  const bytes = await readImportFile(formData, userId);
+  if (typeof bytes === "string") return bytes;
+  if (bytes.length > CV_IMPORT_MAX_BYTES) return `Ton CV dépasse ${CV_IMPORT_MAX_LABEL}.`;
 
   // Fichier reçu identique à celui choisi : même taille que celle annoncée par le navigateur.
   const expectedSize = Number(formData.get("size"));
-  const signature = bytes.subarray(0, 8).toString("latin1").replace(/[^\x20-\x7e]/g, "?");
-  console.info(`[cv-builder] import : ${bytes.length} octets reçus (annoncés : ${expectedSize || "?"}), début « ${signature} »`);
   if (expectedSize && expectedSize !== bytes.length) {
     console.error(`[cv-builder] import : taille reçue ${bytes.length} ≠ taille envoyée ${expectedSize}`);
-    return { ok: false, error: "Le fichier a été mal transmis. Réessaie." };
+    return "Le fichier a été mal transmis. Réessaie.";
   }
-
   // Format reconnu à la signature du fichier, pas seulement à son extension.
-  let source: CvSource;
-  if (bytes.subarray(0, 5).toString("latin1") === "%PDF-") {
-    source = { kind: "pdf", base64: bytes.toString("base64") };
-  } else if (bytes.subarray(0, 2).toString("latin1") === "PK") {
+  if (bytes.subarray(0, 5).toString("latin1") === "%PDF-") return { kind: "pdf", base64: bytes.toString("base64") };
+  if (bytes.subarray(0, 2).toString("latin1") === "PK") {
     const text = extractDocxText(bytes);
-    if (!text || text.length < 30) {
-      return { ok: false, error: "Ce document Word n'a pas pu être lu. Essaie de l'exporter en PDF." };
-    }
-    source = { kind: "text", text: text.slice(0, 40_000) };
-  } else {
-    return { ok: false, error: "Choisis un fichier PDF ou Word (.docx)." };
+    if (!text || text.length < 30) return "Ce document Word n'a pas pu être lu. Essaie de l'exporter en PDF.";
+    return { kind: "text", text: text.slice(0, 40_000) };
   }
+  return "Choisis un fichier PDF ou Word (.docx).";
+}
 
-  let id: string;
-  let data: CvData;
+/**
+ * Import, étape « Lecture du fichier » : fichier déposé par le navigateur, lu et reconnu, et essai
+ * du mois disponible. Le fichier est gardé pour l'extraction.
+ */
+export async function checkCvImportAction(formData: FormData): Promise<ImportStepResult<{ kind: "pdf" | "docx" }>> {
+  const user = await getCurrentUser();
+  if (isSupabaseConfigured() && !user) return { ok: false, error: "Ta session a expiré : reconnecte-toi." };
+  const gate = await importGate();
+  if (!gate.ok) return gate;
+  const source = await readImportSource(formData, user?.id ?? null);
+  if (typeof source === "string") return { ok: false, error: source };
+  return { ok: true, value: { kind: source.kind === "pdf" ? "pdf" : "docx" } };
+}
+
+/**
+ * Import, étape « Extraction du CV » : contenu du fichier extrait par l'IA, nouveau CV créé
+ * (modèle Minimaliste), essai du mois décompté. Le fichier est ensuite supprimé.
+ */
+export async function extractCvImportAction(formData: FormData): Promise<ImportStepResult<{ id: string }>> {
+  const user = await getCurrentUser();
+  if (isSupabaseConfigured() && !user) return { ok: false, error: "Ta session a expiré : reconnecte-toi." };
+  const gate = await importGate();
+  if (!gate.ok) return gate;
+  const source = await readImportSource(formData, user?.id ?? null);
+  if (typeof source === "string") return { ok: false, error: source };
   try {
-    const extracted = await extractCvForBuilder(source);
+    const extracted = await extractCvContent(source);
     if (!extracted) return { ok: false, error: "Ce CV n'a pas pu être lu. Vérifie le fichier, ou crée ton CV à la main." };
-    data = importedToCvData(extracted);
+    const data = importedToCvData(extracted);
     await recordAiUsage("cvb_import");
     const name = fullName(data);
-    id = await createBuilderCv(data, name ? `CV ${name}` : "CV importé");
+    const id = await createBuilderCv(data, name ? `CV ${name}` : "CV importé");
+    // Le fichier ne sert qu'à l'extraction : supprimé dès qu'elle a réussi.
+    const path = isSupabaseConfigured() ? importPath(formData, user?.id ?? null) : null;
+    if (path) await removeImport(path);
+    revalidatePath("/cv-builder");
+    return { ok: true, value: { id } };
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
     return { ok: false, error: claudeErrorMessage(error, "cv-builder import") };
   }
-  revalidatePath("/cv-builder");
-  // Score calculé par le code (cv-score.ts), le même que dans l'éditeur ; l'analyse de l'IA
-  // garde les points forts et faibles, les optimisations et les postes suggérés.
-  return { ok: true, id, analysis: data.analysis, score: scoreCv(data, await loadScoringContext(data)) };
+}
+
+/** CV de l'utilisateur et données de son secteur (étapes de l'import qui suivent l'extraction). */
+async function importedCv(id: unknown) {
+  const cv = typeof id === "string" ? await getBuilderCv(id) : null;
+  return cv && { cv, scoring: await loadScoringContext(cv.data) };
+}
+
+const IMPORT_NOT_FOUND = { ok: false as const, error: "Ce CV n'existe plus. Recommence l'import." };
+
+/** Import, étape « Détection de ton secteur et du poste visé ». */
+export async function detectCvTargetAction(id: string): Promise<ImportStepResult<{ sector: string; jobTitle: string }>> {
+  try {
+    const found = await importedCv(id);
+    if (!found) return IMPORT_NOT_FOUND;
+    const { data } = found.cv;
+    const jobTitle = data.personal.jobTitle.trim() || data.experiences[0]?.position.trim() || "";
+    return { ok: true, value: { sector: found.scoring.sectorName, jobTitle } };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[cv-builder import] secteur", error);
+    return { ok: false, error: "Le secteur n'a pas pu être détecté. Réessaie." };
+  }
+}
+
+/**
+ * Import, étape « Comparaison avec les offres du marché » : mots-clés les plus fréquents des
+ * offres récentes du secteur (job_keywords), et ceux que le CV contient déjà.
+ */
+export async function compareCvMarketAction(id: string): Promise<ImportStepResult<{ found: number; total: number }>> {
+  try {
+    const found = await importedCv(id);
+    if (!found) return IMPORT_NOT_FOUND;
+    const { scoring, cv } = found;
+    const present = matchKeywords(JSON.stringify(chatContent(cv.data)), scoring.marketKeywords, scoring.sector);
+    return { ok: true, value: { found: present.length, total: scoring.marketKeywords.length } };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[cv-builder import] marché", error);
+    return { ok: false, error: "La comparaison avec les offres n'a pas abouti. Réessaie." };
+  }
+}
+
+/** Import, étape « Notation du CV » : score calculé par le code (cv-score.ts), le même que dans l'éditeur. */
+export async function scoreCvImportAction(id: string): Promise<ImportStepResult<CvScore>> {
+  try {
+    const found = await importedCv(id);
+    if (!found) return IMPORT_NOT_FOUND;
+    return { ok: true, value: scoreCv(found.cv.data, found.scoring) };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[cv-builder import] score", error);
+    return { ok: false, error: "La notation n'a pas abouti. Réessaie." };
+  }
+}
+
+/**
+ * Import, étape « Génération de conseils personnalisés » : analyse du CV extrait (JSON) par l'IA,
+ * avec le secteur et les mots-clés du marché ; enregistrée avec le CV. Comprise dans l'import.
+ */
+export async function analyseCvImportAction(id: string): Promise<ImportStepResult<CvAnalysis | null>> {
+  if (!isClaudeConfigured()) return { ok: false, error: "L'import n'est pas activé (clé API Claude manquante)." };
+  try {
+    const found = await importedCv(id);
+    if (!found) return IMPORT_NOT_FOUND;
+    const { cv, scoring } = found;
+    const rate = await checkAiRateLimit();
+    if (!rate.ok) return { ok: false, error: rate.message };
+    const raw = await analyseCv(JSON.stringify(chatContent(cv.data)), {
+      name: scoring.sectorName,
+      marketKeywords: scoring.marketKeywords,
+    });
+    const analysis = importedAnalysis(raw);
+    if (!analysis) return { ok: false, error: "Les conseils n'ont pas pu être générés. Réessaie." };
+    await saveBuilderCv(cv.id, { title: cv.title, templateId: cv.templateId, data: { ...cv.data, analysis } });
+    return { ok: true, value: analysis };
+  } catch (error) {
+    unstable_rethrow(error);
+    return { ok: false, error: claudeErrorMessage(error, "cv-builder import : conseils") };
+  }
 }
 
 /**

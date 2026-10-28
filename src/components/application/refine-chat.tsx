@@ -91,6 +91,7 @@ export function RefineChat({
   limitMessage,
   limitBlocks = true,
   tall = false,
+  fill = false,
   undoable = true,
 }: {
   document: keyof typeof DOCUMENTS;
@@ -122,6 +123,8 @@ export function RefineChat({
   limitBlocks?: boolean;
   /** Historique plus haut (chat en colonne à côté de l'aperçu). */
   tall?: boolean;
+  /** Sur grand écran, remplit la hauteur de son parent (éditeur en plein écran du CV Builder). */
+  fill?: boolean;
   /** Bouton « Annuler cette modification » sous la dernière réponse qui a modifié le document. */
   undoable?: boolean;
 }) {
@@ -237,7 +240,10 @@ export function RefineChat({
   }
 
   return (
-    <section aria-labelledby="refine-title" className="card space-y-4 p-5 print:hidden">
+    <section
+      aria-labelledby="refine-title"
+      className={`card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`}
+    >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
         <div>
           <h2 id="refine-title" className="font-semibold text-slate-900 dark:text-white">
@@ -259,7 +265,7 @@ export function RefineChat({
         role="log"
         aria-live="polite"
         aria-label="Conversation avec l'assistant"
-        className={`${tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700`}
+        className={`${fill ? "max-h-[60vh] min-h-64 lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700`}
       >
         {messages.length === 0 && !pending && !openingPending && (
           <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{texts.empty}</p>

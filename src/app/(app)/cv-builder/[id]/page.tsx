@@ -22,7 +22,8 @@ export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-bui
   const scoring = await loadScoringContext(cv.data);
 
   return (
-    <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">
+    // Éditeur en plein écran (sans barre latérale ni en-tête de l'application, cf. app-nav-context).
+    <main className="w-full flex-1">
       <CvBuilderEditor
         cv={cv}
         scoring={scoring}

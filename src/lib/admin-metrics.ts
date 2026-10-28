@@ -32,44 +32,28 @@ export const ADMIN_EMAIL = "constantinvarin@gmail.com";
 const UNKNOWN_PLAN = { name: "Ancien prix", monthlyPrice: 8, billedAmount: 8, intervalMonths: 1 };
 
 /**
- * Coût estimé d'une action IA si elle tournait sur Claude Opus 5.5, en euros : base ramenée au
- * modèle réellement utilisé (AI_ACTION_COSTS).
+ * Appels à Claude de chaque action et leur coût estimé s'ils tournaient sur Claude Opus 5.5, en
+ * euros : base ramenée au modèle réellement utilisé par chaque appel (AI_ACTION_COSTS).
+ * cvb_coach : réponses du coach sans modification. lettre : génération et import (même modèle).
+ * cvb_import : extraction du fichier, puis conseils sur le CV extrait (sans le fichier).
  */
-const OPUS_ACTION_COSTS: Record<AiUsageKind, number> = {
-  resume_offre: 0.02,
-  resume_recherche: 0.02,
-  adaptation_cv: 0.05,
-  cv_ameliore: 0.08,
-  lettre: 0.05,
-  affinage_cv: 0.05,
-  affinage_lettre: 0.05,
-  cvb_puce: 0.01,
-  cvb_resume: 0.02,
-  cvb_adaptation: 0.05,
-  cvb_import: 0.06,
-  cvb_chat: 0.05,
-  cvb_coach: 0.03,
-};
-
-/**
- * Fonction de claude.ts dont le modèle détermine le coût de chaque action. cvb_coach : questions
- * ciblées et réponses du coach sans modification (coachBuilderCv). lettre : génération
- * et import (même modèle).
- */
-const ACTION_FUNCTIONS: Record<AiUsageKind, ClaudeFunction> = {
-  resume_offre: "summarizeOffer",
-  resume_recherche: "summarizeJobOffer",
-  adaptation_cv: "suggestCvAdaptations",
-  cv_ameliore: "transcribeCv",
-  lettre: "generateCoverLetter",
-  affinage_cv: "refineDocument",
-  affinage_lettre: "refineDocument",
-  cvb_puce: "improveCvBullet",
-  cvb_resume: "generateCvSummary",
-  cvb_adaptation: "adaptCvToOffer",
-  cvb_import: "extractCvForBuilder",
-  cvb_chat: "coachBuilderCv",
-  cvb_coach: "coachBuilderCv",
+const ACTION_CALLS: Record<AiUsageKind, [ClaudeFunction, number][]> = {
+  resume_offre: [["summarizeOffer", 0.02]],
+  resume_recherche: [["summarizeJobOffer", 0.02]],
+  adaptation_cv: [["suggestCvAdaptations", 0.05]],
+  cv_ameliore: [["transcribeCv", 0.08]],
+  lettre: [["generateCoverLetter", 0.05]],
+  affinage_cv: [["refineDocument", 0.05]],
+  affinage_lettre: [["refineDocument", 0.05]],
+  cvb_puce: [["improveCvBullet", 0.01]],
+  cvb_resume: [["generateCvSummary", 0.02]],
+  cvb_adaptation: [["adaptCvToOffer", 0.05]],
+  cvb_import: [
+    ["extractCvContent", 0.05],
+    ["analyseCv", 0.02],
+  ],
+  cvb_chat: [["coachBuilderCv", 0.05]],
+  cvb_coach: [["coachBuilderCv", 0.03]],
 };
 
 /** Prix par million de tokens (entrée + sortie, $) ; un modèle inconnu est compté au prix d'Opus. */
@@ -80,17 +64,17 @@ const MODEL_PRICES: Record<string, number> = {
 };
 const OPUS_PRICE = MODEL_PRICES["claude-opus-5-5"];
 
-/** Modèle utilisé par chaque action (surcharges CLAUDE_MODEL_* comprises). */
+/** Modèles utilisés par chaque action (surcharges CLAUDE_MODEL_* comprises), ex. « claude-opus-5-5 + claude-sonnet-5-5 ». */
 export const AI_ACTION_MODELS = Object.fromEntries(
-  AI_USAGE_KINDS.map((kind) => [kind, modelFor(ACTION_FUNCTIONS[kind])]),
+  AI_USAGE_KINDS.map((kind) => [kind, [...new Set(ACTION_CALLS[kind].map(([fn]) => modelFor(fn)))].join(" + ")]),
 ) as Record<AiUsageKind, string>;
 
-/** Coût réel estimé d'une action IA (appel à l'API Claude), en euros, selon son modèle. */
+/** Coût réel estimé d'une action IA (appels à l'API Claude), en euros, selon le modèle de chaque appel. */
 export const AI_ACTION_COSTS = Object.fromEntries(
-  AI_USAGE_KINDS.map((kind) => {
-    const price = MODEL_PRICES[AI_ACTION_MODELS[kind]] ?? OPUS_PRICE;
-    return [kind, (OPUS_ACTION_COSTS[kind] * price) / OPUS_PRICE];
-  }),
+  AI_USAGE_KINDS.map((kind) => [
+    kind,
+    ACTION_CALLS[kind].reduce((sum, [fn, opusCost]) => sum + (opusCost * (MODEL_PRICES[modelFor(fn)] ?? OPUS_PRICE)) / OPUS_PRICE, 0),
+  ]),
 ) as Record<AiUsageKind, number>;
 
 /**

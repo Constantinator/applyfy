@@ -3,8 +3,8 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 // Client Supabase « service_role » : contourne la RLS et voit les données de TOUS les
-// utilisateurs. Réservé aux tâches serveur sans utilisateur connecté (cron des rappels,
-// webhook Stripe), à l'enregistrement de l'abonnement Premium (lib/stripe, à partir de
+// utilisateurs. Réservé aux tâches serveur sans utilisateur connecté (cron des rappels, ménage
+// des fichiers d'import du CV Builder, webhook Stripe), à l'enregistrement de l'abonnement Premium (lib/stripe, à partir de
 // données relues dans l'API Stripe), à la suppression de son propre compte
 // (lib/account-deletion, limitée à l'id vérifié par requireUser) et au tableau de bord
 // admin (lib/admin-metrics, après requireAdmin) et aux offres collées versées dans les

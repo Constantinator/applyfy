@@ -1,3 +1,4 @@
+import { AppNavProvider } from "@/components/app-nav-context";
 import { AppSidebar } from "@/components/app-sidebar";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { WelcomePremiumModal } from "@/components/onboarding/welcome-premium-modal";
@@ -22,20 +23,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    // data-theme-scope : zone concernée par le mode sombre (cf. globals.css).
-    <div data-theme-scope className="flex flex-1 flex-col lg:flex-row print:block">
-      <AppSidebar
-        email={user?.email ?? null}
-        isAdmin={isAdmin}
-        isBetaTester={beta?.status === "active"}
-        unreadBeta={unreadBeta}
-        unreadAdmin={unreadAdmin}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-      {/* Présentation animée à la première connexion (mémorisée dans le navigateur). */}
-      <OnboardingModal />
-      {/* Prix de lancement du Premium, après la présentation (une seule fois). */}
-      {!premium && <WelcomePremiumModal />}
-    </div>
+    // AppNavProvider : panneau Menu et garde de sortie des pages en plein écran (éditeur du CV Builder).
+    <AppNavProvider>
+      {/* data-theme-scope : zone concernée par le mode sombre (cf. globals.css). */}
+      <div data-theme-scope className="flex flex-1 flex-col lg:flex-row print:block">
+        <AppSidebar
+          email={user?.email ?? null}
+          isAdmin={isAdmin}
+          isBetaTester={beta?.status === "active"}
+          unreadBeta={unreadBeta}
+          unreadAdmin={unreadAdmin}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+        {/* Présentation animée à la première connexion (mémorisée dans le navigateur). */}
+        <OnboardingModal />
+        {/* Prix de lancement du Premium, après la présentation (une seule fois). */}
+        {!premium && <WelcomePremiumModal />}
+      </div>
+    </AppNavProvider>
   );
 }

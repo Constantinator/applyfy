@@ -10,6 +10,7 @@ import {
   scoringContextAction,
 } from "@/app/actions/cv-builder";
 import { RefineChat } from "@/components/application/refine-chat";
+import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
@@ -42,6 +43,8 @@ const SAVE_LABELS: Record<SaveStatus, string> = {
   saving: "Enregistrement…",
   error: "Échec de l'enregistrement",
 };
+
+const LEAVE_MESSAGE = "Des modifications ne sont pas encore enregistrées. Quitter quand même ?";
 
 function fileName(title: string, data: CvData) {
   const base = `CV ${fullName(data) || title}`.normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -99,13 +102,20 @@ export function CvBuilderEditor({
     return () => clearTimeout(timer);
   }, [cv.id, title, templateId, data]);
 
-  // Quitter la page avec des modifications non enregistrées : confirmation du navigateur.
+  // Quitter la page avec des modifications non enregistrées : confirmation du navigateur
+  // (fermeture, rechargement) ; dans l'application (Retour, liens du Menu), confirmation aussi.
   useEffect(() => {
     if (status === "saved") return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [status]);
+  const { openMenu, setLeaveGuard } = useAppNav();
+  const canLeave = useCallback(() => status === "saved" || window.confirm(LEAVE_MESSAGE), [status]);
+  useEffect(() => {
+    setLeaveGuard(canLeave);
+    return () => setLeaveGuard(null);
+  }, [canLeave, setLeaveGuard]);
 
   // Score calculé par le code (cv-score.ts), recalculé à chaque modification du CV.
   const [scoringContext, setScoringContext] = useState(scoring);
@@ -159,12 +169,28 @@ export function CvBuilderEditor({
   }
 
   return (
-    <div className="space-y-5">
-      {/* Barre du haut : titre, état de l'enregistrement, téléchargement. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Link href="/cv-builder" className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
-          Mes CV
+    // Plein écran : la page entière sur grand écran (score et chat à gauche, aperçu à droite).
+    <div className="flex flex-col lg:h-dvh">
+      {/* Barre du haut : retour, menu de l'application, titre, enregistrement, téléchargement. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4 dark:border-slate-800 dark:bg-slate-900">
+        <Link
+          href="/cv-builder"
+          onClick={(e) => {
+            if (!canLeave()) e.preventDefault();
+          }}
+          className="btn-secondary gap-1.5 px-3 py-1.5 text-sm"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+            <path d="M12 4l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Retour
         </Link>
+        <button type="button" onClick={openMenu} aria-haspopup="dialog" className="btn-secondary gap-1.5 px-3 py-1.5 text-sm">
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+            <path d="M3 5h14M3 10h14M3 15h14" strokeLinecap="round" />
+          </svg>
+          Menu
+        </button>
         <input
           aria-label="Nom du CV"
           value={title}
@@ -174,7 +200,7 @@ export function CvBuilderEditor({
             setStatus("pending");
             setTitle(e.target.value);
           }}
-          className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight text-slate-900 hover:border-slate-200 focus:border-blue-500 focus:outline-none dark:text-white dark:hover:border-slate-700 sm:text-2xl"
+          className="min-w-0 flex-1 basis-40 rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-bold tracking-tight text-slate-900 hover:border-slate-200 focus:border-blue-500 focus:outline-none dark:text-white dark:hover:border-slate-700"
         />
         <p
           role="status"
@@ -182,20 +208,22 @@ export function CvBuilderEditor({
         >
           {SAVE_LABELS[status]}
         </p>
-        <button type="button" onClick={download} disabled={downloading} className="btn-primary px-4 py-2.5 text-sm">
+        <button type="button" onClick={download} disabled={downloading} className="btn-primary px-4 py-2 text-sm">
           {downloading ? "Génération du PDF…" : "Télécharger en PDF"}
         </button>
       </div>
       {saveError && (
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30">
+        <p role="alert" className="mx-3 mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 sm:mx-4 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30">
           {saveError}
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
-        {/* Score, puis chat « coach » : même composant que le chat de l'éditeur du CV d'une candidature. */}
-        <div className="min-w-0 space-y-4">
-          <CvScorePanel score={score} banned={banned} />
+      <div className="grid flex-1 gap-4 p-3 sm:p-4 lg:min-h-0 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        {/* Score (toujours visible, défilement propre), puis chat « coach » qui remplit la hauteur. */}
+        <div className="flex min-w-0 flex-col gap-4 lg:min-h-0">
+          <div className="shrink-0 lg:max-h-[40%] lg:overflow-y-auto">
+            <CvScorePanel score={score} banned={banned} />
+          </div>
           <RefineChat
             document="cvBuilder"
             applicationId={cv.id}
@@ -227,15 +255,12 @@ export function CvBuilderEditor({
             limitMessage={CVB_CHAT_LIMIT_MESSAGE}
             limitBlocks={false}
             undoable={false}
-            tall
+            fill
           />
         </div>
 
-        {/* Aperçu : reste visible pendant la conversation (grand écran). */}
-        <section
-          aria-label="Aperçu du CV"
-          className="card flex h-[80vh] flex-col overflow-hidden lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]"
-        >
+        {/* Aperçu : toute la hauteur disponible sur grand écran. */}
+        <section aria-label="Aperçu du CV" className="card flex h-[80vh] flex-col overflow-hidden lg:h-auto lg:min-h-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-xs dark:border-slate-700">
             <p className="text-slate-500 dark:text-slate-400">Clique sur un texte de l&apos;aperçu pour le modifier.</p>
             <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
