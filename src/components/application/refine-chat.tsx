@@ -151,27 +151,6 @@ export function RefineChat({
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Insertion depuis l'éditeur : ajouté au texte déjà saisi, puis le champ prend le focus.
-  useImperativeHandle(controlRef, () => {
-    const insert = (text: string) => {
-      setInput((current) =>
-        (current.trim() ? `${current.trimEnd()}\n${text}` : text).slice(0, REFINE_MESSAGE_MAX_LENGTH),
-      );
-      inputRef.current?.focus();
-      inputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-    };
-    return {
-      insert,
-      ask(point: string) {
-        if (!askCoach || !aiEnabled) return "L'assistant n'est pas disponible pour le moment.";
-        if (pending) return "Le coach est occupé : attends sa réponse.";
-        if (blocked) return limitMessage ?? "Limite du chat atteinte pour ce mois-ci.";
-        void ask(askCoach, point);
-        return null;
-      },
-    };
-  });
-
   /** Question ciblée du coach : affichée comme son message, sans message du candidat. */
   async function ask(action: AskCoach, point: string) {
     const history = messages.filter((m) => !m.error).map(({ role, content }) => ({ role, content }));
@@ -196,6 +175,28 @@ export function RefineChat({
   const limitReached = limitHit || isLimitReached({ used, limit: usage.limit });
   const blocked = limitBlocks && limitReached;
   const disabled = !aiEnabled || blocked;
+
+  // Insertion depuis l'éditeur : ajouté au texte déjà saisi, puis le champ prend le focus.
+  useImperativeHandle(controlRef, () => {
+    const insert = (text: string) => {
+      setInput((current) =>
+        (current.trim() ? `${current.trimEnd()}\n${text}` : text).slice(0, REFINE_MESSAGE_MAX_LENGTH),
+      );
+      inputRef.current?.focus();
+      inputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    };
+    return {
+      insert,
+      ask(point: string) {
+        if (!askCoach || !aiEnabled) return "L'assistant n'est pas disponible pour le moment.";
+        if (pending) return "Le coach est occupé : attends sa réponse.";
+        if (blocked) return limitMessage ?? "Limite du chat atteinte pour ce mois-ci.";
+        void ask(askCoach, point);
+        return null;
+      },
+    };
+  });
+
   const lastUndoable = [...messages].reverse().find((m) => m.previousHtml !== undefined && !m.undone);
 
   // Fait défiler l'historique jusqu'au dernier message.
