@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 
-import { READY_SCORE, scoreTone, type CvCorrection, type CvScore } from "@/lib/cv-score";
+import { READY_SCORE, scoreTone, type BannedInCv, type CvCorrection, type CvScore } from "@/lib/cv-score";
 
 /** Couleurs du score : rouge sous 70, orange de 70 à 89, vert à partir de 90. */
 export const SCORE_TONES = {
@@ -52,7 +52,19 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
  * postuler » et les 3 corrections qui rapportent le plus. Un clic fait poser au coach une
  * question sur ce point ; `onPick` renvoie pourquoi rien n'est demandé (coach occupé, limite).
  */
-export function CvScorePanel({ score, onPick }: { score: CvScore; onPick: (correction: CvCorrection) => string | null }) {
+export function CvScorePanel({
+  score,
+  banned = [],
+  onPick,
+  onAsk,
+}: {
+  score: CvScore;
+  /** Formules de la liste noire présentes dans le CV. */
+  banned?: BannedInCv[];
+  onPick: (correction: CvCorrection) => string | null;
+  /** Question ciblée du coach sur un point libre (formule à éviter). */
+  onAsk?: (point: string) => string | null;
+}) {
   const titleId = useId();
   const t = SCORE_TONES[scoreTone(score.score)];
   const top = score.corrections.slice(0, 3);
@@ -94,12 +106,39 @@ export function CvScorePanel({ score, onPick }: { score: CvScore; onPick: (corre
               </li>
             ))}
           </ul>
-          {notice && (
-            <p role="status" className="text-xs text-slate-500 dark:text-slate-400">
-              {notice}
-            </p>
-          )}
         </div>
+      )}
+      {banned.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Formules à éviter
+          </h3>
+          <ul className="space-y-1.5">
+            {banned.map((b) => (
+              <li key={`${b.elementId}-${b.phrase}`}>
+                <button
+                  type="button"
+                  disabled={!onAsk}
+                  onClick={() => onAsk && setNotice(onAsk(`Formule à éviter « ${b.phrase} » dans ${b.where} : remplace-la par des faits concrets`))}
+                  title="Le coach te pose une question pour remplacer cette formule"
+                  className="flex w-full items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-left text-sm text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-slate-200"
+                >
+                  <span aria-hidden="true" className="text-amber-600">
+                    !
+                  </span>
+                  <span>
+                    « {b.phrase} » dans {b.where}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {notice && (
+        <p role="status" className="text-xs text-slate-500 dark:text-slate-400">
+          {notice}
+        </p>
       )}
     </section>
   );

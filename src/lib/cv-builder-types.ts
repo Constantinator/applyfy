@@ -38,6 +38,9 @@ export const CV_FONTS = [
 export type CvFontId = (typeof CV_FONTS)[number]["id"];
 const CV_FONT_IDS = CV_FONTS.map((f) => f.id) as [CvFontId, ...CvFontId[]];
 
+/** Propositions du coach décomptées gardées dans le CV (les plus récentes). */
+export const COACH_CHARGED_MAX = 50;
+
 /** Fichier d'une police dans public/. */
 export function cvFontFile(id: CvFontId, weight: 400 | 700, italic = false) {
   return `/fonts/cv/${id}-${weight}${italic ? "-italic" : ""}.ttf`;
@@ -217,6 +220,11 @@ export const CvDataSchema = z.object({
     .nullable()
     .catch(null)
     .default(null),
+  /**
+   * Propositions du coach déjà décomptées comme adaptation (cvb_chat, à la première modification
+   * acceptée) : une proposition n'est jamais décomptée deux fois. Écrit seulement par le serveur.
+   */
+  coachCharged: z.array(z.string().max(40)).max(COACH_CHARGED_MAX).catch([]).default([]),
 });
 
 export type CvData = z.infer<typeof CvDataSchema>;

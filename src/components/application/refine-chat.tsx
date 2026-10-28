@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 
 import { PremiumButton, UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
+import type { CoachProposal } from "@/lib/coach-proposals";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import type { DocumentChatResult } from "@/lib/refine";
 
@@ -60,6 +61,8 @@ export type RefineChatHandle = {
    * affichée comme son message. Renvoie null si elle est demandée, sinon pourquoi rien n'est envoyé.
    */
   ask: (point: string) => string | null;
+  /** Compteur du mois mis à jour hors d'un message (proposition du coach acceptée). */
+  setUsed: (used: number) => void;
 };
 
 /** Question ciblée du coach (Server Action) : son texte, ou l'erreur à afficher. */
@@ -81,6 +84,8 @@ type Message = {
   undone?: boolean;
   /** Message de limite : suivi du bouton « Passer au Premium ». */
   premium?: boolean;
+  /** Modifications proposées par le coach du CV Builder (affichées par renderProposal). */
+  proposal?: CoachProposal;
 };
 
 /**
@@ -105,6 +110,7 @@ export function RefineChat({
   limitMessage,
   limitBlocks = true,
   tall = false,
+  renderProposal,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -137,6 +143,8 @@ export function RefineChat({
   limitBlocks?: boolean;
   /** Historique plus haut (chat en colonne à côté de l'aperçu). */
   tall?: boolean;
+  /** Coach du CV Builder : affichage des modifications proposées sous son message. */
+  renderProposal?: (proposal: CoachProposal) => ReactNode;
 }) {
   const texts = DOCUMENTS[document];
   const units = texts.units;
@@ -187,6 +195,7 @@ export function RefineChat({
     };
     return {
       insert,
+      setUsed,
       ask(point: string) {
         if (!askCoach || !aiEnabled) return "L'assistant n'est pas disponible pour le moment.";
         if (pending) return "Le coach est occupé : attends sa réponse.";
@@ -229,7 +238,9 @@ export function RefineChat({
           setLimitHit(true);
           add({ role: "assistant", content: result.limitNotice, premium: true });
         }
-        if (result.reply) add({ role: "assistant", content: result.reply, previousHtml });
+        if (result.reply || result.proposal) {
+          add({ role: "assistant", content: result.reply, previousHtml, proposal: result.proposal });
+        }
       } else {
         if (result.limitReached) setLimitHit(true);
         add({ role: "assistant", content: result.error, error: true });
@@ -333,6 +344,7 @@ export function RefineChat({
                 {message.content}
               </p>
               {message.premium && <PremiumButton />}
+              {message.proposal && renderProposal?.(message.proposal)}
               {message.undone ? (
                 <span className="pl-1 text-xs text-slate-500">Modification annulée.</span>
               ) : (

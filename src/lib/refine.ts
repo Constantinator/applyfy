@@ -11,6 +11,7 @@ import {
   type RefineAnalysis,
   type RefineChatTurn,
 } from "./claude";
+import type { CoachProposal } from "./coach-proposals";
 import { CV_HTML_MAX_LENGTH, htmlToText, sanitizeCvHtml } from "./cv-html";
 import { matchCvKeywords } from "./cv-keyword-match";
 import { detectSector } from "./cv-sector-context";
@@ -34,6 +35,8 @@ export type DocumentChatResult =
       usage: AiUsageCount;
       /** Modification non appliquée (limite du mois) : message affiché avant `reply`, avec le lien Premium. */
       limitNotice?: string;
+      /** Coach du CV Builder : modifications proposées, à accepter ou refuser une à une. */
+      proposal?: CoachProposal;
     }
   | { ok: false; error: string; limitReached?: boolean };
 

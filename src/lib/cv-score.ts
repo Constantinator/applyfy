@@ -54,8 +54,24 @@ export function scoreTone(score: number): "red" | "orange" | "green" {
   return score >= 70 ? "orange" : "red";
 }
 
-/** Jargon vague refusé dans les points du CV (aussi interdit au coach, dans son prompt). */
-export const GENERIC_JARGON = ["dynamique", "polyvalent", "force de proposition", "diverses missions"];
+/**
+ * Jargon vague et formules génériques refusés dans le CV (aussi interdits au coach, dans son
+ * prompt, et vérifiés dans ses propositions).
+ */
+export const GENERIC_JARGON = [
+  "dynamique",
+  "polyvalent",
+  "force de proposition",
+  "diverses missions",
+  "passionné",
+  "passionnée",
+  "parcours éprouvé",
+  "orienté résultats",
+  "orientée résultats",
+  "fort de",
+  "forte de",
+  "contribuer activement",
+];
 
 /** Verbes d'action courants (FR et EN), en plus de ceux du secteur. */
 const GENERAL_VERBS = [
@@ -66,7 +82,7 @@ const GENERAL_VERBS = [
   "construire", "élaborer", "définir", "obtenir", "obtenu", "atteindre", "atteint", "dépasser", "remporter", "signer",
   "fidéliser", "prospecter", "vendre", "vendu", "produire", "produit", "refondre", "migrer", "intégrer", "sécuriser",
   "tester", "modéliser", "auditer", "planifier", "prioriser", "transformer", "moderniser", "standardiser", "digitaliser",
-  "sélectionner",
+  "sélectionner", "préparer", "identifier", "contrôler", "réviser", "évaluer", "chiffrer", "valoriser", "documenter",
   "lead", "led", "manage", "build", "built", "create", "design", "develop", "launch", "deliver", "drive", "drove",
   "increase", "reduce", "grow", "grew", "improve", "implement", "automate", "analyze", "analyse", "negotiate",
   "coordinate", "organize", "supervise", "own", "ship", "scale", "optimize", "generate", "close", "win", "won", "train",
@@ -84,7 +100,8 @@ const ACTION_NOUNS = [
   "prospection", "négociation", "développement", "lancement", "analyse", "audit", "refonte", "migration", "déploiement",
   "optimisation", "automatisation", "supervision", "formation", "recrutement", "élaboration", "définition", "réalisation",
   "production", "construction", "réduction", "amélioration", "augmentation", "administration", "implémentation",
-  "conduite", "veille", "budgétisation", "planification", "coaching", "mentorat", "tutorat",
+  "conduite", "veille", "budgétisation", "planification", "coaching", "mentorat", "tutorat", "revue", "contrôle",
+  "étude", "traitement", "valorisation",
 ];
 
 /**
@@ -137,8 +154,67 @@ function verbStem(verb: string) {
   return w;
 }
 
-/** Contient un chiffre (nombre, %, €, durée, effectif), sans compter une année seule. */
-const hasFigure = (text: string) => /\d/.test(text.replace(/\b(19|20)\d{2}\b/g, ""));
+/** Ordre de grandeur écrit en toutes lettres : « une quinzaine », « des centaines », « dozens »… */
+const ORDER_OF_MAGNITUDE =
+  / (dizaine|douzaine|quinzaine|vingtaine|trentaine|quarantaine|cinquantaine|centaine|millier|million|milliard|dozen|hundred|thousand|billion)s? /;
+
+/**
+ * Contient un chiffre (nombre, %, €, durée, effectif), sans compter une année seule, ou un
+ * ordre de grandeur en toutes lettres.
+ */
+export const hasFigure = (text: string) =>
+  /\d/.test(text.replace(/\b(19|20)\d{2}\b/g, "")) || ORDER_OF_MAGNITUDE.test(normalizeText(text));
+
+/**
+ * Détecteur de puce qui commence par un verbe d'action (ou un nom d'action : « Pilotage »,
+ * « Gestion »), verbes courants et verbes du secteur.
+ */
+export function actionDetector(sectorVerbs: string[]) {
+  const verbs = [...sectorVerbs, ...GENERAL_VERBS];
+  const stems = [
+    ...new Set([...verbs, ...verbs.flatMap(nominalForms), ...ACTION_NOUNS].map(verbStem).filter((s) => s.length >= 3)),
+  ];
+  return (text: string) => {
+    const word = firstWord(text);
+    return stems.some((s) => word.startsWith(s) && (s.length >= 4 || word.length <= s.length + 3));
+  };
+}
+
+/** Liste noire du CV : jargon générique et expressions à éviter du secteur. */
+export function bannedPhrases(sectorAvoid: string[]) {
+  return [...new Set([...sectorAvoid, ...GENERIC_JARGON])];
+}
+
+/** Formules de la liste noire présentes dans un texte. */
+export function findBannedPhrases(text: string, banned: string[]) {
+  const normalized = normalizeText(plain(text));
+  return banned.filter((phrase) => hasPhrase(normalized, phrase));
+}
+
+/** Formule de la liste noire trouvée dans le CV, avec l'endroit où elle se trouve. */
+export type BannedInCv = { phrase: string; elementId: string; where: string; request: string };
+
+/** Formules de la liste noire présentes dans le CV (accroche, puces des expériences, projets). */
+export function bannedPhrasesInCv(data: CvData, context: Pick<ScoringContext, "avoid">): BannedInCv[] {
+  const banned = bannedPhrases(context.avoid);
+  return cvTexts(data).flatMap((t) =>
+    findBannedPhrases(t.text, banned).map((phrase) => ({
+      phrase,
+      elementId: t.id,
+      where: t.where.replace(/^mon |^ma /, "ton "),
+      request: `Remplace « ${phrase} » par des faits concrets dans ${t.where}`,
+    })),
+  );
+}
+
+/** Textes rédigés du CV : accroche, puces de chaque expérience, projets. */
+function cvTexts(data: CvData) {
+  return [
+    { id: "summary", where: "mon accroche", text: plain(data.summary) },
+    ...data.experiences.map((e) => ({ id: e.id, where: `mon expérience ${experienceLabel(e)}`, text: e.bullets.map(plain).join("\n") })),
+    ...data.projects.map((p) => ({ id: p.id, where: `mon projet ${plain(p.name)}`, text: plain(p.description) })),
+  ].filter((t) => t.text);
+}
 
 const PRONOUNS = /(^| )(je|mon|ma|mes)( |$)|(^| )j'/;
 
@@ -183,14 +259,7 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   const bullets = experiences.flatMap((e) => e.bullets.map(plain).filter(Boolean).map((text) => ({ experience: e, text })));
 
   // --- Impact (35) : chiffres, verbes d'action (ou noms d'action : « Pilotage », « Gestion ») ---
-  const verbs = [...context.actionVerbs, ...GENERAL_VERBS];
-  const stems = [
-    ...new Set([...verbs, ...verbs.flatMap(nominalForms), ...ACTION_NOUNS].map(verbStem).filter((s) => s.length >= 3)),
-  ];
-  const isAction = (text: string) => {
-    const word = firstWord(text);
-    return stems.some((s) => word.startsWith(s) && (s.length >= 4 || word.length <= s.length + 3));
-  };
+  const isAction = actionDetector(context.actionVerbs);
   if (!bullets.length) {
     lose("impact", POINTS.figures + POINTS.verbs, {
       elementId: null,
@@ -247,11 +316,7 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   }
 
   // Textes rédigés : accroche, puces de chaque expérience, projets.
-  const texts = [
-    { id: "summary", where: "mon accroche", text: plain(data.summary) },
-    ...experiences.map((e) => ({ id: e.id, where: `mon expérience ${experienceLabel(e)}`, text: e.bullets.map(plain).join("\n") })),
-    ...data.projects.map((p) => ({ id: p.id, where: `mon projet ${plain(p.name)}`, text: plain(p.description) })),
-  ].filter((t) => t.text);
+  const texts = cvTexts(data);
 
   // Règles « sans défaut » : points accordés seulement s'il y a du texte (un CV vide n'a rien de bon).
   const withPronouns = texts.filter((t) => PRONOUNS.test(normalizeText(t.text)));
@@ -264,10 +329,9 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
       request: `Retire « je », « mon » et « mes » de ${t.where}`,
     });
 
-  const banned = [...new Set([...context.avoid, ...GENERIC_JARGON])];
+  const banned = bannedPhrases(context.avoid);
   const jargon = texts.flatMap((t) => {
-    const normalized = normalizeText(t.text);
-    const found = banned.filter((phrase) => hasPhrase(normalized, phrase));
+    const found = findBannedPhrases(t.text, banned);
     return found.length ? [{ ...t, found }] : [];
   });
   const jargonCount = jargon.reduce((n, t) => n + t.found.length, 0);
