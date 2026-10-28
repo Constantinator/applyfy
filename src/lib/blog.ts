@@ -8,11 +8,150 @@ export type BlogPost = {
   description: string;
   /** Image de couverture (16:9, dans public/) et son texte alternatif. */
   cover?: { src: string; alt: string };
-  /** Texte complet en Markdown : paragraphes, titres « ## », listes « - » et **gras**. */
+  /** Texte complet en Markdown : paragraphes, titres « ## » et « ### », listes « - » et **gras**. */
   content?: string;
 };
 
 export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "comment-faire-un-cv-ere-ia",
+    title: "Comment faire un CV à l'ère de l'IA",
+    date: "2026-10-27",
+    description:
+      "ATS, tri automatique, CV écrits par ChatGPT : ce qui a changé et les règles pour un CV qui passe les filtres et convainc un recruteur.",
+    cover: {
+      src: "/images/blog/comment-faire-un-cv-ere-ia.jpg",
+      alt: "Personne lisant un CV imprimé pendant un entretien, face à une autre personne assise de l'autre côté de la table",
+    },
+    content: `
+Les recruteurs reçoivent plus de candidatures que jamais, et beaucoup se ressemblent. D'un côté, les entreprises utilisent des logiciels pour trier les CV. De l'autre, les candidats écrivent leur CV avec ChatGPT. Résultat : des CV lisses, remplis des mêmes formules, que les logiciels classent mal et que les recruteurs lisent en diagonale.
+
+Bonne nouvelle : les règles d'un bon CV n'ont pas disparu. Elles sont simplement devenues plus strictes. Voici ce qui a changé, et comment utiliser l'IA pour te démarquer au lieu de te fondre dans la masse.
+
+## Ce qui a changé
+
+### Côté recruteur : le premier lecteur est souvent un logiciel
+
+La plupart des entreprises de taille moyenne et grande utilisent un ATS (Applicant Tracking System), un logiciel de suivi des candidatures. Il lit ton CV, en extrait les informations (postes, dates, compétences) et aide le recruteur à trier les candidatures, notamment en recherchant des mots-clés.
+
+Concrètement, cela veut dire deux choses :
+- si le logiciel lit mal ton CV (mise en page en colonnes, texte dans une image, tableau), tes informations peuvent être perdues ;
+- si ton CV ne contient pas les termes de l'offre, il risque de remonter moins bien dans les résultats, même si tu as le bon profil.
+
+### Côté candidat : tout le monde écrit avec l'IA
+
+Les outils d'IA permettent d'écrire un CV en quelques minutes. Le problème, c'est que tout le monde le fait, avec les mêmes demandes. Les recruteurs voient donc passer des dizaines de CV « passionnés », « orientés résultats » et « dotés d'un parcours éprouvé ». Ces formules ne disent rien de toi, et elles se repèrent tout de suite.
+
+## Le piège : laisser l'IA écrire à ta place
+
+Demander à une IA « écris-moi un CV de chef de projet marketing » donne un texte propre, mais vide. L'IA ne connaît ni tes résultats, ni tes chiffres, ni le contexte de tes missions. Elle comble donc les trous avec des généralités, ou pire, avec des chiffres inventés.
+
+Un chiffre inventé est le pire scénario : en entretien, le recruteur te demandera comment tu as « augmenté le chiffre d'affaires de 40 % », et tu n'auras pas de réponse.
+
+La bonne approche est l'inverse : c'est toi qui apportes la matière, l'IA t'aide à la mettre en forme.
+
+## Les règles d'un CV efficace en 2026
+
+### 1. Partir de l'offre, pas de ton parcours
+
+Avant d'écrire une ligne, relis l'offre et repère :
+- l'intitulé exact du poste ;
+- les compétences techniques demandées (outils, logiciels, méthodes) ;
+- les compétences comportementales mises en avant ;
+- les mots qui reviennent plusieurs fois.
+
+Ignore les parties sur les avantages, la présentation de l'entreprise et les mentions légales : elles ne disent rien sur ce qu'on attend de toi.
+
+Ensuite, vérifie quels mots-clés se retrouvent dans ton CV. Un bon objectif : en couvrir au moins les trois quarts, à condition de les avoir réellement. Si l'offre parle de « gestion de projet » et que tu as écrit « pilotage de missions », reprends le terme de l'offre. Si tu ne maîtrises pas une compétence demandée, ne l'ajoute pas.
+
+Pense aussi au titre de ton CV : reprendre l'intitulé du poste visé (s'il correspond à ton profil) aide à la fois le logiciel et le recruteur.
+
+### 2. Une mise en page que les logiciels savent lire
+
+Un CV très graphique peut être beau à l'écran et illisible pour un ATS. Pour ne prendre aucun risque :
+- une seule colonne, de haut en bas ;
+- pas de texte dans des images, des icônes ou des zones de texte ;
+- pas de tableaux pour structurer le contenu ;
+- des titres de rubriques classiques : « Expérience professionnelle », « Formation », « Compétences », « Langues » ;
+- une police standard : Arial, Calibri, Times New Roman, Georgia, Cambria ou Garamond ;
+- des dates complètes et cohérentes (mois et année) ;
+- un PDF exporté depuis un traitement de texte, pas un scan.
+
+La sobriété n'est pas un défaut : les CV les plus lus en finance ou en conseil sont souvent en noir et blanc, avec de simples traits horizontaux entre les rubriques.
+
+### 3. Chaque puce commence par une action et se termine par un résultat
+
+C'est la règle qui fait le plus de différence. Une puce efficace répond à trois questions : qu'as-tu fait, comment, et avec quel résultat ?
+
+Avant :
+- Responsable de la gestion des réseaux sociaux de l'entreprise.
+
+Après :
+- Refonte de la ligne éditoriale Instagram et LinkedIn : +35 % d'abonnés en 6 mois et 2 fois plus de demandes de démo venues des réseaux.
+
+Quelques repères :
+- commence par un verbe ou un nom d'action (« Pilotage », « Lancement », « Réduction ») ;
+- ne commence pas deux puces par le même verbe ;
+- 3 à 6 puces par expérience, 30 mots maximum chacune ;
+- pas de « je », pas de « mon » ;
+- supprime les mots vides : « dynamique », « polyvalent », « force de proposition », « diverses missions ».
+
+### 4. Des chiffres vrais, même approximatifs
+
+Tu n'as pas de chiffre exact ? Pose-toi ces questions :
+- Combien ? (clients, projets, personnes encadrées, dossiers traités)
+- De combien ? (hausse, baisse, gain de temps)
+- En combien de temps ?
+- Comparé à quoi ? (l'année précédente, l'objectif, la moyenne de l'équipe)
+- Pour qui ? (taille du client, du budget, de l'équipe)
+
+Un ordre de grandeur honnête (« une quinzaine de clients », « environ 20 % de temps gagné ») vaut beaucoup mieux qu'un chiffre précis inventé. Tu dois pouvoir défendre chaque nombre en entretien.
+
+### 5. Un CV par candidature
+
+Un CV unique envoyé partout est presque toujours moins performant. Garde une version complète de référence, puis adapte-la à chaque offre : le titre, l'ordre des expériences, les mots-clés et les puces mises en avant. Cela prend dix minutes et change souvent le résultat.
+
+### 6. Relire comme un recruteur
+
+Avant d'envoyer, relis ton CV en 30 secondes, comme le ferait un recruteur pressé. Est-ce qu'on comprend tout de suite quel poste tu vises ? Est-ce que tes meilleurs résultats sautent aux yeux ? Est-ce qu'une seule phrase pourrait figurer dans le CV de n'importe qui ? Si oui, réécris-la.
+
+## Bien utiliser l'IA : un coach, pas un rédacteur
+
+L'IA est très utile pour écrire un CV, à condition de l'utiliser comme un coach qui te pose les bonnes questions.
+
+À éviter :
+- « Écris-moi un CV de business analyst. »
+- « Rends mon CV plus impressionnant. »
+
+À faire :
+- « Voici l'offre et mon CV. Quels mots-clés de l'offre manquent dans mon CV ? »
+- « Voici une puce de mon CV. Pose-moi les questions dont tu as besoin pour la rendre plus concrète, sans rien inventer. »
+- « Propose-moi trois façons de reformuler cette puce avec un verbe d'action, en gardant exactement mes chiffres. »
+
+Et garde toujours la main : relis chaque phrase proposée, supprime ce qui ne te ressemble pas, et vérifie qu'aucun chiffre n'a été ajouté sans toi.
+
+## La check-list avant d'envoyer
+
+- Le titre du CV correspond au poste visé
+- Les principaux mots-clés de l'offre apparaissent (si tu les as réellement)
+- Une seule colonne, une police standard, pas d'image ni de tableau
+- Chaque puce commence par une action
+- La plupart des puces contiennent un résultat chiffré
+- Aucun chiffre que tu ne pourrais pas expliquer en entretien
+- Aucune formule générique (« passionné », « orienté résultats », « dynamique »)
+- Dates complètes et cohérentes
+- Adresse email professionnelle avec ton nom
+- Une ou deux pages, relues sans faute
+
+## Et avec Applyfy ?
+
+C'est exactement la méthode du CV Builder d'Applyfy. Le coach ne rédige pas à ta place : il te pose des questions ciblées pour obtenir tes vrais résultats, puis il les met en forme. Ton CV reçoit une note sur 100, recalculée en direct (actions, chiffres, mots-clés de ton secteur, concision, mise en forme), avec les corrections qui rapportent le plus de points. Les modèles Minimaliste, Classique et Finance suivent ces règles de mise en page.
+
+Et quand tu postules à une offre, Applyfy compare ton CV aux mots-clés de l'annonce, te montre ceux qui manquent et te propose un intitulé adapté.
+
+Crée ton CV gratuitement sur applyfy.fr.
+`,
+  },
   {
     slug: "ia-recherche-emploi",
     title: "L'IA dans la recherche d'emploi : une arme à double tranchant",

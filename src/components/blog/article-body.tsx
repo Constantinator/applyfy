@@ -39,7 +39,8 @@ const LISTS = [
 
 /**
  * Corps d'un article du blog, à partir d'un Markdown simple : paragraphes (séparés par une
- * ligne vide), titres « ## », listes « - » et « 1. », **gras** et « applyfy.fr » en lien.
+ * ligne vide), titres « ## » et sous-titres « ### », listes « - » et « 1. », **gras** et
+ * « applyfy.fr » en lien.
  * Rendu en éléments React, sans HTML brut.
  */
 export function ArticleBody({ content }: { content: string }) {
@@ -55,6 +56,14 @@ export function ArticleBody({ content }: { content: string }) {
             <h2 key={index} className="pt-6 text-2xl font-bold tracking-tight text-slate-900">
               {inline(lines[0].slice(3))}
             </h2>
+          );
+        }
+
+        if (lines.length === 1 && lines[0].startsWith("### ")) {
+          return (
+            <h3 key={index} className="pt-3 text-xl font-semibold tracking-tight text-slate-900">
+              {inline(lines[0].slice(4))}
+            </h3>
           );
         }
 
