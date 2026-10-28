@@ -109,8 +109,24 @@ async function parseStructured<T extends z.ZodType>(
     messages: [{ role: "user", content: userContent }],
   });
 
-  if (response.stop_reason === "refusal" || response.stop_reason === "max_tokens") return null;
+  if (response.stop_reason === "refusal") {
+    const details = response.stop_details;
+    console.error(`[claude] ${fn} : refus du modèle ${response.model}`, details?.category ?? "?", details?.explanation ?? "");
+    throw new ClaudeRefusalError(fn);
+  }
+  if (response.stop_reason === "max_tokens") {
+    console.error(`[claude] ${fn} : limite de ${maxTokens} tokens atteinte (${response.model})`);
+    return null;
+  }
   return (response.parsed_output as z.infer<T> | null) ?? null;
+}
+
+/** Le modèle a refusé de traiter la demande (stop_reason « refusal »), y compris après le repli. */
+export class ClaudeRefusalError extends Error {
+  constructor(fn: ClaudeFunction) {
+    super(`Refus du modèle (${fn})`);
+    this.name = "ClaudeRefusalError";
+  }
 }
 
 /** Journalise l'erreur exacte d'un appel à Claude : statut, identifiant de requête et réponse de l'API. */
@@ -125,11 +141,16 @@ function logClaudeError(context: string, error: unknown) {
 /** Message d'erreur affichable pour un appel à Claude qui a échoué (détails dans les logs). */
 export function claudeErrorMessage(error: unknown, context: string): string {
   logClaudeError(context, error);
+  if (error instanceof ClaudeRefusalError) {
+    return context.startsWith("cv-builder coach")
+      ? "Le coach ne peut pas répondre à ce message. Reformule-le ou passe au point suivant."
+      : "L'IA ne peut pas traiter cette demande. Reformule-la ou modifie le contenu envoyé.";
+  }
   if (error instanceof Anthropic.BadRequestError) {
     // Seul un refus qui vise le document justifie le message sur le PDF.
     return /pdf|document/i.test(error.message)
       ? "Impossible de lire ce PDF (protégé par mot de passe ou endommagé ?). Essaie de le réenregistrer en PDF, ou importe-le en Word."
-      : "La demande a été refusée par le service d'analyse. Réessaie dans un instant.";
+      : "Une erreur technique de notre côté a empêché la réponse. Réessaie dans un instant ; si ça continue, signale-le avec « Donner mon avis ».";
   }
   if (error instanceof Anthropic.RateLimitError) {
     return "Trop de demandes en ce moment. Réessaie dans une minute.";
@@ -790,7 +811,60 @@ const ImportedCvAnalysisSchema = z.object({
   suggestedJobs: z.array(z.string()).describe("3 à 5 intitulés de postes que ce profil peut viser"),
 });
 
-const ImportedCvSchema = ImportedCvContentSchema.extend({ analysis: ImportedCvAnalysisSchema });
+/** Parties du CV importé écrites en JSON dans l'appel combiné (validées par ImportedCvContentSchema). */
+const IMPORT_JSON_PARTS = ["experiences", "education", "skills", "languages", "certifications", "projects", "interests"] as const;
+type ImportJsonPart = (typeof IMPORT_JSON_PARTS)[number];
+
+const json = (format: string) => z.string().describe(`JSON : ${format} ; « [] » si la section est absente`);
+
+/**
+ * Appel combiné (extraction + analyse) : schéma plat, sans objet imbriqué (la grammaire de la
+ * sortie structurée a une taille limitée). Les listes et l'analyse sont du JSON en texte, validé
+ * côté serveur ; les appels séparés de secours gardent les schémas détaillés.
+ */
+const ImportedCvFlatSchema = z.object({
+  ...ImportedCvContentSchema.omit(Object.fromEntries(IMPORT_JSON_PARTS.map((p) => [p, true])) as Record<ImportJsonPart, true>)
+    .shape,
+  experiences: json(
+    `[{"position","company","startDate","endDate","current" (booléen, true si poste en cours),"location","bullets" (liste de chaînes, une puce par élément)}]`,
+  ),
+  education: json(`[{"school","degree","startDate","endDate","honors"}]`),
+  skills: json(`[{"name","level"}], level parmi "", "debutant", "intermediaire", "avance", "expert" (seulement si le CV l'indique)`),
+  languages: json(`[{"name","level"}]`),
+  certifications: json(`[{"name","issuer","date"}]`),
+  projects: json(`[{"name","description","link"}]`),
+  interests: json(`liste de chaînes`),
+  analysis: z
+    .string()
+    .describe(
+      `JSON : {"criteria": {"clarity","impact","structure","ats","length","formatting"} (entiers de 0 à 10), "score" (entier sur 100), "positives" (liste), "improvements" (liste), "optimizations" ([{"title","detail","request"}]), "suggestedJobs" (liste)}`,
+    ),
+});
+
+/**
+ * Réponse plate → CV importé ; null si une partie du contenu est illisible ou invalide (les
+ * appels séparés prennent alors le relais). Analyse invalide : null, le contenu reste importé.
+ */
+function readFlatImport(flat: z.infer<typeof ImportedCvFlatSchema>): ImportedCv | null {
+  const parse = (raw: string): unknown => {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return undefined;
+    }
+  };
+  const content: Record<string, unknown> = { ...flat };
+  for (const part of IMPORT_JSON_PARTS) content[part] = parse(flat[part]);
+  delete content.analysis;
+  const parsed = ImportedCvContentSchema.safeParse(content);
+  if (!parsed.success) {
+    console.error("[cv-builder import] contenu JSON invalide", parsed.error.issues.slice(0, 3));
+    return null;
+  }
+  const analysis = ImportedCvAnalysisSchema.safeParse(parse(flat.analysis));
+  if (!analysis.success) console.error("[cv-builder import] analyse JSON invalide", analysis.error.issues.slice(0, 3));
+  return { ...parsed.data, analysis: analysis.success ? analysis.data : null };
+}
 
 /** CV importé ; `analysis` null si l'analyse n'a pas pu être faite (le contenu reste importé). */
 export type ImportedCv = z.infer<typeof ImportedCvContentSchema> & {
@@ -810,7 +884,9 @@ L'analyse s'appuie uniquement sur le contenu du CV.`;
 
 const IMPORT_CV_SYSTEM = `${IMPORT_EXTRACT_RULES}
 
-Puis, dans « analysis » : ${IMPORT_ANALYSIS_RULES} Elle ne modifie jamais les informations extraites.`;
+Les sections en liste (experiences, education, skills, languages, certifications, projects, interests) s'écrivent en JSON dans leur champ, au format indiqué.
+
+Puis, dans « analysis » (en JSON, au format indiqué) : ${IMPORT_ANALYSIS_RULES} Elle ne modifie jamais les informations extraites.`;
 
 export type CvSource = { kind: "pdf"; base64: string } | { kind: "text"; text: string };
 
@@ -828,12 +904,17 @@ function isDocumentError(error: InstanceType<typeof Anthropic.BadRequestError>) 
   return /pdf|document/i.test(error.message);
 }
 
-/** Extraction et analyse en un seul appel. */
-function extractAndAnalyse(source: CvSource): Promise<ImportedCv | null> {
-  return parseStructured("extractCvForBuilder", ImportedCvSchema, IMPORT_CV_SYSTEM, cvContent(source, "Extrais le contenu de ce CV, puis analyse-le."), {
-    effort: "low",
-    maxTokens: 20000,
-  });
+/** Extraction et analyse en un seul appel ; contenu JSON invalide : appels séparés. */
+async function extractAndAnalyse(source: CvSource): Promise<ImportedCv | null> {
+  const flat = await parseStructured(
+    "extractCvForBuilder",
+    ImportedCvFlatSchema,
+    IMPORT_CV_SYSTEM,
+    cvContent(source, "Extrais le contenu de ce CV, puis analyse-le."),
+    { effort: "low", maxTokens: 20000 },
+  );
+  if (!flat) return null;
+  return readFlatImport(flat) ?? extractThenAnalyse(source);
 }
 
 /** Extraction et analyse en deux appels parallèles ; l'analyse peut échouer seule. */
@@ -935,7 +1016,41 @@ export const COACH_SECTIONS = [
 ] as const;
 export type CoachSection = (typeof COACH_SECTIONS)[number];
 
-const CoachReplySchema = z.object({
+/**
+ * Contenu d'une section mise à jour par le coach, validé côté serveur. summary et interests :
+ * le texte lui-même ; les autres sections : du JSON.
+ */
+const COACH_SECTION_SCHEMAS = {
+  personal: CV.personal,
+  summary: z.string(),
+  experience: CV.experiences.element,
+  education: CV.education.element,
+  skills: CV.skills,
+  languages: CV.languages,
+  certifications: CV.certifications,
+  projects: CV.projects,
+  interests: z.string(),
+} as const satisfies Record<CoachSection, z.ZodType>;
+
+const TEXT_SECTIONS = new Set<CoachSection>(["summary", "interests"]);
+
+/** Format attendu dans « data », section par section (décrit au modèle). */
+const COACH_DATA_FORMAT = `Contenu de la section mise à jour ; chaîne vide si section = « aucune ».
+- summary, interests : le texte lui-même.
+- personal : JSON {"firstName","lastName","jobTitle","email","phone","city","linkedin","website","github"} (chaînes).
+- experience : JSON d'UNE expérience {"id","company","position","startDate","endDate","current" (booléen),"location","bullets" (liste de chaînes)} ; id vide pour une nouvelle expérience.
+- education : JSON d'UNE formation {"id","school","degree","startDate","endDate","honors"} ; id vide si nouvelle.
+- skills : JSON de la liste complète [{"id","name","level"}], level parmi "", "debutant", "intermediaire", "avance", "expert".
+- languages : JSON de la liste complète [{"id","name","level"}].
+- certifications : JSON de la liste complète [{"id","name","issuer","date"}].
+- projects : JSON de la liste complète [{"id","name","description","link"}].`;
+
+/**
+ * Réponse du coach telle que demandée au modèle : schéma plat, sans champ nullable ni objet
+ * imbriqué (la grammaire de la sortie structurée a une taille limitée) ; « data » est validé
+ * côté serveur (COACH_SECTION_SCHEMAS).
+ */
+const CoachReplyFlatSchema = z.object({
   message: z
     .string()
     .describe(
@@ -943,29 +1058,47 @@ const CoachReplySchema = z.object({
     ),
   next_question: z
     .string()
-    .nullable()
-    .describe("Quand « update » est rempli : la question sur le point suivant, seule, telle qu'écrite dans « message » ; sinon null"),
-  update: z
-    .object({
-      section: z.enum(COACH_SECTIONS).describe("Section mise à jour ; seul le champ du même nom est rempli, les autres sont null"),
-      personal: CV.personal.nullable(),
-      summary: z.string().nullable(),
-      experience: CV.experiences.element
-        .nullable()
-        .describe("L'expérience mise à jour, avec son id (id vide pour une nouvelle expérience)"),
-      education: CV.education.element.nullable().describe("La formation mise à jour, avec son id (id vide si nouvelle)"),
-      skills: CV.skills.nullable().describe("Liste complète des compétences"),
-      languages: CV.languages.nullable().describe("Liste complète des langues"),
-      certifications: CV.certifications.nullable().describe("Liste complète des certifications"),
-      projects: CV.projects.nullable().describe("Liste complète des projets"),
-      interests: z.string().nullable(),
-    })
-    .nullable()
-    .describe("null tant que tu n'as pas assez d'informations ; sinon la section concernée, mise à jour"),
+    .describe("Quand section n'est pas « aucune » : la question sur le point suivant, seule, telle qu'écrite dans « message » ; sinon chaîne vide"),
+  section: z
+    .enum([...COACH_SECTIONS, "aucune"])
+    .describe("« aucune » tant que tu n'as pas assez d'informations ; sinon la section que tu mets à jour"),
+  data: z.string().describe(COACH_DATA_FORMAT),
 });
 
-export type CoachReply = z.infer<typeof CoachReplySchema>;
-export type CoachUpdate = NonNullable<CoachReply["update"]>;
+/** Section mise à jour : seul le champ de `section` est rempli, les autres sont null. */
+export type CoachUpdate = { section: CoachSection } & {
+  [S in CoachSection]: z.infer<(typeof COACH_SECTION_SCHEMAS)[S]> | null;
+};
+
+export type CoachReply = { message: string; next_question: string | null; update: CoachUpdate | null };
+
+/** Contenu de « data » validé pour sa section ; null s'il est illisible ou invalide (journalisé). */
+function readCoachData(section: CoachSection, data: string): unknown {
+  let value: unknown = data.trim();
+  if (!TEXT_SECTIONS.has(section)) {
+    try {
+      value = JSON.parse(data);
+    } catch {
+      console.error(`[cv-builder coach] data illisible (${section})`, data.slice(0, 200));
+      return null;
+    }
+  }
+  const parsed = COACH_SECTION_SCHEMAS[section].safeParse(value);
+  if (!parsed.success) console.error(`[cv-builder coach] data invalide (${section})`, parsed.error.issues.slice(0, 3));
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Réponse plate → CoachReply. Contenu invalide : la section reste demandée mais vide, et la mise à
+ * jour est traitée comme inutilisable (applyCoachUpdate).
+ */
+function toCoachReply(flat: z.infer<typeof CoachReplyFlatSchema>): CoachReply {
+  const nextQuestion = flat.next_question.trim() || null;
+  if (flat.section === "aucune") return { message: flat.message, next_question: nextQuestion, update: null };
+  const update = Object.fromEntries(COACH_SECTIONS.map((s) => [s, null])) as Record<CoachSection, unknown>;
+  update[flat.section] = readCoachData(flat.section, flat.data);
+  return { message: flat.message, next_question: nextQuestion, update: { ...update, section: flat.section } as CoachUpdate };
+}
 
 /**
  * Ce que le coach sait du CV : contenu actuel, score calculé par le code (cv-score.ts, affiché
@@ -989,8 +1122,8 @@ Méthode :
 - Travaille un point à la fois, en commençant par ceux qui rapportent le plus de points (« Corrections qui rapportent le plus » du score), puis les points à améliorer de l'analyse.
 - Si le candidat te demande une correction du score (ex. « Ajoute des résultats chiffrés à mon expérience X »), traite-la : pose tes questions si des faits te manquent, puis mets la section à jour.
 - Ta question cite un élément réel du CV (poste, projet, formation) et demande des faits concrets : chiffres, résultats, périmètre, outils, contexte.
-- Si la réponse du candidat est encore vague, pose une question de suivi sur le même point (update = null).
-- Dès que tu as assez d'informations : renvoie la section mise à jour dans « update », écris « Parfait, j'intègre ça dans ton CV. » puis enchaîne sur le prochain point à améliorer avec une nouvelle question.
+- Si la réponse du candidat est encore vague, pose une question de suivi sur le même point (section = « aucune »).
+- Dès que tu as assez d'informations : renvoie la section mise à jour (« section » et « data »), écris « Parfait, j'intègre ça dans ton CV. » puis enchaîne sur le prochain point à améliorer avec une nouvelle question.
 - Si le candidat demande lui-même une modification précise, applique-la directement.
 - Si le candidat ne sait pas ou ne veut pas répondre, passe au point suivant sans insister.
 
@@ -1103,5 +1236,7 @@ export async function coachBuilderCv(
     .filter(Boolean)
     .join("\n\n");
   const system = coachSystem(context, await coachSectorContext(context));
-  return parseStructured("coachBuilderCv", CoachReplySchema, system, text, { effort: "low", maxTokens: 8000 });
+  // 16 000 tokens : la réflexion du modèle compte dans la limite.
+  const flat = await parseStructured("coachBuilderCv", CoachReplyFlatSchema, system, text, { effort: "low", maxTokens: 16000 });
+  return flat && toCoachReply(flat);
 }
