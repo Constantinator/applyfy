@@ -94,6 +94,9 @@ export const CVB_COACH_DAILY_MESSAGE = `Tu as atteint la limite de ${CVB_COACH_D
 /** Chat du CV Builder : plusieurs adaptations gratuites par mois. */
 export const CVB_CHAT_LIMIT_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations IA gratuites ce mois-ci. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour modifier ton CV avec l'IA sans limite.`;
 
+/** Coach : modification du CV non appliquée, adaptations du mois épuisées (le coach continue). */
+export const CVB_CHAT_UPDATE_BLOCKED_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations gratuites du mois. Passe en Premium pour que j'intègre ça dans ton CV.`;
+
 /**
  * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,
  * heure de Paris) et requêtes à Claude par minute (migration 0020).

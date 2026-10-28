@@ -8,9 +8,10 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { getAccountName } from "@/lib/account";
 import { checkAiAccess, checkAiRateLimit, countAiUsageToday, recordAiUsage } from "@/lib/ai-usage";
 import {
-  CVB_CHAT_LIMIT_MESSAGE,
+  CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
   CVB_COACH_DAILY_LIMIT,
   CVB_COACH_DAILY_MESSAGE,
+  isLimitReached,
   type AiUsageKind,
 } from "@/lib/ai-usage-limits";
 import { getCurrentUser } from "@/lib/auth";
@@ -26,6 +27,7 @@ import {
   coachOpening,
   coachQuestion,
   type CoachContext,
+  type CoachReply,
   type CoachUpdate,
   type ImportedCv,
 } from "@/lib/claude";
@@ -602,25 +604,24 @@ function applyCoachUpdate(current: CvData, update: CoachUpdate): CvData | null {
 }
 
 /**
- * Réponse du coach au message du candidat, sur le CV affiché (modifications non enregistrées
- * comprises). `json` : contenu du CV (chatContent) ; le CV mis à jour est renvoyé au même
- * format dans `html` (nom imposé par le composant du chat), ou null s'il ne change pas.
- * Quota : seules les réponses qui modifient le CV comptent (cvb_chat, 2 par mois avec le
- * plan gratuit) ; les autres sont limitées à CVB_COACH_DAILY_LIMIT par jour (cvb_coach).
- */
-/**
- * Accès au coach : chat du mois non épuisé (sinon bloqué, Premium proposé), puis limite du jour
- * des échanges sans modification (cvb_coach) avec le plan gratuit.
+ * Accès au coach : échanges du jour (cvb_coach, CVB_COACH_DAILY_LIMIT avec le plan gratuit),
+ * indépendants des adaptations du mois. `chat` : adaptations du mois (cvb_chat), nécessaires
+ * seulement pour appliquer une modification du CV.
  */
 async function coachGate() {
-  const gate = await checkAiAccess("cvb_chat");
-  if (!gate.ok) {
-    return { ok: false as const, error: gate.limitReached ? CVB_CHAT_LIMIT_MESSAGE : gate.message, limitReached: gate.limitReached };
-  }
-  if (gate.count.limit !== null && (await countAiUsageToday("cvb_coach")) >= CVB_COACH_DAILY_LIMIT) {
+  const gate = await checkAiAccess("cvb_coach");
+  if (!gate.ok) return { ok: false as const, error: gate.message, limitReached: false };
+  if (!gate.usage.premium && (await countAiUsageToday("cvb_coach")) >= CVB_COACH_DAILY_LIMIT) {
     return { ok: false as const, error: CVB_COACH_DAILY_MESSAGE, limitReached: false };
   }
-  return { ok: true as const, count: gate.count };
+  return { ok: true as const, chat: gate.usage.counts.cvb_chat };
+}
+
+/** Question suivante du coach, sans la confirmation « Parfait, j'intègre ça dans ton CV. ». */
+function nextCoachQuestion(reply: CoachReply) {
+  const question = reply.next_question?.trim();
+  if (question) return question;
+  return reply.message.replace(/^[^.!?]*\bint[èe]gre[^.!?]*[.!?]\s*/i, "").trim();
 }
 
 /**
@@ -702,6 +703,14 @@ export async function checkCoachQuestionAction(): Promise<{ ok: true } | { ok: f
   return gate.ok ? { ok: true } : { ok: false, error: gate.error };
 }
 
+/**
+ * Réponse du coach au message du candidat, sur le CV affiché (modifications non enregistrées
+ * comprises). `json` : contenu du CV (chatContent) ; le CV mis à jour est renvoyé au même
+ * format dans `html` (nom imposé par le composant du chat), ou null s'il ne change pas.
+ * Quota : une réponse qui modifie le CV compte comme adaptation (cvb_chat, 2 par mois avec le
+ * plan gratuit) ; les autres, et les modifications refusées faute d'adaptation, comptent comme
+ * échanges (cvb_coach, CVB_COACH_DAILY_LIMIT par jour avec le plan gratuit).
+ */
 export async function refineBuilderCvAction(
   id: string,
   json: string,
@@ -732,6 +741,12 @@ export async function refineBuilderCvAction(
 
   const text = reply.message.trim();
   if (reply.update) {
+    // Adaptations du mois épuisées : modification non appliquée, le coach continue avec sa
+    // question suivante. L'appel compte comme un échange sans modification (cvb_coach).
+    if (isLimitReached(gate.chat)) {
+      await recordAiUsage("cvb_coach");
+      return { ok: true, reply: nextCoachQuestion(reply), html: null, usage: gate.chat, limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE };
+    }
     const updated = applyCoachUpdate(current, reply.update);
     if (updated) {
       await recordAiUsage("cvb_chat");
@@ -739,7 +754,7 @@ export async function refineBuilderCvAction(
         ok: true,
         reply: text || "Parfait, j'intègre ça dans ton CV.",
         html: JSON.stringify(chatContent(updated)),
-        usage: { used: gate.count.used + 1, limit: gate.count.limit },
+        usage: { used: gate.chat.used + 1, limit: gate.chat.limit },
       };
     }
     console.error("[cv-builder coach] mise à jour inutilisable", reply.update.section);
@@ -747,5 +762,5 @@ export async function refineBuilderCvAction(
   }
 
   await recordAiUsage("cvb_coach");
-  return { ok: true, reply: text, html: null, usage: gate.count };
+  return { ok: true, reply: text, html: null, usage: gate.chat };
 }

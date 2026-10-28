@@ -846,6 +846,10 @@ const CoachReplySchema = z.object({
     .describe(
       "Message au candidat (tutoiement), 4 phrases maximum : une seule question précise, ou « Parfait, j'intègre ça dans ton CV » suivi de la question sur le point suivant",
     ),
+  next_question: z
+    .string()
+    .nullable()
+    .describe("Quand « update » est rempli : la question sur le point suivant, seule, telle qu'écrite dans « message » ; sinon null"),
   update: z
     .object({
       section: z.enum(COACH_SECTIONS).describe("Section mise à jour ; seul le champ du même nom est rempli, les autres sont null"),

@@ -233,6 +233,7 @@ export function CvBuilderEditor({
             onPendingChange={() => {}}
             opening={opening}
             limitMessage={CVB_CHAT_LIMIT_MESSAGE}
+            limitBlocks={false}
             tall
           />
         </div>

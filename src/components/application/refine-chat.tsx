@@ -2,7 +2,7 @@
 
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
-import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import { PremiumButton, UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import type { DocumentChatResult } from "@/lib/refine";
@@ -79,6 +79,8 @@ type Message = {
   /** Document avant la modification apportée par cette réponse (pour l'annuler). */
   previousHtml?: string;
   undone?: boolean;
+  /** Message de limite : suivi du bouton « Passer au Premium ». */
+  premium?: boolean;
 };
 
 /**
@@ -101,6 +103,7 @@ export function RefineChat({
   opening,
   askCoach,
   limitMessage,
+  limitBlocks = true,
   tall = false,
 }: {
   document: keyof typeof DOCUMENTS;
@@ -127,6 +130,11 @@ export function RefineChat({
   askCoach?: AskCoach;
   /** Message du bandeau Premium quand la limite du mois est atteinte. */
   limitMessage?: string;
+  /**
+   * Limite du mois atteinte : chat désactivé (par défaut). false (coach du CV Builder) : le chat
+   * reste ouvert, seules les modifications du document sont refusées par le serveur.
+   */
+  limitBlocks?: boolean;
   /** Historique plus haut (chat en colonne à côté de l'aperçu). */
   tall?: boolean;
 }) {
@@ -157,7 +165,7 @@ export function RefineChat({
       ask(point: string) {
         if (!askCoach || !aiEnabled) return "L'assistant n'est pas disponible pour le moment.";
         if (pending) return "Le coach est occupé : attends sa réponse.";
-        if (limitReached) return limitMessage ?? "Limite du chat atteinte pour ce mois-ci.";
+        if (blocked) return limitMessage ?? "Limite du chat atteinte pour ce mois-ci.";
         void ask(askCoach, point);
         return null;
       },
@@ -186,7 +194,8 @@ export function RefineChat({
   }
 
   const limitReached = limitHit || isLimitReached({ used, limit: usage.limit });
-  const disabled = !aiEnabled || limitReached;
+  const blocked = limitBlocks && limitReached;
+  const disabled = !aiEnabled || blocked;
   const lastUndoable = [...messages].reverse().find((m) => m.previousHtml !== undefined && !m.undone);
 
   // Fait défiler l'historique jusqu'au dernier message.
@@ -214,7 +223,12 @@ export function RefineChat({
         // html null : réponse sans modification du document (rien à annuler).
         const previousHtml = result.html === null ? undefined : replaceDocument(result.html);
         setUsed(result.usage.used);
-        add({ role: "assistant", content: result.reply, previousHtml });
+        // Modification refusée (limite du mois) : le message de limite, puis la suite du coach.
+        if (result.limitNotice) {
+          setLimitHit(true);
+          add({ role: "assistant", content: result.limitNotice, premium: true });
+        }
+        if (result.reply) add({ role: "assistant", content: result.reply, previousHtml });
       } else {
         if (result.limitReached) setLimitHit(true);
         add({ role: "assistant", content: result.error, error: true });
@@ -317,6 +331,7 @@ export function RefineChat({
               >
                 {message.content}
               </p>
+              {message.premium && <PremiumButton />}
               {message.undone ? (
                 <span className="pl-1 text-xs text-slate-500">Modification annulée.</span>
               ) : (
@@ -401,7 +416,7 @@ export function RefineChat({
           disabled={disabled || pending || !input.trim()}
           className="btn-primary px-4 py-2.5 text-sm"
         >
-          {limitReached ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
+          {blocked ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
         </button>
       </form>
       <p className="text-xs text-slate-500 dark:text-slate-400">

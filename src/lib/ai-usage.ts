@@ -141,11 +141,12 @@ export async function checkAiRateLimit(): Promise<AiGate> {
 /**
  * Vérifications avant une action IA comptée : limite mensuelle du plan gratuit
  * (`limitReached` : l'interface propose alors le Premium), limite du jour, puis anti-rafale.
- * Si l'action est autorisée, renvoie l'utilisation de ce type d'action avant l'appel.
+ * Si l'action est autorisée, renvoie l'utilisation de ce type d'action avant l'appel (`count`)
+ * et celle de tous les types (`usage`).
  */
 export async function checkAiAccess(
   kind: AiUsageKind,
-): Promise<{ ok: true; count: AiUsageCount } | AiRefusal> {
+): Promise<{ ok: true; count: AiUsageCount; usage: AiUsage } | AiRefusal> {
   const usage = await readAiUsage();
   const count = usage.counts[kind];
   if (isLimitReached(count)) {
@@ -155,7 +156,7 @@ export async function checkAiAccess(
     return { ok: false, message: DAILY_LIMIT_MESSAGE, limitReached: false };
   }
   const rate = await checkAiRateLimit();
-  return rate.ok ? { ok: true, count } : rate;
+  return rate.ok ? { ok: true, count, usage } : rate;
 }
 
 /**

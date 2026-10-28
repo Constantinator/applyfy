@@ -24,7 +24,14 @@ export type RefineResult =
 
 /** Résultat d'un message du chat, quel que soit le document : `html` null si le document ne change pas. */
 export type DocumentChatResult =
-  | { ok: true; reply: string; html: string | null; usage: AiUsageCount }
+  | {
+      ok: true;
+      reply: string;
+      html: string | null;
+      usage: AiUsageCount;
+      /** Modification non appliquée (limite du mois) : message affiché avant `reply`, avec le lien Premium. */
+      limitNotice?: string;
+    }
   | { ok: false; error: string; limitReached?: boolean };
 
 /** Nombre d'échanges précédents transmis à Claude comme contexte. */
