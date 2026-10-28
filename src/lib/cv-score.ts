@@ -28,7 +28,14 @@ export const SCORE_CATEGORIES = [
 export type ScoreCategoryId = (typeof SCORE_CATEGORIES)[number]["id"];
 
 export type CvCorrection = {
+  /**
+   * Identifiant stable d'un calcul à l'autre (catégorie, élément, règle) : le même point garde
+   * son id quand son message change (« 3 puces sans chiffre » → « 1 puce sans chiffre »).
+   */
+  id: string;
   category: ScoreCategoryId;
+  /** Formule de la liste noire (détaillée à part dans l'éditeur : bannedPhrasesInCv). */
+  jargon?: boolean;
   /** Id de l'élément concerné (expérience, formation, projet), « summary », « personal » ou null. */
   elementId: string | null;
   message: string;
@@ -251,8 +258,11 @@ const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
 export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   const corrections: CvCorrection[] = [];
   const totals: Record<ScoreCategoryId, number> = { impact: 0, content: 0, keywords: 0, concision: 0, form: 0 };
-  const lose = (category: ScoreCategoryId, points: number, correction: Omit<CvCorrection, "category" | "points">) => {
-    if (points >= 0.5) corrections.push({ category, points: Math.max(1, Math.round(points)), ...correction });
+  const lose = (category: ScoreCategoryId, points: number, correction: Omit<CvCorrection, "id" | "category" | "points">) => {
+    if (points < 0.5) return;
+    // La demande au coach nomme la règle et l'élément ; ses nombres changent d'un calcul à l'autre.
+    const id = `${category}:${correction.elementId ?? ""}:${correction.request.replace(/\d+/g, "#")}`;
+    corrections.push({ id, category, points: Math.max(1, Math.round(points)), ...correction });
   };
 
   const experiences = data.experiences.filter((e) => plain(e.position) || plain(e.company) || e.bullets.some((b) => plain(b)));
@@ -339,6 +349,7 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   if (texts.length) totals.content += POINTS.jargon - jargonPenalty;
   for (const t of jargon)
     lose("content", (jargonPenalty * t.found.length) / jargonCount, {
+      jargon: true,
       elementId: t.id,
       message: `Formule creuse « ${t.found[0]} » dans ${t.where.replace(/^mon |^ma /, "ton ")}`,
       request: `Remplace ${t.found.map((f) => `« ${f} »`).join(", ")} par des faits concrets dans ${t.where}`,

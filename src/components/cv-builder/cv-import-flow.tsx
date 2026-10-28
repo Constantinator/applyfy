@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 
-import { checkCoachQuestionAction, completeCvImportAction, importBuilderCvAction } from "@/app/actions/cv-builder";
+import { completeCvImportAction, importBuilderCvAction } from "@/app/actions/cv-builder";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import {
   CV_IMPORT_FOLDER,
@@ -66,8 +66,6 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
   const [step, setStep] = useState(0);
   const [imported, setImported] = useState<ImportedCv | null>(null);
   const [targetJob, setTargetJob] = useState("");
-  // Optimisation choisie d'un clic : le premier message du coach sera une question sur ce point.
-  const [focus, setFocus] = useState("");
   const templateDialogRef = useRef<HTMLDialogElement>(null);
   const [opening, setOpening] = useState(false);
 
@@ -75,7 +73,7 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
     if (!imported) return;
     setOpening(true);
     setStep(3);
-    await completeCvImportAction(imported.id, { templateId, targetJob, focus });
+    await completeCvImportAction(imported.id, { templateId, targetJob });
     router.push(`/cv-builder/${imported.id}`);
   }
 
@@ -113,14 +111,7 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
           score={imported.score}
           targetJob={targetJob}
           onTargetJob={setTargetJob}
-          onContinue={() => {
-            setFocus("");
-            chooseTemplate();
-          }}
-          onPickFocus={(point) => {
-            setFocus(point);
-            chooseTemplate();
-          }}
+          onContinue={chooseTemplate}
         />
       )}
 
@@ -326,7 +317,6 @@ function AnalysisStep({
   targetJob,
   onTargetJob,
   onContinue,
-  onPickFocus,
 }: {
   analysis: CvAnalysis | null;
   /** Score calculé par le code (cv-score.ts), le même que dans l'éditeur. */
@@ -334,8 +324,6 @@ function AnalysisStep({
   targetJob: string;
   onTargetJob: (value: string) => void;
   onContinue: () => void;
-  /** Optimisation choisie d'un clic : le coach ouvrira l'éditeur par une question sur ce point. */
-  onPickFocus: (point: string) => void;
 }) {
   const [screen, setScreen] = useState(0);
   const headingRef = useRef<HTMLDivElement>(null);
@@ -383,7 +371,7 @@ function AnalysisStep({
       {screen === 0 && <ScoreCard score={score} />}
       {screen === 1 && <PointsCard analysis={analysis} />}
       {screen === 2 && <TargetJobCard suggestions={analysis.suggestedJobs} value={targetJob} onChange={onTargetJob} />}
-      {screen === 3 && <OptimizationsCard analysis={analysis} onPick={onPickFocus} />}
+      {screen === 3 && <OptimizationsCard analysis={analysis} />}
 
       <div className="flex items-center justify-between gap-3">
         {screen > 0 ? (
@@ -543,65 +531,37 @@ function TargetJobCard({
   );
 }
 
-function OptimizationsCard({ analysis, onPick }: { analysis: CvAnalysis; onPick: (point: string) => void }) {
+/** Optimisations de l'analyse : informatives, le coach les traite lui-même dans l'éditeur. */
+function OptimizationsCard({ analysis }: { analysis: CvAnalysis }) {
   const titleId = useId();
-  const [checking, setChecking] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  // Coach disponible (quota) avant de retenir le point ; sinon un message, rien n'est demandé.
-  async function pick(point: string) {
-    if (checking) return;
-    setChecking(true);
-    setNotice(null);
-    const result = await checkCoachQuestionAction().catch(() => ({ ok: false as const, error: "Réessaie dans un instant." }));
-    setChecking(false);
-    if (result.ok) onPick(point);
-    else setNotice(result.error);
-  }
-
   return (
     <section aria-labelledby={titleId} className="card space-y-4 p-5">
       <div>
         <CardTitle id={titleId}>Optimisations suggérées</CardTitle>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Les priorités pour ton CV. Clique sur l&apos;une d&apos;elles : dans l&apos;éditeur, le coach te posera
-          d&apos;abord une question sur ce point.
+          Les priorités pour ton CV. Dans l&apos;éditeur, le coach les traitera avec toi une par une, en commençant
+          par celle qui rapporte le plus.
         </p>
       </div>
       {analysis.optimizations.length > 0 ? (
         <ol className="space-y-2">
           {analysis.optimizations.map((o, i) => (
-            <li key={o.title}>
-              <button
-                type="button"
-                onClick={() => void pick(o.detail ? `${o.title} — ${o.detail}` : o.title)}
-                disabled={checking}
-                className="flex w-full gap-3 rounded-lg disabled:opacity-60 border border-transparent p-2 text-left transition hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-400/30 dark:hover:bg-blue-500/10"
+            <li key={o.title} className="flex gap-3 p-2">
+              <span
+                aria-hidden="true"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
               >
-                <span
-                  aria-hidden="true"
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                >
-                  {i + 1}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-slate-900 dark:text-white">{o.title}</span>
-                  {o.detail && <span className="mt-0.5 block text-sm text-slate-500 dark:text-slate-400">{o.detail}</span>}
-                </span>
-                <span aria-hidden="true" className="self-center text-sm font-medium text-blue-700 dark:text-blue-300">
-                  Corriger →
-                </span>
-              </button>
+                {i + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-slate-900 dark:text-white">{o.title}</span>
+                {o.detail && <span className="mt-0.5 block text-sm text-slate-500 dark:text-slate-400">{o.detail}</span>}
+              </span>
             </li>
           ))}
         </ol>
       ) : (
         <p className="text-sm text-slate-500 dark:text-slate-400">Aucune optimisation prioritaire : ton CV est déjà solide.</p>
-      )}
-      {notice && (
-        <p role="status" className="text-sm text-slate-500 dark:text-slate-400">
-          {notice}
-        </p>
       )}
     </section>
   );

@@ -3,9 +3,9 @@ import { z } from "zod";
 import { CvDataSchema, newItemId, type CvData } from "./cv-builder-types";
 import { actionDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
 
-// Propositions du coach du CV Builder : chaque modification (puce, champ, liste, nouvel élément)
-// est proposée en « avant / après », acceptée ou refusée une à une, et annulable. Construites
-// et vérifiées côté serveur (claude.ts, actions/cv-builder.ts), appliquées dans le navigateur.
+// Modifications du CV par le coach du CV Builder : la réponse du coach est transformée en
+// changements (puce, champ, liste, nouvel élément) avec le « avant » lu dans le CV, vérifiés par
+// le code (puces), puis appliqués directement au CV (actions/cv-builder.ts).
 
 /** Sections que le coach peut modifier (une par réponse). */
 export const COACH_SECTIONS = [
@@ -299,7 +299,7 @@ export function withoutProblems(proposal: CoachProposal, problems: ChangeProblem
 }
 
 // ---------------------------------------------------------------------------
-// Application dans l'éditeur (navigateur)
+// Application au CV
 // ---------------------------------------------------------------------------
 
 type Fields = Record<string, unknown>;
@@ -359,39 +359,6 @@ export function applyCoachChange(data: CvData, change: CoachChange): CvData | nu
       const items = next[ITEM_KEYS[change.target]] as Item[];
       if (items.some((i) => i.id === change.value.id)) return null;
       items.push(change.value);
-      break;
-    }
-  }
-  return valid(next);
-}
-
-/** CV sans le changement accepté ; null si le passage a été modifié depuis l'acceptation. */
-export function revertCoachChange(data: CvData, change: CoachChange): CvData | null {
-  const next = copy(data);
-  switch (change.kind) {
-    case "bullet": {
-      const experience = next.experiences.find((e) => e.id === change.experienceId);
-      const index = experience ? experience.bullets.lastIndexOf(change.after) : -1;
-      if (!experience || index < 0) return null;
-      if (change.before === null) experience.bullets.splice(index, 1);
-      else experience.bullets[index] = change.before;
-      break;
-    }
-    case "field": {
-      const owner = fieldOwner(next, change);
-      if (!owner || clean(String(owner[change.field] ?? "")) !== clean(change.after)) return null;
-      owner[change.field] = change.before ?? "";
-      break;
-    }
-    case "list":
-      if (listText(change.target, next[change.target] as Item[]) !== change.after) return null;
-      (next as unknown as Fields)[change.target] = change.previous;
-      break;
-    case "item": {
-      const key = ITEM_KEYS[change.target];
-      const items = next[key] as Item[];
-      if (!items.some((i) => i.id === change.value.id)) return null;
-      (next as unknown as Fields)[key] = items.filter((i) => i.id !== change.value.id);
       break;
     }
   }

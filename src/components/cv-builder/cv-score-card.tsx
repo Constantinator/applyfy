@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
-import { READY_SCORE, scoreTone, type BannedInCv, type CvCorrection, type CvScore } from "@/lib/cv-score";
+import { READY_SCORE, scoreTone, type BannedInCv, type CvScore } from "@/lib/cv-score";
 
 /** Couleurs du score : rouge sous 70, orange de 70 à 89, vert à partir de 90. */
 export const SCORE_TONES = {
@@ -47,33 +47,72 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
   );
 }
 
+/** Point affiché sous le score : correction du score ou formule à éviter. */
+type Point = { id: string; message: string; points: number | null };
+
+/**
+ * Points de la session : ceux du premier calcul (ouverture de l'éditeur), puis ceux apparus
+ * depuis, dans l'ordre. Un point absent du calcul en cours est corrigé.
+ */
+function useSessionPoints(current: Point[]) {
+  const [shown, setShown] = useState(current);
+  const added = current.filter((p) => !shown.some((s) => s.id === p.id));
+  // Nouveaux points ajoutés pendant le rendu (mise à jour d'état guidée par les props).
+  if (added.length) setShown([...shown, ...added]);
+  const byId = new Map(current.map((p) => [p.id, p]));
+  return [...shown, ...added].map((p) => ({ ...(byId.get(p.id) ?? p), fixed: !byId.has(p.id) }));
+}
+
+function PointList({ title, points }: { title: string; points: (Point & { fixed: boolean })[] }) {
+  if (!points.length) return null;
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h3>
+      <ul className="space-y-1.5">
+        {points.map((p) => (
+          <li
+            key={p.id}
+            className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
+              p.fixed
+                ? "border-green-200 bg-green-50/50 text-slate-400 dark:border-green-400/20 dark:bg-green-500/5 dark:text-slate-500"
+                : "border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200"
+            }`}
+          >
+            <span className={`flex gap-2 ${p.fixed ? "line-through" : ""}`}>
+              {p.fixed && (
+                <span aria-hidden="true" className="text-green-600 no-underline dark:text-green-400">
+                  ✓
+                </span>
+              )}
+              <span>
+                {p.message}
+                {p.fixed && <span className="sr-only"> (corrigé)</span>}
+              </span>
+            </span>
+            {p.points !== null && !p.fixed && (
+              <span className="shrink-0 font-semibold text-blue-700 dark:text-blue-300">+{p.points} pts</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /**
  * Score du CV dans l'éditeur, recalculé à chaque modification : jauge, repère « 90 = prêt à
- * postuler » et les 3 corrections qui rapportent le plus. Un clic fait poser au coach une
- * question sur ce point ; `onPick` renvoie pourquoi rien n'est demandé (coach occupé, limite).
+ * postuler », points à corriger et formules à éviter. Informatif : le coach traite lui-même les
+ * points un par un. Les points de l'ouverture restent affichés, barrés une fois corrigés.
  */
-export function CvScorePanel({
-  score,
-  banned = [],
-  onPick,
-  onAsk,
-}: {
-  score: CvScore;
-  /** Formules de la liste noire présentes dans le CV. */
-  banned?: BannedInCv[];
-  onPick: (correction: CvCorrection) => string | null;
-  /** Question ciblée du coach sur un point libre (formule à éviter). */
-  onAsk?: (point: string) => string | null;
-}) {
+export function CvScorePanel({ score, banned = [] }: { score: CvScore; banned?: BannedInCv[] }) {
   const titleId = useId();
   const t = SCORE_TONES[scoreTone(score.score)];
-  const top = score.corrections.slice(0, 3);
-  const [notice, setNotice] = useState<string | null>(null);
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(timer);
-  }, [notice]);
+  const corrections = useSessionPoints(
+    score.corrections.filter((c) => !c.jargon).map((c) => ({ id: c.id, message: c.message, points: c.points })),
+  );
+  const formulas = useSessionPoints(
+    banned.map((b) => ({ id: `${b.elementId}:${b.phrase}`, message: `« ${b.phrase} » dans ${b.where}`, points: null })),
+  );
   return (
     <section aria-labelledby={titleId} className="card space-y-4 p-4">
       <div className="flex items-center gap-4">
@@ -86,60 +125,8 @@ export function CvScorePanel({
           <p className="text-xs text-slate-500 dark:text-slate-400">90 = prêt à postuler</p>
         </div>
       </div>
-      {top.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Corrections qui rapportent le plus
-          </h3>
-          <ul className="space-y-1.5">
-            {top.map((c) => (
-              <li key={`${c.category}-${c.elementId}-${c.message}`}>
-                <button
-                  type="button"
-                  onClick={() => setNotice(onPick(c))}
-                  title="Le coach te pose une question pour corriger ce point"
-                  className="flex w-full items-start justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 dark:border-slate-700 dark:text-slate-200 dark:hover:border-blue-400/40 dark:hover:bg-blue-500/10 dark:hover:text-blue-200"
-                >
-                  <span>{c.message}</span>
-                  <span className="shrink-0 font-semibold text-blue-700 dark:text-blue-300">+{c.points} pts</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {banned.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Formules à éviter
-          </h3>
-          <ul className="space-y-1.5">
-            {banned.map((b) => (
-              <li key={`${b.elementId}-${b.phrase}`}>
-                <button
-                  type="button"
-                  disabled={!onAsk}
-                  onClick={() => onAsk && setNotice(onAsk(`Formule à éviter « ${b.phrase} » dans ${b.where} : remplace-la par des faits concrets`))}
-                  title="Le coach te pose une question pour remplacer cette formule"
-                  className="flex w-full items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-left text-sm text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-slate-200"
-                >
-                  <span aria-hidden="true" className="text-amber-600">
-                    !
-                  </span>
-                  <span>
-                    « {b.phrase} » dans {b.where}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {notice && (
-        <p role="status" className="text-xs text-slate-500 dark:text-slate-400">
-          {notice}
-        </p>
-      )}
+      <PointList title="Points à corriger" points={corrections} />
+      <PointList title="Formules à éviter" points={formulas} />
     </section>
   );
 }

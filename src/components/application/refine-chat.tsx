@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { PremiumButton, UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
-import type { CoachProposal } from "@/lib/coach-proposals";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import type { DocumentChatResult } from "@/lib/refine";
 
@@ -56,22 +55,7 @@ const DOCUMENTS = {
 /** Commandes du chat utilisables par l'éditeur (ex. panneau « Ce qui manque »). */
 export type RefineChatHandle = {
   insert: (text: string) => void;
-  /**
-   * Fait poser au coach une question ciblée sur `point` (clic sur une correction du score),
-   * affichée comme son message. Renvoie null si elle est demandée, sinon pourquoi rien n'est envoyé.
-   */
-  ask: (point: string) => string | null;
-  /** Compteur du mois mis à jour hors d'un message (proposition du coach acceptée). */
-  setUsed: (used: number) => void;
 };
-
-/** Question ciblée du coach (Server Action) : son texte, ou l'erreur à afficher. */
-export type AskCoach = (
-  id: string,
-  json: string,
-  point: string,
-  history: unknown,
-) => Promise<{ ok: true; reply: string } | { ok: false; error: string; limitReached?: boolean }>;
 
 type Message = {
   id: number;
@@ -84,8 +68,6 @@ type Message = {
   undone?: boolean;
   /** Message de limite : suivi du bouton « Passer au Premium ». */
   premium?: boolean;
-  /** Modifications proposées par le coach du CV Builder (affichées par renderProposal). */
-  proposal?: CoachProposal;
 };
 
 /**
@@ -106,11 +88,10 @@ export function RefineChat({
   initialPrompt,
   controlRef,
   opening,
-  askCoach,
   limitMessage,
   limitBlocks = true,
   tall = false,
-  renderProposal,
+  undoable = true,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -132,8 +113,6 @@ export function RefineChat({
   controlRef?: React.Ref<RefineChatHandle>;
   /** Premier message de l'assistant, demandé à l'ouverture (null : pas de message). */
   opening?: () => Promise<string | null>;
-  /** Question ciblée du coach, demandée par `controlRef.ask` (CV Builder). */
-  askCoach?: AskCoach;
   /** Message du bandeau Premium quand la limite du mois est atteinte. */
   limitMessage?: string;
   /**
@@ -143,8 +122,8 @@ export function RefineChat({
   limitBlocks?: boolean;
   /** Historique plus haut (chat en colonne à côté de l'aperçu). */
   tall?: boolean;
-  /** Coach du CV Builder : affichage des modifications proposées sous son message. */
-  renderProposal?: (proposal: CoachProposal) => ReactNode;
+  /** Bouton « Annuler cette modification » sous la dernière réponse qui a modifié le document. */
+  undoable?: boolean;
 }) {
   const texts = DOCUMENTS[document];
   const units = texts.units;
@@ -159,27 +138,6 @@ export function RefineChat({
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  /** Question ciblée du coach : affichée comme son message, sans message du candidat. */
-  async function ask(action: AskCoach, point: string) {
-    const history = messages.filter((m) => !m.error).map(({ role, content }) => ({ role, content }));
-    setPending(true);
-    onPendingChange(true);
-    listRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    try {
-      const result = await action(applicationId, readDocument(), point, history);
-      if (result.ok) add({ role: "assistant", content: result.reply });
-      else {
-        if (result.limitReached) setLimitHit(true);
-        add({ role: "assistant", content: result.error, error: true });
-      }
-    } catch {
-      add({ role: "assistant", content: "La demande n'a pas abouti. Réessaie dans un instant.", error: true });
-    } finally {
-      setPending(false);
-      onPendingChange(false);
-    }
-  }
-
   const limitReached = limitHit || isLimitReached({ used, limit: usage.limit });
   const blocked = limitBlocks && limitReached;
   const disabled = !aiEnabled || blocked;
@@ -193,20 +151,12 @@ export function RefineChat({
       inputRef.current?.focus();
       inputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     };
-    return {
-      insert,
-      setUsed,
-      ask(point: string) {
-        if (!askCoach || !aiEnabled) return "L'assistant n'est pas disponible pour le moment.";
-        if (pending) return "Le coach est occupé : attends sa réponse.";
-        if (blocked) return limitMessage ?? "Limite du chat atteinte pour ce mois-ci.";
-        void ask(askCoach, point);
-        return null;
-      },
-    };
+    return { insert };
   });
 
-  const lastUndoable = [...messages].reverse().find((m) => m.previousHtml !== undefined && !m.undone);
+  const lastUndoable = undoable
+    ? [...messages].reverse().find((m) => m.previousHtml !== undefined && !m.undone)
+    : undefined;
 
   // Fait défiler l'historique jusqu'au dernier message.
   useEffect(() => {
@@ -238,9 +188,7 @@ export function RefineChat({
           setLimitHit(true);
           add({ role: "assistant", content: result.limitNotice, premium: true });
         }
-        if (result.reply || result.proposal) {
-          add({ role: "assistant", content: result.reply, previousHtml, proposal: result.proposal });
-        }
+        if (result.reply) add({ role: "assistant", content: result.reply, previousHtml });
       } else {
         if (result.limitReached) setLimitHit(true);
         add({ role: "assistant", content: result.error, error: true });
@@ -344,7 +292,6 @@ export function RefineChat({
                 {message.content}
               </p>
               {message.premium && <PremiumButton />}
-              {message.proposal && renderProposal?.(message.proposal)}
               {message.undone ? (
                 <span className="pl-1 text-xs text-slate-500">Modification annulée.</span>
               ) : (

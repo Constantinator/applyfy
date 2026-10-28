@@ -6,13 +6,12 @@ import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
-import { checkAiAccess, checkAiRateLimit, countAiUsageToday, readAiUsage, recordAiUsage } from "@/lib/ai-usage";
+import { checkAiAccess, checkAiRateLimit, countAiUsageToday, recordAiUsage } from "@/lib/ai-usage";
 import {
   CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
   CVB_COACH_DAILY_LIMIT,
   CVB_COACH_DAILY_MESSAGE,
   isLimitReached,
-  type AiUsageCount,
   type AiUsageKind,
 } from "@/lib/ai-usage-limits";
 import { getCurrentUser } from "@/lib/auth";
@@ -26,12 +25,11 @@ import {
   isClaudeConfigured,
   coachBuilderCv,
   coachOpening,
-  coachQuestion,
   type CoachContext,
   type CoachReply,
   type ImportedCv,
 } from "@/lib/claude";
-import { buildProposal, checkProposal, withoutProblems } from "@/lib/coach-proposals";
+import { applyCoachChange, buildProposal, checkProposal, withoutProblems } from "@/lib/coach-proposals";
 import {
   CvBuilderError,
   createBuilderCv,
@@ -48,7 +46,6 @@ import {
   CvAnalysisSchema,
   CV_CRITERIA,
   CvDataSchema,
-  COACH_CHARGED_MAX,
   dateRange,
   fullName,
   interestList,
@@ -58,7 +55,7 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
+import { bannedPhrasesInCv, scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
 import { loadScoringContext } from "@/lib/cv-score-context";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import { extractDocxText } from "@/lib/docx";
@@ -103,14 +100,10 @@ export async function saveBuilderCvAction(
   const parsed = CvDataSchema.safeParse(input.data);
   if (!parsed.success) return { ok: false, error: "Certaines informations sont trop longues pour être enregistrées." };
   try {
-    // Propositions du coach décomptées : écrites seulement par le serveur (acceptCoachProposalAction),
-    // jamais par la sauvegarde automatique.
-    const stored = await getBuilderCv(String(id));
-    if (!stored) return { ok: false, error: "Ce CV n'existe plus." };
     const savedAt = await saveBuilderCv(String(id), {
       title: String(input.title ?? ""),
       templateId: input.templateId,
-      data: { ...parsed.data, coachCharged: stored.data.coachCharged },
+      data: parsed.data,
     });
     revalidatePath("/cv-builder");
     return { ok: true, savedAt };
@@ -477,35 +470,20 @@ export async function scoringContextAction(id: string, rawData: unknown): Promis
 
 /**
  * Fin de l'import d'un CV existant : poste visé (carte « Quel type de poste tu vises ? ») et
- * modèle choisi. `focus` : optimisation cliquée ; le premier message du coach est alors une
- * question ciblée sur ce point (cvb_coach), sinon le message d'accueil habituel.
+ * modèle choisi. Le coach démarre ensuite de lui-même dans l'éditeur, sur le point qui rapporte
+ * le plus (coachOpeningAction).
  */
 export async function completeCvImportAction(
   id: string,
-  input: { templateId: CvTemplateId; targetJob: string; focus?: string },
+  input: { templateId: CvTemplateId; targetJob: string },
 ): Promise<{ ok: boolean }> {
   const templateId = isTemplateId(input?.templateId) ? input.templateId : "minimaliste";
   const targetJob = String(input?.targetJob ?? "").trim().slice(0, 120);
-  const focus = String(input?.focus ?? "").trim().slice(0, 500);
   try {
     const cv = await getBuilderCv(String(id));
     if (!cv) return { ok: false };
     const analysis = cv.data.analysis && { ...cv.data.analysis, targetJob };
-    let data: CvData = { ...cv.data, analysis };
-    if (focus && isClaudeConfigured() && (await coachGate()).ok) {
-      try {
-        const context = await coachContext(data);
-        const question = (await coachQuestion(context, [], focus))?.slice(0, 2000);
-        if (question) {
-          // Gardé comme premier message du coach (même cache que coachOpeningAction).
-          data = { ...data, coach: { opening: question, contentKey: context.contentKey } };
-          await recordAiUsage("cvb_coach");
-        }
-      } catch (error) {
-        // Sans question ciblée, l'éditeur affiche le message d'accueil habituel.
-        claudeErrorMessage(error, "cv-builder coach : question de l'import"); // journalisation
-      }
-    }
+    const data: CvData = { ...cv.data, analysis };
     await saveBuilderCv(cv.id, { title: cv.title, templateId, data });
     revalidatePath("/cv-builder");
     return { ok: true };
@@ -525,7 +503,9 @@ const COACH_HISTORY_MAX = 12;
 
 /**
  * Contenu du CV transmis au coach, son empreinte (cache du premier message) et les données du
- * secteur (vérification des propositions).
+ * secteur (vérification des modifications). Le coach reçoit à chaque échange la liste à jour
+ * des points à corriger : toutes les corrections du score, de la plus rentable à la moins
+ * rentable, et les formules à éviter présentes dans le CV.
  */
 async function coachContext(data: CvData): Promise<CoachContext & { contentKey: string; scoring: ScoringContext }> {
   const cvJson = JSON.stringify(chatContent(data));
@@ -537,7 +517,11 @@ async function coachContext(data: CvData): Promise<CoachContext & { contentKey: 
     scoring,
     cvJson,
     contentKey: createHash("sha256").update(cvJson).digest("hex").slice(0, 32),
-    score: { value: score.score, corrections: score.corrections.slice(0, 5).map((c) => `${c.message} (+${c.points} pts)`) },
+    score: {
+      value: score.score,
+      corrections: score.corrections.map((c) => `${c.message} (+${c.points} pts)`),
+      banned: bannedPhrasesInCv(data, scoring).map((b) => `« ${b.phrase} » dans ${b.where}`),
+    },
     analysis: a && {
       criteria: Object.fromEntries(CV_CRITERIA.map((c) => [c.label, a.criteria[c.id]])),
       improvements: a.improvements,
@@ -573,44 +557,6 @@ export async function coachOpeningAction(
     unstable_rethrow(error);
     claudeErrorMessage(error, "cv-builder coach : premier message"); // journalisation
     return { ok: false };
-  }
-}
-
-export type AcceptProposalResult =
-  | { ok: true; usage: AiUsageCount; charged: string[] }
-  | { ok: false; error: string; limitReached?: boolean };
-
-const PROPOSAL_ID = /^[a-z0-9]{4,40}$/;
-
-/**
- * Première modification acceptée d'une proposition du coach : une adaptation (cvb_chat) est
- * décomptée, une seule fois par proposition (ids gardés dans le CV, coachCharged). Les
- * modifications suivantes de la même proposition ne coûtent rien. Adaptations du mois épuisées :
- * refus, avec le message de limite.
- */
-export async function acceptCoachProposalAction(id: string, proposalId: string): Promise<AcceptProposalResult> {
-  if (typeof id !== "string" || typeof proposalId !== "string" || !PROPOSAL_ID.test(proposalId)) {
-    return { ok: false, error: "Requête invalide." };
-  }
-  try {
-    // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
-    const cv = await getBuilderCv(id);
-    if (!cv) return { ok: false, error: "Ce CV n'existe plus." };
-    const usage = await readAiUsage();
-    if (cv.data.coachCharged.includes(proposalId)) {
-      return { ok: true, usage: usage.counts.cvb_chat, charged: cv.data.coachCharged };
-    }
-    const count = usage.counts.cvb_chat;
-    if (isLimitReached(count)) return { ok: false, error: CVB_CHAT_UPDATE_BLOCKED_MESSAGE, limitReached: true };
-
-    await recordAiUsage("cvb_chat");
-    const charged = [...cv.data.coachCharged, proposalId].slice(-COACH_CHARGED_MAX);
-    await saveBuilderCv(cv.id, { title: cv.title, templateId: cv.templateId, data: { ...cv.data, coachCharged: charged } });
-    return { ok: true, usage: { used: count.used + 1, limit: count.limit }, charged };
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("[cv-builder coach] acceptation", error);
-    return { ok: false, error: "La modification n'a pas pu être enregistrée. Réessaie." };
   }
 }
 
@@ -678,53 +624,14 @@ function coachTurns(history: unknown) {
     : [];
 }
 
-export type CoachQuestionResult = { ok: true; reply: string } | { ok: false; error: string; limitReached?: boolean };
-
-/**
- * Clic sur une correction du score : le coach pose UNE question ciblée sur ce point (message du
- * coach, rien n'est envoyé au nom du candidat), puis la conversation continue normalement.
- * Compte comme un échange sans modification (cvb_coach).
- */
-export async function coachQuestionAction(
-  id: string,
-  json: string,
-  point: string,
-  history: unknown,
-): Promise<CoachQuestionResult> {
-  if (typeof id !== "string" || typeof json !== "string" || typeof point !== "string" || !point.trim()) {
-    return { ok: false, error: "Requête invalide." };
-  }
-  if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
-  const current = await readShownCv(id, json);
-  if (typeof current === "string") return { ok: false, error: current };
-  const gate = await coachGate();
-  if (!gate.ok) return gate;
-
-  let question;
-  try {
-    question = await coachQuestion(await coachContext(current), coachTurns(history), point.trim().slice(0, 500));
-  } catch (error) {
-    return { ok: false, error: claudeErrorMessage(error, "cv-builder coach : question") };
-  }
-  if (!question) return { ok: false, error: "Le coach n'a pas pu formuler sa question. Réessaie." };
-  await recordAiUsage("cvb_coach");
-  return { ok: true, reply: question.slice(0, 2000) };
-}
-
-/** Clic sur une optimisation de l'import : coach disponible (quota) avant d'aller plus loin. */
-export async function checkCoachQuestionAction(): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
-  const gate = await coachGate();
-  return gate.ok ? { ok: true } : { ok: false, error: gate.error };
-}
-
 /**
  * Réponse du coach au message du candidat, sur le CV affiché (modifications non enregistrées
- * comprises). `json` : contenu du CV (chatContent) ; le CV mis à jour est renvoyé au même
- * format dans `html` (nom imposé par le composant du chat), ou null s'il ne change pas.
- * Quota : une réponse qui modifie le CV compte comme adaptation (cvb_chat, 2 par mois avec le
- * plan gratuit) ; les autres, et les modifications refusées faute d'adaptation, comptent comme
- * échanges (cvb_coach, CVB_COACH_DAILY_LIMIT par jour avec le plan gratuit).
+ * comprises). Le coach mène : il pose ses questions, puis modifie directement le CV ; chaque
+ * nouvelle puce est vérifiée par le code avant d'être écrite. `json` : contenu du CV
+ * (chatContent) ; le CV mis à jour est renvoyé au même format dans `html` (nom imposé par le
+ * composant du chat), ou null s'il ne change pas. Quota : une réponse qui modifie le CV compte
+ * comme adaptation (cvb_chat, 2 par mois avec le plan gratuit) ; les autres comme échanges
+ * (cvb_coach, CVB_COACH_DAILY_LIMIT par jour avec le plan gratuit).
  */
 export async function refineBuilderCvAction(
   id: string,
@@ -763,12 +670,13 @@ export async function refineBuilderCvAction(
     return { ok: true, reply: nextCoachQuestion(reply), html: null, usage: gate.chat, limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE };
   }
 
-  // Proposition vérifiée par le code ; textes refusés (ou contenu invalide) : un nouvel essai.
+  // Modification vérifiée par le code ; textes refusés (ou contenu invalide) : un nouvel essai,
+  // invisible pour le candidat.
   let text = reply.message.trim();
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
   let problems = proposal ? checkProposal(proposal, context.scoring) : [];
   if (reply.raw && (reply.invalid || problems.length)) {
-    console.info(`[cv-builder coach] proposition refusée (${reply.raw.section}), nouvel essai`, problems);
+    console.info(`[cv-builder coach] modification refusée (${reply.raw.section}), nouvel essai`, problems);
     const rate = await checkAiRateLimit();
     const retried = rate.ok
       ? await coachBuilderCv(context, turns, request, {
@@ -785,15 +693,34 @@ export async function refineBuilderCvAction(
       problems = proposal ? checkProposal(proposal, context.scoring) : [];
     }
   }
-  // Textes encore refusés : retirés, jamais proposés.
+  // Textes encore refusés : retirés, jamais écrits dans le CV.
   const incomplete = Boolean(reply.raw) && (!proposal || problems.length > 0);
   if (proposal && problems.length) {
-    console.info("[cv-builder coach] textes retirés de la proposition", problems);
+    console.info("[cv-builder coach] textes retirés de la modification", problems);
     proposal = withoutProblems(proposal, problems);
   }
-  // Une proposition attendue manque (en tout ou partie) : le coach demande le chiffre manquant.
-  if (incomplete && !text.endsWith("?")) text = `${text} ${MISSING_FIGURE_QUESTION}`.trim();
+  // Modification appliquée directement, changement par changement (un passage introuvable est ignoré).
+  let updated = current;
+  let applied = 0;
+  for (const change of proposal?.changes ?? []) {
+    const next = applyCoachChange(updated, change);
+    if (next) {
+      updated = next;
+      applied++;
+    } else console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
+  }
+  // Une modification attendue manque (en tout ou partie) : le coach demande le chiffre manquant.
+  if ((incomplete || (proposal && !applied)) && !text.endsWith("?")) text = `${text} ${MISSING_FIGURE_QUESTION}`.trim();
 
+  if (applied) {
+    await recordAiUsage("cvb_chat");
+    return {
+      ok: true,
+      reply: text,
+      html: JSON.stringify(chatContent(updated)),
+      usage: { used: gate.chat.used + 1, limit: gate.chat.limit },
+    };
+  }
   await recordAiUsage("cvb_coach");
-  return { ok: true, reply: text, html: null, usage: gate.chat, ...(proposal && { proposal }) };
+  return { ok: true, reply: text, html: null, usage: gate.chat };
 }

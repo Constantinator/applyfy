@@ -4,14 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  acceptCoachProposalAction,
   coachOpeningAction,
-  coachQuestionAction,
   refineBuilderCvAction,
   saveBuilderCvAction,
   scoringContextAction,
 } from "@/app/actions/cv-builder";
-import { RefineChat, type RefineChatHandle } from "@/components/application/refine-chat";
+import { RefineChat } from "@/components/application/refine-chat";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
@@ -23,10 +21,8 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { applyCoachChange, revertCoachChange, type CoachChange, type CoachProposal } from "@/lib/coach-proposals";
 import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "@/lib/cv-score";
 
-import { CoachProposalView, type ChangeState } from "./coach-proposal";
 import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
 
@@ -114,49 +110,6 @@ export function CvBuilderEditor({
   // Score calculé par le code (cv-score.ts), recalculé à chaque modification du CV.
   const [scoringContext, setScoringContext] = useState(scoring);
   const score = useMemo(() => scoreCv(data, scoringContext), [data, scoringContext]);
-  const chatRef = useRef<RefineChatHandle>(null);
-
-  // Propositions du coach : état de chaque modification, et propositions déjà décomptées
-  // (cvb_chat à la première modification acceptée, une seule fois par proposition).
-  const [changeStates, setChangeStates] = useState<Record<string, ChangeState>>({});
-  const [busyChange, setBusyChange] = useState<string | null>(null);
-  const charged = useRef(new Set(cv.data.coachCharged));
-  const setChange = (id: string, state: ChangeState) => setChangeStates((s) => ({ ...s, [id]: state }));
-
-  async function acceptChange(proposal: CoachProposal, change: CoachChange) {
-    if (!applyCoachChange(dataRef.current, change)) return setChange(change.id, { status: "conflict" });
-    if (!charged.current.has(proposal.id)) {
-      setBusyChange(change.id);
-      const result = await acceptCoachProposalAction(cv.id, proposal.id).catch(() => null);
-      setBusyChange(null);
-      if (!result?.ok) {
-        return setChange(change.id, {
-          status: "pending",
-          error: result?.error ?? "La modification n'a pas pu être enregistrée. Réessaie.",
-          limitReached: result?.limitReached,
-        });
-      }
-      charged.current.add(proposal.id);
-      chatRef.current?.setUsed(result.usage.used);
-    }
-    // Relu après l'appel au serveur : le CV a pu changer pendant ce temps.
-    const next = applyCoachChange(dataRef.current, change);
-    if (!next) return setChange(change.id, { status: "conflict" });
-    dataRef.current = next;
-    edit(() => next);
-    setChange(change.id, { status: "accepted" });
-  }
-
-  function undoChange(change: CoachChange) {
-    const previous = revertCoachChange(dataRef.current, change);
-    if (!previous) {
-      return setChange(change.id, { status: "accepted", error: "Ce passage a été modifié depuis : annulation impossible." });
-    }
-    dataRef.current = previous;
-    edit(() => previous);
-    setChange(change.id, { status: "pending" });
-  }
-
   // Formules de la liste noire présentes dans le CV (elles comptent aussi dans le score).
   const banned = useMemo(() => bannedPhrasesInCv(data, scoringContext), [data, scoringContext]);
 
@@ -242,18 +195,8 @@ export function CvBuilderEditor({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
         {/* Score, puis chat « coach » : même composant que le chat de l'éditeur du CV d'une candidature. */}
         <div className="min-w-0 space-y-4">
-          <CvScorePanel
-            score={score}
-            banned={banned}
-            onPick={(c) =>
-              chatRef.current?.ask(`${c.message}${c.elementId ? ` (élément « ${c.elementId} » du CV)` : ""}`) ??
-              "Le chat n'est pas encore prêt."
-            }
-            onAsk={(point) => chatRef.current?.ask(point) ?? "Le chat n'est pas encore prêt."}
-          />
+          <CvScorePanel score={score} banned={banned} />
           <RefineChat
-            controlRef={chatRef}
-            askCoach={coachQuestionAction}
             document="cvBuilder"
             applicationId={cv.id}
             aiEnabled={usage.aiEnabled}
@@ -283,16 +226,7 @@ export function CvBuilderEditor({
             opening={opening}
             limitMessage={CVB_CHAT_LIMIT_MESSAGE}
             limitBlocks={false}
-            renderProposal={(proposal) => (
-              <CoachProposalView
-                proposal={proposal}
-                states={changeStates}
-                busyChange={busyChange}
-                onAccept={(change) => void acceptChange(proposal, change)}
-                onRefuse={(change) => setChange(change.id, { status: "refused" })}
-                onUndo={undoChange}
-              />
-            )}
+            undoable={false}
             tall
           />
         </div>
