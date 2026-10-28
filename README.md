@@ -50,8 +50,10 @@ Scripts utiles : `npm run lint`, `npm run typecheck`, `npm run build`.
   stockés dans le bucket privé `documents` (`<user_id>/profil/<id>.pdf`) ; au choix dans
   « Adapter mon CV ».
 - Descriptions importées mises en forme sans modifier le contenu (`src/lib/format-offer.ts`).
-- Nécessite `ANTHROPIC_API_KEY` côté serveur (voir `.env.example`). Modèle : `claude-opus-5-5`
-  (`src/lib/claude.ts`).
+- Nécessite `ANTHROPIC_API_KEY` côté serveur (voir `.env.example`). Modèle choisi par fonction
+  (`CLAUDE_FUNCTIONS`, `src/lib/claude.ts`) : Haiku pour les offres, Sonnet pour le coach, le CV
+  et la lettre, Opus pour l'import d'un CV dans le CV Builder. Surcharge par groupe avec les
+  variables `CLAUDE_MODEL_*`.
 
 ## Rappels de relance par email
 

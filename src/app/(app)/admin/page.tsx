@@ -7,6 +7,7 @@ import { FeedbackSection } from "@/components/admin/feedback-section";
 import { MonthPicker } from "@/components/admin/month-picker";
 import {
   AI_ACTION_COSTS,
+  AI_ACTION_MODELS,
   STRIPE_FEE_FIXED,
   STRIPE_FEE_RATE,
   URSSAF_RATE,
@@ -22,6 +23,8 @@ import { getTrafficMetrics, isTrafficConfigured, type TrafficMetrics } from "@/l
 export const metadata: Metadata = { title: "Admin — Applyfy", robots: { index: false } };
 
 const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+/** Coût unitaire d'une action IA : quelques dixièmes de centime avec Haiku. */
+const unitEuros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 4 });
 const integer = new Intl.NumberFormat("fr-FR");
 const percent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 1 });
 const dateTime = new Intl.DateTimeFormat("fr-FR", {
@@ -373,9 +376,12 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               <tbody className="divide-y divide-slate-100">
                 {m.costs.byKind.map((row) => (
                   <tr key={row.kind}>
-                    <td className={td}>{AI_USAGE_LABELS[row.kind].title}</td>
+                    <td className={td}>
+                      {AI_USAGE_LABELS[row.kind].title}
+                      <span className="block text-xs text-slate-500">{AI_ACTION_MODELS[row.kind]}</span>
+                    </td>
                     <td className={`${td} ${num}`}>{integer.format(row.count)}</td>
-                    <td className={`${td} ${num} text-slate-500`}>{euros.format(AI_ACTION_COSTS[row.kind])}</td>
+                    <td className={`${td} ${num} text-slate-500`}>{unitEuros.format(AI_ACTION_COSTS[row.kind])}</td>
                     <td className={`${td} ${num} font-medium`}>{euros.format(row.cost)}</td>
                   </tr>
                 ))}

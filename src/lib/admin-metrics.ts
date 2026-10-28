@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { AI_USAGE_KINDS, type AiUsageKind } from "./ai-usage-limits";
 import { requireUser } from "./auth";
+import { modelFor, type ClaudeFunction } from "./claude";
 import { toFeedback } from "./feedback";
 import {
   FAVORITE_FEATURES,
@@ -30,8 +31,11 @@ export const ADMIN_EMAIL = "constantinvarin@gmail.com";
  */
 const UNKNOWN_PLAN = { name: "Ancien prix", monthlyPrice: 8, billedAmount: 8, intervalMonths: 1 };
 
-/** Coût réel estimé d'une action IA (appel à l'API Claude), en euros. */
-export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
+/**
+ * Coût estimé d'une action IA si elle tournait sur Claude Opus 5.5, en euros : base ramenée au
+ * modèle réellement utilisé (AI_ACTION_COSTS).
+ */
+const OPUS_ACTION_COSTS: Record<AiUsageKind, number> = {
   resume_offre: 0.02,
   resume_recherche: 0.02,
   adaptation_cv: 0.05,
@@ -46,6 +50,48 @@ export const AI_ACTION_COSTS: Record<AiUsageKind, number> = {
   cvb_chat: 0.05,
   cvb_coach: 0.03,
 };
+
+/**
+ * Fonction de claude.ts dont le modèle détermine le coût de chaque action. cvb_coach : questions
+ * ciblées et réponses du coach sans modification (coachBuilderCv). lettre : génération
+ * et import (même modèle).
+ */
+const ACTION_FUNCTIONS: Record<AiUsageKind, ClaudeFunction> = {
+  resume_offre: "summarizeOffer",
+  resume_recherche: "summarizeJobOffer",
+  adaptation_cv: "suggestCvAdaptations",
+  cv_ameliore: "transcribeCv",
+  lettre: "generateCoverLetter",
+  affinage_cv: "refineDocument",
+  affinage_lettre: "refineDocument",
+  cvb_puce: "improveCvBullet",
+  cvb_resume: "generateCvSummary",
+  cvb_adaptation: "adaptCvToOffer",
+  cvb_import: "extractCvForBuilder",
+  cvb_chat: "coachBuilderCv",
+  cvb_coach: "coachBuilderCv",
+};
+
+/** Prix par million de tokens (entrée + sortie, $) ; un modèle inconnu est compté au prix d'Opus. */
+const MODEL_PRICES: Record<string, number> = {
+  "claude-haiku-5-5": 0.1 + 0.5,
+  "claude-sonnet-5-5": 2 + 10,
+  "claude-opus-5-5": 4 + 20,
+};
+const OPUS_PRICE = MODEL_PRICES["claude-opus-5-5"];
+
+/** Modèle utilisé par chaque action (surcharges CLAUDE_MODEL_* comprises). */
+export const AI_ACTION_MODELS = Object.fromEntries(
+  AI_USAGE_KINDS.map((kind) => [kind, modelFor(ACTION_FUNCTIONS[kind])]),
+) as Record<AiUsageKind, string>;
+
+/** Coût réel estimé d'une action IA (appel à l'API Claude), en euros, selon son modèle. */
+export const AI_ACTION_COSTS = Object.fromEntries(
+  AI_USAGE_KINDS.map((kind) => {
+    const price = MODEL_PRICES[AI_ACTION_MODELS[kind]] ?? OPUS_PRICE;
+    return [kind, (OPUS_ACTION_COSTS[kind] * price) / OPUS_PRICE];
+  }),
+) as Record<AiUsageKind, number>;
 
 /**
  * Réservé à l'administrateur : email du compte connecté ET adresse confirmée (relue dans
