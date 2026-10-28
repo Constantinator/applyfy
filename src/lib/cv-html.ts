@@ -160,6 +160,24 @@ export function sanitizeCvHtml(html: string): string {
   return out;
 }
 
+/** Texte brut d'un CV ou d'une lettre de l'éditeur (HTML nettoyé), un bloc par ligne ; null si vide. */
+export function htmlToText(html: string | null | undefined): string | null {
+  if (!html) return null;
+  const text = html
+    .replace(/<\/(h1|h2|h3|p|li)>/g, "\n")
+    .replace(/<li>/g, "• ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return text || null;
+}
+
 /** Texte du premier <h1> (le nom du candidat), pour nommer le fichier PDF. */
 export function firstHeadingText(html: string) {
   const match = html.match(/<h1>([\s\S]*?)<\/h1>/i);

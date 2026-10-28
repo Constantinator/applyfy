@@ -78,6 +78,17 @@ export function hasPhrase(normalizedText: string, phrase: string) {
   return Boolean(p) && new RegExp(`[^a-z0-9]${escape(p)}[^a-z0-9]`).test(normalizedText);
 }
 
+/** Noms exclus (entreprise, produits), normalisés. */
+function excludedNames(excluded: (string | null | undefined)[]) {
+  return excluded.map((name) => normalizeText(name ?? "").trim()).filter((name) => name.length >= 2);
+}
+
+/** Le mot-clé se confond avec un nom exclu (« Datadog », « Datadog APM »…). */
+export function isExcludedKeyword(keyword: string, excluded: (string | null | undefined)[]) {
+  const k = normalizeText(keyword).trim();
+  return excludedNames(excluded).some((name) => containsWords(name, k) || containsWords(k, name));
+}
+
 /**
  * Mots-clés de `keywords` présents dans un texte (mot entier, sans accents ni casse ; mots
  * ambigus du secteur seulement dans leur sens métier). `excluded` : nom de l'entreprise qui
@@ -90,7 +101,7 @@ export function matchKeywords(
   excluded: (string | null | undefined)[] = [],
 ): string[] {
   const haystack = normalizeText(text);
-  const names = excluded.map((name) => normalizeText(name ?? "").trim()).filter((name) => name.length >= 2);
+  const names = excludedNames(excluded);
   const contextual = CONTEXTUAL_KEYWORDS[sector] ?? {};
   return keywords.filter((keyword) => {
     const k = normalizeText(keyword).trim();

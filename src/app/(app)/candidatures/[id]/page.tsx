@@ -26,6 +26,8 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { fullName } from "@/lib/person-name";
+import { htmlToText } from "@/lib/cv-html";
+import { detectSector } from "@/lib/cv-sector-context";
 import { readCvSuggestions } from "@/lib/cv-types";
 import { getLatestProfileCvHtml, listProfileCvs } from "@/lib/profile";
 
@@ -90,6 +92,10 @@ export default async function ApplicationPage({
   // « S'aider du CV en cours » (lettre) : le chat reçoit le CV de la candidature, à défaut
   // le dernier CV du profil importé dans l'éditeur.
   const hasCvForLetter = Boolean(app.cv_improved_html || latestProfileCvHtml);
+  // « Adapter mon CV » : mots-clés comparés au CV de l'éditeur s'il existe (recalculés à chaque
+  // affichage), sinon au texte du CV analysé.
+  const savedAnalysis = readCvSuggestions(app.cv_suggestions);
+  const improvedCvText = htmlToText(app.cv_improved_html);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -215,8 +221,10 @@ export default async function ApplicationPage({
             applicationId={app.id}
             hasOfferDescription={Boolean(app.offer_description)}
             aiEnabled={isClaudeConfigured()}
-            saved={readCvSuggestions(app.cv_suggestions)}
+            saved={savedAnalysis}
             savedAt={app.cv_suggestions_at ?? null}
+            improvedCvText={improvedCvText}
+            sector={detectSector(improvedCvText ?? (savedAnalysis?.kind === "keywords" ? savedAnalysis.cvText : null) ?? "", app.position)}
             profileCvs={profileCvs}
             hasImprovedCv={Boolean(app.cv_improved_html)}
             usage={usage.counts.adaptation_cv}

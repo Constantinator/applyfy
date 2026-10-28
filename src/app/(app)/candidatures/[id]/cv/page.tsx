@@ -8,7 +8,8 @@ import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { cvFontVariables } from "@/lib/cv-fonts";
-import { firstHeadingText, sanitizeCvHtml } from "@/lib/cv-html";
+import { firstHeadingText, htmlToText, sanitizeCvHtml } from "@/lib/cv-html";
+import { detectSector } from "@/lib/cv-sector-context";
 import { readCvStyle } from "@/lib/cv-style";
 import { readCvSuggestions } from "@/lib/cv-types";
 
@@ -23,6 +24,7 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
   const [detail, usage] = await Promise.all([getApplicationDetail(id), readAiUsage()]);
   if (!detail) notFound();
   const { application: app } = detail;
+  const analysis = readCvSuggestions(app.cv_suggestions);
 
   return (
     // data-theme-off : l'éditeur reste en clair même en mode sombre (feuille blanche).
@@ -47,8 +49,17 @@ export default async function ImprovedCvPage({ params }: PageProps<"/candidature
         // Renettoyé à l'affichage (défense en profondeur, en plus du nettoyage à l'enregistrement).
         <CvEditor
           applicationId={app.id}
-          // Panneau « Ce qui manque » si une analyse a été faite pour cette candidature.
-          missingPoints={readCvSuggestions(app.cv_suggestions)?.ce_qui_manque ?? []}
+          // Mots-clés de l'analyse « Adapter mon CV » (ou points d'une ancienne analyse).
+          keywords={
+            analysis?.kind === "keywords"
+              ? {
+                  keywords: analysis.keywords,
+                  ignored: analysis.ignored,
+                  sector: detectSector(htmlToText(app.cv_improved_html) ?? "", app.position),
+                }
+              : null
+          }
+          missingPoints={analysis?.kind === "legacy" ? analysis.ce_qui_manque : []}
           initialHtml={sanitizeCvHtml(app.cv_improved_html)}
           initialStyle={readCvStyle(app.cv_improved_style)}
           savedAt={app.cv_improved_at ?? null}

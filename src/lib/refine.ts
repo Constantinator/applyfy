@@ -8,9 +8,12 @@ import {
   isClaudeConfigured,
   refineDocument,
   type RefinableDocument,
+  type RefineAnalysis,
   type RefineChatTurn,
 } from "./claude";
-import { CV_HTML_MAX_LENGTH, sanitizeCvHtml } from "./cv-html";
+import { CV_HTML_MAX_LENGTH, htmlToText, sanitizeCvHtml } from "./cv-html";
+import { matchCvKeywords } from "./cv-keyword-match";
+import { detectSector } from "./cv-sector-context";
 import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH } from "./cv-types";
 import { getLatestProfileCvHtml } from "./profile";
 
@@ -46,16 +49,21 @@ const LABELS = {
   },
 } as const;
 
-/** HTML du CV → texte lisible (une ligne par bloc), pour le contexte du chat. */
-function htmlToText(html: string | null | undefined): string | null {
-  if (!html) return null;
-  const text = html
-    .replace(/<\/(h1|h2|h3|p|li)>/g, "\n")
-    .replace(/<li>/g, "• ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  return text || null;
+/**
+ * Analyse « Adapter mon CV » pour le chat du CV : mots-clés manquants recalculés sur le CV
+ * affiché (hors mots-clés ignorés), conseils et titre proposé ; points des anciennes analyses.
+ */
+function refineAnalysis(raw: unknown, html: string, position: string): RefineAnalysis | null {
+  const saved = readCvSuggestions(raw);
+  if (!saved) return null;
+  if (saved.kind === "legacy") return { points_forts: saved.ce_qui_matche, mots_cles_manquants: saved.ce_qui_manque };
+  const cvText = htmlToText(html);
+  const { rows } = matchCvKeywords(saved, cvText, detectSector(cvText ?? "", position));
+  return {
+    mots_cles_manquants: rows.filter((r) => !r.present && !r.ignored).map((r) => r.keyword),
+    conseils: saved.conseils,
+    titre_cv: saved.titre_cv || undefined,
+  };
 }
 
 function readHistory(raw: unknown): RefineChatTurn[] {
@@ -116,7 +124,7 @@ export async function refineApplicationDocument(
   // de CV pour cette candidature, sinon le dernier CV du profil importé dans l'éditeur).
   const context =
     document === "cv"
-      ? { analysis: readCvSuggestions(app.cv_suggestions) }
+      ? { analysis: refineAnalysis(app.cv_suggestions, current, app.position) }
       : { candidateCv: htmlToText(app.cv_improved_html ?? (await getLatestProfileCvHtml())) };
 
   let refined;

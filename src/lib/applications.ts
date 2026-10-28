@@ -360,13 +360,18 @@ export async function deleteApplication(id: string) {
   return { ok: true as const };
 }
 
-/** Enregistre les dernières suggestions d'adaptation du CV (le CV n'est pas stocké). */
-export async function saveCvSuggestions(id: string, suggestions: CvSuggestions) {
-  const cv_suggestions_at = new Date().toISOString();
+/**
+ * Enregistre la dernière analyse « Adapter mon CV » (avec le texte du CV analysé, pas le PDF).
+ * `keepDate` : simple mise à jour de l'analyse (mots-clés ignorés), sans changer sa date.
+ */
+export async function saveCvSuggestions(id: string, suggestions: CvSuggestions, { keepDate = false } = {}) {
+  const fields = keepDate
+    ? { cv_suggestions: suggestions }
+    : { cv_suggestions: suggestions, cv_suggestions_at: new Date().toISOString() };
 
   if (!isSupabaseConfigured()) {
     const app = demoStore.applications.find((a) => a.id === id);
-    if (app) Object.assign(app, { cv_suggestions: suggestions, cv_suggestions_at });
+    if (app) Object.assign(app, fields);
     return;
   }
 
@@ -374,7 +379,7 @@ export async function saveCvSuggestions(id: string, suggestions: CvSuggestions) 
   const supabase = await createClient();
   const { error } = await supabase
     .from("applications")
-    .update({ cv_suggestions: suggestions, cv_suggestions_at })
+    .update(fields)
     .eq("id", id)
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);

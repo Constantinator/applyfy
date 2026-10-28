@@ -20,9 +20,11 @@ import {
 } from "@/lib/claude";
 import { readPdfUpload } from "@/lib/cv-file";
 import { blankCvHtml, CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
+import { keywordKey, weighKeywords } from "@/lib/cv-keyword-match";
 import { readCvStyle } from "@/lib/cv-style";
 import { fullName } from "@/lib/person-name";
-import type { CvSuggestions } from "@/lib/cv-types";
+import { CV_TEXT_MAX_LENGTH, readCvSuggestions, type CvSuggestions } from "@/lib/cv-types";
+import { extractPdfText } from "@/lib/pdf-text";
 import { getProfileCvFile, getProfileCvHtml, saveProfileCvHtml } from "@/lib/profile";
 import { refineApplicationDocument, type RefineResult } from "@/lib/refine";
 
@@ -94,14 +96,36 @@ export async function adaptCvAction(
   const gate = await checkAiAccess("adaptation_cv");
   if (!gate.ok) return { status: "error", message: gate.message, limitReached: gate.limitReached };
 
-  let suggestions: CvSuggestions | null;
+  // Texte du PDF, lu en même temps que l'analyse : comparé aux mots-clés par le code.
+  const cvTextPromise = extractPdfText(Buffer.from(prepared.pdfBase64, "base64")).catch((error) => {
+    console.error("[adaptCv] lecture du texte du PDF", error);
+    return "";
+  });
+  let analysis;
   try {
-    suggestions = await suggestCvAdaptations(prepared.pdfBase64, prepared.offer);
+    analysis = await suggestCvAdaptations(prepared.pdfBase64, prepared.offer);
   } catch (error) {
     return { status: "error", message: claudeErrorMessage(error, "adaptCv") };
   }
-  if (!suggestions) return { status: "error", message: "L'analyse n'a pas pu aboutir pour ce CV." };
+  if (!analysis) return { status: "error", message: "L'analyse n'a pas pu aboutir pour ce CV." };
   await recordAiUsage("adaptation_cv");
+
+  const { application: app } = prepared.detail;
+  const previous = readCvSuggestions(app.cv_suggestions);
+  const cvText = (await cvTextPromise).trim().slice(0, CV_TEXT_MAX_LENGTH);
+  const suggestions: CvSuggestions = {
+    kind: "keywords",
+    keywords: weighKeywords(analysis.mots_cles, {
+      usefulText: analysis.offre_utile,
+      position: app.position,
+      company: app.company,
+    }),
+    // Mots-clés ignorés lors d'une analyse précédente : toujours ignorés s'ils reviennent.
+    ignored: previous?.kind === "keywords" ? previous.ignored : [],
+    conseils: analysis.conseils.map((c) => c.trim()).filter(Boolean).slice(0, 4),
+    titre_cv: analysis.titre_cv.trim().slice(0, 80),
+    cvText: cvText || null,
+  };
 
   const generatedAt = new Date().toISOString();
   try {
@@ -112,6 +136,36 @@ export async function adaptCvAction(
   }
   refresh(); // compteur d'adaptations à jour dans la page
   return { status: "success", suggestions, generatedAt };
+}
+
+/**
+ * « Ignorer » / « Rétablir » un mot-clé de l'analyse : retiré du taux de correspondance (ou
+ * remis), sans appel à l'IA. Renvoie la liste des mots-clés ignorés enregistrée.
+ */
+export async function ignoreCvKeywordAction(
+  id: string,
+  keyword: string,
+  ignore: boolean,
+): Promise<{ ok: true; ignored: string[] } | { ok: false; error: string }> {
+  if (typeof id !== "string" || typeof keyword !== "string" || typeof ignore !== "boolean") {
+    return { ok: false, error: "Requête invalide." };
+  }
+  // Vérifie la connexion ET que la candidature appartient bien à l'utilisateur.
+  const detail = await getApplicationDetail(id);
+  const saved = detail ? readCvSuggestions(detail.application.cv_suggestions) : null;
+  if (!detail || saved?.kind !== "keywords") return { ok: false, error: "Analyse introuvable. Relance l'analyse." };
+  const key = keywordKey(keyword);
+  if (!saved.keywords.some((k) => keywordKey(k.keyword) === key)) return { ok: false, error: "Mot-clé introuvable." };
+
+  const others = saved.ignored.filter((k) => keywordKey(k) !== key);
+  const ignored = ignore ? [...others, keyword] : others;
+  try {
+    await saveCvSuggestions(id, { ...saved, ignored }, { keepDate: true });
+  } catch (error) {
+    console.error("[ignoreCvKeyword]", error);
+    return { ok: false, error: "Le changement n'a pas pu être enregistré. Réessaie." };
+  }
+  return { ok: true, ignored };
 }
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { refineCoverLetterAction, saveCoverLetterAction } from "@/app/actions/cover-letter";
 import { refineCvAction, saveImprovedCvAction } from "@/app/actions/cv";
 import type { AiUsageCount } from "@/lib/ai-usage-limits";
+import { htmlToText } from "@/lib/cv-html";
 import { applyLayout, toOneColumn } from "@/lib/cv-layout";
 import {
   CV_LIST_TYPES,
@@ -29,7 +30,7 @@ import {
 } from "@/lib/cv-style";
 
 import { FontCombobox } from "./font-combobox";
-import { MissingPointsPanel } from "./missing-points-panel";
+import { MissingKeywordsPanel, MissingPointsPanel, type EditorKeywords } from "./missing-points-panel";
 import { RefineChat, type RefineChatHandle } from "./refine-chat";
 
 const hourFormatter = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
@@ -355,6 +356,7 @@ export function CvEditor({
   refine,
   autosaveAfterManualSave = false,
   missingPoints = [],
+  keywords = null,
 }: {
   kind?: EditorKind;
   applicationId: string;
@@ -370,11 +372,28 @@ export function CvEditor({
    * ouvert à la place d'un document déjà enregistré, qu'il ne doit pas écraser d'office.
    */
   autosaveAfterManualSave?: boolean;
-  /** Points « Ce qui manque » de l'analyse du CV pour cette candidature (CV uniquement). */
+  /** Points « Ce qui manque » d'une ancienne analyse du CV pour cette candidature (CV uniquement). */
   missingPoints?: string[];
+  /** Mots-clés de l'analyse « Adapter mon CV » (CV uniquement), comparés au texte affiché. */
+  keywords?: EditorKeywords | null;
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
+  // Texte affiché, pour les mots-clés : relu 0,5 s après la dernière frappe.
+  const [docText, setDocText] = useState(() => htmlToText(initialHtml));
+  const textTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readDocText = useCallback(() => {
+    if (textTimer.current) clearTimeout(textTimer.current);
+    setDocText(editorRef.current ? htmlToText(editorRef.current.innerHTML) : null);
+  }, []);
+  const scheduleDocText = () => {
+    if (!keywords) return;
+    if (textTimer.current) clearTimeout(textTimer.current);
+    textTimer.current = setTimeout(readDocText, 500);
+  };
+  useEffect(() => () => {
+    if (textTimer.current) clearTimeout(textTimer.current);
+  }, []);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(initialSavedAt);
@@ -555,6 +574,7 @@ export function CvEditor({
     setShowMarks(true);
     setDirty(true);
     fitToPage(style.fontSize);
+    if (keywords) readDocText();
     return previous;
   }
 
@@ -649,6 +669,7 @@ export function CvEditor({
               onInput={() => {
                 setDirty(true);
                 scheduleFit();
+                scheduleDocText();
               }}
               dangerouslySetInnerHTML={{ __html: initialHtml }}
               style={
@@ -708,7 +729,14 @@ export function CvEditor({
           listType={listType}
           onListType={changeListType}
         />
-        {missingPoints.length > 0 && (
+        {keywords && (
+          <MissingKeywordsPanel
+            analysis={keywords}
+            cvText={docText}
+            onInsert={refine ? (text) => chatRef.current?.insert(text) : undefined}
+          />
+        )}
+        {!keywords && missingPoints.length > 0 && (
           <MissingPointsPanel
             points={missingPoints}
             onInsert={refine ? (text) => chatRef.current?.insert(text) : undefined}

@@ -3,13 +3,23 @@
 import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 
-import { adaptCvAction, type AdaptCvState } from "@/app/actions/cv";
+import { adaptCvAction, ignoreCvKeywordAction, type AdaptCvState } from "@/app/actions/cv";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 
 import { CvEditorLauncher } from "./editor-launchers";
+import { KeywordMatchView, KeywordRate } from "./keyword-match-view";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
-import { CV_MAX_BYTES, CV_MAX_LABEL, type CvSuggestions, type ProfileCv } from "@/lib/cv-types";
+import { matchCvKeywords } from "@/lib/cv-keyword-match";
+import type { Sector } from "@/lib/cv-sector-context";
+import {
+  CV_MAX_BYTES,
+  CV_MAX_LABEL,
+  type CvSuggestions,
+  type LegacyCvSuggestions,
+  type ProfileCv,
+  type SavedCvSuggestions,
+} from "@/lib/cv-types";
 
 const initialAdaptState: AdaptCvState = { status: "idle" };
 
@@ -102,9 +112,13 @@ function SuggestionList({
   );
 }
 
-function SuggestionsView({ suggestions }: { suggestions: CvSuggestions }) {
+/** Analyse enregistrée avant les mots-clés : les deux listes, et une invite à relancer l'analyse. */
+function LegacySuggestionsView({ suggestions }: { suggestions: LegacyCvSuggestions }) {
   return (
     <div className="grid gap-4">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        Relance l&apos;analyse pour voir les mots-clés de l&apos;offre et ton taux de correspondance.
+      </p>
       <SuggestionList
         title="Ce qui matche"
         items={suggestions.ce_qui_matche}
@@ -121,6 +135,108 @@ function SuggestionsView({ suggestions }: { suggestions: CvSuggestions }) {
   );
 }
 
+/**
+ * Analyse d'offre : taux de correspondance et mots-clés (comparés au CV de l'éditeur s'il existe,
+ * sinon au CV analysé), titre de CV proposé et conseils. « Ignorer » est enregistré sans IA.
+ */
+function KeywordAnalysisView({
+  applicationId,
+  analysis,
+  improvedCvText,
+  sector,
+}: {
+  applicationId: string;
+  analysis: CvSuggestions;
+  improvedCvText: string | null;
+  sector: Sector;
+}) {
+  // Mots-clés ignorés depuis l'affichage de cette analyse (remis à zéro par une nouvelle analyse).
+  const [ignoredState, setIgnoredState] = useState<{ source: CvSuggestions; ignored: string[] } | null>(null);
+  const ignored = ignoredState?.source === analysis ? ignoredState.ignored : analysis.ignored;
+  const [busyKeyword, setBusyKeyword] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const cvText = improvedCvText ?? analysis.cvText;
+  const match = matchCvKeywords({ keywords: analysis.keywords, ignored }, cvText, sector);
+
+  async function toggleIgnore(keyword: string, ignore: boolean) {
+    setBusyKeyword(keyword);
+    setError(null);
+    const result = await ignoreCvKeywordAction(applicationId, keyword, ignore).catch(() => null);
+    setBusyKeyword(null);
+    if (result?.ok) setIgnoredState({ source: analysis, ignored: result.ignored });
+    else setError(result?.error ?? "Le changement n'a pas pu être enregistré. Réessaie.");
+  }
+
+  async function copyTitle() {
+    try {
+      await navigator.clipboard.writeText(analysis.titre_cv);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Presse-papiers indisponible : le titre reste affiché et sélectionnable.
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {cvText ? (
+        <div className="space-y-1">
+          <KeywordRate rate={match.rate} />
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {improvedCvText ? "Calculé sur le CV de l'éditeur de cette candidature." : "Calculé sur le CV analysé."}
+          </p>
+        </div>
+      ) : (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/30">
+          Le texte de ce CV n&apos;a pas pu être lu (PDF scanné ?) : ouvre-le dans l&apos;éditeur pour calculer ton
+          taux de correspondance.
+        </p>
+      )}
+
+      <KeywordMatchView
+        match={cvText ? match : { ...match, rows: match.rows.map((r) => ({ ...r, present: false })) }}
+        onToggleIgnore={toggleIgnore}
+        busyKeyword={busyKeyword}
+      />
+      {error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+
+      {analysis.titre_cv && (
+        <section className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-800/50 dark:ring-slate-700">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Titre proposé pour ton CV</h3>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="font-medium text-slate-800 dark:text-slate-100">{analysis.titre_cv}</p>
+            <button type="button" onClick={copyTitle} className="btn-secondary px-3 py-1 text-xs">
+              {copied ? "Copié" : "Copier"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {analysis.conseils.length > 0 && (
+        <section>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Conseils</h3>
+          <ul className="mt-2 space-y-1.5 text-sm text-[#374151] dark:text-slate-200">
+            {analysis.conseils.map((conseil, i) => (
+              <li key={`${i}-${conseil}`} className="flex gap-2">
+                <span aria-hidden="true" className="text-blue-500">
+                  •
+                </span>
+                <span>{conseil}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
 
 export function CvAdapter({
   applicationId,
@@ -128,6 +244,8 @@ export function CvAdapter({
   aiEnabled,
   saved,
   savedAt,
+  improvedCvText,
+  sector,
   profileCvs,
   hasImprovedCv,
   usage,
@@ -137,8 +255,12 @@ export function CvAdapter({
   applicationId: string;
   hasOfferDescription: boolean;
   aiEnabled: boolean;
-  saved: CvSuggestions | null;
+  saved: SavedCvSuggestions | null;
   savedAt: string | null;
+  /** Texte du CV de l'éditeur de cette candidature, s'il existe : comparé aux mots-clés. */
+  improvedCvText: string | null;
+  /** Secteur du poste (règles de contexte des mots-clés). */
+  sector: Sector;
   profileCvs: ProfileCv[];
   /** Un CV est déjà ouvert dans l'éditeur pour cette candidature. */
   hasImprovedCv: boolean;
@@ -348,7 +470,16 @@ export function CvAdapter({
 
       {suggestions && !analyzing && (
         <div className="mt-5">
-          <SuggestionsView suggestions={suggestions} />
+          {suggestions.kind === "keywords" ? (
+            <KeywordAnalysisView
+              applicationId={applicationId}
+              analysis={suggestions}
+              improvedCvText={improvedCvText}
+              sector={sector}
+            />
+          ) : (
+            <LegacySuggestionsView suggestions={suggestions} />
+          )}
         </div>
       )}
     </section>
