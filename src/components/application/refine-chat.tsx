@@ -59,6 +59,10 @@ export type RefineChatHandle = {
   insert: (text: string) => void;
 };
 
+/** Échange du chat tel que transmis à l'assistant (et enregistré). */
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+const NO_MESSAGES: ChatTurn[] = [];
+
 type Message = {
   id: number;
   role: "user" | "assistant";
@@ -90,6 +94,7 @@ export function RefineChat({
   initialPrompt,
   controlRef,
   opening,
+  initialMessages = NO_MESSAGES,
   limitMessage,
   limitBlocks = true,
   tall = false,
@@ -118,6 +123,8 @@ export function RefineChat({
   controlRef?: React.Ref<RefineChatHandle>;
   /** Premier message de l'assistant, demandé à l'ouverture (null : pas de message). */
   opening?: () => Promise<string | null>;
+  /** Conversation reprise à l'ouverture (historique enregistré du coach du CV Builder). */
+  initialMessages?: ChatTurn[];
   /** Message du bandeau Premium quand la limite du mois est atteinte. */
   limitMessage?: string;
   /**
@@ -138,14 +145,16 @@ export function RefineChat({
 }) {
   const texts = DOCUMENTS[document];
   const units = texts.units;
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() =>
+    initialMessages.map((m, id) => ({ id, role: m.role, content: m.content })),
+  );
   const [openingPending, setOpeningPending] = useState(Boolean(opening && aiEnabled));
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [used, setUsed] = useState(usage.used);
   // Limite signalée par le serveur (compteur de la page éventuellement périmé).
   const [limitHit, setLimitHit] = useState(false);
-  const nextId = useRef(0);
+  const nextId = useRef(initialMessages.length);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 

@@ -9,7 +9,7 @@ import {
   saveBuilderCvAction,
   scoringContextAction,
 } from "@/app/actions/cv-builder";
-import { RefineChat } from "@/components/application/refine-chat";
+import { RefineChat, type ChatTurn } from "@/components/application/refine-chat";
 import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
@@ -23,6 +23,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { scoreCv, type ScoringContext } from "@/lib/cv-score";
+import { createClient } from "@/lib/supabase/client";
 
 import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
@@ -45,6 +46,29 @@ const SAVE_LABELS: Record<SaveStatus, string> = {
 };
 
 const LEAVE_MESSAGE = "Des modifications ne sont pas encore enregistrées. Quitter quand même ?";
+
+const SUPABASE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
+/** Messages du coach gardés en base (les plus récents), chacun coupé comme côté serveur. */
+const HISTORY_MAX = 60;
+const MESSAGE_MAX_LENGTH = 2000;
+
+/** Échanges lus (base ou historique du chat) : seuls les messages valides, bornés. */
+function readTurns(value: unknown): ChatTurn[] {
+  return Array.isArray(value)
+    ? value
+        .filter(
+          (t): t is ChatTurn =>
+            Boolean(t) && (t.role === "user" || t.role === "assistant") && typeof t.content === "string" && t.content.trim() !== "",
+        )
+        .slice(-HISTORY_MAX)
+        .map(({ role, content }) => ({ role, content: content.slice(0, MESSAGE_MAX_LENGTH) }))
+    : [];
+}
+
+function readStrings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [];
+}
 
 function fileName(title: string, data: CvData) {
   const base = `CV ${fullName(data) || title}`.normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -143,13 +167,53 @@ export function CvBuilderEditor({
     return result.coach.opening;
   }, [cv.id]);
 
-  // Points que le coach a abandonnés pendant la session (le candidat ne sait pas ou ne veut pas
-  // répondre) : renvoyés à chaque message pour qu'il n'y revienne pas. En mémoire seulement.
+  // Conversation avec le coach et points qu'il a abandonnés (le candidat ne sait pas ou ne veut
+  // pas répondre), enregistrés dans cv_coach_history (migration 0033) pour être repris à la
+  // prochaine ouverture. null : lecture en cours (le chat s'affiche une fois l'historique lu).
+  const [coachHistory, setCoachHistory] = useState<ChatTurn[] | null>(SUPABASE_CONFIGURED ? null : []);
   const skipped = useRef<string[]>([]);
-  async function refineWithSkipped(id: string, json: string, message: string, history: unknown) {
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: row, error } = await createClient()
+        .from("cv_coach_history")
+        .select("messages, skipped_points")
+        .eq("cv_id", cv.id)
+        .maybeSingle();
+      // Sans historique (ou table pas encore créée) : la conversation démarre vide.
+      if (error) console.error("[cv-builder] historique du coach : lecture", error.message);
+      if (cancelled) return;
+      skipped.current = readStrings(row?.skipped_points);
+      setCoachHistory(readTurns(row?.messages));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cv.id]);
+
+  // Échange du coach : points abandonnés renvoyés, puis conversation enregistrée (sans échec :
+  // une sauvegarde manquée est seulement journalisée).
+  async function refineWithHistory(id: string, json: string, message: string, history: unknown) {
     const result = await refineBuilderCvAction(id, json, message, history, skipped.current);
-    if (result.ok && result.skippedPoints?.length) {
-      skipped.current = [...new Set([...skipped.current, ...result.skippedPoints])];
+    if (!result.ok) return result;
+    if (result.skippedPoints?.length) skipped.current = [...new Set([...skipped.current, ...result.skippedPoints])];
+    if (SUPABASE_CONFIGURED) {
+      const turns: ChatTurn[] = [
+        ...readTurns(history),
+        { role: "user", content: message },
+        ...(result.limitNotice ? [{ role: "assistant" as const, content: result.limitNotice }] : []),
+        { role: "assistant", content: result.reply },
+      ];
+      const { error } = await createClient()
+        .from("cv_coach_history")
+        .upsert({
+          cv_id: id,
+          messages: turns.slice(-HISTORY_MAX),
+          skipped_points: skipped.current,
+          updated_at: new Date().toISOString(),
+        });
+      if (error) console.error("[cv-builder] historique du coach : enregistrement", error.message);
     }
     return result;
   }
@@ -233,41 +297,49 @@ export function CvBuilderEditor({
           <div className="shrink-0">
             <CvScorePanel score={score} />
           </div>
-          <RefineChat
-            document="cvBuilder"
-            applicationId={cv.id}
-            aiEnabled={usage.aiEnabled}
-            usage={usage.chat}
-            resetLabel={usage.resetLabel}
-            refine={refineWithSkipped}
-            readDocument={() => JSON.stringify(chatContent(dataRef.current))}
-            replaceDocument={(json) => {
-              const current = dataRef.current;
-              const previous = JSON.stringify(chatContent(current));
-              try {
-                const parsed = JSON.parse(json);
-                const next = CvDataSchema.safeParse({
-                  ...parsed,
-                  personal: { ...parsed.personal, photo: current.personal.photo },
-                  style: current.style,
-                  analysis: current.analysis,
-                  coach: current.coach,
-                });
-                if (next.success) edit(() => next.data);
-              } catch {
-                // Contenu illisible : le CV reste tel quel.
-              }
-              return previous;
-            }}
-            onPendingChange={() => {}}
-            opening={opening}
-            limitMessage={CVB_CHAT_LIMIT_MESSAGE}
-            limitBlocks={false}
-            undoable={false}
-            fill
-            minimal
-            markdown
-          />
+          {coachHistory === null ? (
+            <p role="status" className="card p-5 text-sm text-slate-500 dark:text-slate-400">
+              Chargement de la conversation…
+            </p>
+          ) : (
+            <RefineChat
+              document="cvBuilder"
+              applicationId={cv.id}
+              aiEnabled={usage.aiEnabled}
+              usage={usage.chat}
+              resetLabel={usage.resetLabel}
+              refine={refineWithHistory}
+              initialMessages={coachHistory}
+              readDocument={() => JSON.stringify(chatContent(dataRef.current))}
+              replaceDocument={(json) => {
+                const current = dataRef.current;
+                const previous = JSON.stringify(chatContent(current));
+                try {
+                  const parsed = JSON.parse(json);
+                  const next = CvDataSchema.safeParse({
+                    ...parsed,
+                    personal: { ...parsed.personal, photo: current.personal.photo },
+                    style: current.style,
+                    analysis: current.analysis,
+                    coach: current.coach,
+                  });
+                  if (next.success) edit(() => next.data);
+                } catch {
+                  // Contenu illisible : le CV reste tel quel.
+                }
+                return previous;
+              }}
+              onPendingChange={() => {}}
+              // Conversation reprise : pas de nouveau premier message.
+              opening={coachHistory.length ? undefined : opening}
+              limitMessage={CVB_CHAT_LIMIT_MESSAGE}
+              limitBlocks={false}
+              undoable={false}
+              fill
+              minimal
+              markdown
+            />
+          )}
         </div>
 
         {/* Aperçu : toute la hauteur disponible sur grand écran. */}
