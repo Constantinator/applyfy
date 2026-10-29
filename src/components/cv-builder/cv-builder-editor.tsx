@@ -27,6 +27,7 @@ import { createClient } from "@/lib/supabase/client";
 
 import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
+import { CvStylePanel } from "./cv-style-panel";
 
 export type CvBuilderUsage = {
   /** Chat « Affiner avec l'IA » : utilisation du mois. */
@@ -91,8 +92,9 @@ export function CvBuilderEditor({
   scoring: ScoringContext;
 }) {
   const [title, setTitle] = useState(cv.title);
-  // Modèle choisi à la création du CV : plus modifiable dans l'éditeur.
-  const templateId: CvTemplateId = cv.templateId;
+  // Modèle et couleur d'accent : panneau « Style du CV » (enregistrés avec le CV).
+  const [templateId, setTemplateId] = useState<CvTemplateId>(cv.templateId);
+  const [tab, setTab] = useState<"chat" | "style">("chat");
   const [data, setData] = useState<CvData>(cv.data);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -292,53 +294,96 @@ export function CvBuilderEditor({
       )}
 
       <div className="grid flex-1 gap-4 p-3 sm:p-4 lg:min-h-0 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        {/* Score (toujours visible), puis chat « coach » qui remplit le reste de la hauteur. */}
+        {/* Score (toujours visible), onglets, puis chat « coach » ou style, qui remplissent le reste de la hauteur. */}
         <div className="flex min-w-0 flex-col gap-4 lg:min-h-0">
           <div className="shrink-0">
             <CvScorePanel score={score} />
           </div>
-          {coachHistory === null ? (
-            <p role="status" className="card p-5 text-sm text-slate-500 dark:text-slate-400">
-              Chargement de la conversation…
-            </p>
-          ) : (
-            <RefineChat
-              document="cvBuilder"
-              applicationId={cv.id}
-              aiEnabled={usage.aiEnabled}
-              usage={usage.chat}
-              resetLabel={usage.resetLabel}
-              refine={refineWithHistory}
-              initialMessages={coachHistory}
-              readDocument={() => JSON.stringify(chatContent(dataRef.current))}
-              replaceDocument={(json) => {
-                const current = dataRef.current;
-                const previous = JSON.stringify(chatContent(current));
-                try {
-                  const parsed = JSON.parse(json);
-                  const next = CvDataSchema.safeParse({
-                    ...parsed,
-                    personal: { ...parsed.personal, photo: current.personal.photo },
-                    style: current.style,
-                    analysis: current.analysis,
-                    coach: current.coach,
-                  });
-                  if (next.success) edit(() => next.data);
-                } catch {
-                  // Contenu illisible : le CV reste tel quel.
-                }
-                return previous;
-              }}
-              onPendingChange={() => {}}
-              // Conversation reprise : pas de nouveau premier message.
-              opening={coachHistory.length ? undefined : opening}
-              limitMessage={CVB_CHAT_LIMIT_MESSAGE}
-              limitBlocks={false}
-              undoable={false}
-              fill
-              minimal
-              markdown
-            />
+          <div role="tablist" aria-label="Panneau de l'éditeur" className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+            {(
+              [
+                ["chat", "Chat IA"],
+                ["style", "Style du CV"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`tab-${id}`}
+                aria-selected={tab === id}
+                aria-controls={`panel-${id}`}
+                onClick={() => setTab(id)}
+                className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  tab === id
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Chat masqué (pas démonté) pendant l'onglet Style : la conversation en cours est gardée. */}
+          <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" className={tab === "chat" ? "contents" : "hidden"}>
+            {coachHistory === null ? (
+              <p role="status" className="card p-5 text-sm text-slate-500 dark:text-slate-400">
+                Chargement de la conversation…
+              </p>
+            ) : (
+              <RefineChat
+                document="cvBuilder"
+                applicationId={cv.id}
+                aiEnabled={usage.aiEnabled}
+                usage={usage.chat}
+                resetLabel={usage.resetLabel}
+                refine={refineWithHistory}
+                initialMessages={coachHistory}
+                readDocument={() => JSON.stringify(chatContent(dataRef.current))}
+                replaceDocument={(json) => {
+                  const current = dataRef.current;
+                  const previous = JSON.stringify(chatContent(current));
+                  try {
+                    const parsed = JSON.parse(json);
+                    const next = CvDataSchema.safeParse({
+                      ...parsed,
+                      personal: { ...parsed.personal, photo: current.personal.photo },
+                      style: current.style,
+                      analysis: current.analysis,
+                      coach: current.coach,
+                    });
+                    if (next.success) edit(() => next.data);
+                  } catch {
+                    // Contenu illisible : le CV reste tel quel.
+                  }
+                  return previous;
+                }}
+                onPendingChange={() => {}}
+                // Conversation reprise : pas de nouveau premier message.
+                opening={coachHistory.length ? undefined : opening}
+                limitMessage={CVB_CHAT_LIMIT_MESSAGE}
+                limitBlocks={false}
+                undoable={false}
+                fill
+                minimal
+                markdown
+              />
+            )}
+          </div>
+          {tab === "style" && (
+            <div id="panel-style" role="tabpanel" aria-labelledby="tab-style" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              <CvStylePanel
+                templateId={templateId}
+                accent={data.style.accent}
+                onTemplate={(id) => {
+                  if (id === templateId) return;
+                  touched.current = true;
+                  setStatus("pending");
+                  setTemplateId(id);
+                }}
+                onAccent={(accent) => edit((d) => ({ ...d, style: { ...d.style, accent } }))}
+              />
+            </div>
           )}
         </div>
 

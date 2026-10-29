@@ -43,6 +43,19 @@ export function cvFontFile(id: CvFontId, weight: 400 | 700, italic = false) {
   return `/fonts/cv/${id}-${weight}${italic ? "-italic" : ""}.ttf`;
 }
 
+/** Couleur d'accent choisie dans « Style du CV » : #rrggbb. */
+const ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+/** Couleurs d'accent proposées (en plus du sélecteur libre). */
+export const CV_ACCENT_PRESETS = [
+  { value: "#111827", label: "Noir" },
+  { value: "#1E3A5F", label: "Bleu marine" },
+  { value: "#1E40AF", label: "Bleu" },
+  { value: "#059669", label: "Vert" },
+  { value: "#7F1D1D", label: "Bordeaux" },
+  { value: "#4B5563", label: "Gris" },
+] as const;
+
 /** Taille du texte : facteur appliqué aux tailles et aux espacements verticaux des modèles. */
 export const CV_DENSITIES = [
   { id: "compact", label: "Petite", factor: 0.88 },
@@ -204,6 +217,8 @@ export const CvDataSchema = z.object({
       density: z.enum(["compact", "normal", "large"]).catch("normal").default("normal"),
       /** Alignement des paragraphes et des puces. */
       align: z.enum(["left", "justify"]).catch("left").default("left"),
+      /** Couleur d'accent (#rrggbb) des titres, du nom et des traits ; vide : couleur du modèle. */
+      accent: z.string().regex(ACCENT_PATTERN).or(z.literal("")).catch("").default(""),
     })
     .prefault({}),
   /** CV importé : analyse de l'import (null pour un CV créé à partir d'un modèle vierge). */

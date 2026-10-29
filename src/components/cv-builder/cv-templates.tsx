@@ -21,6 +21,8 @@ const BOLD = { fontWeight: "bold" };
 
 /** Alignement des paragraphes et des puces (réglage « Alignement » de l'éditeur). */
 const AlignContext = createContext<"left" | "justify">("left");
+/** Couleur d'accent choisie dans « Style du CV » ; vide : couleur du modèle. */
+const AccentContext = createContext("");
 
 /** Paragraphe modifiable (profil, description de projet), à l'alignement choisi. */
 function Paragraph({ edit, children, style }: { edit: string; children: string; style?: StyleProp }) {
@@ -161,6 +163,8 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
   const entry = { marginTop: 7 };
   const row = { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" };
   const Heading = theme.Heading;
+  const custom = data.style.accent;
+  const accent = custom || theme.accent;
 
   // Tech : GitHub et portfolio mis en avant sous l'en-tête, retirés des coordonnées.
   const highlighted = variant === "tech" ? items.filter((c) => c.field === "github" || c.field === "website") : [];
@@ -174,12 +178,12 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
             data={data}
             style={[
               BOLD,
-              { fontSize: 22, lineHeight: 1.15, color: variant === "moderne" ? theme.accent : "#111827" },
+              { fontSize: 22, lineHeight: 1.15, color: variant === "moderne" ? accent : "#111827" },
               center && { textTransform: "uppercase" },
             ]}
           />
           {data.personal.jobTitle ? (
-            <Text edit="personal.jobTitle" style={{ fontSize: 11.5, marginTop: 3, color: variant === "tech" ? theme.accent : "#374151" }}>
+            <Text edit="personal.jobTitle" style={{ fontSize: 11.5, marginTop: 3, color: variant === "tech" ? accent : "#374151" }}>
               {data.personal.jobTitle}
             </Text>
           ) : null}
@@ -202,9 +206,9 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
           {highlighted.map((c) => (
             <View
               key={c.field}
-              style={{ flexDirection: "row", marginRight: 8, marginTop: 2, borderWidth: 1, borderColor: theme.accent, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 7 }}
+              style={{ flexDirection: "row", marginRight: 8, marginTop: 2, borderWidth: 1, borderColor: accent, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 7 }}
             >
-              <Text style={[BOLD, { color: theme.accent, fontSize: 8.5, marginRight: 4 }]}>
+              <Text style={[BOLD, { color: accent, fontSize: 8.5, marginRight: 4 }]}>
                 {c.field === "github" ? "GitHub" : "Portfolio"}
               </Text>
               <Contact item={c} style={{ fontSize: 8.5, color: "#111827" }} />
@@ -213,7 +217,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
         </View>
       ) : null}
 
-      {variant === "minimaliste" && <View style={{ borderBottomWidth: 0.75, borderColor: "#111827", marginTop: 10 }} />}
+      {variant === "minimaliste" && <View style={{ borderBottomWidth: 0.75, borderColor: accent, marginTop: 10 }} />}
 
       {s.summary ? (
         <View style={section}>
@@ -244,7 +248,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                     {e.location}
                   </Text>
                 ) : null}
-                <Bullets base={base} items={e.bullets} color={variant === "tech" || variant === "moderne" ? theme.accent : undefined} />
+                <Bullets base={base} items={e.bullets} color={variant === "tech" || variant === "moderne" ? accent : undefined} />
               </>
             );
             if (variant !== "tech") {
@@ -256,8 +260,8 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
             }
             // Timeline verticale : filet coloré et point devant chaque expérience.
             return (
-              <View key={e.id} style={{ paddingLeft: 14, paddingTop: 5, paddingBottom: 4, borderLeftWidth: 1.5, borderColor: "#A7F3D0", marginLeft: 4 }}>
-                <View style={{ position: "absolute", left: -5.25, top: 8, width: 9, height: 9, borderRadius: 4.5, backgroundColor: theme.accent }} />
+              <View key={e.id} style={{ paddingLeft: 14, paddingTop: 5, paddingBottom: 4, borderLeftWidth: 1.5, borderColor: custom ? "#E5E7EB" : "#A7F3D0", marginLeft: 4 }}>
+                <View style={{ position: "absolute", left: -5.25, top: 8, width: 9, height: 9, borderRadius: 4.5, backgroundColor: accent }} />
                 {body}
               </View>
             );
@@ -298,7 +302,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
               {s.skills.map((k) => (
                 <Text
                   key={k.id}
-                  style={{ backgroundColor: "#ECFDF5", color: "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }}
+                  style={{ backgroundColor: custom ? "#F3F4F6" : "#ECFDF5", color: custom || "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }}
                 >
                   <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
                   {k.level ? ` · ${levelLabel(k.level)}` : ""}
@@ -315,7 +319,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                   </View>
                   {k.level ? (
                     <View style={{ height: 3, backgroundColor: "#DBEAFE", borderRadius: 1.5, marginTop: 2 }}>
-                      <View style={{ height: 3, width: `${skillLevelValue(k.level) * 25}%`, backgroundColor: theme.accent, borderRadius: 1.5 }} />
+                      <View style={{ height: 3, width: `${skillLevelValue(k.level) * 25}%`, backgroundColor: accent, borderRadius: 1.5 }} />
                     </View>
                   ) : null}
                 </View>
@@ -364,7 +368,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                   <Link
                     src={absolute(p.link)}
                     edit={`projects.${p.id}.link`}
-                    style={{ textDecoration: "none", fontSize: 9, color: variant === "minimaliste" || variant === "classique" ? theme.muted : theme.accent }}
+                    style={{ textDecoration: "none", fontSize: 9, color: variant === "minimaliste" || variant === "classique" ? theme.muted : accent }}
                   >
                     {displayUrl(p.link)}
                   </Link>
@@ -412,50 +416,69 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
   );
 }
 
+function MinimalisteHeading({ children }: { children: string }) {
+  return (
+    <View style={{ borderBottomWidth: 0.5, borderColor: "#9CA3AF", paddingBottom: 2, marginBottom: 4 }}>
+      <Text style={[BOLD, { fontSize: 10.5, color: useContext(AccentContext) || "#111827" }]}>{children}</Text>
+    </View>
+  );
+}
+
+function ClassiqueHeading({ children }: { children: string }) {
+  const color = useContext(AccentContext) || "#111827";
+  return (
+    <View style={{ borderBottomWidth: 1, borderColor: color, paddingBottom: 2, marginBottom: 4 }}>
+      <Text style={[BOLD, { fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color }]}>{children}</Text>
+    </View>
+  );
+}
+
+function ModerneHeading({ children }: { children: string }) {
+  const color = useContext(AccentContext) || "#1E40AF";
+  return (
+    <View style={{ marginBottom: 5 }}>
+      <Text style={[BOLD, { fontSize: 11.5, color }]}>{children}</Text>
+      <View style={{ height: 2, width: 36, backgroundColor: color, marginTop: 2.5 }} />
+    </View>
+  );
+}
+
+function TechHeading({ children }: { children: string }) {
+  const color = useContext(AccentContext) || "#059669";
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+      <View style={{ width: 4, height: 11, backgroundColor: color, borderRadius: 1, marginRight: 6 }} />
+      <Text style={[BOLD, { fontSize: 11, letterSpacing: 0.3 }]}>{children}</Text>
+    </View>
+  );
+}
+
 const MINIMALISTE: Theme = {
   accent: "#111827",
   muted: "#4B5563",
   headerAlign: "left",
-  Heading: ({ children }) => (
-    <View style={{ borderBottomWidth: 0.5, borderColor: "#9CA3AF", paddingBottom: 2, marginBottom: 4 }}>
-      <Text style={[BOLD, { fontSize: 10.5 }]}>{children}</Text>
-    </View>
-  ),
+  Heading: MinimalisteHeading,
 };
 
 const CLASSIQUE: Theme = {
   accent: "#111827",
   muted: "#4B5563",
   headerAlign: "center",
-  Heading: ({ children }) => (
-    <View style={{ borderBottomWidth: 1, borderColor: "#111827", paddingBottom: 2, marginBottom: 4 }}>
-      <Text style={[BOLD, { fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase" }]}>{children}</Text>
-    </View>
-  ),
+  Heading: ClassiqueHeading,
 };
 
 const MODERNE: Theme = {
   accent: "#1E40AF",
   muted: "#6B7280",
   headerAlign: "left",
-  Heading: ({ children }) => (
-    <View style={{ marginBottom: 5 }}>
-      <Text style={[BOLD, { fontSize: 11.5, color: "#1E40AF" }]}>{children}</Text>
-      <View style={{ height: 2, width: 36, backgroundColor: "#1E40AF", marginTop: 2.5 }} />
-    </View>
-  ),
+  Heading: ModerneHeading,
 };
 
 const TECH: Theme = {
   accent: "#059669",
   muted: "#6B7280",
   headerAlign: "left",
-  Heading: ({ children }) => (
-    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
-      <View style={{ width: 4, height: 11, backgroundColor: "#059669", borderRadius: 1, marginRight: 6 }} />
-      <Text style={[BOLD, { fontSize: 11, letterSpacing: 0.3 }]}>{children}</Text>
-    </View>
-  ),
+  Heading: TechHeading,
 };
 
 // ---------------------------------------------------------------------------
@@ -470,11 +493,13 @@ const SideHeading = ({ children }: { children: string }) => (
   </Text>
 );
 
-const MainHeading = ({ children }: { children: string }) => (
-  <View style={{ borderBottomWidth: 1, borderColor: "#CBD5E1", paddingBottom: 2, marginBottom: 4, marginTop: 14 }}>
-    <Text style={[BOLD, { fontSize: 11.5, color: SIDEBAR_BG }]}>{children}</Text>
-  </View>
-);
+function MainHeading({ children }: { children: string }) {
+  return (
+    <View style={{ borderBottomWidth: 1, borderColor: "#CBD5E1", paddingBottom: 2, marginBottom: 4, marginTop: 14 }}>
+      <Text style={[BOLD, { fontSize: 11.5, color: useContext(AccentContext) || SIDEBAR_BG }]}>{children}</Text>
+    </View>
+  );
+}
 
 function Sidebar({ data }: { data: CvData }) {
   const s = sectionsOf(data);
@@ -564,7 +589,7 @@ function Sidebar({ data }: { data: CvData }) {
         </View>
 
         <View style={{ width: "70%", paddingHorizontal: 26 }}>
-          <Name data={data} style={[BOLD, { fontSize: 22, lineHeight: 1.15, color: SIDEBAR_BG }]} />
+          <Name data={data} style={[BOLD, { fontSize: 22, lineHeight: 1.15, color: data.style.accent || SIDEBAR_BG }]} />
           {data.personal.jobTitle ? (
             <Text edit="personal.jobTitle" style={{ fontSize: 11.5, color: "#475569", marginTop: 3 }}>
               {data.personal.jobTitle}
@@ -654,11 +679,14 @@ const FINANCE_BLACK = "#000000";
 const ITALIC = { fontStyle: "italic" };
 
 /** Titre centré en petites majuscules, entre deux filets pleine largeur. */
-const FinanceHeading = ({ children }: { children: string }) => (
-  <View style={{ borderTopWidth: 0.75, borderBottomWidth: 0.75, borderColor: FINANCE_BLACK, paddingVertical: 1, marginBottom: 3 }}>
-    <Text style={[BOLD, { fontSize: 9.5, letterSpacing: 1, textAlign: "center", textTransform: "uppercase" }]}>{children}</Text>
-  </View>
-);
+function FinanceHeading({ children }: { children: string }) {
+  const color = useContext(AccentContext) || FINANCE_BLACK;
+  return (
+    <View style={{ borderTopWidth: 0.75, borderBottomWidth: 0.75, borderColor: color, paddingVertical: 1, marginBottom: 3 }}>
+      <Text style={[BOLD, { fontSize: 9.5, letterSpacing: 1, textAlign: "center", textTransform: "uppercase", color }]}>{children}</Text>
+    </View>
+  );
+}
 
 /** Puces carrées ▪. */
 function FinanceBullets({ base, items }: { base: string; items: string[] }) {
@@ -874,13 +902,15 @@ export function CvPages({ data, templateId }: { data: CvData; templateId: CvTemp
   ];
   return (
     <AlignContext value={data.style.align}>
-      {templateId === "finance" ? (
-        <Finance data={data} />
-      ) : theme ? (
-        <SingleColumn data={data} variant={templateId} theme={theme} />
-      ) : (
-        <Sidebar data={data} />
-      )}
+      <AccentContext value={data.style.accent}>
+        {templateId === "finance" ? (
+          <Finance data={data} />
+        ) : theme ? (
+          <SingleColumn data={data} variant={templateId} theme={theme} />
+        ) : (
+          <Sidebar data={data} />
+        )}
+      </AccentContext>
     </AlignContext>
   );
 }
