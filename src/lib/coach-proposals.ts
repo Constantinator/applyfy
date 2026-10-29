@@ -51,9 +51,21 @@ export const COACH_DATA_SCHEMAS = {
     current: z.boolean().optional(),
     location: optional,
     bullets: z.array(z.object({ index: z.number().int(), after: z.string() })).default([]),
+    /** Positions des puces à supprimer (0 = première). */
+    bullets_to_remove: z.array(z.number().int()).default([]),
+    /** Supprime l'expérience entière. */
+    remove: z.boolean().optional(),
   }),
-  education: z.object({ id: z.string(), school: optional, degree: optional, startDate: optional, endDate: optional, honors: optional }),
-  projects: z.object({ id: z.string(), name: optional, description: optional, link: optional }),
+  education: z.object({
+    id: z.string(),
+    school: optional,
+    degree: optional,
+    startDate: optional,
+    endDate: optional,
+    honors: optional,
+    remove: z.boolean().optional(),
+  }),
+  projects: z.object({ id: z.string(), name: optional, description: optional, link: optional, remove: z.boolean().optional() }),
   skills: z.array(z.object({ name: z.string(), level: z.enum(LEVELS).catch("") })),
   languages: z.array(z.object({ name: z.string(), level: z.string() })),
   certifications: z.array(z.object({ name: z.string(), issuer: z.string(), date: z.string() })),
@@ -84,7 +96,11 @@ export type CoachChange =
   | (ChangeBase & { kind: "bullet"; experienceId: string; index: number | null })
   | (ChangeBase & { kind: "field"; target: FieldTarget; itemId: string | null; field: string })
   | (ChangeBase & { kind: "list"; target: ListTarget; value: Item[]; previous: Item[] })
-  | (ChangeBase & { kind: "item"; target: ItemTarget; value: Item });
+  | (ChangeBase & { kind: "item"; target: ItemTarget; value: Item })
+  /** Suppression d'une puce : `before` est son texte dans le CV, `index` sa position. */
+  | (ChangeBase & { kind: "removeBullet"; experienceId: string; index: number })
+  /** Suppression d'une expérience, d'une formation ou d'un projet entier. */
+  | (ChangeBase & { kind: "removeItem"; target: ItemTarget; itemId: string });
 
 export type CoachProposal = { id: string; changes: CoachChange[] };
 
@@ -187,13 +203,28 @@ export function buildProposal(current: CvData, update: CoachUpdate, makeId: () =
       const target = update.section;
       const items = current[ITEM_KEYS[target]] as Item[];
       const existing = update.data.id ? items.find((i) => i.id === update.data.id) : undefined;
+      // Suppression de l'élément entier : seulement s'il existe (id inconnu : rien à supprimer).
+      if (update.data.remove) {
+        if (existing) {
+          changes.push({
+            id: makeId(),
+            kind: "removeItem",
+            target,
+            itemId: existing.id,
+            label: `${itemName(target, existing)} — supprimé`,
+            before: itemText(target, existing),
+            after: "",
+          });
+        }
+        break;
+      }
       if (!existing) {
         changes.push(...newItemChange(target, update.data as Record<string, unknown>, makeId));
         break;
       }
       const name = itemName(target, existing);
       for (const [key, value] of Object.entries(update.data)) {
-        if (key === "id" || key === "bullets" || key === "current" || typeof value !== "string") continue;
+        if (key === "id" || key === "bullets" || key === "bullets_to_remove" || key === "current" || typeof value !== "string") continue;
         if (key in existing) field(target, existing.id, key, `${name} — ${ITEM_FIELD_LABELS[key] ?? key}`, String(existing[key] ?? ""), value);
       }
       if (update.section === "experience") {
@@ -211,6 +242,19 @@ export function buildProposal(current: CvData, update: CoachUpdate, makeId: () =
             label: replaced ? `${name} — puce ${b.index + 1}` : `${name} — nouvelle puce`,
             before: replaced ? bullets[b.index] : null,
             after,
+          });
+        }
+        // Puces supprimées : position hors limites ignorée, une seule suppression par position.
+        for (const index of new Set(update.data.bullets_to_remove)) {
+          if (index < 0 || index >= bullets.length) continue;
+          changes.push({
+            id: makeId(),
+            kind: "removeBullet",
+            experienceId: existing.id,
+            index,
+            label: `${name} — puce ${index + 1} supprimée`,
+            before: bullets[index],
+            after: "",
           });
         }
       }
@@ -270,6 +314,7 @@ export function checkProposal(proposal: CoachProposal, context: Pick<ScoringCont
   ];
 
   return proposal.changes.flatMap((change) => {
+    if (change.kind === "removeBullet" || change.kind === "removeItem") return [];
     const texts =
       change.kind === "bullet"
         ? [{ text: change.after, bullet: true }]
@@ -355,6 +400,23 @@ export function applyCoachChange(data: CvData, change: CoachChange): CvData | nu
       if (listText(change.target, next[change.target] as Item[]) !== change.before) return null;
       (next as unknown as Fields)[change.target] = change.value;
       break;
+    case "removeBullet": {
+      // Position d'origine si le texte y est encore, sinon la première puce identique : plusieurs
+      // suppressions dans la même réponse restent justes malgré le décalage des positions.
+      const experience = next.experiences.find((e) => e.id === change.experienceId);
+      if (!experience || change.before === null) return null;
+      const index = experience.bullets[change.index] === change.before ? change.index : experience.bullets.indexOf(change.before);
+      if (index < 0) return null;
+      experience.bullets.splice(index, 1);
+      break;
+    }
+    case "removeItem": {
+      const key = ITEM_KEYS[change.target];
+      const items = next[key] as Item[];
+      if (!items.some((i) => i.id === change.itemId)) return null;
+      (next as unknown as Fields)[key] = items.filter((i) => i.id !== change.itemId);
+      break;
+    }
     case "item": {
       const items = next[ITEM_KEYS[change.target]] as Item[];
       if (items.some((i) => i.id === change.value.id)) return null;

@@ -899,9 +899,9 @@ export async function analyseCv(
 const COACH_DATA_FORMAT = `Ta modification de la section choisie ; chaîne vide si section = « aucune ». N'y mets que ce qui change.
 - summary, interests : le nouveau texte lui-même.
 - personal : JSON des seuls champs modifiés, parmi {"firstName","lastName","jobTitle","email","phone","city","linkedin","website","github"} ; jobTitle est le titre du CV.
-- experience : JSON {"id": id de l'expérience, "bullets": [{"index": position de la puce remplacée (0 = première), ou -1 pour une nouvelle puce, "after": "la puce proposée"}]} ; seulement les puces modifiées ou ajoutées. Nouvelle expérience : "id" vide, avec "position","company","startDate","endDate","current" (booléen),"location" et ses puces (index -1).
-- education : JSON {"id", et les seuls champs modifiés parmi "school","degree","startDate","endDate","honors"} ; nouvelle formation : "id" vide et tous les champs.
-- projects : JSON d'UN projet {"id", et les seuls champs modifiés parmi "name","description","link"} ; nouveau projet : "id" vide et tous les champs.
+- experience : JSON {"id": id de l'expérience, "bullets": [{"index": position de la puce remplacée (0 = première), ou -1 pour une nouvelle puce, "after": "la puce proposée"}], "bullets_to_remove": [positions des puces à supprimer]} ; seulement les puces modifiées, ajoutées ou supprimées. Supprimer l'expérience entière : {"id", "remove": true}. Nouvelle expérience : "id" vide, avec "position","company","startDate","endDate","current" (booléen),"location" et ses puces (index -1).
+- education : JSON {"id", et les seuls champs modifiés parmi "school","degree","startDate","endDate","honors"} ; supprimer la formation : {"id", "remove": true} ; nouvelle formation : "id" vide et tous les champs.
+- projects : JSON d'UN projet {"id", et les seuls champs modifiés parmi "name","description","link"} ; supprimer le projet : {"id", "remove": true} ; nouveau projet : "id" vide et tous les champs.
 - skills : JSON de la liste complète proposée [{"name","level"}], level parmi "", "debutant", "intermediaire", "avance", "expert".
 - languages : JSON de la liste complète proposée [{"name","level"}].
 - certifications : JSON de la liste complète proposée [{"name","issuer","date"}].`;
@@ -915,7 +915,7 @@ const CoachReplyFlatSchema = z.object({
   change_summary: z
     .string()
     .describe(
-      "Quand section n'est pas « aucune » : une phrase courte qui dit ce que tu as modifié (ex. « C'est fait : j'ai ajouté tes résultats à ton stage chez X. ») ; sinon chaîne vide",
+      "Quand section n'est pas « aucune » : une phrase courte qui dit ce que tu as modifié, suppressions comprises, en les nommant (ex. « C'est fait : j'ai ajouté tes résultats à ton stage chez X. », « C'est fait : j'ai supprimé la puce en doublon de ton stage chez X. ») ; sinon chaîne vide",
     ),
   message: z
     .string()
@@ -1006,6 +1006,9 @@ Méthode :
 - Ne repose JAMAIS une question déjà posée dans la conversation, même reformulée. Relis la conversation avant d'écrire ta question.
 - Si le candidat répond qu'il ne sait pas, ne se souvient pas ou ne veut pas répondre, le point est traité : ajoute-le à « skipped_points » et passe au point suivant, même s'il reste dans « Points à corriger ».
 - Ne reviens jamais sur un point de la liste « Points abandonnés ».
+- Tu peux supprimer une puce existante : renvoie son index dans bullets_to_remove. Si l'utilisateur demande une suppression et que tu peux l'exécuter, fais-le directement sans demander de confirmation.
+- Tu peux supprimer un élément entier (expérience, formation, projet) : renvoie "remove": true dans la modification de cet élément. Fais-le directement si l'utilisateur le demande.
+- Une suppression est une modification : nomme-la explicitement dans « change_summary ».
 
 Règle absolue : n'invente JAMAIS de chiffre, de fait, de résultat, de date, de diplôme, d'outil, de compétence ou de responsabilité. N'utilise que ce que le candidat a dit dans la conversation ou ce qui figure déjà dans le CV. S'il te manque une information, pose une question au lieu de la deviner ou de l'estimer.
 
