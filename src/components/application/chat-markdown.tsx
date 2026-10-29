@@ -42,16 +42,18 @@ function toBlocks(text: string): Block[] {
 
 export function ChatMarkdown({ text }: { text: string }) {
   return (
-    <div className="space-y-2">
+    <div>
       {toBlocks(text).map((block, index) =>
         block.kind === "list" ? (
-          <ul key={index} className="list-disc space-y-1 pl-5">
+          <ul key={index} className="mb-3 list-disc pl-5 last:mb-0">
             {block.lines.map((line, i) => (
-              <li key={i}>{inline(line)}</li>
+              <li key={i} className="mb-1.5 last:mb-0">
+                {inline(line)}
+              </li>
             ))}
           </ul>
         ) : (
-          <p key={index}>
+          <p key={index} className="mb-3 last:mb-0">
             {block.lines.map((line, i) => (
               <Fragment key={i}>
                 {i > 0 && <br />}

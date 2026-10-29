@@ -312,11 +312,16 @@ export function RefineChat({
           ) : (
             <div key={message.id} className="flex flex-col items-start gap-1">
               <div
-                className={`max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm ring-1 ${
+                className={`max-w-[85%] rounded-2xl rounded-bl-sm ring-1 ${
                   message.error
                     ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30"
                     : "bg-white text-slate-800 ring-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
-                } ${markdown && !message.error ? "" : "whitespace-pre-wrap"}`}
+                } ${
+                  // Coach du CV Builder (markdown) : texte plus grand et bulle plus aérée.
+                  markdown && !message.error
+                    ? "px-4 py-3 text-[15px] leading-relaxed"
+                    : "px-3.5 py-2 text-sm whitespace-pre-wrap"
+                }`}
               >
                 {markdown && !message.error ? <ChatMarkdown text={message.content} /> : message.content}
               </div>
