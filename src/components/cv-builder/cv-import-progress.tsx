@@ -118,13 +118,12 @@ export function CvImportProgress({
   onLimitReached: () => void;
 }) {
   const [current, setCurrent] = useState(0);
-  const [details, setDetails] = useState<Record<number, string>>({});
   const [error, setError] = useState<StepError | null>(null);
   const progress = useRef<Progress>({});
   const started = useRef(false);
 
-  /** Une étape : son action serveur, et ce qu'elle ajoute à la progression (ou son erreur). */
-  async function runStep(step: number): Promise<ImportStepResult<string | null>> {
+  /** Une étape : son action serveur, qui complète la progression (ou son erreur). */
+  async function runStep(step: number): Promise<ImportStepResult<null>> {
     const p = progress.current;
     switch (step) {
       case 0: {
@@ -142,30 +141,23 @@ export function CvImportProgress({
       }
       case 2: {
         const target = await detectCvTargetAction(p.id!);
-        if (!target.ok) return target;
-        return { ok: true, value: [target.value.sector, target.value.jobTitle].filter(Boolean).join(" · ") };
+        return target.ok ? { ok: true, value: null } : target;
       }
       case 3: {
         const market = await compareCvMarketAction(p.id!);
-        if (!market.ok) return market;
-        const { found, total } = market.value;
-        return {
-          ok: true,
-          value: total ? `${found} mot${found > 1 ? "s" : ""}-clé${found > 1 ? "s" : ""} du marché sur ${total} déjà dans ton CV` : "Pas encore d'offres analysées pour ce secteur",
-        };
+        return market.ok ? { ok: true, value: null } : market;
       }
       case 4: {
         const scored = await scoreCvImportAction(p.id!);
         if (!scored.ok) return scored;
         p.score = scored.value;
-        return { ok: true, value: `${scored.value.score}/100` };
+        return { ok: true, value: null };
       }
       case 5: {
         const analysed = await analyseCvImportAction(p.id!);
         if (!analysed.ok) return analysed;
         p.analysis = analysed.value;
-        const count = analysed.value?.optimizations.length ?? 0;
-        return { ok: true, value: count ? `${count} optimisation${count > 1 ? "s" : ""} prioritaire${count > 1 ? "s" : ""}` : null };
+        return { ok: true, value: null };
       }
       default: {
         const coach = await coachOpeningAction(p.id!);
@@ -179,7 +171,7 @@ export function CvImportProgress({
     setError(null);
     for (let step = from; step < STEPS.length; step++) {
       setCurrent(step);
-      let result: ImportStepResult<string | null>;
+      let result: ImportStepResult<null>;
       try {
         result = await runStep(step);
       } catch (e) {
@@ -191,8 +183,6 @@ export function CvImportProgress({
         setError({ step, message: result.error });
         return;
       }
-      const detail = result.value;
-      if (detail) setDetails((d) => ({ ...d, [step]: detail }));
     }
     setCurrent(STEPS.length);
     finish();
@@ -240,7 +230,6 @@ export function CvImportProgress({
                     {state === "done" ? " (terminé)" : state === "current" ? " (en cours)" : state === "error" ? " (échec)" : ""}
                   </span>
                 </p>
-                {state === "done" && details[step] && <p className="text-xs text-slate-500 dark:text-slate-400">{details[step]}</p>}
                 {state === "error" && error && (
                   <div className="mt-2 space-y-2">
                     <p role="alert" className="text-sm text-red-700 dark:text-red-300">

@@ -22,7 +22,7 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "@/lib/cv-score";
+import { scoreCv, type ScoringContext } from "@/lib/cv-score";
 
 import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
@@ -120,8 +120,6 @@ export function CvBuilderEditor({
   // Score calculé par le code (cv-score.ts), recalculé à chaque modification du CV.
   const [scoringContext, setScoringContext] = useState(scoring);
   const score = useMemo(() => scoreCv(data, scoringContext), [data, scoringContext]);
-  // Formules de la liste noire présentes dans le CV (elles comptent aussi dans le score).
-  const banned = useMemo(() => bannedPhrasesInCv(data, scoringContext), [data, scoringContext]);
 
   // Poste cible modifié (titre du CV ou poste visé) : secteur redétecté par le serveur.
   const target = `${data.personal.jobTitle.trim()}|${data.analysis?.targetJob.trim() ?? ""}`;
@@ -219,10 +217,10 @@ export function CvBuilderEditor({
       )}
 
       <div className="grid flex-1 gap-4 p-3 sm:p-4 lg:min-h-0 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        {/* Score (toujours visible, défilement propre), puis chat « coach » qui remplit la hauteur. */}
+        {/* Score (toujours visible), puis chat « coach » qui remplit le reste de la hauteur. */}
         <div className="flex min-w-0 flex-col gap-4 lg:min-h-0">
-          <div className="shrink-0 lg:max-h-[40%] lg:overflow-y-auto">
-            <CvScorePanel score={score} banned={banned} />
+          <div className="shrink-0">
+            <CvScorePanel score={score} />
           </div>
           <RefineChat
             document="cvBuilder"
@@ -256,6 +254,8 @@ export function CvBuilderEditor({
             limitBlocks={false}
             undoable={false}
             fill
+            minimal
+            markdown
           />
         </div>
 

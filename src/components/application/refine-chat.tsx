@@ -7,6 +7,8 @@ import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import type { DocumentChatResult } from "@/lib/refine";
 
+import { ChatMarkdown } from "./chat-markdown";
+
 /** Textes propres à chaque document (CV amélioré, lettre de motivation). */
 const DOCUMENTS = {
   cv: {
@@ -92,6 +94,8 @@ export function RefineChat({
   limitBlocks = true,
   tall = false,
   fill = false,
+  minimal = false,
+  markdown = false,
   undoable = true,
 }: {
   document: keyof typeof DOCUMENTS;
@@ -125,6 +129,10 @@ export function RefineChat({
   tall?: boolean;
   /** Sur grand écran, remplit la hauteur de son parent (éditeur en plein écran du CV Builder). */
   fill?: boolean;
+  /** Seulement les messages et le champ de saisie : sans titre, intro, compteur, bandeau ni mentions. */
+  minimal?: boolean;
+  /** Messages de l'assistant en markdown minimal (sauts de ligne, puces, gras). */
+  markdown?: boolean;
   /** Bouton « Annuler cette modification » sous la dernière réponse qui a modifié le document. */
   undoable?: boolean;
 }) {
@@ -244,28 +252,34 @@ export function RefineChat({
       aria-labelledby="refine-title"
       className={`card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`}
     >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-        <div>
-          <h2 id="refine-title" className="font-semibold text-slate-900 dark:text-white">
-            Affiner avec l&apos;IA
-          </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{texts.intro}</p>
+      {minimal ? (
+        <h2 id="refine-title" className="sr-only">
+          Coach
+        </h2>
+      ) : (
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+          <div>
+            <h2 id="refine-title" className="font-semibold text-slate-900 dark:text-white">
+              Affiner avec l&apos;IA
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{texts.intro}</p>
+          </div>
+          {aiEnabled && (
+            <p className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
+              {usage.limit === null
+                ? `${used} ${used > 1 ? units.many : units.one} ce mois-ci · illimité`
+                : `${Math.min(used, usage.limit)}/${usage.limit} ${units.many} ${units.used} ce mois-ci`}
+            </p>
+          )}
         </div>
-        {aiEnabled && (
-          <p className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
-            {usage.limit === null
-              ? `${used} ${used > 1 ? units.many : units.one} ce mois-ci · illimité`
-              : `${Math.min(used, usage.limit)}/${usage.limit} ${units.many} ${units.used} ce mois-ci`}
-          </p>
-        )}
-      </div>
+      )}
 
       <div
         ref={listRef}
         role="log"
         aria-live="polite"
         aria-label="Conversation avec l'assistant"
-        className={`${fill ? "max-h-[60vh] min-h-64 lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700`}
+        className={`${fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700`}
       >
         {messages.length === 0 && !pending && !openingPending && (
           <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{texts.empty}</p>
@@ -288,15 +302,15 @@ export function RefineChat({
             </div>
           ) : (
             <div key={message.id} className="flex flex-col items-start gap-1">
-              <p
-                className={`max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm whitespace-pre-wrap ring-1 ${
+              <div
+                className={`max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm ring-1 ${
                   message.error
                     ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30"
                     : "bg-white text-slate-800 ring-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
-                }`}
+                } ${markdown && !message.error ? "" : "whitespace-pre-wrap"}`}
               >
-                {message.content}
-              </p>
+                {markdown && !message.error ? <ChatMarkdown text={message.content} /> : message.content}
+              </div>
               {message.premium && <PremiumButton />}
               {message.undone ? (
                 <span className="pl-1 text-xs text-slate-500">Modification annulée.</span>
@@ -326,7 +340,7 @@ export function RefineChat({
         )}
       </div>
 
-      {!aiEnabled ? (
+      {minimal ? null : !aiEnabled ? (
         <p className="text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached ? (
         <UsageLimitBanner resetLabel={resetLabel} message={limitMessage} premiumBadge={limitMessage !== undefined} />
@@ -385,15 +399,17 @@ export function RefineChat({
           {blocked ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
         </button>
       </form>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        {texts.privacy}{" "}
-        {usage.limit !== null && (
-          <>
-            {usage.limit} {usage.limit > 1 ? units.many : units.one} par mois avec le plan gratuit.{" "}
-          </>
-        )}
-        {texts.save}
-      </p>
+      {!minimal && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {texts.privacy}{" "}
+          {usage.limit !== null && (
+            <>
+              {usage.limit} {usage.limit > 1 ? units.many : units.one} par mois avec le plan gratuit.{" "}
+            </>
+          )}
+          {texts.save}
+        </p>
+      )}
     </section>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId } from "react";
 
-import { READY_SCORE, scoreTone, type BannedInCv, type CvScore } from "@/lib/cv-score";
+import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
 
 /** Couleurs du score : rouge sous 70, orange de 70 à 89, vert à partir de 90. */
 export const SCORE_TONES = {
@@ -47,74 +47,15 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
   );
 }
 
-/** Point affiché sous le score : correction du score ou formule à éviter. */
-type Point = { id: string; message: string; points: number | null };
-
 /**
- * Points de la session : ceux du premier calcul (ouverture de l'éditeur), puis ceux apparus
- * depuis, dans l'ordre. Un point absent du calcul en cours est corrigé.
+ * Score du CV dans l'éditeur, recalculé à chaque modification : jauge, appréciation et repère
+ * « 90 = prêt à postuler ». Le coach traite lui-même les points à corriger.
  */
-function useSessionPoints(current: Point[]) {
-  const [shown, setShown] = useState(current);
-  const added = current.filter((p) => !shown.some((s) => s.id === p.id));
-  // Nouveaux points ajoutés pendant le rendu (mise à jour d'état guidée par les props).
-  if (added.length) setShown([...shown, ...added]);
-  const byId = new Map(current.map((p) => [p.id, p]));
-  return [...shown, ...added].map((p) => ({ ...(byId.get(p.id) ?? p), fixed: !byId.has(p.id) }));
-}
-
-function PointList({ title, points }: { title: string; points: (Point & { fixed: boolean })[] }) {
-  if (!points.length) return null;
-  return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h3>
-      <ul className="space-y-1.5">
-        {points.map((p) => (
-          <li
-            key={p.id}
-            className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-              p.fixed
-                ? "border-green-200 bg-green-50/50 text-slate-400 dark:border-green-400/20 dark:bg-green-500/5 dark:text-slate-500"
-                : "border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200"
-            }`}
-          >
-            <span className={`flex gap-2 ${p.fixed ? "line-through" : ""}`}>
-              {p.fixed && (
-                <span aria-hidden="true" className="text-green-600 no-underline dark:text-green-400">
-                  ✓
-                </span>
-              )}
-              <span>
-                {p.message}
-                {p.fixed && <span className="sr-only"> (corrigé)</span>}
-              </span>
-            </span>
-            {p.points !== null && !p.fixed && (
-              <span className="shrink-0 font-semibold text-blue-700 dark:text-blue-300">+{p.points} pts</span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/**
- * Score du CV dans l'éditeur, recalculé à chaque modification : jauge, repère « 90 = prêt à
- * postuler », points à corriger et formules à éviter. Informatif : le coach traite lui-même les
- * points un par un. Les points de l'ouverture restent affichés, barrés une fois corrigés.
- */
-export function CvScorePanel({ score, banned = [] }: { score: CvScore; banned?: BannedInCv[] }) {
+export function CvScorePanel({ score }: { score: CvScore }) {
   const titleId = useId();
   const t = SCORE_TONES[scoreTone(score.score)];
-  const corrections = useSessionPoints(
-    score.corrections.filter((c) => !c.jargon).map((c) => ({ id: c.id, message: c.message, points: c.points })),
-  );
-  const formulas = useSessionPoints(
-    banned.map((b) => ({ id: `${b.elementId}:${b.phrase}`, message: `« ${b.phrase} » dans ${b.where}`, points: null })),
-  );
   return (
-    <section aria-labelledby={titleId} className="card space-y-4 p-4">
+    <section aria-labelledby={titleId} className="card p-4">
       <div className="flex items-center gap-4">
         <ScoreGauge score={score.score} size="sm" />
         <div className="min-w-0">
@@ -125,8 +66,6 @@ export function CvScorePanel({ score, banned = [] }: { score: CvScore; banned?: 
           <p className="text-xs text-slate-500 dark:text-slate-400">90 = prêt à postuler</p>
         </div>
       </div>
-      <PointList title="Points à corriger" points={corrections} />
-      <PointList title="Formules à éviter" points={formulas} />
     </section>
   );
 }
