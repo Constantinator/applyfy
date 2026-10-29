@@ -27,7 +27,6 @@ import {
   coachBuilderCv,
   coachOpening,
   type CoachContext,
-  type CoachReply,
   type ImportedCvAnalysis,
   type ImportedCvContent,
 } from "@/lib/claude";
@@ -587,7 +586,7 @@ export async function completeCvImportAction(
 // ---------------------------------------------------------------------------
 
 /** Échanges précédents transmis au coach (un coaching s'étale sur plusieurs messages). */
-const COACH_HISTORY_MAX = 12;
+const COACH_HISTORY_MAX = 30;
 
 /**
  * Contenu du CV transmis au coach, son empreinte (cache du premier message) et les données du
@@ -662,16 +661,24 @@ async function coachGate() {
   return { ok: true as const, chat: gate.usage.counts.cvb_chat };
 }
 
-/** Question suivante du coach, sans la confirmation « Parfait, j'intègre ça dans ton CV. ». */
-function nextCoachQuestion(reply: CoachReply) {
-  const question = reply.next_question?.trim();
-  if (question) return question;
-  return reply.message.replace(/^[^.!?]*\b(int[èe]gre|propos)[^.!?]*[.!?]\s*/i, "").trim();
-}
-
-/** Proposition attendue mais incomplète (chiffre manquant) : question ajoutée au message du coach. */
+/** Question posée quand une modification attendue manque un fait et que le coach n'en pose pas. */
 const MISSING_FIGURE_QUESTION =
-  "Il me manque un chiffre pour rédiger certaines puces : peux-tu me donner un ordre de grandeur (nombre, %, durée, budget) ?";
+  "Peux-tu me donner un ordre de grandeur (nombre, %, durée, budget) pour que je puisse l'écrire ?";
+/** Le coach voulait modifier le CV, mais rien n'a pu être appliqué (texte refusé, contenu invalide). */
+const NOT_APPLIED_MESSAGE = "Je n'ai pas pu modifier ton CV : il me manque une information précise (un chiffre, un résultat).";
+/** Une partie seulement de la modification a été appliquée. */
+const PARTIAL_MESSAGE = "Pour certaines puces, il me manque encore un chiffre.";
+
+/** Points abandonnés pendant la session, renvoyés par l'éditeur : revalidés et bornés. */
+const SKIPPED_MAX = 20;
+function skippedPoints(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((p): p is string => typeof p === "string" && p.trim() !== "")
+        .slice(-SKIPPED_MAX)
+        .map((p) => p.trim().slice(0, 200))
+    : [];
+}
 
 /**
  * CV affiché dans l'éditeur (modifications non enregistrées comprises), avec la photo, les
@@ -726,6 +733,7 @@ export async function refineBuilderCvAction(
   json: string,
   message: string,
   history: unknown,
+  skipped: unknown = [],
 ): Promise<DocumentChatResult> {
   if (typeof id !== "string" || typeof json !== "string" || typeof message !== "string") {
     return { ok: false, error: "Requête invalide." };
@@ -744,29 +752,37 @@ export async function refineBuilderCvAction(
   let context;
   let reply;
   try {
-    context = await coachContext(current);
+    context = { ...(await coachContext(current)), skipped: skippedPoints(skipped) };
     reply = await coachBuilderCv(context, turns, request);
   } catch (error) {
     return { ok: false, error: claudeErrorMessage(error, "cv-builder coach") };
   }
   if (!reply) return { ok: false, error: "Le coach n'a pas pu répondre. Reformule ton message." };
 
-  // Adaptations du mois épuisées : pas de proposition, le coach continue avec sa question
-  // suivante. L'appel compte comme un échange (cvb_coach).
+  // Adaptations du mois épuisées : pas de modification, le coach continue avec sa question.
+  // L'appel compte comme un échange (cvb_coach).
   if (reply.raw && isLimitReached(gate.chat)) {
     await recordAiUsage("cvb_coach");
-    return { ok: true, reply: nextCoachQuestion(reply), html: null, usage: gate.chat, limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE };
+    return {
+      ok: true,
+      reply: reply.message || MISSING_FIGURE_QUESTION,
+      html: null,
+      usage: gate.chat,
+      limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
+      skippedPoints: reply.skippedPoints,
+    };
   }
 
   // Modification vérifiée par le code ; textes refusés (ou contenu invalide) : un nouvel essai,
   // invisible pour le candidat.
-  let text = reply.message.trim();
+  let answer = reply;
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
   let problems = proposal ? checkProposal(proposal, context.scoring) : [];
+  const firstRefused = problems.length;
+  let retried = false;
   if (reply.raw && (reply.invalid || problems.length)) {
-    console.info(`[cv-builder coach] modification refusée (${reply.raw.section}), nouvel essai`, problems);
     const rate = await checkAiRateLimit();
-    const retried = rate.ok
+    const second = rate.ok
       ? await coachBuilderCv(context, turns, request, {
           previous: reply.raw,
           problems: problems.map(({ text, problems }) => ({ text, problems })),
@@ -775,18 +791,15 @@ export async function refineBuilderCvAction(
           return null;
         })
       : null;
-    if (retried) {
-      text = retried.message.trim();
-      proposal = retried.update ? buildProposal(current, retried.update) : null;
+    if (second) {
+      retried = true;
+      answer = second;
+      proposal = second.update ? buildProposal(current, second.update) : null;
       problems = proposal ? checkProposal(proposal, context.scoring) : [];
     }
   }
   // Textes encore refusés : retirés, jamais écrits dans le CV.
-  const incomplete = Boolean(reply.raw) && (!proposal || problems.length > 0);
-  if (proposal && problems.length) {
-    console.info("[cv-builder coach] textes retirés de la modification", problems);
-    proposal = withoutProblems(proposal, problems);
-  }
+  if (proposal && problems.length) proposal = withoutProblems(proposal, problems);
   // Modification appliquée directement, changement par changement (un passage introuvable est ignoré).
   let updated = current;
   let applied = 0;
@@ -797,8 +810,26 @@ export async function refineBuilderCvAction(
       applied++;
     } else console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
   }
-  // Une modification attendue manque (en tout ou partie) : le coach demande le chiffre manquant.
-  if ((incomplete || (proposal && !applied)) && !text.endsWith("?")) text = `${text} ${MISSING_FIGURE_QUESTION}`.trim();
+  const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints])];
+  console.warn(
+    `[cv-builder coach] réponse : section=${reply.raw?.section ?? "aucune"}, changements appliqués=${applied}, ` +
+      `textes refusés=${firstRefused} (après le second essai : ${problems.length}), second essai=${retried ? "oui" : "non"}, ` +
+      `contenu invalide=${reply.invalid ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
+  );
+
+  // Texte affiché, décidé par le code : l'annonce de l'IA seulement si un changement a vraiment
+  // été appliqué ; sinon une phrase honnête, puis la question.
+  const intended = Boolean(reply.raw);
+  const missing = intended && (!applied || problems.length > 0);
+  const question = answer.message && (!missing || answer.message.includes("?")) ? answer.message : MISSING_FIGURE_QUESTION;
+  const text = [
+    applied ? answer.changeSummary || "C'est fait : j'ai mis à jour ton CV." : null,
+    intended && !applied ? NOT_APPLIED_MESSAGE : null,
+    applied && problems.length ? PARTIAL_MESSAGE : null,
+    question,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   if (applied) {
     await recordAiUsage("cvb_chat");
@@ -807,8 +838,9 @@ export async function refineBuilderCvAction(
       reply: text,
       html: JSON.stringify(chatContent(updated)),
       usage: { used: gate.chat.used + 1, limit: gate.chat.limit },
+      skippedPoints: skippedNow,
     };
   }
   await recordAiUsage("cvb_coach");
-  return { ok: true, reply: text, html: null, usage: gate.chat };
+  return { ok: true, reply: text, html: null, usage: gate.chat, skippedPoints: skippedNow };
 }

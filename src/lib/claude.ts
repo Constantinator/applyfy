@@ -912,14 +912,19 @@ const COACH_DATA_FORMAT = `Ta modification de la section choisie ; chaîne vide 
  * côté serveur (COACH_DATA_SCHEMAS).
  */
 const CoachReplyFlatSchema = z.object({
+  change_summary: z
+    .string()
+    .describe(
+      "Quand section n'est pas « aucune » : une phrase courte qui dit ce que tu as modifié (ex. « C'est fait : j'ai ajouté tes résultats à ton stage chez X. ») ; sinon chaîne vide",
+    ),
   message: z
     .string()
     .describe(
-      "Message au candidat (tutoiement), 4 phrases maximum : une seule question précise, ou une phrase qui dit ce que tu as modifié suivie de la question sur le point suivant",
+      "Ta question au candidat (tutoiement), 3 phrases maximum : une seule question précise, sur le même point ou sur le point suivant. N'y annonce jamais une modification (c'est le rôle de change_summary)",
     ),
-  next_question: z
-    .string()
-    .describe("Quand section n'est pas « aucune » : la question sur le point suivant, seule, telle qu'écrite dans « message » ; sinon chaîne vide"),
+  skipped_points: z
+    .array(z.string())
+    .describe("Points que tu abandonnes dans cette réponse parce que le candidat ne sait pas ou ne veut pas répondre, tels qu'écrits dans « Points à corriger » ; liste vide sinon"),
   section: z
     .enum([...COACH_SECTIONS, "aucune"])
     .describe("« aucune » tant que tu n'as pas assez d'informations ; sinon la section que tu modifies"),
@@ -931,8 +936,12 @@ const CoachReplyFlatSchema = z.object({
  * avait un contenu illisible ou invalide ; `raw` : la proposition telle qu'écrite (nouvel essai).
  */
 export type CoachReply = {
+  /** Question ou réponse au candidat. */
   message: string;
-  next_question: string | null;
+  /** Ce que l'IA dit avoir modifié : affiché seulement si un changement a vraiment été appliqué. */
+  changeSummary: string;
+  /** Points abandonnés dans cette réponse (le candidat ne sait pas ou ne veut pas répondre). */
+  skippedPoints: string[];
   update: CoachUpdate | null;
   invalid: boolean;
   raw: { section: CoachSection; data: string } | null;
@@ -957,7 +966,11 @@ function readCoachData(section: CoachSection, data: string): CoachUpdate | null 
 }
 
 function toCoachReply(flat: z.infer<typeof CoachReplyFlatSchema>): CoachReply {
-  const reply = { message: flat.message, next_question: flat.next_question.trim() || null };
+  const reply = {
+    message: flat.message.trim(),
+    changeSummary: flat.change_summary.trim(),
+    skippedPoints: flat.skipped_points.map((p) => p.trim()).filter(Boolean),
+  };
   if (flat.section === "aucune") return { ...reply, update: null, invalid: false, raw: null };
   const update = readCoachData(flat.section, flat.data);
   return { ...reply, update, invalid: update === null, raw: { section: flat.section, data: flat.data } };
@@ -971,6 +984,8 @@ export type CoachContext = {
   cvJson: string;
   /** Score, points à corriger (du plus rentable au moins rentable) et formules à éviter du CV. */
   score: { value: number; corrections: string[]; banned: string[] };
+  /** Points abandonnés pendant la session (le candidat ne sait pas ou ne veut pas répondre). */
+  skipped?: string[];
   analysis: {
     criteria: Record<string, number>;
     improvements: string[];
@@ -986,9 +1001,11 @@ Méthode :
 - Travaille un point à la fois, dans l'ordre de la liste « Points à corriger » (celui qui rapporte le plus d'abord), puis les formules à éviter et les points à améliorer de l'analyse. La liste est recalculée à chaque échange : un point qui n'y figure plus est corrigé.
 - Pour chaque point, pose UNE question à la fois, qui cite un élément réel du CV (poste, projet, formation) et demande des faits concrets : chiffres, résultats, périmètre, outils, contexte.
 - Tu peux poser plusieurs questions d'affilée sur le même point tant qu'il te manque des faits (section = « aucune »). Ne modifie le CV que lorsque tu as assez d'informations.
-- Dès que tu as assez d'informations : modifie la section (« section » et « data »), écris en une phrase courte ce que tu as changé (ex. « C'est fait : j'ai ajouté tes résultats à ton stage chez X. »), puis passe de toi-même au point suivant de la liste avec une nouvelle question, sans attendre qu'on te le demande.
+- Dès que tu as assez d'informations : modifie la section (« section » et « data »), décris en une phrase ce que tu as changé dans « change_summary », puis passe de toi-même au point suivant de la liste avec une nouvelle question dans « message », sans attendre qu'on te le demande.
 - Si le candidat demande lui-même une modification précise, fais-la directement.
-- Si le candidat ne sait pas ou ne veut pas répondre, passe au point suivant sans insister.
+- Ne repose JAMAIS une question déjà posée dans la conversation, même reformulée. Relis la conversation avant d'écrire ta question.
+- Si le candidat répond qu'il ne sait pas, ne se souvient pas ou ne veut pas répondre, le point est traité : ajoute-le à « skipped_points » et passe au point suivant, même s'il reste dans « Points à corriger ».
+- Ne reviens jamais sur un point de la liste « Points abandonnés ».
 
 Règle absolue : n'invente JAMAIS de chiffre, de fait, de résultat, de date, de diplôme, d'outil, de compétence ou de responsabilité. N'utilise que ce que le candidat a dit dans la conversation ou ce qui figure déjà dans le CV. S'il te manque une information, pose une question au lieu de la deviner ou de l'estimer.
 
@@ -1010,7 +1027,7 @@ async function coachSectorContext({ cvJson, analysis }: CoachContext) {
 }
 
 /** Prompt système du coach : contexte sectoriel, règles, contenu du CV et analyse. */
-function coachSystem({ cvJson, score, analysis }: CoachContext, sectorContext: string) {
+function coachSystem({ cvJson, score, skipped = [], analysis }: CoachContext, sectorContext: string) {
   const parts = [
     sectorContext,
     COACH_RULES,
@@ -1020,6 +1037,7 @@ function coachSystem({ cvJson, score, analysis }: CoachContext, sectorContext: s
       `Score du CV, calculé par l'application et affiché au candidat : ${score.value}/100 (90 = prêt à postuler)`,
       score.corrections.length ? `Points à corriger, du plus rentable au moins rentable :\n${score.corrections.map((c) => `- ${c}`).join("\n")}` : null,
       score.banned.length ? `Formules à éviter présentes dans le CV :\n${score.banned.map((b) => `- ${b}`).join("\n")}` : null,
+      skipped.length ? `Points abandonnés (le candidat ne sait pas ou ne veut pas répondre) : n'en parle plus.\n${skipped.map((p) => `- ${p}`).join("\n")}` : null,
       "</score>",
     ]
       .filter(Boolean)

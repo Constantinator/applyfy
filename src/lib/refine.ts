@@ -34,6 +34,8 @@ export type DocumentChatResult =
       usage: AiUsageCount;
       /** Modification non appliquée (limite du mois) : message affiché avant `reply`, avec le lien Premium. */
       limitNotice?: string;
+      /** Coach du CV Builder : points abandonnés dans cette réponse (gardés par l'éditeur pour la session). */
+      skippedPoints?: string[];
     }
   | { ok: false; error: string; limitReached?: boolean };
 

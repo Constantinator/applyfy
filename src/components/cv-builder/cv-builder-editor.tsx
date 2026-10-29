@@ -143,6 +143,17 @@ export function CvBuilderEditor({
     return result.coach.opening;
   }, [cv.id]);
 
+  // Points que le coach a abandonnés pendant la session (le candidat ne sait pas ou ne veut pas
+  // répondre) : renvoyés à chaque message pour qu'il n'y revienne pas. En mémoire seulement.
+  const skipped = useRef<string[]>([]);
+  async function refineWithSkipped(id: string, json: string, message: string, history: unknown) {
+    const result = await refineBuilderCvAction(id, json, message, history, skipped.current);
+    if (result.ok && result.skippedPoints?.length) {
+      skipped.current = [...new Set([...skipped.current, ...result.skippedPoints])];
+    }
+    return result;
+  }
+
   async function download() {
     setDownloading(true);
     try {
@@ -228,7 +239,7 @@ export function CvBuilderEditor({
             aiEnabled={usage.aiEnabled}
             usage={usage.chat}
             resetLabel={usage.resetLabel}
-            refine={refineBuilderCvAction}
+            refine={refineWithSkipped}
             readDocument={() => JSON.stringify(chatContent(dataRef.current))}
             replaceDocument={(json) => {
               const current = dataRef.current;
