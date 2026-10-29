@@ -1,6 +1,6 @@
 import "server-only";
 
-import { chatContent, type CvData } from "./cv-builder-types";
+import { chatContent, targetJobOf, type CvData } from "./cv-builder-types";
 import type { ScoringContext } from "./cv-score";
 import { detectSector, getSectorContext } from "./cv-sector-context";
 import { getKeywordsForSector } from "./job-scraper";
@@ -11,7 +11,7 @@ import { getKeywordsForSector } from "./job-scraper";
  * éviter, et les mots-clés des offres récentes. Léger : transmis tel quel à l'éditeur.
  */
 export async function loadScoringContext(data: CvData): Promise<ScoringContext> {
-  const sector = detectSector(JSON.stringify(chatContent(data)), data.analysis?.targetJob);
+  const sector = detectSector(JSON.stringify(chatContent(data)), targetJobOf(data));
   const context = getSectorContext(sector);
   return {
     sector,

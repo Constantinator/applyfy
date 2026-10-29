@@ -1056,7 +1056,7 @@ function coachSystem({ cvJson, score, skipped = [], analysis }: CoachContext, se
     parts.push(
       [
         "<analyse>",
-        `Critères (analyse de l'import) : ${criteria}`,
+        criteria ? `Critères (analyse de l'import) : ${criteria}` : null,
         analysis.improvements.length ? `Points faibles :\n${analysis.improvements.map((p) => `- ${p}`).join("\n")}` : null,
         analysis.optimizations.length
           ? `Améliorations prioritaires :\n${analysis.optimizations.map((p) => `- ${p}`).join("\n")}`

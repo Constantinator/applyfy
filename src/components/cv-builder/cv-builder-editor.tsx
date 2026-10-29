@@ -17,7 +17,9 @@ import {
   chatContent,
   CV_LIMITS,
   CvDataSchema,
+  cvOrigin,
   fullName,
+  targetJobOf,
   type BuilderCv,
   type CvData,
   type CvTemplateId,
@@ -71,6 +73,17 @@ function readStrings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [];
 }
 
+type TabId = "content" | "chat" | "style";
+const SCRATCH_TABS: [TabId, string][] = [
+  ["content", "Contenu"],
+  ["chat", "Chat IA"],
+  ["style", "Style du CV"],
+];
+const IMPORT_TABS: [TabId, string][] = [
+  ["chat", "Chat IA"],
+  ["style", "Style du CV"],
+];
+
 function fileName(title: string, data: CvData) {
   const base = `CV ${fullName(data) || title}`.normalize("NFD").replace(/[̀-ͯ]/g, "");
   return `${base.replace(/[^\w -]+/g, "").trim().replace(/\s+/g, "-") || "CV"}.pdf`;
@@ -94,7 +107,9 @@ export function CvBuilderEditor({
   const [title, setTitle] = useState(cv.title);
   // Modèle et couleur d'accent : panneau « Style du CV » (enregistrés avec le CV).
   const [templateId, setTemplateId] = useState<CvTemplateId>(cv.templateId);
-  const [tab, setTab] = useState<"chat" | "style">("chat");
+  // CV créé depuis zéro : onglet « Contenu » en plus, ouvert d'abord (le CV est vide).
+  const tabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
+  const [tab, setTab] = useState<TabId>(tabs[0][0]);
   const [data, setData] = useState<CvData>(cv.data);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -148,7 +163,7 @@ export function CvBuilderEditor({
   const score = useMemo(() => scoreCv(data, scoringContext), [data, scoringContext]);
 
   // Poste cible modifié (titre du CV ou poste visé) : secteur redétecté par le serveur.
-  const target = `${data.personal.jobTitle.trim()}|${data.analysis?.targetJob.trim() ?? ""}`;
+  const target = `${data.personal.jobTitle.trim()}|${targetJobOf(data)}`;
   const lastTarget = useRef(target);
   useEffect(() => {
     if (target === lastTarget.current) return;
@@ -300,12 +315,7 @@ export function CvBuilderEditor({
             <CvScorePanel score={score} />
           </div>
           <div role="tablist" aria-label="Panneau de l'éditeur" className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-            {(
-              [
-                ["chat", "Chat IA"],
-                ["style", "Style du CV"],
-              ] as const
-            ).map(([id, label]) => (
+            {tabs.map(([id, label]) => (
               <button
                 key={id}
                 type="button"
@@ -370,6 +380,11 @@ export function CvBuilderEditor({
               />
             )}
           </div>
+          {tab === "content" && (
+            <div id="panel-content" role="tabpanel" aria-labelledby="tab-content" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              <p className="text-sm text-slate-500 dark:text-slate-400">Formulaire à venir.</p>
+            </div>
+          )}
           {tab === "style" && (
             <div id="panel-style" role="tabpanel" aria-labelledby="tab-style" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <CvStylePanel

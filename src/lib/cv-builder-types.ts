@@ -223,6 +223,10 @@ export const CvDataSchema = z.object({
     .prefault({}),
   /** CV importé : analyse de l'import (null pour un CV créé à partir d'un modèle vierge). */
   analysis: CvAnalysisSchema.nullable().catch(null).default(null),
+  /** Poste visé, saisi à la création « depuis zéro » (ou à la fin de l'import) : secteur du score et du coach. */
+  targetJob: z.string().max(120).catch("").default(""),
+  /** Origine du CV ; absente sur les CV créés avant ce champ (cf. cvOrigin). */
+  origin: z.enum(["scratch", "import"]).optional().catch(undefined),
   /**
    * Premier message du coach (chat de l'éditeur), gardé tant que le contenu du CV ne change
    * pas : `contentKey` est l'empreinte du contenu (chatContent) au moment où il a été écrit.
@@ -252,6 +256,16 @@ export type BuilderCv = {
 };
 
 export type BuilderCvSummary = Omit<BuilderCv, "data"> & { jobTitle: string };
+
+/** Origine du CV : créé depuis zéro ou importé (CV antérieurs au champ : importé s'il a une analyse d'import). */
+export function cvOrigin(data: CvData): "scratch" | "import" {
+  return data.origin ?? (data.analysis ? "import" : "scratch");
+}
+
+/** Poste visé du CV : celui de la création, sinon celui choisi à la fin de l'import. */
+export function targetJobOf(data: CvData): string {
+  return data.targetJob.trim() || data.analysis?.targetJob.trim() || "";
+}
 
 /** Données d'un CV lues en base : jamais d'échec, les champs invalides sont remis à zéro. */
 export function readCvData(value: unknown): CvData {

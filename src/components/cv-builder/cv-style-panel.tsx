@@ -82,6 +82,49 @@ function TemplateThumbnail({ id, accent }: { id: CvTemplateId; accent: string })
 }
 
 /**
+ * Grille des 6 modèles (miniature et nom), le modèle sélectionné mis en évidence : panneau
+ * « Style du CV » et création d'un CV depuis zéro.
+ */
+export function TemplateGrid({
+  selected,
+  accent = "",
+  onSelect,
+}: {
+  selected: CvTemplateId;
+  /** Couleur des miniatures ; vide : couleur de chaque modèle. */
+  accent?: string;
+  onSelect: (id: CvTemplateId) => void;
+}) {
+  return (
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {CV_TEMPLATES.map((t) => {
+        const active = t.id === selected;
+        return (
+          <li key={t.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(t.id)}
+              aria-pressed={active}
+              title={t.description}
+              className={`flex w-full flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition dark:bg-slate-900 ${
+                active
+                  ? "border-blue-600 ring-2 ring-blue-100 dark:ring-blue-500/20"
+                  : "border-slate-200 hover:border-blue-300 dark:border-slate-700"
+              }`}
+            >
+              <span aria-hidden="true" className="block aspect-[3/4] border-b border-slate-100 bg-white dark:border-slate-800">
+                <TemplateThumbnail id={t.id} accent={accent || TEMPLATE_ACCENTS[t.id]} />
+              </span>
+              <span className="px-2 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">{t.name}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
  * Panneau « Style du CV » de l'éditeur : modèle (6 cartes avec miniature) et couleur d'accent
  * (pastilles, sélecteur libre, ou couleur du modèle).
  */
@@ -108,31 +151,7 @@ export function CvStylePanel({
         <h2 id={templateTitle} className="font-semibold text-slate-900 dark:text-white">
           Template
         </h2>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {CV_TEMPLATES.map((t) => {
-            const active = t.id === templateId;
-            return (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => onTemplate(t.id)}
-                  aria-pressed={active}
-                  title={t.description}
-                  className={`flex w-full flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition dark:bg-slate-900 ${
-                    active
-                      ? "border-blue-600 ring-2 ring-blue-100 dark:ring-blue-500/20"
-                      : "border-slate-200 hover:border-blue-300 dark:border-slate-700"
-                  }`}
-                >
-                  <span aria-hidden="true" className="block aspect-[3/4] border-b border-slate-100 bg-white dark:border-slate-800">
-                    <TemplateThumbnail id={t.id} accent={accent || TEMPLATE_ACCENTS[t.id]} />
-                  </span>
-                  <span className="px-2 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">{t.name}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <TemplateGrid selected={templateId} accent={accent} onSelect={onTemplate} />
       </section>
 
       <section aria-labelledby={accentTitle} className="space-y-3">

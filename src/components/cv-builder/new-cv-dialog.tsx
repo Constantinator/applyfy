@@ -7,6 +7,7 @@ import { createBuilderCvAction } from "@/app/actions/cv-builder";
 import { CV_TEMPLATES, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
+import { TemplateGrid } from "./cv-style-panel";
 
 /** Silhouette neutre pour la photo des miniatures. */
 const SAMPLE_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -170,40 +171,111 @@ export function TemplateChoiceDialog({
   );
 }
 
-/** « Créer un nouveau CV » : choix du modèle (miniatures), puis l'éditeur. */
+/** Poste visé : saisi à l'étape 1 de « Créer un CV depuis zéro ». */
+const TARGET_JOB_MIN = 2;
+const TARGET_JOB_MAX = 120;
+
+/**
+ * « Créer un CV depuis zéro », en deux étapes : poste visé (secteur du score et du coach, aussi
+ * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre.
+ */
 export function NewCvDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [targetJob, setTargetJob] = useState("");
+  const [templateId, setTemplateId] = useState<CvTemplateId>("minimaliste");
+  const titleId = useId();
+  const jobId = useId();
+  const jobReady = targetJob.trim().length >= TARGET_JOB_MIN;
+
+  function open() {
+    setStep(1);
+    dialogRef.current?.showModal();
+  }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-          dialogRef.current?.showModal();
-        }}
-        className="btn-primary px-5 py-2.5 text-sm"
-      >
-        Créer un nouveau CV
+      <button type="button" onClick={open} className="btn-primary px-5 py-2.5 text-sm">
+        Créer un CV depuis zéro
       </button>
-      <TemplateChoiceDialog
-        dialogRef={dialogRef}
-        open={open}
-        onClose={() => setOpen(false)}
-        footer={(selected) => (
-          <>
-            <form action={createBuilderCvAction.bind(null, "minimaliste")}>
-              <SubmitButton className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline disabled:opacity-60 dark:text-slate-400 dark:hover:text-white">
-                Passer cette étape
-              </SubmitButton>
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={titleId}
+        // Clic sur le fond assombri : fermeture.
+        onClick={(e) => {
+          if (e.target === e.currentTarget) dialogRef.current?.close();
+        }}
+        className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-2xl rounded-2xl bg-white p-0 shadow-xl backdrop:bg-slate-900/60 dark:bg-slate-900"
+      >
+        <div className="flex max-h-[92vh] flex-col">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Étape {step} sur 2</p>
+              <h2 id={titleId} className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => dialogRef.current?.close()}
+              aria-label="Fermer"
+              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+
+          {step === 1 ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (jobReady) setStep(2);
+              }}
+              className="space-y-5 p-6"
+            >
+              <div className="space-y-1.5">
+                <label htmlFor={jobId} className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Poste visé
+                </label>
+                <input
+                  id={jobId}
+                  value={targetJob}
+                  onChange={(e) => setTargetJob(e.target.value)}
+                  maxLength={TARGET_JOB_MAX}
+                  placeholder="Ex. Analyste financier, Développeur backend"
+                  autoFocus
+                  className="input w-full"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Il sert de titre à ton CV et adapte le score et le coach à ton secteur.
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <button type="submit" disabled={!jobReady} className="btn-primary px-6 py-2.5 text-sm">
+                  Suivant
+                </button>
+              </div>
             </form>
-            <form action={createBuilderCvAction.bind(null, selected)}>
-              <SubmitButton className="btn-primary px-6 py-2.5 text-sm">Continuer</SubmitButton>
-            </form>
-          </>
-        )}
-      />
+          ) : (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                <TemplateGrid selected={templateId} onSelect={setTemplateId} />
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
+                <button type="button" onClick={() => setStep(1)} className="btn-secondary px-5 py-2.5 text-sm">
+                  Retour
+                </button>
+                <form action={createBuilderCvAction.bind(null, templateId)}>
+                  <input type="hidden" name="targetJob" value={targetJob.trim()} />
+                  <SubmitButton className="btn-primary px-6 py-2.5 text-sm">Créer mon CV</SubmitButton>
+                </form>
+              </div>
+            </>
+          )}
+        </div>
+      </dialog>
     </>
   );
 }

@@ -48,6 +48,7 @@ import {
   CV_CRITERIA,
   CvDataSchema,
   dateRange,
+  targetJobOf,
   fullName,
   interestList,
   isTemplateId,
@@ -67,16 +68,25 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { recordUserJobOffer } from "@/lib/user-job-offers";
 
 /**
- * « Créer un nouveau CV » : CV pré-rempli avec le nom et l'email du compte, dans le modèle
- * choisi (à lier au formulaire : `createBuilderCvAction.bind(null, templateId)`), puis l'éditeur.
+ * « Créer un CV depuis zéro » : CV pré-rempli avec le nom et l'email du compte, dans le modèle
+ * choisi (à lier au formulaire : `createBuilderCvAction.bind(null, templateId)`), avec le poste
+ * visé du formulaire (champ « targetJob », aussi titre du CV), puis l'éditeur.
  */
-export async function createBuilderCvAction(templateId: CvTemplateId) {
+export async function createBuilderCvAction(templateId: CvTemplateId, formData?: FormData) {
   let id: string;
+  const targetJob = String(formData?.get("targetJob") ?? "").trim().slice(0, 120);
   try {
     const [user, name] = await Promise.all([getCurrentUser(), getAccountName().catch(() => null)]);
     id = await createBuilderCv(
       CvDataSchema.parse({
-        personal: { firstName: name?.firstName ?? "", lastName: name?.lastName ?? "", email: user?.email ?? "" },
+        personal: {
+          firstName: name?.firstName ?? "",
+          lastName: name?.lastName ?? "",
+          email: user?.email ?? "",
+          jobTitle: targetJob,
+        },
+        targetJob,
+        origin: "scratch",
       }),
       "Mon CV",
       isTemplateId(templateId) ? templateId : "minimaliste",
@@ -346,6 +356,7 @@ function importedToCvData(cv: ImportedCvContent): CvData {
         .join(", "),
       500,
     ),
+    origin: "import",
   });
 }
 
@@ -570,7 +581,7 @@ export async function completeCvImportAction(
     const cv = await getBuilderCv(String(id));
     if (!cv) return { ok: false };
     const analysis = cv.data.analysis && { ...cv.data.analysis, targetJob };
-    const data: CvData = { ...cv.data, analysis };
+    const data: CvData = { ...cv.data, analysis, targetJob };
     await saveBuilderCv(cv.id, { title: cv.title, templateId, data });
     revalidatePath("/cv-builder");
     return { ok: true };
@@ -609,13 +620,18 @@ async function coachContext(data: CvData): Promise<CoachContext & { contentKey: 
       corrections: score.corrections.map((c) => `${c.message} (+${c.points} pts)`),
       banned: bannedPhrasesInCv(data, scoring).map((b) => `« ${b.phrase} » dans ${b.where}`),
     },
-    analysis: a && {
-      criteria: Object.fromEntries(CV_CRITERIA.map((c) => [c.label, a.criteria[c.id]])),
-      improvements: a.improvements,
-      optimizations: a.optimizations.map((o) => o.title),
-      targetJob: a.targetJob,
-      suggestedJobs: a.suggestedJobs,
-    },
+    // CV importé : son analyse ; CV créé depuis zéro : seulement le poste visé.
+    analysis: a
+      ? {
+          criteria: Object.fromEntries(CV_CRITERIA.map((c) => [c.label, a.criteria[c.id]])),
+          improvements: a.improvements,
+          optimizations: a.optimizations.map((o) => o.title),
+          targetJob: targetJobOf(data),
+          suggestedJobs: a.suggestedJobs,
+        }
+      : targetJobOf(data)
+        ? { criteria: {}, improvements: [], optimizations: [], targetJob: targetJobOf(data), suggestedJobs: [] }
+        : null,
   };
 }
 
