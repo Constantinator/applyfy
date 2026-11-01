@@ -29,6 +29,7 @@ import { createClient } from "@/lib/supabase/client";
 
 import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
+import { CvContentPanel } from "./cv-content-panel";
 import { CvStylePanel } from "./cv-style-panel";
 
 export type CvBuilderUsage = {
@@ -382,7 +383,7 @@ export function CvBuilderEditor({
           </div>
           {tab === "content" && (
             <div id="panel-content" role="tabpanel" aria-labelledby="tab-content" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Formulaire à venir.</p>
+              <CvContentPanel data={data} onChange={edit} />
             </div>
           )}
           {tab === "style" && (
