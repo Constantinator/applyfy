@@ -686,7 +686,7 @@ const NOT_APPLIED_MESSAGE = "Je n'ai pas pu modifier ton CV : il me manque une i
 const PARTIAL_MESSAGE = "Pour certaines puces, il me manque encore un chiffre.";
 
 /** Points abandonnés pendant la session, renvoyés par l'éditeur : revalidés et bornés. */
-const SKIPPED_MAX = 20;
+const SKIPPED_MAX = 50;
 function skippedPoints(value: unknown): string[] {
   return Array.isArray(value)
     ? value
