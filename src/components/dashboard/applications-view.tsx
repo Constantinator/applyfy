@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { startTransition, useMemo, useOptimistic, useState } from "react";
 
+import { updateStatusAction } from "@/app/actions/applications";
 import { FOLLOW_UP_FILTER, needsFollowUp } from "@/lib/follow-up";
 import { DEFAULT_SORT, SORT_OPTIONS, sortApplications, type SortKey } from "@/lib/sort-applications";
-import { APPLICATION_STATUSES, STATUS_LABELS, type Application } from "@/lib/types";
+import { APPLICATION_STATUSES, STATUS_LABELS, type Application, type ApplicationStatus } from "@/lib/types";
 
 import { ApplicationsList } from "./applications-list";
 import { StatusFilter, type FilterOption } from "./status-filter";
@@ -16,7 +17,7 @@ const ALL = "toutes";
  * l'URL (?filtre=…&tri=…) via history.replaceState, pour survivre à un rafraîchissement.
  */
 export function ApplicationsView({
-  applications,
+  applications: saved,
   nowIso,
   initialFilter,
   initialSort,
@@ -29,6 +30,40 @@ export function ApplicationsView({
   const now = useMemo(() => new Date(nowIso), [nowIso]);
   const [filter, setFilter] = useState(initialFilter);
   const [sort, setSort] = useState<SortKey>(initialSort);
+
+  // Changement de statut depuis la liste : affiché tout de suite (liste, filtres, tri), puis
+  // remplacé par les données du serveur (updateStatusAction revalide /dashboard : statistiques,
+  // dates d'envoi et de dernier contact). En cas d'erreur, l'ancien statut revient.
+  const [applications, setOptimisticStatus] = useOptimistic(
+    saved,
+    (current, change: { id: string; status: ApplicationStatus }) =>
+      current.map((app) => (app.id === change.id ? { ...app, status: change.status } : app)),
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function changeStatus(app: Application, status: ApplicationStatus) {
+    if (status === app.status) return;
+    const setError = (message: string | null) =>
+      setErrors((prev) => {
+        const next = { ...prev };
+        if (message) next[app.id] = message;
+        else delete next[app.id];
+        return next;
+      });
+    setError(null);
+    const formData = new FormData();
+    formData.set("id", app.id);
+    formData.set("status", status);
+    startTransition(async () => {
+      setOptimisticStatus({ id: app.id, status });
+      try {
+        const result = await updateStatusAction({ status: "idle" }, formData);
+        if (result.status === "error") setError(result.message);
+      } catch {
+        setError("Le statut n'a pas pu être modifié. Réessaie.");
+      }
+    });
+  }
 
   function syncUrl(next: { filtre: string; tri: SortKey }) {
     const params = new URLSearchParams(window.location.search);
@@ -108,7 +143,7 @@ export function ApplicationsView({
         {visible.length > 1 ? "s" : ""}
       </p>
 
-      <ApplicationsList applications={visible} now={now} />
+      <ApplicationsList applications={visible} now={now} errors={errors} onStatusChange={changeStatus} />
     </div>
   );
 }

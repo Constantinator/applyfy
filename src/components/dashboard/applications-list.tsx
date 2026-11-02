@@ -1,8 +1,9 @@
 import Link from "next/link";
 
-import { StatusBadge } from "@/components/status-badge";
 import { daysSince, needsFollowUp } from "@/lib/follow-up";
-import type { Application } from "@/lib/types";
+import type { Application, ApplicationStatus } from "@/lib/types";
+
+import { StatusSelect } from "./status-select";
 
 // Dates sans heure (YYYY-MM-DD) : lues comme minuit UTC, donc formatées en UTC
 // pour ne pas reculer d'un jour selon le fuseau du serveur.
@@ -25,29 +26,18 @@ function lastContactLabel(app: Application, now: Date) {
   return `Il y a ${days} jours`;
 }
 
-function FollowUpButton({ app, now }: { app: Application; now: Date }) {
-  const due = needsFollowUp(app, now);
-  return (
-    <Link
-      href={`/candidatures/${app.id}#relance`}
-      className={`relative z-10 ${
-        due
-          ? "inline-flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-500/15 px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30 hover:bg-amber-100"
-          : "btn-secondary px-3 py-1.5 text-sm"
-      }`}
-    >
-      Relancer
-    </Link>
-  );
-}
-
 export function ApplicationsList({
   applications,
   now,
+  errors,
+  onStatusChange,
 }: {
   applications: Application[];
   /** Date de référence commune au serveur et au client (évite les écarts d'hydratation). */
   now: Date;
+  /** Erreur du dernier changement de statut, par candidature. */
+  errors: Record<string, string>;
+  onStatusChange: (app: Application, status: ApplicationStatus) => void;
 }) {
   if (applications.length === 0) {
     return (
@@ -86,16 +76,13 @@ export function ApplicationsList({
                 </p>
                 <p className="truncate text-sm text-slate-500 dark:text-slate-400">{app.position}</p>
               </Link>
-              <StatusBadge status={app.status} />
+              <StatusSelect status={app.status} company={app.company} error={errors[app.id]} onChange={(status) => onStatusChange(app, status)} />
             </div>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                <p>Envoyée : {formatDate(app.applied_at)}</p>
-                <p className={needsFollowUp(app, now) ? "font-medium text-amber-700 dark:text-amber-300" : ""}>
-                  Dernier contact : {lastContactLabel(app, now)}
-                </p>
-              </div>
-              <FollowUpButton app={app} now={now} />
+            <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              <p>Envoyée : {formatDate(app.applied_at)}</p>
+              <p className={needsFollowUp(app, now) ? "font-medium text-amber-700 dark:text-amber-300" : ""}>
+                Dernier contact : {lastContactLabel(app, now)}
+              </p>
             </div>
           </li>
         ))}
@@ -110,9 +97,6 @@ export function ApplicationsList({
               <th scope="col" className="px-5 py-3.5">Statut</th>
               <th scope="col" className="px-5 py-3.5">Date d&apos;envoi</th>
               <th scope="col" className="px-5 py-3.5">Dernier contact</th>
-              <th scope="col" className="px-5 py-3.5 text-right">
-                <span className="sr-only">Actions</span>
-              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -145,7 +129,7 @@ export function ApplicationsList({
                   </Link>
                 </td>
                 <td className="px-5 py-4">
-                  <StatusBadge status={app.status} />
+                  <StatusSelect status={app.status} company={app.company} error={errors[app.id]} onChange={(status) => onStatusChange(app, status)} />
                 </td>
                 <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(app.applied_at)}</td>
                 <td
@@ -154,9 +138,6 @@ export function ApplicationsList({
                   }`}
                 >
                   {lastContactLabel(app, now)}
-                </td>
-                <td className="px-5 py-4 text-right">
-                  <FollowUpButton app={app} now={now} />
                 </td>
               </tr>
             ))}

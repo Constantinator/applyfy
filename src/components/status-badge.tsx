@@ -1,6 +1,6 @@
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/types";
 
-const STATUS_STYLES: Record<ApplicationStatus, { badge: string; dot: string }> = {
+export const STATUS_STYLES: Record<ApplicationStatus, { badge: string; dot: string }> = {
   brouillon: { badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 ring-slate-200 dark:ring-slate-700", dot: "bg-slate-400" },
   envoyee: { badge: "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-blue-200 dark:ring-blue-400/30", dot: "bg-blue-500" },
   en_attente: { badge: "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 ring-indigo-200 dark:ring-indigo-400/30", dot: "bg-indigo-500" },
