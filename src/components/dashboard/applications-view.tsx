@@ -4,13 +4,17 @@ import { startTransition, useMemo, useOptimistic, useState } from "react";
 
 import { updateStatusAction } from "@/app/actions/applications";
 import { FOLLOW_UP_FILTER, needsFollowUp } from "@/lib/follow-up";
+import { matchesSearch, normalizeSearch } from "@/lib/search";
 import { DEFAULT_SORT, SORT_OPTIONS, sortApplications, type SortKey } from "@/lib/sort-applications";
 import { APPLICATION_STATUSES, STATUS_LABELS, type Application, type ApplicationStatus } from "@/lib/types";
 
 import { ApplicationsList } from "./applications-list";
+import { SearchBox } from "./search-box";
 import { StatusFilter, type FilterOption } from "./status-filter";
 
 const ALL = "toutes";
+/** Nombre de candidatures à partir duquel la recherche est proposée. */
+const SEARCH_MIN_APPLICATIONS = 6;
 
 /**
  * Filtre et tri côté client : instantanés, sans rechargement. L'état est reflété dans
@@ -77,35 +81,48 @@ export function ApplicationsView({
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   }
 
+  // Recherche (poste ou entreprise), appliquée à la liste optimiste avant les filtres de statut :
+  // compteurs et liste reflètent la recherche. Proposée à partir de SEARCH_MIN_APPLICATIONS
+  // candidatures (liste complète) ; ignorée en dessous.
+  const [query, setQuery] = useState("");
+  const searchable = applications.length >= SEARCH_MIN_APPLICATIONS;
+  const normalizedQuery = searchable ? normalizeSearch(query) : "";
+  const searched = useMemo(
+    () => (normalizedQuery ? applications.filter((app) => matchesSearch(app, normalizedQuery)) : applications),
+    [applications, normalizedQuery],
+  );
+
   const filterOptions: FilterOption[] = useMemo(
     () => [
-      { value: ALL, label: "Toutes", count: applications.length },
+      { value: ALL, label: "Toutes", count: searched.length },
       {
         value: FOLLOW_UP_FILTER,
         label: "À relancer",
-        count: applications.filter((app) => needsFollowUp(app, now)).length,
+        count: searched.filter((app) => needsFollowUp(app, now)).length,
       },
       ...APPLICATION_STATUSES.map((status) => ({
         value: status,
         label: STATUS_LABELS[status],
-        count: applications.filter((app) => app.status === status).length,
+        count: searched.filter((app) => app.status === status).length,
       })),
     ],
-    [applications, now],
+    [searched, now],
   );
 
   const visible = useMemo(() => {
     const filtered =
       filter === ALL
-        ? applications
+        ? searched
         : filter === FOLLOW_UP_FILTER
-          ? applications.filter((app) => needsFollowUp(app, now))
-          : applications.filter((app) => app.status === filter);
+          ? searched.filter((app) => needsFollowUp(app, now))
+          : searched.filter((app) => app.status === filter);
     return sortApplications(filtered, sort);
-  }, [applications, filter, sort, now]);
+  }, [searched, filter, sort, now]);
 
   return (
     <div className="space-y-4">
+      {searchable && <SearchBox value={query} onChange={setQuery} />}
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <StatusFilter
           options={filterOptions}
@@ -143,7 +160,20 @@ export function ApplicationsView({
         {visible.length > 1 ? "s" : ""}
       </p>
 
-      <ApplicationsList applications={visible} now={now} errors={errors} onStatusChange={changeStatus} />
+      {normalizedQuery && visible.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="font-medium text-slate-900 dark:text-white">Aucune candidature ne correspond à ta recherche</p>
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            className="mt-2 text-sm font-medium text-blue-600 underline-offset-2 hover:underline dark:text-blue-400"
+          >
+            Effacer la recherche
+          </button>
+        </div>
+      ) : (
+        <ApplicationsList applications={visible} now={now} errors={errors} onStatusChange={changeStatus} />
+      )}
     </div>
   );
 }
