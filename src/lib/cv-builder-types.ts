@@ -339,3 +339,38 @@ export function chatContent({ personal, summary, experiences, education, skills,
   // photo: undefined → absente du JSON.
   return { personal: { ...personal, photo: undefined }, summary, experiences, education, skills, languages, certifications, projects, interests };
 }
+
+/**
+ * Textes du CV ajoutés ou modifiés entre deux versions, sous forme de chemins d'aperçu
+ * (cf. applyEdit) : "personal.jobTitle", "skills.<id>.name", "experiences.<id>.bullets.1".
+ * Les éléments de liste sont suivis par leur id, et une puce n'est retenue que si son texte est
+ * nouveau : un ajout, une suppression ou un déplacement ne signale pas les éléments voisins.
+ * Les textes vidés et les éléments supprimés ne donnent aucun chemin (plus rien à afficher).
+ */
+export function diffCvData(before: CvData, after: CvData): string[] {
+  const paths: string[] = [];
+  const walk = (previous: unknown, next: unknown, path: string) => {
+    if (typeof next === "string") {
+      if (next !== previous && next.trim()) paths.push(path);
+    } else if (Array.isArray(next)) {
+      const old: unknown[] = Array.isArray(previous) ? [...previous] : [];
+      next.forEach((item, index) => {
+        if (typeof item === "string") {
+          const known = old.indexOf(item);
+          if (known >= 0) old.splice(known, 1);
+          else if (item.trim()) paths.push(`${path}.${index}`);
+        } else {
+          const id = (item as { id: string }).id;
+          walk(old.find((o) => (o as { id?: string } | null)?.id === id), item, `${path}.${id}`);
+        }
+      });
+    } else if (next && typeof next === "object") {
+      for (const [key, value] of Object.entries(next)) {
+        if (key === "id") continue;
+        walk((previous as Record<string, unknown> | undefined)?.[key], value, path ? `${path}.${key}` : key);
+      }
+    }
+  };
+  walk(chatContent(before), chatContent(after), "");
+  return paths;
+}

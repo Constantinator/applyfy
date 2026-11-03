@@ -18,6 +18,7 @@ import {
   CV_LIMITS,
   CvDataSchema,
   cvOrigin,
+  diffCvData,
   fullName,
   targetJobOf,
   type BuilderCv,
@@ -50,6 +51,10 @@ const SAVE_LABELS: Record<SaveStatus, string> = {
 };
 
 const LEAVE_MESSAGE = "Des modifications ne sont pas encore enregistrées. Quitter quand même ?";
+
+/** Surlignage des textes modifiés par le coach : début du fondu, puis fin (fondu CSS de 1,5 s). */
+const HIGHLIGHT_FADE_MS = 2000;
+const HIGHLIGHT_END_MS = 3500;
 
 const SUPABASE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
@@ -128,6 +133,28 @@ export function CvBuilderEditor({
     touched.current = true;
     setStatus("pending");
     setData(fn);
+  };
+
+  // Textes modifiés par le coach, surlignés quelques secondes dans l'aperçu (jamais dans le PDF).
+  const [highlights, setHighlights] = useState<Set<string>>(new Set());
+  const [highlightFading, setHighlightFading] = useState(false);
+  const highlightTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearHighlightTimers = () => highlightTimers.current.forEach(clearTimeout);
+  useEffect(() => clearHighlightTimers, []);
+
+  const showHighlights = (paths: string[]) => {
+    if (!paths.length) return;
+    // Réponse suivante avant la fin du surlignage : ses délais remplacent les précédents.
+    clearHighlightTimers();
+    setHighlights(new Set(paths));
+    setHighlightFading(false);
+    highlightTimers.current = [
+      setTimeout(() => setHighlightFading(true), HIGHLIGHT_FADE_MS),
+      setTimeout(() => {
+        setHighlights(new Set());
+        setHighlightFading(false);
+      }, HIGHLIGHT_END_MS),
+    ];
   };
 
   // Sauvegarde automatique, une seconde après la dernière modification.
@@ -365,7 +392,10 @@ export function CvBuilderEditor({
                       origin: current.origin,
                       coach: current.coach,
                     });
-                    if (next.success) edit(() => next.data);
+                    if (next.success) {
+                      edit(() => next.data);
+                      showHighlights(diffCvData(current, next.data));
+                    }
                   } catch {
                     // Contenu illisible : le CV reste tel quel.
                   }
@@ -419,6 +449,8 @@ export function CvBuilderEditor({
               templateId={templateId}
               onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
               onPagesChange={setPages}
+              highlights={highlights}
+              highlightFading={highlightFading}
             />
           </div>
         </section>

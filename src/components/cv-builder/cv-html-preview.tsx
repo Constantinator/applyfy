@@ -5,6 +5,7 @@ import {
   createElement,
   useContext,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -73,6 +74,14 @@ function toCss(style: CvStyle): CSSProperties {
 
 const InTextContext = createContext(false);
 const EditContext = createContext<((path: EditPath, value: string) => void) | null>(null);
+/** Textes surlignés après une modification du coach : l'aperçu seul le fournit, pas le PDF. */
+const HighlightContext = createContext<{ paths: ReadonlySet<string>; fading: boolean } | null>(null);
+
+function useHighlightClass(path: EditPath | undefined) {
+  const highlight = useContext(HighlightContext);
+  if (!path || !highlight?.paths.has(path)) return undefined;
+  return highlight.fading ? "cv-highlight cv-highlight-fade" : "cv-highlight";
+}
 
 /** Texte modifiable en place : le DOM n'est réécrit que si la valeur change d'ailleurs (curseur conservé). */
 function EditableText({
@@ -82,6 +91,7 @@ function EditableText({
   path,
   multiline,
   placeholder,
+  highlightClass,
 }: {
   as: "div" | "span";
   style: CSSProperties;
@@ -89,6 +99,7 @@ function EditableText({
   path: EditPath;
   multiline?: boolean;
   placeholder?: string;
+  highlightClass?: string;
 }) {
   const ref = useRef<HTMLElement>(null);
   const onEdit = useContext(EditContext);
@@ -119,7 +130,7 @@ function EditableText({
     "aria-multiline": multiline || undefined,
     "data-placeholder": placeholder,
     spellCheck: true,
-    className: "cv-editable",
+    className: highlightClass ? `cv-editable ${highlightClass}` : "cv-editable",
     style,
     onInput: (e: React.FormEvent<HTMLElement>) => onEdit?.(path, e.currentTarget.textContent ?? ""),
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
@@ -163,17 +174,26 @@ function RichText({ text }: { text: string }) {
 function HtmlText({ style, children, edit, multiline, placeholder }: Parameters<CvPrimitives["Text"]>[0]) {
   const nested = useContext(InTextContext);
   const onEdit = useContext(EditContext);
+  const highlightClass = useHighlightClass(edit);
   const s = densityStyle(style, useContext(DensityContext));
   const css: CSSProperties = nested ? toCss(s) : { display: "block", ...toCss(s) };
   const as = nested ? "span" : "div";
   if (edit && onEdit && (typeof children === "string" || typeof children === "number" || children == null)) {
     return (
-      <EditableText as={as} style={css} value={children == null ? "" : String(children)} path={edit} multiline={multiline} placeholder={placeholder} />
+      <EditableText
+        as={as}
+        style={css}
+        value={children == null ? "" : String(children)}
+        path={edit}
+        multiline={multiline}
+        placeholder={placeholder}
+        highlightClass={highlightClass}
+      />
     );
   }
   return createElement(
     as,
-    { style: css },
+    { style: css, className: highlightClass },
     <InTextContext value>{typeof children === "string" ? <RichText text={children} /> : children}</InTextContext>,
   );
 }
@@ -232,6 +252,8 @@ const EDITABLE_CSS = `
 .cv-editable:hover{background-color:rgba(59,130,246,.10);box-shadow:0 0 0 1px rgba(59,130,246,.45)}
 .cv-editable:focus{background-color:rgba(59,130,246,.14);box-shadow:0 0 0 1.5px #3b82f6}
 .cv-editable:empty::before{content:attr(data-placeholder);color:#9ca3af}
+.cv-highlight{background-color:rgba(251,191,36,.35);border-radius:2px;transition:background-color 1s ease}
+.cv-highlight-fade{background-color:transparent;transition:background-color 1.5s ease}
 `;
 
 /**
@@ -243,12 +265,19 @@ export function CvHtmlPreview({
   templateId,
   onEdit,
   onPagesChange,
+  highlights,
+  highlightFading = false,
 }: {
   data: CvData;
   templateId: CvTemplateId;
   onEdit: (path: EditPath, value: string) => void;
   onPagesChange?: (pages: number) => void;
+  /** Chemins des textes à surligner (cf. diffCvData). */
+  highlights?: ReadonlySet<string>;
+  /** Le surlignage s'efface progressivement. */
+  highlightFading?: boolean;
 }) {
+  const highlight = useMemo(() => (highlights ? { paths: highlights, fading: highlightFading } : null), [highlights, highlightFading]);
   const frameRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.75);
@@ -287,7 +316,9 @@ export function CvHtmlPreview({
           <EditContext value={onEdit}>
             <PrimitivesContext value={HTML_PRIMITIVES}>
               <DensityContext value={densityFactor(data.style.density)}>
-                <CvPages data={data} templateId={templateId} />
+                <HighlightContext value={highlight}>
+                  <CvPages data={data} templateId={templateId} />
+                </HighlightContext>
               </DensityContext>
             </PrimitivesContext>
           </EditContext>
