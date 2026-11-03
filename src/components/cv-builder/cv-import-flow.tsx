@@ -12,7 +12,7 @@ import {
   type CvAnalysis,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { scoreTone, type CvScore } from "@/lib/cv-score";
+import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
 
 import { CvImportProgress, type ImportedCv } from "./cv-import-progress";
 import { TemplateChoiceDialog } from "./new-cv-dialog";
@@ -364,7 +364,7 @@ function ScoreCard({ score }: { score: CvScore }) {
         <ScoreGauge score={score.score} />
         <div>
           <p className={`font-semibold ${t.text}`}>{scoreLabel(score.score)}</p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">90 = prêt à postuler</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{READY_SCORE} = prêt à postuler</p>
         </div>
       </div>
 
@@ -492,8 +492,7 @@ function OptimizationsCard({ analysis }: { analysis: CvAnalysis }) {
       <div>
         <CardTitle id={titleId}>Optimisations suggérées</CardTitle>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Les priorités pour ton CV. Dans l&apos;éditeur, le coach les traitera avec toi une par une, en commençant
-          par celle qui rapporte le plus.
+          Les priorités pour ton CV. Dans l&apos;éditeur, le coach les traitera avec toi une par une.
         </p>
       </div>
       {analysis.optimizations.length > 0 ? (

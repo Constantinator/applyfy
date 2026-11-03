@@ -53,9 +53,9 @@ export type CvScore = {
 };
 
 /** Score à partir duquel le CV est prêt à postuler. */
-export const READY_SCORE = 90;
+export const READY_SCORE = 80;
 
-/** Couleur du score : rouge sous 70, orange de 70 à 89, vert à partir de 90. */
+/** Couleur du score : rouge sous 70, orange de 70 à 79, vert à partir de 80. */
 export function scoreTone(score: number): "red" | "orange" | "green" {
   if (score >= READY_SCORE) return "green";
   return score >= 70 ? "orange" : "red";

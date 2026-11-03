@@ -920,7 +920,7 @@ const CoachReplyFlatSchema = z.object({
   message: z
     .string()
     .describe(
-      "Ta question au candidat (tutoiement), 3 phrases maximum : une seule question précise, sur le même point ou sur le point suivant. N'y annonce jamais une modification (c'est le rôle de change_summary)",
+      "Ta question au candidat (tutoiement), 3 phrases maximum : une seule question précise, sur le même point ou sur le point suivant ; ou, si les conditions de clôture sont réunies, le message de clôture, sans question. N'y annonce jamais une modification (c'est le rôle de change_summary)",
     ),
   skipped_points: z
     .array(z.string())
@@ -1000,10 +1000,11 @@ export type CoachContext = {
 const COACH_RULES = `Tu es un coach CV expert. C'est toi qui mènes : tu traites un par un les points à corriger du CV, tu poses tes questions, puis tu modifies directement le CV dès que tu as les informations nécessaires. Le candidat ne valide rien : ce que tu écris va directement dans son CV.
 
 Méthode :
-- Travaille un point à la fois, dans l'ordre de la liste « Points à corriger » (celui qui rapporte le plus d'abord), puis les formules à éviter et les points à améliorer de l'analyse. La liste est recalculée à chaque échange : un point qui n'y figure plus est corrigé.
+- Travaille un point à la fois : d'abord les « Points à corriger », puis les formules à éviter et les points à améliorer de l'analyse. La liste est recalculée à chaque échange : un point qui n'y figure plus est corrigé.
+- Traite les éléments dans un ordre fixe et ne reviens jamais en arrière : termine tous les points d'une même expérience avant de passer à la suivante, dans l'ordre du CV (de la plus récente à la plus ancienne). Ensuite formations, puis projets, puis compétences, puis titre. Si l'utilisateur répond partiellement, applique ce qu'il a donné et passe au point suivant du même élément sans reposer la partie sans réponse.
 - Pour chaque point, pose UNE question à la fois, qui cite un élément réel du CV (poste, projet, formation) et demande des faits concrets : chiffres, résultats, périmètre, outils, contexte.
 - Tu peux poser plusieurs questions d'affilée sur le même point tant qu'il te manque des faits (section = « aucune »). Ne modifie le CV que lorsque tu as assez d'informations.
-- Dès que tu as assez d'informations : modifie la section (« section » et « data »), décris en une phrase ce que tu as changé dans « change_summary », puis passe de toi-même au point suivant de la liste avec une nouvelle question dans « message », sans attendre qu'on te le demande.
+- Dès que tu as assez d'informations : modifie la section (« section » et « data »), décris en une phrase ce que tu as changé dans « change_summary », puis passe de toi-même au point suivant avec une nouvelle question dans « message », sans attendre qu'on te le demande.
 - Si le candidat demande lui-même une modification précise, fais-la directement.
 - Relis toute la conversation avant d'écrire ta question et compte combien de fois tu as déjà demandé chaque information (même reformulée). Si le candidat a répondu sans donner le fait demandé, tu peux le redemander une seule fois.
 - Une question compte comme « posée une fois de plus » à chaque fois que tu la poses et que le candidat n'y répond pas directement : réponse à côté, changement de sujet, « jsp », « je sais pas », information sur un autre point, réponse sans le chiffre demandé. Une information donnée sur un autre point ne répond pas à ta question.
@@ -1011,7 +1012,8 @@ Méthode :
 - Si le candidat répond qu'il ne sait pas, ne se souvient pas ou ne veut pas répondre, le point est traité : ajoute-le à « skipped_points » et passe au point suivant, même s'il reste dans « Points à corriger ».
 - Ne modifie le CV que si l'utilisateur demande explicitement une modification dans son dernier message, ou s'il répond à ta question en donnant les faits demandés. Une question du coach sans réponse affirmative de l'utilisateur ne déclenche aucune modification : un refus ou une négation (ex. « non pas linkedin »), un « je ne sais pas » ou une réponse sans les faits demandés n'en déclenchent aucune ; dans ce cas, section = « aucune » et « change_summary » reste une chaîne vide.
 - Ne reviens jamais sur un point de la liste « Points abandonnés ». Si un point abandonné porte sur un élément (ex. « heures de tutorat »), ne pose plus aucune question sur cet élément, même reformulée, même sous un autre angle, et ne l'ajoute pas au CV.
-- Quand tous les points de « Points à corriger » et les formules à éviter ont été traités (corrigés ou abandonnés dans skipped_points), envoie un message de clôture, sans émoji et sans question, du type : « Ton CV est prêt. Tu peux encore le modifier directement en cliquant sur n'importe quel texte dans l'aperçu. Bonne chance pour tes candidatures. »
+- Quand le score atteint 80/100 ou plus, envoie un message de clôture, sans émoji et sans question, du type : « Ton CV est prêt. Tu peux encore le modifier directement en cliquant sur n'importe quel texte dans l'aperçu. Bonne chance pour tes candidatures. »
+- Si tous les points listés dans « Points à corriger » ont été traités ou abandonnés (présents dans skipped_points), envoie le message de clôture même si le score est inférieur à 80.
 - Tu peux supprimer une puce existante : renvoie son index dans bullets_to_remove. Si l'utilisateur demande une suppression et que tu peux l'exécuter, fais-le directement sans demander de confirmation.
 - Tu peux supprimer un élément entier (expérience, formation, projet) : renvoie "remove": true dans la modification de cet élément. Fais-le directement si l'utilisateur le demande.
 - Une suppression est une modification : nomme-la explicitement dans « change_summary ».
@@ -1043,8 +1045,8 @@ function coachSystem({ cvJson, score, skipped = [], analysis }: CoachContext, se
     `<cv>\n${cvJson}\n</cv>`,
     [
       "<score>",
-      `Score du CV, calculé par l'application et affiché au candidat : ${score.value}/100 (90 = prêt à postuler)`,
-      score.corrections.length ? `Points à corriger, du plus rentable au moins rentable :\n${score.corrections.map((c) => `- ${c}`).join("\n")}` : null,
+      `Score du CV, calculé par l'application et affiché au candidat : ${score.value}/100 (80 = prêt à postuler)`,
+      score.corrections.length ? `Points à corriger :\n${score.corrections.map((c) => `- ${c}`).join("\n")}` : null,
       score.banned.length ? `Formules à éviter présentes dans le CV :\n${score.banned.map((b) => `- ${b}`).join("\n")}` : null,
       skipped.length
         ? `Points abandonnés pendant cette session : ne pose plus aucune question sur ces éléments, même reformulée et même s'ils figurent encore dans « Points à corriger » ; considère-les comme traités.\n${skipped.map((p) => `- ${p}`).join("\n")}`
@@ -1077,13 +1079,13 @@ function coachSystem({ cvJson, score, skipped = [], analysis }: CoachContext, se
   return parts.join("\n\n");
 }
 
-/** Premier message du coach : le point qui rapporte le plus et une première question. */
+/** Premier message du coach : le premier point dans l'ordre de traitement et une première question. */
 export async function coachOpening(context: CoachContext): Promise<string | null> {
   const result = await parseStructured(
     "coachOpening",
     z.object({ message: z.string().describe("Le premier message, 4 phrases maximum") }),
     coachSystem(context, await coachSectorContext(context)),
-    "Écris ton premier message au candidat : annonce que tu vas l'aider à corriger les points de son CV un par un, en commençant par celui qui rapporte le plus (le premier de la liste), et pose une seule question précise pour obtenir les informations qui te manquent sur ce point. Ne modifie rien.",
+    "Écris ton premier message au candidat : annonce que tu vas l'aider à corriger les points de son CV un par un, en commençant par le premier dans l'ordre de traitement fixé par tes règles, et pose une seule question précise pour obtenir les informations qui te manquent sur ce point. Ne modifie rien.",
     { effort: "low", maxTokens: 4000 },
   );
   return result?.message.trim() || null;

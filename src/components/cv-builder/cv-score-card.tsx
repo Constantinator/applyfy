@@ -4,7 +4,7 @@ import { useId } from "react";
 
 import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
 
-/** Couleurs du score : rouge sous 70, orange de 70 à 89, vert à partir de 90. */
+/** Couleurs du score : rouge sous 70, orange de 70 à 79, vert à partir de 80. */
 export const SCORE_TONES = {
   red: { stroke: "#dc2626", bar: "bg-red-500", text: "text-red-600 dark:text-red-400" },
   orange: { stroke: "#f97316", bar: "bg-orange-500", text: "text-orange-600 dark:text-orange-400" },
@@ -49,7 +49,7 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
 
 /**
  * Score du CV dans l'éditeur, recalculé à chaque modification : jauge, appréciation et repère
- * « 90 = prêt à postuler ». Le coach traite lui-même les points à corriger.
+ * « 80 = prêt à postuler ». Le coach traite lui-même les points à corriger.
  */
 export function CvScorePanel({ score }: { score: CvScore }) {
   const titleId = useId();
@@ -63,7 +63,7 @@ export function CvScorePanel({ score }: { score: CvScore }) {
             Score de ton CV
           </h2>
           <p className={`text-sm font-medium ${t.text}`}>{scoreLabel(score.score)}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">90 = prêt à postuler</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{READY_SCORE} = prêt à postuler</p>
         </div>
       </div>
     </section>

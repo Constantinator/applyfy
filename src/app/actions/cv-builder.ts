@@ -568,8 +568,8 @@ export async function scoringContextAction(id: string, rawData: unknown): Promis
 
 /**
  * Fin de l'import d'un CV existant : poste visé (carte « Quel type de poste tu vises ? ») et
- * modèle choisi. Le coach démarre ensuite de lui-même dans l'éditeur, sur le point qui rapporte
- * le plus (coachOpeningAction).
+ * modèle choisi. Le coach démarre ensuite de lui-même dans l'éditeur, sur le premier point dans
+ * son ordre de traitement (coachOpeningAction).
  */
 export async function completeCvImportAction(
   id: string,
@@ -636,8 +636,8 @@ async function coachContext(data: CvData): Promise<CoachContext & { contentKey: 
 }
 
 /**
- * Premier message du coach à l'ouverture de l'éditeur : le point le plus faible du CV et une
- * question. Gratuit (hors quota). Gardé dans le CV tant que son contenu ne change pas.
+ * Premier message du coach à l'ouverture de l'éditeur : le premier point dans son ordre de
+ * traitement et une question. Gratuit (hors quota). Gardé dans le CV tant que son contenu ne change pas.
  */
 export async function coachOpeningAction(
   id: string,
