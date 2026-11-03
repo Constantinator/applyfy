@@ -361,6 +361,8 @@ export function CvBuilderEditor({
                       personal: { ...parsed.personal, photo: current.personal.photo },
                       style: current.style,
                       analysis: current.analysis,
+                      targetJob: current.targetJob,
+                      origin: current.origin,
                       coach: current.coach,
                     });
                     if (next.success) edit(() => next.data);

@@ -718,6 +718,9 @@ async function readShownCv(id: string, json: string): Promise<CvData | string> {
     personal: { ...shown.personal, photo: stored.data.personal.photo },
     style: stored.data.style,
     analysis: stored.data.analysis,
+    // Hors du contenu envoyé par l'éditeur (chatContent) : le poste visé guide le coach et le score.
+    targetJob: stored.data.targetJob,
+    origin: stored.data.origin,
     coach: null,
   };
 }
