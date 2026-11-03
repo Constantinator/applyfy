@@ -52,6 +52,9 @@ const SAVE_LABELS: Record<SaveStatus, string> = {
 
 const LEAVE_MESSAGE = "Des modifications ne sont pas encore enregistrées. Quitter quand même ?";
 
+/** Démarrage du coach d'un clic, pour un CV créé depuis zéro. */
+const COACH_STARTER = { label: "Améliorer mon CV point par point", message: "Aide-moi à améliorer mon CV point par point" };
+
 /** Surlignage des textes modifiés par le coach : début du fondu, puis fin (fondu CSS de 1,5 s). */
 const HIGHLIGHT_FADE_MS = 2000;
 const HIGHLIGHT_END_MS = 3500;
@@ -404,6 +407,7 @@ export function CvBuilderEditor({
                 onPendingChange={() => {}}
                 // Conversation reprise : pas de nouveau premier message.
                 opening={coachHistory.length ? undefined : opening}
+                starter={cvOrigin(data) === "scratch" ? COACH_STARTER : undefined}
                 limitMessage={CVB_CHAT_LIMIT_MESSAGE}
                 limitBlocks={false}
                 undoable={false}

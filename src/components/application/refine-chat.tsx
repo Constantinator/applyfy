@@ -94,6 +94,7 @@ export function RefineChat({
   initialPrompt,
   controlRef,
   opening,
+  starter,
   initialMessages = NO_MESSAGES,
   limitMessage,
   limitBlocks = true,
@@ -123,6 +124,8 @@ export function RefineChat({
   controlRef?: React.Ref<RefineChatHandle>;
   /** Premier message de l'assistant, demandé à l'ouverture (null : pas de message). */
   opening?: () => Promise<string | null>;
+  /** Bouton sous le champ de saisie, tant que l'utilisateur n'a rien envoyé : envoie `message` comme s'il l'avait tapé. */
+  starter?: { label: string; message: string };
   /** Conversation reprise à l'ouverture (historique enregistré du coach du CV Builder). */
   initialMessages?: ChatTurn[];
   /** Message du bandeau Premium quand la limite du mois est atteinte. */
@@ -413,6 +416,17 @@ export function RefineChat({
           {blocked ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
         </button>
       </form>
+      {starter && aiEnabled && !messages.some((m) => m.role === "user") && (
+        <button
+          type="button"
+          // Après le premier message du coach, pour que sa réponse en tienne compte.
+          disabled={disabled || pending || openingPending}
+          onClick={() => void send(starter.message)}
+          className="self-start text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-900 disabled:opacity-50 dark:text-slate-400 dark:hover:text-white"
+        >
+          {starter.label}
+        </button>
+      )}
       {!minimal && (
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {texts.privacy}{" "}
