@@ -72,18 +72,6 @@ const SAMPLE_CV = CvDataSchema.parse({
     { id: "en", name: "Anglais", level: "Courant (TOEIC 945)" },
     { id: "es", name: "Espagnol", level: "Intermédiaire" },
   ],
-  certifications: [
-    { id: "bmc", name: "Bloomberg Market Concepts", issuer: "Bloomberg", date: "2023" },
-    { id: "cfa", name: "CFA Level 1", issuer: "CFA Institute", date: "2024" },
-  ],
-  projects: [
-    {
-      id: "valorisation",
-      name: "Modèle de valorisation sectoriel",
-      description: "Outil Excel de comparaison sectorielle sur 50 entreprises cotées (EV/EBITDA, PER, rendement dividende).",
-      link: "",
-    },
-  ],
   interests: "Échecs (tournois régionaux), Tennis, Lecture (économie comportementale)",
 });
 
