@@ -49,13 +49,42 @@ const SAMPLE_CV = CvDataSchema.parse({
       startDate: "2023",
       bullets: ["Suivi budgétaire de 3 départements (budget cumulé : 2 M€)", "Préparé les clôtures mensuelles et trimestrielles"],
     },
+    {
+      id: "lazard",
+      position: "Analyste M&A",
+      company: "Lazard",
+      location: "Paris",
+      startDate: "2022",
+      endDate: "2023",
+      bullets: [
+        "Modélisé 4 transactions (valorisation DCF et LBO) pour des cibles entre 50 M€ et 200 M€",
+        "Préparé les pitchbooks pour 3 comités d'investissement",
+      ],
+    },
   ],
-  education: [{ id: "hec", degree: "Master Finance", school: "HEC Paris", startDate: "2022", endDate: "2024" }],
-  skills: ["Excel", "Bloomberg", "Python", "PowerBI", "Modélisation financière"].map((name) => ({ id: name, name })),
+  education: [
+    { id: "hec", degree: "Master Finance", school: "HEC Paris", startDate: "2022", endDate: "2024" },
+    { id: "dauphine", degree: "Licence Économie-Gestion", school: "Université Paris-Dauphine", startDate: "2019", endDate: "2022" },
+  ],
+  skills: ["Excel", "Bloomberg", "Python", "Power BI", "Modélisation DCF/LBO", "SQL", "PowerPoint"].map((name) => ({ id: name, name })),
   languages: [
     { id: "fr", name: "Français", level: "Natif" },
-    { id: "en", name: "Anglais", level: "Courant" },
+    { id: "en", name: "Anglais", level: "Courant (TOEIC 945)" },
+    { id: "es", name: "Espagnol", level: "Intermédiaire" },
   ],
+  certifications: [
+    { id: "bmc", name: "Bloomberg Market Concepts", issuer: "Bloomberg", date: "2023" },
+    { id: "cfa", name: "CFA Level 1", issuer: "CFA Institute", date: "2024" },
+  ],
+  projects: [
+    {
+      id: "valorisation",
+      name: "Modèle de valorisation sectoriel",
+      description: "Outil Excel de comparaison sectorielle sur 50 entreprises cotées (EV/EBITDA, PER, rendement dividende).",
+      link: "",
+    },
+  ],
+  interests: "Échecs (tournois régionaux), Tennis, Lecture (économie comportementale)",
 });
 
 /** Vraie miniature d'un modèle (format A4), à la largeur de sa carte. */
