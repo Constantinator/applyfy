@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
 
@@ -23,7 +23,8 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   return (
-    <div className={`relative shrink-0 ${size === "lg" ? "h-32 w-32" : "h-20 w-20"}`}>
+    // Uniquement des <span> : la jauge peut être placée dans un bouton.
+    <span className={`relative block shrink-0 ${size === "lg" ? "h-32 w-32" : "h-20 w-20"}`}>
       <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90" aria-hidden="true">
         <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="10" className="stroke-slate-100 dark:stroke-slate-800" />
         <circle
@@ -39,25 +40,112 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
           className="transition-[stroke-dashoffset] duration-500"
         />
       </svg>
-      <p className="absolute inset-0 flex flex-col items-center justify-center">
+      <span className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={`font-bold ${t.text} ${size === "lg" ? "text-3xl" : "text-xl"}`}>{score}</span>
         <span className="text-xs text-slate-500 dark:text-slate-400">sur 100</span>
-      </p>
-    </div>
+      </span>
+    </span>
+  );
+}
+
+/** Corrections affichées par catégorie dans le détail du score (les plus rentables). */
+const DETAIL_MAX_LINES = 3;
+
+/** Détail du score : les 5 catégories et, sous celles qui ne sont pas au maximum, ce qui manque. */
+export function CvScoreDetail({ score }: { score: CvScore }) {
+  return (
+    <ul className="space-y-3">
+      {score.categories.map((category) => {
+        const incomplete = category.score < category.max;
+        const lines = incomplete ? score.corrections.filter((c) => c.category === category.id) : [];
+        const others = lines.length - DETAIL_MAX_LINES;
+        return (
+          <li key={category.id}>
+            <p className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-medium text-slate-900 dark:text-white">{category.label}</span>
+              <span className={`shrink-0 font-semibold ${SCORE_TONES[scoreTone((category.score / category.max) * 100)].text}`}>
+                {category.score}/{category.max}
+              </span>
+            </p>
+            {incomplete && (
+              <ul className="mt-1 space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
+                {lines.slice(0, DETAIL_MAX_LINES).map((c) => (
+                  <li key={c.id}>{c.message}</li>
+                ))}
+                {others > 0 && (
+                  <li className="text-slate-500 dark:text-slate-400">
+                    et {others} {others > 1 ? "autres points" : "autre point"}
+                  </li>
+                )}
+                {/* Points perdus sans correction : CV encore trop vide pour que la règle s'applique. */}
+                {!lines.length && <li>Complète ton CV pour gagner ces points.</li>}
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
 /**
  * Score du CV dans l'éditeur, recalculé à chaque modification : jauge, appréciation et repère
- * « 80 = prêt à postuler ». Le coach traite lui-même les points à corriger.
+ * « 80 = prêt à postuler ». Un clic sur la jauge ouvre le détail par catégorie. Le coach traite
+ * lui-même les points à corriger.
  */
 export function CvScorePanel({ score }: { score: CvScore }) {
   const titleId = useId();
+  const detailId = useId();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const t = SCORE_TONES[scoreTone(score.score)];
+
+  // Fermeture du détail : clic en dehors, ou Échap (le focus revient alors sur la jauge).
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   return (
-    <section aria-labelledby={titleId} className="card p-4">
+    // z-index à l'ouverture : le détail passe au-dessus des onglets et du chat, placés après dans la page.
+    <section aria-labelledby={titleId} className={`card relative p-4 ${open ? "z-20" : ""}`}>
       <div className="flex items-center gap-4">
-        <ScoreGauge score={score.score} size="sm" />
+        <div ref={rootRef} className="relative shrink-0">
+          <button
+            ref={buttonRef}
+            type="button"
+            aria-expanded={open}
+            aria-controls={open ? detailId : undefined}
+            aria-label={`Score de ${score.score} sur 100 : ${open ? "masquer" : "voir"} le détail`}
+            title="Voir le détail du score"
+            onClick={() => setOpen((value) => !value)}
+            className="block rounded-full transition hover:ring-2 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none dark:hover:ring-slate-600"
+          >
+            <ScoreGauge score={score.score} size="sm" />
+          </button>
+          {open && (
+            <div
+              id={detailId}
+              className="absolute top-full left-0 z-30 mt-2 max-h-[60vh] w-[min(20rem,calc(100vw-3.5rem))] overflow-y-auto rounded-xl bg-white p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700"
+            >
+              <CvScoreDetail score={score} />
+            </div>
+          )}
+        </div>
         <div className="min-w-0">
           <h2 id={titleId} className="font-semibold text-slate-900 dark:text-white">
             Score de ton CV
