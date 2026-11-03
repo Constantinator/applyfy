@@ -1,8 +1,10 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { CV_ACCENT_PRESETS, CV_TEMPLATES, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_ACCENT_PRESETS, CV_TEMPLATES, CvDataSchema, type CvTemplateId } from "@/lib/cv-builder-types";
+
+import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
 
 /** Couleur d'accent propre à chaque modèle (utilisée quand aucune couleur n'est choisie). */
 const TEMPLATE_ACCENTS: Record<CvTemplateId, string> = {
@@ -14,70 +16,66 @@ const TEMPLATE_ACCENTS: Record<CvTemplateId, string> = {
   finance: "#000000",
 };
 
-/** Ligne de texte grise de la miniature. */
-function Line({ width = "100%" }: { width?: string }) {
-  return <span className="block h-[3px] rounded-full bg-slate-200" style={{ width }} />;
-}
+/** CV fictif des miniatures de la grille. */
+const SAMPLE_CV = CvDataSchema.parse({
+  personal: {
+    firstName: "Sophie",
+    lastName: "Martin",
+    jobTitle: "Analyste Financière",
+    email: "sophie.martin@email.com",
+    city: "Paris",
+    linkedin: "linkedin.com/in/sophiemartin",
+  },
+  summary: "Étudiante en finance avec expérience en analyse de données et gestion de portefeuille.",
+  experiences: [
+    {
+      id: "bnp",
+      position: "Analyste junior",
+      company: "BNP Paribas",
+      location: "Paris",
+      startDate: "2024",
+      current: true,
+      bullets: [
+        "Réalisé 3 reportings financiers mensuels présentés à la direction",
+        "Analysé un portefeuille de 50 M€ avec un taux de rendement de +8 %",
+        "Automatisé les tableaux de bord Excel, réduisant le temps de traitement de 40 %",
+      ],
+    },
+    {
+      id: "lvmh",
+      position: "Stage contrôle de gestion",
+      company: "LVMH",
+      location: "Paris",
+      startDate: "2023",
+      bullets: ["Suivi budgétaire de 3 départements (budget cumulé : 2 M€)", "Préparé les clôtures mensuelles et trimestrielles"],
+    },
+  ],
+  education: [{ id: "hec", degree: "Master Finance", school: "HEC Paris", startDate: "2022", endDate: "2024" }],
+  skills: ["Excel", "Bloomberg", "Python", "PowerBI", "Modélisation financière"].map((name) => ({ id: name, name })),
+  languages: [
+    { id: "fr", name: "Français", level: "Natif" },
+    { id: "en", name: "Anglais", level: "Courant" },
+  ],
+});
 
-/** Bloc « titre de section + lignes » de la miniature. */
-function Section({ accent, title }: { accent: string; title: "bar" | "underline" | "plain" | "framed" }) {
-  return (
-    <span className="block space-y-[3px]">
-      {title === "bar" ? (
-        <span className="flex items-center gap-1">
-          <span className="block h-[6px] w-[2px] rounded-sm" style={{ backgroundColor: accent }} />
-          <span className="block h-[3px] w-1/3 rounded-full" style={{ backgroundColor: accent }} />
-        </span>
-      ) : title === "framed" ? (
-        <span className="block border-y py-[1px]" style={{ borderColor: accent }}>
-          <span className="mx-auto block h-[3px] w-1/3 rounded-full" style={{ backgroundColor: accent }} />
-        </span>
-      ) : (
-        <span className={`block ${title === "underline" ? "border-b pb-[2px]" : ""}`} style={{ borderColor: accent }}>
-          <span className="block h-[3px] w-1/3 rounded-full" style={{ backgroundColor: accent }} />
-        </span>
-      )}
-      <Line />
-      <Line width="80%" />
-    </span>
-  );
-}
+/** Vraie miniature d'un modèle (format A4), à la largeur de sa carte. */
+function FittedThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const data = useMemo(() => ({ ...SAMPLE_CV, style: { ...SAMPLE_CV.style, accent } }), [accent]);
 
-/** Aperçu simplifié de la mise en page d'un modèle, dans la couleur d'accent. */
-function TemplateThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
-  if (id === "sidebar") {
-    return (
-      <span className="flex h-full">
-        <span className="flex w-[30%] flex-col gap-1.5 bg-slate-800 p-1.5">
-          <span className="block h-[3px] w-3/4 rounded-full bg-blue-300" />
-          <span className="block h-[3px] rounded-full bg-slate-500" />
-          <span className="block h-[3px] w-2/3 rounded-full bg-slate-500" />
-        </span>
-        <span className="flex flex-1 flex-col gap-2 p-1.5">
-          <span className="block h-[5px] w-2/3 rounded-full" style={{ backgroundColor: accent }} />
-          <Section accent={accent} title="underline" />
-          <Section accent={accent} title="underline" />
-        </span>
-      </span>
-    );
-  }
-  const centered = id === "classique" || id === "finance";
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setWidth(element.clientWidth));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <span className="flex h-full flex-col gap-2 p-2">
-      <span className={`flex items-center gap-1.5 ${centered ? "justify-center" : ""}`}>
-        {id === "moderne" && <span className="block h-3 w-3 shrink-0 rounded-full bg-slate-300" />}
-        <span className={`flex flex-col gap-[3px] ${centered ? "items-center" : ""} flex-1`}>
-          <span
-            className="block h-[5px] w-2/3 rounded-full"
-            style={{ backgroundColor: id === "moderne" ? accent : "#1F2937" }}
-          />
-          <span className="block h-[3px] w-1/2 rounded-full" style={{ backgroundColor: id === "tech" ? accent : "#CBD5E1" }} />
-        </span>
-      </span>
-      {id === "minimaliste" && <span className="block h-px" style={{ backgroundColor: accent }} />}
-      <Section accent={accent} title={id === "tech" ? "bar" : id === "finance" ? "framed" : id === "minimaliste" ? "plain" : "underline"} />
-      <Section accent={accent} title={id === "tech" ? "bar" : id === "finance" ? "framed" : id === "minimaliste" ? "plain" : "underline"} />
-    </span>
+    <div ref={ref} aria-hidden="true" className="aspect-[210/297] overflow-hidden border-b border-slate-100 bg-white dark:border-slate-800">
+      {width > 0 && <CvThumbnail data={data} templateId={id} width={width} />}
+    </div>
   );
 }
 
@@ -96,31 +94,32 @@ export function TemplateGrid({
   onSelect: (id: CvTemplateId) => void;
 }) {
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {CV_TEMPLATES.map((t) => {
-        const active = t.id === selected;
-        return (
-          <li key={t.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(t.id)}
-              aria-pressed={active}
-              title={t.description}
-              className={`flex w-full flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition dark:bg-slate-900 ${
-                active
-                  ? "border-blue-600 ring-2 ring-blue-100 dark:ring-blue-500/20"
-                  : "border-slate-200 hover:border-blue-300 dark:border-slate-700"
-              }`}
-            >
-              <span aria-hidden="true" className="block aspect-[3/4] border-b border-slate-100 bg-white dark:border-slate-800">
-                <TemplateThumbnail id={t.id} accent={accent || TEMPLATE_ACCENTS[t.id]} />
-              </span>
-              <span className="px-2 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">{t.name}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <CvFontFaces />
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {CV_TEMPLATES.map((t) => {
+          const active = t.id === selected;
+          return (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(t.id)}
+                aria-pressed={active}
+                title={t.description}
+                className={`flex w-full flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition dark:bg-slate-900 ${
+                  active
+                    ? "border-blue-600 ring-2 ring-blue-100 dark:ring-blue-500/20"
+                    : "border-slate-200 hover:border-blue-300 dark:border-slate-700"
+                }`}
+              >
+                <FittedThumbnail id={t.id} accent={accent} />
+                <span className="px-2 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">{t.name}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 
