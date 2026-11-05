@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { CV_LIMITS, CvDataSchema, newItemId, type CvData } from "./cv-builder-types";
+import { CV_LIMITS, CvDataSchema, newItemId, splitSkillGroup, type CvData } from "./cv-builder-types";
 import { actionDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
 
 // Modifications du CV par le coach du CV Builder : la réponse du coach est transformée en
@@ -389,9 +389,6 @@ function contentWords(texts: string[]) {
   return (words ?? []).sort().join(" ");
 }
 
-/** Intitulé de groupe en tête de ligne (« Hard skills : Excel, SQL ») : 4 mots au plus. */
-const GROUP_LABEL = /^\s*(?:[^\s:]+\s*){1,4}:\s*/;
-
 /** Contenu d'un CV, indépendant de la façon dont il est rangé (ordre, lignes, intitulés de groupes). */
 function contentFingerprint(data: CvData) {
   return JSON.stringify({
@@ -401,7 +398,7 @@ function contentFingerprint(data: CvData) {
     experiences: data.experiences.map((e) => ({ ...e, bullets: contentWords(e.bullets) })),
     education: data.education,
     projects: data.projects,
-    skills: contentWords(data.skills.map((s) => `${s.name.replace(GROUP_LABEL, "")} ${s.level}`)),
+    skills: contentWords(data.skills.map((s) => `${splitSkillGroup(s.name)?.items ?? s.name} ${s.level}`)),
     languages: contentWords(data.languages.map((l) => `${l.name} ${l.level}`)),
     certifications: contentWords(data.certifications.map((c) => `${c.name} ${c.issuer} ${c.date}`)),
   });

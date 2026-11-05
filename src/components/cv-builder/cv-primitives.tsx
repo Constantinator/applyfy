@@ -29,6 +29,8 @@ export type TextProps = CommonProps & {
   multiline?: boolean;
   /** Indication affichée dans l'aperçu quand le champ est vide. */
   placeholder?: string;
+  /** Forme affichée hors saisie (avec son marquage) : `children` reste le texte enregistré et modifié. */
+  display?: string;
 };
 export type LinkProps = TextProps & { src: string };
 export type ImageProps = { src: string; style?: StyleProp };

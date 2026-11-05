@@ -335,7 +335,18 @@ export function applyEdit(data: CvData, path: string, value: string): CvData {
   return set(data, 0) as CvData;
 }
 
-const BULLET_PATH = /^experiences\.([^.]+)\.bullets\.(\d+)$/;
+const SKILL_GROUP = /^(\s*(?:[^\s:]+\s*){1,4}:)(\s+\S[\s\S]*)$/;
+
+/**
+ * Compétence groupée, « Intitulé : a, b, c » (intitulé de 4 mots au plus) : intitulé avec ses deux
+ * points, et le reste du texte. null pour une compétence simple.
+ */
+export function splitSkillGroup(name: string) {
+  const match = name.match(SKILL_GROUP);
+  return match ? { label: match[1], items: match[2] } : null;
+}
+
+const BULLET_PATH =/^experiences\.([^.]+)\.bullets\.(\d+)$/;
 
 /** Chemin d'une puce d'expérience dans l'aperçu ? */
 export const isBulletPath = (path: string) => BULLET_PATH.test(path);

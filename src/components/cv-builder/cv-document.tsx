@@ -90,8 +90,8 @@ const PDF_PRIMITIVES: CvPrimitives = {
       </PdfView>
     );
   },
-  Text: function Text({ style, children }) {
-    return <PdfText style={usePdfStyle(style)}>{typeof children === "string" ? <RichRuns text={children} /> : children}</PdfText>;
+  Text: function Text({ style, children, display }) {
+    return <PdfText style={usePdfStyle(style)}>{typeof children === "string" ? <RichRuns text={display ?? children} /> : children}</PdfText>;
   },
   Link: function Link({ src, style, children }) {
     return (

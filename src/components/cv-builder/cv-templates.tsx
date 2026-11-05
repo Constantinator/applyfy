@@ -7,6 +7,7 @@ import {
   interestList,
   SKILL_LEVELS,
   skillLevelValue,
+  splitSkillGroup,
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
@@ -34,6 +35,16 @@ function Paragraph({ edit, children, style }: { edit: string; children: string; 
   );
 }
 const levelLabel = (level: string) => SKILL_LEVELS.find((l) => l.value === level && l.value)?.label ?? "";
+
+/**
+ * Forme affichée d'une compétence groupée (« Hard skills : a, b ») : intitulé en gras, éventuellement
+ * seul sur sa ligne. undefined pour une compétence simple, ou un intitulé déjà mis en forme.
+ */
+function skillGroupDisplay(name: string, ownLine = false) {
+  const group = splitSkillGroup(name);
+  if (!group || /[*_]/.test(group.label)) return undefined;
+  return ownLine ? `**${group.label.trim()}**\n${group.items.trim()}` : `**${group.label}**${group.items}`;
+}
 
 type ContactItem = { field: "email" | "phone" | "city" | "linkedin" | "website" | "github"; label: string; href?: string };
 
@@ -318,9 +329,12 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
           ) : variant === "moderne" ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {s.skills.map((k) => (
-                <View key={k.id} style={{ width: "50%", paddingRight: 12, marginTop: 4 }}>
+                // Compétence groupée : pleine largeur, un groupe par ligne.
+                <View key={k.id} style={splitSkillGroup(k.name) ? { width: "100%", marginTop: 4 } : { width: "50%", paddingRight: 12, marginTop: 4 }}>
                   <View style={row}>
-                    <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
+                    <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+                      {k.name}
+                    </Text>
                     {k.level ? <Text style={[muted, { fontSize: 8.5 }]}>{levelLabel(k.level)}</Text> : null}
                   </View>
                   {k.level ? (
@@ -557,8 +571,9 @@ function Sidebar({ data }: { data: CvData }) {
             <>
               <SideHeading>Compétences</SideHeading>
               {s.skills.map((k) => (
-                <View key={k.id} style={{ marginTop: 3 }} wrap={false}>
-                  <Text edit={`skills.${k.id}.name`} style={{ fontSize: 8.5 }}>
+                // Compétence groupée : intitulé seul sur sa ligne, groupes plus espacés (colonne étroite).
+                <View key={k.id} style={{ marginTop: splitSkillGroup(k.name) ? 6 : 3 }} wrap={false}>
+                  <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name, true)} style={{ fontSize: 8.5 }}>
                     {k.name}
                   </Text>
                   {k.level ? (
@@ -724,6 +739,36 @@ function FinanceLine({ label, children }: { label: string; children: ReactNode }
 }
 
 /** Éléments séparés par des virgules, chacun modifiable. */
+/** Compétences simples sur la ligne « Compétences : … », puis une ligne par compétence groupée. */
+function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
+  const simple = skills.filter((k) => !splitSkillGroup(k.name));
+  const level = (k: CvData["skills"][number]) => (k.level ? ` (${levelLabel(k.level).toLowerCase()})` : "");
+  return (
+    <>
+      {simple.length ? (
+        <FinanceLine label="Compétences">
+          {joined(simple, (k) => (
+            <>
+              <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
+              {level(k)}
+            </>
+          ))}
+        </FinanceLine>
+      ) : null}
+      {skills
+        .filter((k) => splitSkillGroup(k.name))
+        .map((k) => (
+          <Text key={k.id} style={{ marginTop: 1 }}>
+            <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+              {k.name}
+            </Text>
+            {level(k)}
+          </Text>
+        ))}
+    </>
+  );
+}
+
 function joined<T>(items: T[], render: (item: T) => ReactNode) {
   return items.map((item, i) => (
     <Text key={i}>
@@ -854,16 +899,7 @@ function Finance({ data }: { data: CvData }) {
       {s.skills.length || s.languages.length || s.certifications.length || s.hasInterests ? (
         <View style={section} wrap={false}>
           <FinanceHeading>Compétences & Langues</FinanceHeading>
-          {s.skills.length ? (
-            <FinanceLine label="Compétences">
-              {joined(s.skills, (k) => (
-                <>
-                  <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
-                  {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
-                </>
-              ))}
-            </FinanceLine>
-          ) : null}
+          <FinanceSkills skills={s.skills} />
           {s.languages.length ? (
             <FinanceLine label="Langues">
               {joined(s.languages, (l) => (

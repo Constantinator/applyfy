@@ -117,6 +117,7 @@ function EditableText({
   path,
   multiline,
   placeholder,
+  display,
   highlightClass,
 }: {
   as: "div" | "span";
@@ -125,6 +126,7 @@ function EditableText({
   path: EditPath;
   multiline?: boolean;
   placeholder?: string;
+  display?: string;
   highlightClass?: string;
 }) {
   const ref = useRef<HTMLElement>(null);
@@ -137,7 +139,7 @@ function EditableText({
     const el = ref.current;
     if (!el) return;
     if (!focused) {
-      el.replaceChildren(...richNodes(value));
+      el.replaceChildren(...richNodes(display ?? value));
     } else if (el.textContent !== value) {
       el.textContent = value;
       // Curseur en fin de texte (le texte affiché vient de changer).
@@ -145,7 +147,7 @@ function EditableText({
       selection?.selectAllChildren(el);
       selection?.collapseToEnd();
     }
-  }, [value, focused]);
+  }, [value, display, focused]);
   const props = {
     "data-edit-path": path,
     onFocus: () => setFocused(true),
@@ -202,7 +204,7 @@ function RichText({ text }: { text: string }) {
   return runs.map((run, i) => (run.format ? <span key={i} style={RUN_CSS[run.format] as CSSProperties}>{run.text}</span> : run.text));
 }
 
-function HtmlText({ style, children, edit, multiline, placeholder }: Parameters<CvPrimitives["Text"]>[0]) {
+function HtmlText({ style, children, edit, multiline, placeholder, display }: Parameters<CvPrimitives["Text"]>[0]) {
   const nested = useContext(InTextContext);
   const onEdit = useContext(EditContext);
   const highlightClass = useHighlightClass(edit);
@@ -218,6 +220,7 @@ function HtmlText({ style, children, edit, multiline, placeholder }: Parameters<
         path={edit}
         multiline={multiline}
         placeholder={placeholder}
+        display={display}
         highlightClass={highlightClass}
       />
     );
@@ -225,7 +228,7 @@ function HtmlText({ style, children, edit, multiline, placeholder }: Parameters<
   return createElement(
     as,
     { style: css, className: highlightClass },
-    <InTextContext value>{typeof children === "string" ? <RichText text={children} /> : children}</InTextContext>,
+    <InTextContext value>{typeof children === "string" ? <RichText text={display ?? children} /> : children}</InTextContext>,
   );
 }
 
