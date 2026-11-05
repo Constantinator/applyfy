@@ -22,7 +22,6 @@ import {
   cvDataToText,
   cvOrigin,
   diffCvData,
-  fullName,
   targetJobOf,
   type BuilderCv,
   type CvData,
@@ -98,9 +97,10 @@ const IMPORT_TABS: [TabId, string][] = [
   ["style", "Style du CV"],
 ];
 
-function fileName(title: string, data: CvData) {
-  const base = `CV ${fullName(data) || title}`.normalize("NFD").replace(/[̀-ͯ]/g, "");
-  return `${base.replace(/[^\w -]+/g, "").trim().replace(/\s+/g, "-") || "CV"}.pdf`;
+/** Nom du PDF : le nom du CV, sans les caractères interdits dans un nom de fichier. */
+function fileName(title: string) {
+  const base = title.replace(/[\\/:*?"<>|]/g, "-").replace(/[. ]+$/, "").trim();
+  return `${base || "CV"}.pdf`;
 }
 
 /**
@@ -314,7 +314,7 @@ export function CvBuilderEditor({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = fileName(title, data);
+      link.download = fileName(title);
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (error) {
