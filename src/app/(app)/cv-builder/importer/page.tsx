@@ -17,7 +17,7 @@ export default async function CvImportPage({ searchParams }: PageProps<"/cv-buil
   await connection(); // compteurs IA lus à chaque visite
   const { applicationId } = await searchParams;
   // Arrivée depuis une fiche (candidature de l'utilisateur, vérifiée ici). Pas de redirection vers
-  // le CV lié, contrairement à /cv-builder : il est lié dès l'extraction, avant la fin de ce parcours.
+  // le CV lié : il est lié dès l'extraction, avant la fin de ce parcours.
   const [usage, detail] = await Promise.all([
     readAiUsage(),
     typeof applicationId === "string" ? getApplicationDetail(applicationId) : null,

@@ -215,7 +215,7 @@ export default async function ApplicationPage({
             )}
           </section>
 
-          <CvAdapter applicationId={app.id} />
+          <CvAdapter applicationId={app.id} hasLinkedCv={Boolean(linkedCv)} />
 
           <CoverLetterGenerator
             applicationId={app.id}

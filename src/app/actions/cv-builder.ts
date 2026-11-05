@@ -141,7 +141,7 @@ export async function convertLegacyCvAction(formData: FormData) {
     // Vérifie la connexion ET que la candidature appartient bien à l'utilisateur.
     const detail = applicationId ? await getApplicationDetail(applicationId) : null;
     if (!detail) redirect("/cv-builder?erreur=creation");
-    // Double envoi : le CV déjà converti s'ouvre (la page de retour y redirige).
+    // Double envoi : le CV déjà converti apparaît en tête de la page de retour.
     if (await getBuilderCvByApplication(applicationId)) redirect(back);
     const text = htmlToText(detail.application.cv_improved_html);
     const rate = isClaudeConfigured() ? await checkAiRateLimit() : null;

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
@@ -9,7 +8,7 @@ import { IconDocument } from "@/components/icons";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { CV_BUILDER_MAX, getBuilderCvByApplication, listBuilderCvs } from "@/lib/cv-builder";
-import { CV_TEMPLATES } from "@/lib/cv-builder-types";
+import { CV_TEMPLATES, type BuilderCvSummary } from "@/lib/cv-builder-types";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
 
@@ -32,30 +31,66 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Europe/Paris",
 });
 
-/** « CV Builder » : CV créés dans Applyfy, et création d'un nouveau CV. */
+/** Contenu d'une carte de CV : nom, modèle, date et actions. */
+function CvCardContent({ cv }: { cv: BuilderCvSummary }) {
+  return (
+    <>
+      <div className="min-w-0">
+        <Link
+          href={`/cv-builder/${cv.id}`}
+          className="block truncate font-semibold text-slate-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-300"
+        >
+          {cv.title}
+        </Link>
+        <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
+          {[cv.jobTitle, CV_TEMPLATES.find((t) => t.id === cv.templateId)?.name].filter(Boolean).join(" · ")}
+        </p>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          Modifié le {dateFormatter.format(new Date(cv.updatedAt))}
+        </p>
+      </div>
+      <div className="mt-auto flex items-center gap-2">
+        <Link href={`/cv-builder/${cv.id}`} className="btn-secondary px-4 py-2 text-sm">
+          Modifier
+        </Link>
+        <DeleteBuilderCvButton id={cv.id} title={cv.title} />
+      </div>
+    </>
+  );
+}
+
+/**
+ * « CV Builder » : CV créés dans Applyfy, et création d'un nouveau CV. Avec `applicationId` (arrivée
+ * depuis une fiche) : page de cette candidature, son CV en tête, et tout nouveau CV lui est lié.
+ */
 export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-builder">) {
   await connection();
   const { erreur, applicationId } = await searchParams;
 
-  // Arrivée depuis une fiche (candidature de l'utilisateur, vérifiée ici) : son CV s'il en a déjà un.
+  // Candidature de l'utilisateur, vérifiée ici.
   const detail = typeof applicationId === "string" ? await getApplicationDetail(applicationId) : null;
   const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
-  if (linked) redirect(`/cv-builder/${linked.id}`);
 
-  let cvs: Awaited<ReturnType<typeof listBuilderCvs>> | null = null;
+  let cvs: BuilderCvSummary[] | null = null;
   try {
     cvs = await listBuilderCvs();
   } catch (e) {
     console.error("[cv-builder] liste", e);
   }
+  const currentCv = linked ? (cvs?.find((cv) => cv.id === linked.id) ?? null) : null;
+  const otherCvs = cvs?.filter((cv) => cv.id !== currentCv?.id) ?? [];
   const full = cvs !== null && cvs.length >= CV_BUILDER_MAX;
-  const error = detail && full ? ERRORS.limite : typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
+  // Limite signalée d'office seulement quand il faut créer le CV de cette candidature.
+  const error = detail && !linked && full ? ERRORS.limite : typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
+  const heading = detail
+    ? `CV pour ${detail.application.position}${detail.application.company.trim() ? ` chez ${detail.application.company}` : ""}`
+    : "CV Builder";
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">CV Builder</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{heading}</h1>
           <p className="mt-1.5 text-slate-500 dark:text-slate-400">
             Choisis un modèle parmi 5, améliore ton CV avec l&apos;assistant IA et télécharge-le en PDF.
           </p>
@@ -67,10 +102,11 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
                 detail && {
                   id: detail.application.id,
                   position: detail.application.position,
-                  // La conversion passe par l'IA.
-                  hasLegacyCv: Boolean(detail.application.cv_improved_html) && isClaudeConfigured(),
+                  // La conversion passe par l'IA, et seulement tant qu'aucun CV n'est lié.
+                  hasLegacyCv: !linked && Boolean(detail.application.cv_improved_html) && isClaudeConfigured(),
                 }
               }
+              autoOpen={Boolean(detail && !linked)}
               error={detail ? error : null}
             />
             <Link
@@ -107,32 +143,28 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
           </div>
         </div>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {cvs.map((cv) => (
-            <li key={cv.id} className="card flex flex-col gap-4 p-5">
-              <div className="min-w-0">
-                <Link
-                  href={`/cv-builder/${cv.id}`}
-                  className="block truncate font-semibold text-slate-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-300"
-                >
-                  {cv.title}
-                </Link>
-                <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
-                  {[cv.jobTitle, CV_TEMPLATES.find((t) => t.id === cv.templateId)?.name].filter(Boolean).join(" · ")}
-                </p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  Modifié le {dateFormatter.format(new Date(cv.updatedAt))}
-                </p>
-              </div>
-              <div className="mt-auto flex items-center gap-2">
-                <Link href={`/cv-builder/${cv.id}`} className="btn-secondary px-4 py-2 text-sm">
-                  Modifier
-                </Link>
-                <DeleteBuilderCvButton id={cv.id} title={cv.title} />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          {currentCv && (
+            <section
+              aria-label="CV actuel pour cette offre"
+              className="card flex flex-col gap-4 bg-blue-50/60 p-5 ring-2 ring-blue-600 dark:bg-blue-500/10 dark:ring-blue-400"
+            >
+              <span className="w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+                CV actuel pour cette offre
+              </span>
+              <CvCardContent cv={currentCv} />
+            </section>
+          )}
+          {otherCvs.length > 0 && (
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {otherCvs.map((cv) => (
+                <li key={cv.id} className="card flex flex-col gap-4 p-5">
+                  <CvCardContent cv={cv} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </main>
   );

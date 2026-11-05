@@ -178,22 +178,24 @@ const TARGET_JOB_MAX = 120;
 
 /**
  * « Créer un CV depuis zéro », en deux étapes : poste visé (secteur du score et du coach, aussi
- * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre. `application` : fenêtre
- * ouverte d'office, poste de la candidature pré-rempli, CV lié à cette candidature, et autres
- * points de départ proposés (CV existant, ancien CV de la candidature).
+ * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre. `application` : poste de
+ * la candidature pré-rempli, CV lié à cette candidature, et autres points de départ proposés
+ * (CV existant, ancien CV de la candidature).
  */
 export function NewCvDialog({
   application = null,
+  autoOpen = false,
   error = null,
 }: {
   application?: { id: string; position: string; hasLegacyCv: boolean } | null;
-  /** Message affiché dans la fenêtre ouverte d'office (la page est alors masquée). */
+  /** Fenêtre ouverte d'office à l'affichage de la page. */
+  autoOpen?: boolean;
+  /** Message affiché dans la fenêtre, qui masque celui de la page quand elle est ouverte. */
   error?: string | null;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [targetJob, setTargetJob] = useState((application?.position ?? "").slice(0, TARGET_JOB_MAX));
-  const autoOpen = Boolean(application);
   useEffect(() => {
     if (autoOpen && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [autoOpen]);
