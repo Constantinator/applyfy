@@ -610,8 +610,8 @@ export async function completeCvImportAction(
 /** Échanges précédents transmis au coach (un coaching s'étale sur plusieurs messages). */
 const COACH_HISTORY_MAX = 30;
 
-/** Mots-clés de l'offre transmis au coach, pour garder une session courte. */
-const COACH_OFFER_KEYWORDS_MAX = 8;
+/** Mots-clés de l'offre parmi lesquels le coach choisit les 4 qu'il traite (règle dans COACH_RULES). */
+const COACH_OFFER_KEYWORDS_MAX = 25;
 
 /**
  * Mots-clés de l'offre encore absents du CV (recalculés à chaque échange), les plus importants
