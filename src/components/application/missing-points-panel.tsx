@@ -6,7 +6,7 @@ import { matchCvKeywords } from "@/lib/cv-keyword-match";
 import type { Sector } from "@/lib/cv-sector-context";
 import type { KeywordGroup, OfferKeyword } from "@/lib/cv-types";
 
-import { KeywordMatchView, KeywordRate } from "./keyword-match-view";
+import { Chevron, KeywordMatchView, KeywordRate } from "./keyword-match-view";
 
 /** Mots-clés de l'analyse « Adapter mon CV », comparés au CV affiché dans l'éditeur. */
 export type EditorKeywords = { keywords: OfferKeyword[]; ignored: string[]; sector: Sector };
@@ -21,9 +21,12 @@ const PROMPTS: Record<KeywordGroup, (keyword: string) => string> = {
 /** Encart repliable au-dessus du chat, à hauteur limitée pour laisser la place à la conversation. */
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <details open className="card shrink-0">
-      <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white">{title}</summary>
-      <div className="max-h-44 space-y-3 overflow-y-auto px-4 pb-4">{children}</div>
+    <details open className="card group/panel shrink-0">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-2.5 text-sm font-semibold text-slate-900 [&::-webkit-details-marker]:hidden dark:text-white">
+        {title}
+        <Chevron className="group-open/panel:rotate-180" />
+      </summary>
+      <div className="max-h-44 space-y-2 overflow-y-auto px-4 pb-3">{children}</div>
     </details>
   );
 }
@@ -54,7 +57,6 @@ export function MissingKeywordsPanel({
       <KeywordRate rate={match.rate} />
       <KeywordMatchView
         match={match}
-        missingOnly
         onPick={onInsert ? (keyword) => onInsert(PROMPTS[groupOf.get(keyword) ?? "technique"](keyword)) : undefined}
       />
     </Panel>
