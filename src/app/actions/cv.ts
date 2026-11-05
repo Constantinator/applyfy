@@ -35,6 +35,7 @@ import { htmlToText } from "@/lib/cv-html";
 import { keywordKey, weighKeywords } from "@/lib/cv-keyword-match";
 import { CV_TEXT_MAX_LENGTH, readCvSuggestions, type CvSuggestions } from "@/lib/cv-types";
 import { extractPdfText } from "@/lib/pdf-text";
+import { fullName, type AccountName } from "@/lib/person-name";
 import { getProfileCvData, getProfileCvFile, getProfileCvHtml, saveProfileCvData } from "@/lib/profile";
 
 export type AdaptCvState =
@@ -249,6 +250,15 @@ async function builderDataFor(
   return openError("Choisis comment ouvrir l'éditeur.");
 }
 
+/** Nom du CV : « CV Prénom Nom - Entreprise », « CV - Entreprise » ou « CV Prénom Nom ». */
+function builderCvTitle(name: AccountName | null, company: string) {
+  const person = name ? fullName(name) : "";
+  const employer = company.trim();
+  if (person && employer) return `CV ${person} - ${employer}`;
+  if (employer) return `CV - ${employer}`;
+  return person ? `CV ${person}` : "CV";
+}
+
 /**
  * Mots-clés de l'offre, générés une seule fois par candidature : encart du CV Builder et coach.
  * Hors quota et sans échec : sans eux, le CV s'ouvre quand même (nouvel essai à la prochaine
@@ -313,7 +323,7 @@ export async function openCvEditorAction(
       const jobTitle = data.personal.jobTitle.trim() || targetJob;
       builderId = await createBuilderCv(
         { ...data, targetJob, personal: { ...data.personal, jobTitle } },
-        `CV ${app.position} - ${app.company}`,
+        builderCvTitle(await getAccountName().catch(() => null), app.company),
       );
       try {
         await linkBuilderCvToApplication(builderId, app.id);
