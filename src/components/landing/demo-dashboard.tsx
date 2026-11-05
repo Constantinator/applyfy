@@ -46,8 +46,9 @@ type DemoApplication = {
   lastContact: string;
   contact: string;
   summary: string[];
-  matches: string[];
-  missing: string[];
+  /** Aperçu de l'onglet « Mots-clés » du CV Builder : taux et mots-clés manquants. */
+  keywordRate: number;
+  missingKeywords: { group: string; items: string[] }[];
   followUp: boolean;
   events: DemoEvent[];
   note: string;
@@ -68,8 +69,11 @@ const APPLICATIONS: DemoApplication[] = [
       "5 ans d'expérience backend, culture de la revue de code",
       "CDI, hybride à Paris",
     ],
-    matches: ["API à fort trafic (2 M requêtes/jour)", "TypeScript en production"],
-    missing: ["Go : à mettre en avant", "Systèmes distribués"],
+    keywordRate: 62,
+    missingKeywords: [
+      { group: "Compétences techniques", items: ["Go", "Systèmes distribués"] },
+      { group: "Compétences comportementales", items: ["Mentorat"] },
+    ],
     followUp: false,
     events: [
       { label: "Candidature envoyée", date: "8 oct.", tone: "blue" },
@@ -91,8 +95,11 @@ const APPLICATIONS: DemoApplication[] = [
       "Travail avec ingénierie, design et conformité",
       "Expérience produit B2B attendue",
     ],
-    matches: ["Lancement d'un parcours de paiement", "Pilotage d'équipes pluridisciplinaires"],
-    missing: ["Réglementation des paiements (DSP2)"],
+    keywordRate: 71,
+    missingKeywords: [
+      { group: "Compétences techniques", items: ["DSP2", "Paiements"] },
+      { group: "Compétences comportementales", items: ["Leadership"] },
+    ],
     followUp: false,
     events: [
       { label: "Statut modifié : Entretien", date: "11 oct.", tone: "violet" },
@@ -115,8 +122,11 @@ const APPLICATIONS: DemoApplication[] = [
       "De la recherche utilisateur aux maquettes",
       "Figma et tests utilisateurs",
     ],
-    matches: ["Recherche utilisateur", "Portfolio d'applications mobiles"],
-    missing: ["Design system à grande échelle"],
+    keywordRate: 68,
+    missingKeywords: [
+      { group: "Compétences techniques", items: ["Design system"] },
+      { group: "Compétences comportementales", items: ["Empathie"] },
+    ],
     followUp: true,
     events: [
       { label: "Relance", date: "10 oct.", tone: "amber" },
@@ -138,8 +148,11 @@ const APPLICATIONS: DemoApplication[] = [
       "Tableaux de bord produit : SQL, dbt, Looker",
       "Stage de 6 mois",
     ],
-    matches: ["SQL et tableaux de bord", "Suivi d'indicateurs produit"],
-    missing: ["dbt", "Looker"],
+    keywordRate: 58,
+    missingKeywords: [
+      { group: "Compétences techniques", items: ["dbt", "Looker"] },
+      { group: "Compétences comportementales", items: ["Autonomie"] },
+    ],
     followUp: false,
     events: [
       { label: "Statut modifié : Refusée", date: "3 oct.", tone: "red" },
@@ -161,8 +174,11 @@ const APPLICATIONS: DemoApplication[] = [
       "Performance et accessibilité",
       "Télétravail possible",
     ],
-    matches: ["React et TypeScript", "Accessibilité (RGAA)"],
-    missing: ["Tests de bout en bout (Playwright)"],
+    keywordRate: 74,
+    missingKeywords: [
+      { group: "Compétences techniques", items: ["Playwright", "Next.js"] },
+      { group: "Compétences comportementales", items: ["Esprit d'équipe"] },
+    ],
     followUp: false,
     events: [
       { label: "Candidature envoyée", date: "12 oct.", tone: "blue" },
@@ -764,24 +780,21 @@ export function DemoDashboard() {
                       </ul>
                     </PanelCard>
 
-                    <PanelCard title="Adapter mon CV">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <p className="text-xs font-semibold text-emerald-700">Ce qui matche</p>
-                          <ul className="mt-1.5 space-y-1 text-slate-700">
-                            {shown.matches.map((item) => (
-                              <li key={item}>✓ {item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-amber-800">Ce qui manque</p>
-                          <ul className="mt-1.5 space-y-1 text-slate-700">
-                            {shown.missing.map((item) => (
-                              <li key={item}>+ {item}</li>
-                            ))}
-                          </ul>
-                        </div>
+                    <PanelCard title="CV">
+                      <p className="text-sm text-slate-500">{shown.keywordRate} % de correspondance avec l&apos;offre</p>
+                      <div className="mt-3 space-y-3">
+                        {shown.missingKeywords.map((category) => (
+                          <div key={category.group}>
+                            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{category.group}</p>
+                            <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                              {category.items.map((keyword) => (
+                                <li key={keyword} className="rounded-full bg-red-50 px-3 py-1 text-sm text-red-700">
+                                  {keyword}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button

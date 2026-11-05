@@ -91,81 +91,29 @@ export function TrackingPreview() {
   );
 }
 
-function Check() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" className="h-3 w-3">
-      <path
-        d="M3.5 8.5l3 3 6-7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function Dash() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" className="h-3 w-3">
-      <path
-        d="M3.5 8h9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/** « Ton CV optimisé » : blocs « Ce qui matche » / « Ce qui manque » de l'analyse du CV. */
+/** « Ton CV optimisé » : aperçu de l'onglet « Mots-clés » du CV Builder, en plus petit. */
 export function CvPreview() {
-  const matches = [
-    "Maîtrise de SQL",
-    "Stage en analyse de données",
-    "Anglais courant",
+  const groups = [
+    { label: "Compétences techniques", keywords: ["Python", "Tableau", "SQL avancé"] },
+    { label: "Compétences comportementales", keywords: ["Autonomie", "Esprit d'équipe"] },
   ];
-  const missing = ["Python avancé", "Outils BI (Tableau)", "Gestion de projet"];
   return (
     <Frame>
-      <p className="px-1 pb-2 text-xs font-semibold text-slate-900">
-        Adapter mon CV
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-[#BFDBFE] bg-[#F0F7FF] p-2.5">
-          <p className="flex items-center gap-1 text-[11px] font-semibold text-[#1E40AF]">
-            <Check />
-            Ce qui matche
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {matches.map((item) => (
-              <li
-                key={item}
-                className="flex gap-1.5 text-[10px] leading-snug text-[#374151]"
-              >
-                <span className="text-[#1E40AF]/60">•</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-2.5">
-          <p className="flex items-center gap-1 text-[11px] font-semibold text-[#374151]">
-            <Dash />
-            Ce qui manque
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {missing.map((item) => (
-              <li
-                key={item}
-                className="flex gap-1.5 text-[10px] leading-snug text-[#374151]"
-              >
-                <span className="text-[#9CA3AF]">•</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
+      <p className="px-1 text-xs font-semibold text-slate-900">Mots-clés</p>
+      <p className="px-1 pt-1 text-[11px] text-slate-500">62 % de correspondance avec l&apos;offre</p>
+      <div className="space-y-2.5 px-1 pt-2.5">
+        {groups.map((group) => (
+          <div key={group.label}>
+            <p className="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">{group.label}</p>
+            <ul className="mt-1 flex flex-wrap gap-1">
+              {group.keywords.map((keyword) => (
+                <li key={keyword} className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
+                  {keyword}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
     </Frame>
   );
