@@ -7,6 +7,7 @@ import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button"
 import { NewCvDialog } from "@/components/cv-builder/new-cv-dialog";
 import { IconDocument } from "@/components/icons";
 import { getApplicationDetail } from "@/lib/applications";
+import { isClaudeConfigured } from "@/lib/claude";
 import { CV_BUILDER_MAX, getBuilderCvByApplication, listBuilderCvs } from "@/lib/cv-builder";
 import { CV_TEMPLATES } from "@/lib/cv-builder-types";
 
@@ -19,6 +20,7 @@ const ERRORS: Record<string, string> = {
   creation: "Le CV n'a pas pu être créé. Réessaie dans un instant.",
   suppression: "Le CV n'a pas pu être supprimé. Réessaie dans un instant.",
   limite: `Tu as atteint la limite de ${CV_BUILDER_MAX} CV : supprimes-en un pour en créer un nouveau.`,
+  conversion: "Ton ancien CV n'a pas pu être repris. Réessaie dans un instant, ou crée ton CV autrement.",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -60,8 +62,21 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
         </div>
         {cvs && cvs.length < CV_BUILDER_MAX && (
           <div className="flex flex-wrap items-start gap-2">
-            <NewCvDialog application={detail && { id: detail.application.id, position: detail.application.position }} />
-            <Link href="/cv-builder/importer" className="btn-secondary px-5 py-2.5 text-sm">
+            <NewCvDialog
+              application={
+                detail && {
+                  id: detail.application.id,
+                  position: detail.application.position,
+                  // La conversion passe par l'IA.
+                  hasLegacyCv: Boolean(detail.application.cv_improved_html) && isClaudeConfigured(),
+                }
+              }
+              error={detail ? error : null}
+            />
+            <Link
+              href={detail ? `/cv-builder/importer?applicationId=${detail.application.id}` : "/cv-builder/importer"}
+              className="btn-secondary px-5 py-2.5 text-sm"
+            >
               Créer un CV à partir d&apos;un CV existant
             </Link>
           </div>

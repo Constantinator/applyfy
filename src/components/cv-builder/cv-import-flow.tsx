@@ -25,11 +25,20 @@ const STEPS = ["Import", "Analyse", "Modèle", "Éditeur"] as const;
  * l'IA, gratuite), 2. résultats de l'analyse et poste visé, 3. choix du modèle, 4. l'éditeur,
  * avec le chat initialisé sur les points à améliorer.
  */
-export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; aiEnabled: boolean }) {
+export function CvImportFlow({
+  resetLabel,
+  aiEnabled,
+  application = null,
+}: {
+  resetLabel: string;
+  aiEnabled: boolean;
+  /** Arrivée depuis une fiche : CV lié à cette candidature, son poste pré-rempli. */
+  application?: { id: string; position: string } | null;
+}) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [imported, setImported] = useState<ImportedCv | null>(null);
-  const [targetJob, setTargetJob] = useState("");
+  const [targetJob, setTargetJob] = useState((application?.position ?? "").slice(0, 120));
   const templateDialogRef = useRef<HTMLDialogElement>(null);
   const [opening, setOpening] = useState(false);
 
@@ -49,8 +58,11 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
   return (
     <div className="space-y-8">
       <div className="space-y-4">
-        <Link href="/cv-builder" className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
-          Mes CV
+        <Link
+          href={application ? `/candidatures/${application.id}` : "/cv-builder"}
+          className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        >
+          {application ? "Retour à la candidature" : "Mes CV"}
         </Link>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
           Créer un CV à partir d&apos;un CV existant
@@ -62,6 +74,7 @@ export function CvImportFlow({ resetLabel, aiEnabled }: { resetLabel: string; ai
         <UploadStep
           resetLabel={resetLabel}
           aiEnabled={aiEnabled}
+          applicationId={application?.id}
           onImported={(result) => {
             setImported(result);
             setStep(1);
@@ -146,10 +159,12 @@ function Stepper({ current }: { current: number }) {
 function UploadStep({
   resetLabel,
   aiEnabled,
+  applicationId,
   onImported,
 }: {
   resetLabel: string;
   aiEnabled: boolean;
+  applicationId?: string;
   onImported: (result: ImportedCv) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -175,6 +190,7 @@ function UploadStep({
       <CvImportProgress
         file={pending.file}
         ext={pending.ext}
+        applicationId={applicationId}
         onDone={onImported}
         onCancel={() => setPending(null)}
         onLimitReached={() => {

@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 
-import { createBuilderCvAction } from "@/app/actions/cv-builder";
+import { convertLegacyCvAction, createBuilderCvAction } from "@/app/actions/cv-builder";
 import { CV_TEMPLATES, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
@@ -178,9 +179,17 @@ const TARGET_JOB_MAX = 120;
 /**
  * « Créer un CV depuis zéro », en deux étapes : poste visé (secteur du score et du coach, aussi
  * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre. `application` : fenêtre
- * ouverte d'office, poste de la candidature pré-rempli, CV lié à cette candidature.
+ * ouverte d'office, poste de la candidature pré-rempli, CV lié à cette candidature, et autres
+ * points de départ proposés (CV existant, ancien CV de la candidature).
  */
-export function NewCvDialog({ application = null }: { application?: { id: string; position: string } | null }) {
+export function NewCvDialog({
+  application = null,
+  error = null,
+}: {
+  application?: { id: string; position: string; hasLegacyCv: boolean } | null;
+  /** Message affiché dans la fenêtre ouverte d'office (la page est alors masquée). */
+  error?: string | null;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [targetJob, setTargetJob] = useState((application?.position ?? "").slice(0, TARGET_JOB_MAX));
@@ -232,6 +241,12 @@ export function NewCvDialog({ application = null }: { application?: { id: string
             </button>
           </div>
 
+          {error && (
+            <p role="alert" className="mx-6 mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30">
+              {error}
+            </p>
+          )}
+
           {step === 1 ? (
             <form
               onSubmit={(e) => {
@@ -279,6 +294,28 @@ export function NewCvDialog({ application = null }: { application?: { id: string
                 </form>
               </div>
             </>
+          )}
+
+          {step === 1 && application && (
+            <div className="space-y-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
+              <p className="text-sm text-slate-600 dark:text-slate-300">Tu as déjà un CV ?</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {application.hasLegacyCv && (
+                  <form action={convertLegacyCvAction}>
+                    <input type="hidden" name="applicationId" value={application.id} />
+                    <SubmitButton className="btn-secondary px-4 py-2 text-sm">Reprendre mon ancien CV</SubmitButton>
+                  </form>
+                )}
+                <Link href={`/cv-builder/importer?applicationId=${application.id}`} className="btn-secondary px-4 py-2 text-sm">
+                  Partir d&apos;un CV existant
+                </Link>
+              </div>
+              {application.hasLegacyCv && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Ton ancien CV est converti une seule fois, sans décompte. Cela peut prendre jusqu&apos;à une minute.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </dialog>

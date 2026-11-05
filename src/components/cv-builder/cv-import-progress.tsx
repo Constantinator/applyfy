@@ -62,8 +62,9 @@ async function uploadImport(file: File, ext: "pdf" | "docx"): Promise<ImportStep
   return { ok: true, value: path };
 }
 
-function fileForm(file: File, path: string | undefined) {
+function fileForm(file: File, path: string | undefined, applicationId?: string) {
   const formData = new FormData();
+  if (applicationId) formData.set("applicationId", applicationId);
   // Taille d'origine : le serveur vérifie qu'il lit bien le fichier entier.
   formData.set("size", String(file.size));
   if (path) formData.set("path", path);
@@ -107,12 +108,15 @@ function StepIcon({ state }: { state: "done" | "current" | "error" | "todo" }) {
 export function CvImportProgress({
   file,
   ext,
+  applicationId,
   onDone,
   onCancel,
   onLimitReached,
 }: {
   file: File;
   ext: "pdf" | "docx";
+  /** Candidature à laquelle lier le CV importé. */
+  applicationId?: string;
   onDone: (result: ImportedCv) => void;
   onCancel: () => void;
   onLimitReached: () => void;
@@ -134,7 +138,7 @@ export function CvImportProgress({
         return checked.ok ? { ok: true, value: null } : checked;
       }
       case 1: {
-        const extracted = await extractCvImportAction(fileForm(file, p.path));
+        const extracted = await extractCvImportAction(fileForm(file, p.path, applicationId));
         if (!extracted.ok) return extracted;
         p.id = extracted.value.id;
         return { ok: true, value: null };
