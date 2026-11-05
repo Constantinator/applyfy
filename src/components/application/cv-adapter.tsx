@@ -33,20 +33,25 @@ export function CvAdapter({
   resetLabel: string;
 }) {
   return (
-    <div>
-      <OnboardingTip id="adapter-cv" text="Adapte ton CV à cette offre">
-        <CvEditorLauncher
-          applicationId={applicationId}
-          profileCvs={profileCvs}
-          builderCvs={builderCvs}
-          linkedCvId={linkedCvId}
-          hasLegacyCv={hasLegacyCv}
-          aiEnabled={aiEnabled}
-          limitReached={isLimitReached(editorUsage)}
-          resetLabel={resetLabel}
-          className="btn-primary px-4 py-2 text-sm"
-        />
-      </OnboardingTip>
-    </div>
+    <section aria-labelledby="cv-title" className="card p-5">
+      <h2 id="cv-title" className="text-blue-600 dark:text-blue-400 font-semibold">
+        CV
+      </h2>
+      <div className="mt-4">
+        <OnboardingTip id="adapter-cv" text="Adapte ton CV à cette offre">
+          <CvEditorLauncher
+            applicationId={applicationId}
+            profileCvs={profileCvs}
+            builderCvs={builderCvs}
+            linkedCvId={linkedCvId}
+            hasLegacyCv={hasLegacyCv}
+            aiEnabled={aiEnabled}
+            limitReached={isLimitReached(editorUsage)}
+            resetLabel={resetLabel}
+            className="btn-primary px-4 py-2 text-sm"
+          />
+        </OnboardingTip>
+      </div>
+    </section>
   );
 }

@@ -205,7 +205,7 @@ export function DocumentsPreview() {
     {
       title: "CV adapté à l'offre",
       detail: "Modifié il y a 2 jours",
-      action: "Ouvrir l'éditeur de CV",
+      action: "Adapter mon CV à l'offre",
     },
     {
       title: "Lettre de motivation",

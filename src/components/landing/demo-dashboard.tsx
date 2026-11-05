@@ -789,14 +789,7 @@ export function DemoDashboard() {
                           onClick={() => showToast(TOAST_FEATURE)}
                           className={PRIMARY_BUTTON}
                         >
-                          Ouvrir l&apos;éditeur de CV
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => showToast(TOAST_FEATURE)}
-                          className={SECONDARY_BUTTON}
-                        >
-                          Analyser mon CV
+                          Adapter mon CV à l&apos;offre
                         </button>
                       </div>
                     </PanelCard>
