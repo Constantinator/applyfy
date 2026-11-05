@@ -251,11 +251,13 @@ export type BuilderCv = {
   title: string;
   templateId: CvTemplateId;
   data: CvData;
+  /** Candidature à laquelle ce CV est lié (ouvert depuis sa fiche), sinon null. */
+  applicationId: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type BuilderCvSummary = Omit<BuilderCv, "data"> & { jobTitle: string };
+export type BuilderCvSummary = Omit<BuilderCv, "data" | "applicationId"> & { jobTitle: string };
 
 /** Origine du CV : créé depuis zéro ou importé (CV antérieurs au champ : importé s'il a une analyse d'import). */
 export function cvOrigin(data: CvData): "scratch" | "import" {
@@ -338,6 +340,25 @@ export function applyEdit(data: CvData, path: string, value: string): CvData {
 export function chatContent({ personal, summary, experiences, education, skills, languages, certifications, projects, interests }: CvData) {
   // photo: undefined → absente du JSON.
   return { personal: { ...personal, photo: undefined }, summary, experiences, education, skills, languages, certifications, projects, interests };
+}
+
+/** Texte du CV, une information par ligne : comparé aux mots-clés d'une offre, transmis à la lettre. */
+export function cvDataToText(data: CvData) {
+  return [
+    fullName(data),
+    data.personal.jobTitle,
+    data.summary,
+    ...data.experiences.flatMap((e) => [e.position, e.company, e.location, ...e.bullets]),
+    ...data.education.flatMap((e) => [e.degree, e.school, e.honors]),
+    ...data.skills.map((s) => s.name),
+    ...data.languages.map((l) => `${l.name} ${l.level}`),
+    ...data.certifications.flatMap((c) => [c.name, c.issuer]),
+    ...data.projects.flatMap((p) => [p.name, p.description]),
+    data.interests,
+  ]
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**

@@ -5,9 +5,11 @@ import { connection } from "next/server";
 import { CvBuilderEditor } from "@/components/cv-builder/cv-builder-editor";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
+import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { getBuilderCv } from "@/lib/cv-builder";
 import { loadScoringContext } from "@/lib/cv-score-context";
+import { readCvSuggestions } from "@/lib/cv-types";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
 
@@ -19,7 +21,12 @@ export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-bui
   const { id } = await params;
   const [cv, usage] = await Promise.all([getBuilderCv(id), readAiUsage()]);
   if (!cv) notFound();
-  const scoring = await loadScoringContext(cv.data);
+  const [scoring, detail] = await Promise.all([
+    loadScoringContext(cv.data),
+    // CV ouvert depuis une fiche : mots-clés de l'analyse faite pour cette candidature.
+    cv.applicationId ? getApplicationDetail(cv.applicationId) : null,
+  ]);
+  const analysis = readCvSuggestions(detail?.application.cv_suggestions);
 
   return (
     // Éditeur en plein écran (sans barre latérale ni en-tête de l'application, cf. app-nav-context).
@@ -27,6 +34,13 @@ export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-bui
       <CvBuilderEditor
         cv={cv}
         scoring={scoring}
+        application={
+          detail && {
+            id: detail.application.id,
+            keywords: analysis?.kind === "keywords" ? { keywords: analysis.keywords, ignored: analysis.ignored } : null,
+            missingPoints: analysis?.kind === "legacy" ? analysis.ce_qui_manque : [],
+          }
+        }
         usage={{
           chat: usage.counts.cvb_chat,
           resetLabel: formatResetDate(usage.resetsOn),

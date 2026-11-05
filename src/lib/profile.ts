@@ -1,6 +1,8 @@
 import "server-only";
 
 import { requireUser } from "./auth";
+import { cvDataToText, readCvData, type CvData } from "./cv-builder-types";
+import { htmlToText } from "./cv-html";
 import { PROFILE_CV_LIMIT, type ProfileCv } from "./cv-types";
 import { demoStore } from "./demo-data";
 import { DEFAULT_REMINDER_SETTINGS, readReminderSettings, type ReminderSettings } from "./reminders";
@@ -106,11 +108,59 @@ export async function saveProfileCvHtml(id: string, html: string) {
   if (error) console.error("[profile] enregistrement du CV éditable", error.message);
 }
 
-/** Dernier CV du profil déjà retranscrit (contexte du chat de la lettre), ou null. */
-export async function getLatestProfileCvHtml(): Promise<string | null> {
+/**
+ * CV du profil au format du CV Builder (colonne cv_data, migration 0034) : extrait une seule fois,
+ * puis réutilisé pour chaque candidature. Sans échec : null si la colonne n'existe pas encore.
+ */
+export async function getProfileCvData(id: string): Promise<CvData | null> {
+  if (!isSupabaseConfigured() || !isUuid(id)) return null;
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profile_cvs")
+    .select("cv_data")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) {
+    console.error("[profile] lecture du CV extrait", error.message);
+    return null;
+  }
+  return data?.cv_data ? readCvData(data.cv_data) : null;
+}
+
+/** Mémorise le CV extrait d'un CV du profil (non bloquant en cas d'échec). */
+export async function saveProfileCvData(id: string, cvData: CvData) {
+  if (!isSupabaseConfigured() || !isUuid(id)) return;
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profile_cvs")
+    .update({ cv_data: cvData, cv_data_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) console.error("[profile] enregistrement du CV extrait", error.message);
+}
+
+/**
+ * Texte du dernier CV du profil déjà ouvert dans un éditeur (contexte du chat de la lettre), ou
+ * null. Extraction du CV Builder d'abord, sinon ancienne version HTML.
+ */
+export async function getLatestProfileCvText(): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;
   const user = await requireUser();
   const supabase = await createClient();
+  // Sans échec : ancienne version si la colonne cv_data n'existe pas encore.
+  const { data: extracted, error: extractedError } = await supabase
+    .from("profile_cvs")
+    .select("cv_data")
+    .eq("user_id", user.id)
+    .not("cv_data", "is", null)
+    .order("cv_data_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!extractedError && extracted?.cv_data) return cvDataToText(readCvData(extracted.cv_data)) || null;
+
   const { data, error } = await supabase
     .from("profile_cvs")
     .select("html")
@@ -120,7 +170,7 @@ export async function getLatestProfileCvHtml(): Promise<string | null> {
     .limit(1)
     .maybeSingle();
   if (error) return null;
-  return (data?.html as string | null) ?? null;
+  return htmlToText(data?.html as string | null);
 }
 
 function normalizeName(name: string) {

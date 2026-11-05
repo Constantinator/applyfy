@@ -440,9 +440,6 @@ export async function saveEditedDocument(
   if (!data?.length) throw new Error("Candidature introuvable.");
 }
 
-export const saveImprovedCv = (id: string, html: string, style?: CvStyle) =>
-  saveEditedDocument("cv", id, html, style);
-
 async function findForUpdate(id: string) {
   if (!isSupabaseConfigured()) {
     return demoStore.applications.find((app) => app.id === id) ?? null;

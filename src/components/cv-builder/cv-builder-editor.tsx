@@ -9,7 +9,8 @@ import {
   saveBuilderCvAction,
   scoringContextAction,
 } from "@/app/actions/cv-builder";
-import { RefineChat, type ChatTurn } from "@/components/application/refine-chat";
+import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
+import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
 import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
@@ -17,6 +18,7 @@ import {
   chatContent,
   CV_LIMITS,
   CvDataSchema,
+  cvDataToText,
   cvOrigin,
   diffCvData,
   fullName,
@@ -26,6 +28,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { scoreCv, type ScoringContext } from "@/lib/cv-score";
+import type { OfferKeyword } from "@/lib/cv-types";
 import { createClient } from "@/lib/supabase/client";
 
 import { CvHtmlPreview } from "./cv-html-preview";
@@ -107,11 +110,18 @@ export function CvBuilderEditor({
   cv,
   usage,
   scoring,
+  application = null,
 }: {
   cv: BuilderCv;
   usage: CvBuilderUsage;
   /** Données du secteur pour le score (détecté à l'ouverture). */
   scoring: ScoringContext;
+  /** Candidature liée : retour à sa fiche et mots-clés de son analyse (points d'une ancienne analyse). */
+  application?: {
+    id: string;
+    keywords: { keywords: OfferKeyword[]; ignored: string[] } | null;
+    missingPoints: string[];
+  } | null;
 }) {
   const [title, setTitle] = useState(cv.title);
   // Modèle et couleur d'accent : panneau « Style du CV » (enregistrés avec le CV).
@@ -192,6 +202,11 @@ export function CvBuilderEditor({
   // Score calculé par le code (cv-score.ts), recalculé à chaque modification du CV.
   const [scoringContext, setScoringContext] = useState(scoring);
   const score = useMemo(() => scoreCv(data, scoringContext), [data, scoringContext]);
+
+  // Encart de la candidature liée : mots-clés comparés au CV affiché ; un clic pré-remplit le chat.
+  const chatRef = useRef<RefineChatHandle>(null);
+  const cvText = useMemo(() => cvDataToText(data), [data]);
+  const insertInChat = usage.aiEnabled ? (text: string) => chatRef.current?.insert(text) : undefined;
 
   // Poste cible modifié (titre du CV ou poste visé) : secteur redétecté par le serveur.
   const target = `${data.personal.jobTitle.trim()}|${targetJobOf(data)}`;
@@ -295,7 +310,7 @@ export function CvBuilderEditor({
       {/* Barre du haut : retour, menu de l'application, titre, enregistrement, téléchargement. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4 dark:border-slate-800 dark:bg-slate-900">
         <Link
-          href="/cv-builder"
+          href={application ? `/candidatures/${application.id}` : "/cv-builder"}
           onClick={(e) => {
             if (!canLeave()) e.preventDefault();
           }}
@@ -367,6 +382,16 @@ export function CvBuilderEditor({
           </div>
           {/* Chat masqué (pas démonté) pendant l'onglet Style : la conversation en cours est gardée. */}
           <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" className={tab === "chat" ? "contents" : "hidden"}>
+            {application?.keywords && (
+              <MissingKeywordsPanel
+                analysis={{ ...application.keywords, sector: scoringContext.sector }}
+                cvText={cvText}
+                onInsert={insertInChat}
+              />
+            )}
+            {!application?.keywords && Boolean(application?.missingPoints.length) && (
+              <MissingPointsPanel points={application?.missingPoints ?? []} onInsert={insertInChat} />
+            )}
             {coachHistory === null ? (
               <p role="status" className="card p-5 text-sm text-slate-500 dark:text-slate-400">
                 Chargement de la conversation…
@@ -405,6 +430,7 @@ export function CvBuilderEditor({
                   return previous;
                 }}
                 onPendingChange={() => {}}
+                controlRef={chatRef}
                 // Conversation reprise : pas de nouveau premier message.
                 opening={coachHistory.length ? undefined : opening}
                 starter={cvOrigin(data) === "scratch" ? COACH_STARTER : undefined}

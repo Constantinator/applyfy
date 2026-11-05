@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { refineCoverLetterAction, saveCoverLetterAction } from "@/app/actions/cover-letter";
-import { refineCvAction, saveImprovedCvAction } from "@/app/actions/cv";
 import type { AiUsageCount } from "@/lib/ai-usage-limits";
-import { htmlToText } from "@/lib/cv-html";
-import { applyLayout, toOneColumn } from "@/lib/cv-layout";
 import {
   CV_LIST_TYPES,
   applyListType,
@@ -21,23 +18,18 @@ import {
   CV_FONT_SIZE_MAX,
   CV_FONT_SIZE_MIN,
   CV_FONT_SIZE_STEP,
-  CV_LAYOUTS,
-  DEFAULT_CV_STYLE,
   DEFAULT_LETTER_STYLE,
   type CvAccent,
-  type CvLayout,
   type CvStyle,
 } from "@/lib/cv-style";
 
 import { FontCombobox } from "./font-combobox";
-import { MissingKeywordsPanel, MissingPointsPanel, type EditorKeywords } from "./missing-points-panel";
-import { RefineChat, type RefineChatHandle } from "./refine-chat";
+import { RefineChat } from "./refine-chat";
 
 const hourFormatter = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
 // Géométrie identique à l'écran et à l'impression : page A4 (@page margin 0 dans
-// globals.css) avec une marge intérieure (16 mm pour le CV, 20 mm pour la lettre) →
-// ce qui tient à l'écran tient au PDF.
+// globals.css) avec une marge intérieure de 20 mm → ce qui tient à l'écran tient au PDF.
 const PAGE_HEIGHT_MM = 297;
 const PX_PER_MM = 96 / 25.4;
 /** Petite marge de sécurité (écarts de rendu entre écran et impression). */
@@ -46,30 +38,6 @@ const FIT_SAFETY_PX = 6;
 const FIT_STEP_PX = 0.25;
 
 const px = (value: number) => `${value.toLocaleString("fr-FR")} px`;
-
-// Mise en forme du CV, format épuré « à l'américaine » (HTML sans classes : balises
-// stylées par le conteneur, cf. improvedCvToHtml). Tailles en em : tout le CV suit la
-// taille de police. Noir uniquement (couleur d'accent au choix pour le nom et les titres
-// de section, via --cv-accent). Vrais titres : structure lisible par les ATS.
-const documentStyles = [
-  "text-black leading-[1.45]",
-  // Nom, centré, grand et gras
-  "[&_h1]:text-center [&_h1]:text-[2.2em] [&_h1]:leading-tight [&_h1]:font-bold [&_h1]:text-[var(--cv-accent)]",
-  // Coordonnées sur une ligne, centrées (CV d'avant ce format : titre puis coordonnées)
-  "[&_h1+p]:mt-[0.35em] [&_h1+p]:text-center [&_h1+p]:text-[0.95em]",
-  "[&_h1+p+p]:text-center [&_h1+p+p]:text-[0.95em]",
-  // Sections : titre en majuscules, ligne fine en dessous, espace généreux
-  "[&_h2]:mt-[1.5em] [&_h2]:mb-[0.6em] [&_h2]:border-b [&_h2]:border-[var(--cv-accent)] [&_h2]:pb-[0.15em] [&_h2]:text-[1.05em] [&_h2]:font-bold [&_h2]:tracking-[0.1em] [&_h2]:text-[var(--cv-accent)] [&_h2]:uppercase",
-  // Entrée : intitulé en gras, dates alignées à droite sur la même ligne
-  "[&_h3]:mt-[0.85em] [&_h3]:text-[1em] [&_h3]:font-bold",
-  "[&_h3:has(>span)]:flex [&_h3:has(>span)]:items-baseline [&_h3:has(>span)]:justify-between [&_h3:has(>span)]:gap-x-[1.5em]",
-  "[&_h3>span+span]:shrink-0 [&_h3>span+span]:font-normal [&_h3>span+span]:whitespace-nowrap",
-  // Structure et lieu, en italique sous l'intitulé
-  "[&_em]:italic",
-  // Contenu
-  "[&_p]:my-[0.15em] [&_ul]:mt-[0.3em] [&_ul]:mb-[0.2em] [&_ul]:list-disc [&_ul]:pl-[1.3em] [&_ol]:list-decimal [&_ol]:pl-[1.3em] [&_li]:my-[0.2em] [&_li]:pl-[0.15em]",
-  "[&_strong]:font-bold",
-].join(" ");
 
 // Lettre de motivation (cf. lib/cover-letter) : <h1> nom, <p> coordonnées, destinataire et
 // date, <h2> objet, puis paragraphes aérés.
@@ -82,14 +50,6 @@ const letterStyles = [
   "[&_p]:my-[0.8em] [&_p]:text-justify [&_p]:hyphens-auto",
   "[&_ul]:my-[0.5em] [&_ul]:list-disc [&_ul]:pl-[1.3em] [&_ol]:list-decimal [&_ol]:pl-[1.3em] [&_li]:my-[0.15em]",
   "[&_strong]:font-semibold",
-].join(" ");
-
-// Deux colonnes : en-tête pleine largeur, puis <div> gauche (compétences, langues…) et
-// <div> droite (profil, expériences, formation), cf. lib/cv-layout.
-const twoColumnStyles = [
-  "grid grid-cols-[34%_minmax(0,1fr)] content-start gap-x-[7mm]",
-  "[&>*]:col-span-2 [&>div]:col-span-1 [&>div]:min-w-0",
-  "[&>div:last-child]:border-l [&>div:last-child]:border-slate-200 [&>div:last-child]:pl-[6mm]",
 ].join(" ");
 
 type ToolbarCommand = "bold" | "italic" | "underline";
@@ -111,20 +71,6 @@ const NO_LIST = "aucune";
 
 /** Documents modifiables avec cet éditeur : même interface, réglages propres à chacun. */
 const EDITOR_KINDS = {
-  cv: {
-    save: saveImprovedCvAction,
-    refine: refineCvAction,
-    defaultStyle: DEFAULT_CV_STYLE,
-    documentClassName: documentStyles,
-    // Marges larges : CV aéré.
-    paddingMm: 16,
-    hasLayouts: true,
-    label: "CV amélioré, modifiable",
-    inDocument: "dans le CV",
-    marksToggle: "Surligner les améliorations",
-    marksHint: "passage ajouté ou reformulé par l'assistant",
-    accentHint: "nom et titres de section",
-  },
   lettre: {
     save: saveCoverLetterAction,
     refine: refineCoverLetterAction,
@@ -132,7 +78,6 @@ const EDITOR_KINDS = {
     documentClassName: letterStyles,
     // Marges plus larges, d'usage pour un courrier.
     paddingMm: 20,
-    hasLayouts: false,
     label: "Lettre de motivation, modifiable",
     inDocument: "dans la lettre",
     marksToggle: "Surligner la personnalisation",
@@ -143,7 +88,7 @@ const EDITOR_KINDS = {
 
 export type EditorKind = keyof typeof EDITOR_KINDS;
 
-/** Panneau de mise en forme : police, taille, gras/italique/liste, couleur, mise en page. */
+/** Panneau de mise en forme : police, taille, gras/italique/liste, couleur. */
 function StylePanel({
   kind,
   style,
@@ -277,59 +222,6 @@ function StylePanel({
         </p>
       </fieldset>
 
-      {config.hasLayouts && (
-      <fieldset className="space-y-2">
-        <legend className={sectionTitle}>Mise en page</legend>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          {(Object.keys(CV_LAYOUTS) as CvLayout[]).map((layout) => {
-            const selected = style.layout === layout;
-            return (
-              <button
-                key={layout}
-                type="button"
-                onClick={() => onChange({ layout })}
-                aria-pressed={selected}
-                className={`rounded-xl border p-2.5 text-left text-xs font-medium transition ${
-                  selected
-                    ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-500/15"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300"
-                }`}
-              >
-                {/* Mini aperçu de la mise en page */}
-                <span aria-hidden="true" className="mb-2 block rounded-md border border-slate-200 bg-white p-1.5">
-                  <span className="mb-1 block h-1.5 w-1/2 rounded bg-slate-300" />
-                  {layout === "une_colonne" ? (
-                    <span className="block space-y-0.5">
-                      <span className="block h-1 rounded bg-slate-200" />
-                      <span className="block h-1 rounded bg-slate-200" />
-                      <span className="block h-1 w-3/4 rounded bg-slate-200" />
-                    </span>
-                  ) : (
-                    <span className="flex gap-1">
-                      <span className="block w-1/3 space-y-0.5">
-                        <span className="block h-1 rounded bg-slate-200" />
-                        <span className="block h-1 rounded bg-slate-200" />
-                      </span>
-                      <span className="block flex-1 space-y-0.5">
-                        <span className="block h-1 rounded bg-slate-200" />
-                        <span className="block h-1 rounded bg-slate-200" />
-                        <span className="block h-1 w-3/4 rounded bg-slate-200" />
-                      </span>
-                    </span>
-                  )}
-                </span>
-                {CV_LAYOUTS[layout]}
-              </button>
-            );
-          })}
-        </div>
-        {style.layout === "deux_colonnes" && (
-          <p className="text-xs text-slate-500">
-            À gauche : compétences, langues, outils… À droite : profil, expériences, formation.
-          </p>
-        )}
-      </fieldset>
-      )}
 
       <button
         type="button"
@@ -343,11 +235,11 @@ function StylePanel({
 }
 
 /**
- * Éditeur d'un document d'une page A4 (CV amélioré ou lettre de motivation) : texte
- * modifiable, panneau de mise en forme, enregistrement et export PDF.
+ * Éditeur de la lettre de motivation (une page A4) : texte modifiable, panneau de mise en forme,
+ * enregistrement et export PDF.
  */
 export function CvEditor({
-  kind = "cv",
+  kind = "lettre",
   applicationId,
   initialHtml,
   initialStyle,
@@ -355,8 +247,6 @@ export function CvEditor({
   pdfTitle,
   refine,
   autosaveAfterManualSave = false,
-  missingPoints = [],
-  keywords = null,
 }: {
   kind?: EditorKind;
   applicationId: string;
@@ -372,28 +262,9 @@ export function CvEditor({
    * ouvert à la place d'un document déjà enregistré, qu'il ne doit pas écraser d'office.
    */
   autosaveAfterManualSave?: boolean;
-  /** Points « Ce qui manque » d'une ancienne analyse du CV pour cette candidature (CV uniquement). */
-  missingPoints?: string[];
-  /** Mots-clés de l'analyse « Adapter mon CV » (CV uniquement), comparés au texte affiché. */
-  keywords?: EditorKeywords | null;
 }) {
   const config = EDITOR_KINDS[kind];
   const editorRef = useRef<HTMLDivElement>(null);
-  // Texte affiché, pour les mots-clés : relu 0,5 s après la dernière frappe.
-  const [docText, setDocText] = useState(() => htmlToText(initialHtml));
-  const textTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const readDocText = useCallback(() => {
-    if (textTimer.current) clearTimeout(textTimer.current);
-    setDocText(editorRef.current ? htmlToText(editorRef.current.innerHTML) : null);
-  }, []);
-  const scheduleDocText = () => {
-    if (!keywords) return;
-    if (textTimer.current) clearTimeout(textTimer.current);
-    textTimer.current = setTimeout(readDocText, 500);
-  };
-  useEffect(() => () => {
-    if (textTimer.current) clearTimeout(textTimer.current);
-  }, []);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(initialSavedAt);
@@ -427,14 +298,6 @@ export function CvEditor({
     setFontPx(size);
     setPages(contentHeight / pageHeightPx);
   }, []);
-
-  // Mise en page initiale (le HTML enregistré peut précéder un changement de réglage).
-  const layoutApplied = useRef(false);
-  useLayoutEffect(() => {
-    if (layoutApplied.current || !editorRef.current || !config.hasLayouts) return;
-    applyLayout(editorRef.current, initialStyle.layout);
-    layoutApplied.current = true;
-  }, [initialStyle.layout, config.hasLayouts]);
 
   // Recalcule l'ajustement à chaque changement de style (police, taille, mise en page)
   // et une fois les polices web chargées (elles changent la hauteur du texte).
@@ -479,10 +342,7 @@ export function CvEditor({
   }, []);
 
   function updateStyle(patch: Partial<CvStyle>) {
-    const next = { ...style, ...patch };
-    if (!config.hasLayouts) next.layout = "une_colonne";
-    if (next.layout !== style.layout && editorRef.current) applyLayout(editorRef.current, next.layout);
-    setStyle(next);
+    setStyle({ ...style, ...patch, layout: "une_colonne" });
     setDirty(true);
   }
 
@@ -553,15 +413,10 @@ export function CvEditor({
   // Affinage par l'IA : le document est verrouillé pendant la demande (une saisie faite
   // entre-temps serait écrasée par la réponse).
   const [refining, setRefining] = useState(false);
-  const chatRef = useRef<RefineChatHandle>(null);
 
-  /** Document affiché, remis en une colonne (structure attendue par l'assistant). */
+  /** Document affiché. */
   function readDocumentForRefine() {
-    const editor = editorRef.current;
-    if (!editor) return "";
-    const copy = editor.cloneNode(true) as HTMLElement;
-    toOneColumn(copy);
-    return copy.innerHTML;
+    return editorRef.current?.innerHTML ?? "";
   }
 
   /** Remplace le contenu du document (réponse de l'assistant ou annulation). */
@@ -570,11 +425,9 @@ export function CvEditor({
     if (!editor) return "";
     const previous = editor.innerHTML;
     editor.innerHTML = html;
-    if (config.hasLayouts) applyLayout(editor, style.layout);
     setShowMarks(true);
     setDirty(true);
     fitToPage(style.fontSize);
-    if (keywords) readDocText();
     return previous;
   }
 
@@ -669,7 +522,6 @@ export function CvEditor({
               onInput={() => {
                 setDirty(true);
                 scheduleFit();
-                scheduleDocText();
               }}
               dangerouslySetInnerHTML={{ __html: initialHtml }}
               style={
@@ -681,8 +533,6 @@ export function CvEditor({
                 } as React.CSSProperties
               }
               className={`cv-document min-h-[297mm] outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${config.documentClassName} ${
-                config.hasLayouts && style.layout === "deux_colonnes" ? twoColumnStyles : ""
-              } ${
                 showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
               } [&_mark]:text-inherit print:[&_mark]:bg-transparent`}
             />
@@ -713,7 +563,6 @@ export function CvEditor({
             replaceDocument={replaceDocument}
             onPendingChange={setRefining}
             initialPrompt={refine.initialPrompt}
-            controlRef={chatRef}
           />
         )}
       </div>
@@ -729,19 +578,6 @@ export function CvEditor({
           listType={listType}
           onListType={changeListType}
         />
-        {keywords && (
-          <MissingKeywordsPanel
-            analysis={keywords}
-            cvText={docText}
-            onInsert={refine ? (text) => chatRef.current?.insert(text) : undefined}
-          />
-        )}
-        {!keywords && missingPoints.length > 0 && (
-          <MissingPointsPanel
-            points={missingPoints}
-            onInsert={refine ? (text) => chatRef.current?.insert(text) : undefined}
-          />
-        )}
       </div>
     </div>
   );

@@ -26,10 +26,12 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { fullName } from "@/lib/person-name";
+import { getBuilderCvByApplication } from "@/lib/cv-builder";
+import { cvDataToText } from "@/lib/cv-builder-types";
 import { htmlToText } from "@/lib/cv-html";
 import { detectSector } from "@/lib/cv-sector-context";
 import { readCvSuggestions } from "@/lib/cv-types";
-import { getLatestProfileCvHtml, listProfileCvs } from "@/lib/profile";
+import { getLatestProfileCvText, listProfileCvs } from "@/lib/profile";
 
 // Analyse de CV, ouverture du CV dans l'éditeur et lettre (Server Actions de cette page) : 30 à 90 s.
 export const maxDuration = 120;
@@ -69,7 +71,7 @@ export default async function ApplicationPage({
 }: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
   const { creee } = await searchParams;
-  const [detail, profileCvs, accountName, usage, latestProfileCvHtml] = await Promise.all([
+  const [detail, profileCvs, accountName, usage, latestProfileCvText, linkedCv] = await Promise.all([
     getApplicationDetail(id),
     // Non bloquant : la fiche reste affichée même si le profil est indisponible
     // (ex. migration 0007 pas encore appliquée).
@@ -84,18 +86,22 @@ export default async function ApplicationPage({
     }),
     readAiUsage(),
     // Sans échec (null si indisponible) : CV du profil déjà importé, utilisable pour la lettre.
-    getLatestProfileCvHtml(),
+    getLatestProfileCvText(),
+    // Sans échec (null si indisponible) : CV du CV Builder lié à cette candidature.
+    getBuilderCvByApplication(id),
   ]);
   if (!detail) notFound();
 
   const { application: app, events, source } = detail;
+  // CV de l'éditeur pour cette candidature : celui du CV Builder, sinon celui de l'ancien éditeur.
+  const hasEditorCv = Boolean(linkedCv || app.cv_improved_html);
   // « S'aider du CV en cours » (lettre) : le chat reçoit le CV de la candidature, à défaut
   // le dernier CV du profil importé dans l'éditeur.
-  const hasCvForLetter = Boolean(app.cv_improved_html || latestProfileCvHtml);
+  const hasCvForLetter = Boolean(hasEditorCv || latestProfileCvText);
   // « Adapter mon CV » : mots-clés comparés au CV de l'éditeur s'il existe (recalculés à chaque
   // affichage), sinon au texte du CV analysé.
   const savedAnalysis = readCvSuggestions(app.cv_suggestions);
-  const improvedCvText = htmlToText(app.cv_improved_html);
+  const improvedCvText = (linkedCv && cvDataToText(linkedCv.data)) || htmlToText(app.cv_improved_html);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -226,7 +232,7 @@ export default async function ApplicationPage({
             improvedCvText={improvedCvText}
             sector={detectSector(improvedCvText ?? (savedAnalysis?.kind === "keywords" ? savedAnalysis.cvText : null) ?? "", app.position)}
             profileCvs={profileCvs}
-            hasImprovedCv={Boolean(app.cv_improved_html)}
+            hasImprovedCv={hasEditorCv}
             usage={usage.counts.adaptation_cv}
             editorUsage={usage.counts.cv_ameliore}
             resetLabel={formatResetDate(usage.resetsOn)}

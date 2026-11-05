@@ -2,7 +2,7 @@ import "server-only";
 
 import { checkAiAccess, recordAiUsage } from "./ai-usage";
 import { type AiUsageCount } from "./ai-usage-limits";
-import { getApplicationDetail } from "./applications";
+import { getApplicationDetail, type ApplicationDetailResult } from "./applications";
 import {
   claudeErrorMessage,
   isClaudeConfigured,
@@ -11,11 +11,13 @@ import {
   type RefineAnalysis,
   type RefineChatTurn,
 } from "./claude";
+import { getBuilderCvByApplication } from "./cv-builder";
+import { cvDataToText } from "./cv-builder-types";
 import { CV_HTML_MAX_LENGTH, htmlToText, sanitizeCvHtml } from "./cv-html";
 import { matchCvKeywords } from "./cv-keyword-match";
 import { detectSector } from "./cv-sector-context";
 import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH } from "./cv-types";
-import { getLatestProfileCvHtml } from "./profile";
+import { getLatestProfileCvText } from "./profile";
 
 // Chat « Affiner avec l'IA » (CV amélioré et lettre) : logique commune aux deux Server
 // Actions. Le document n'est pas enregistré : l'éditeur affiche le résultat, que le
@@ -66,6 +68,12 @@ function refineAnalysis(raw: unknown, html: string, position: string): RefineAna
     conseils: saved.conseils,
     titre_cv: saved.titre_cv || undefined,
   };
+}
+
+async function candidateCvText(app: ApplicationDetailResult["application"]): Promise<string | null> {
+  const linked = await getBuilderCvByApplication(app.id);
+  const linkedText = linked ? cvDataToText(linked.data) : "";
+  return linkedText || htmlToText(app.cv_improved_html) || (await getLatestProfileCvText());
 }
 
 function readHistory(raw: unknown): RefineChatTurn[] {
@@ -122,12 +130,12 @@ export async function refineApplicationDocument(
     description: app.offer_description,
   };
 
-  // CV : l'analyse faite pour cette offre. Lettre : le CV du candidat (celui de l'éditeur
-  // de CV pour cette candidature, sinon le dernier CV du profil importé dans l'éditeur).
+  // CV : l'analyse faite pour cette offre. Lettre : le CV du candidat (celui du CV Builder lié à
+  // cette candidature, son ancien CV, sinon le dernier CV du profil ouvert dans un éditeur).
   const context =
     document === "cv"
       ? { analysis: refineAnalysis(app.cv_suggestions, current, app.position) }
-      : { candidateCv: htmlToText(app.cv_improved_html ?? (await getLatestProfileCvHtml())) };
+      : { candidateCv: await candidateCvText(app) };
 
   let refined;
   try {

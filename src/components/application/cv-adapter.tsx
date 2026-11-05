@@ -309,6 +309,15 @@ export function CvAdapter({
 
   const radioClass = "flex cursor-pointer items-start gap-2.5 text-sm text-slate-700 dark:text-slate-200";
 
+  const editorLauncher = {
+    applicationId,
+    profileCvs,
+    hasCv: hasImprovedCv,
+    aiEnabled,
+    limitReached: isLimitReached(editorUsage),
+    resetLabel,
+  };
+
   const sourcePicker = (
     <fieldset className="space-y-3" disabled={busy}>
       <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">Quel CV analyser ?</legend>
@@ -397,15 +406,7 @@ export function CvAdapter({
 
       {/* Action principale : l'éditeur ; l'analyse est une aide facultative. */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <CvEditorLauncher
-          applicationId={applicationId}
-          profileCvs={profileCvs}
-          hasCv={hasImprovedCv}
-          aiEnabled={aiEnabled}
-          limitReached={isLimitReached(editorUsage)}
-          resetLabel={resetLabel}
-          className="btn-primary px-4 py-2 text-sm"
-        />
+        <CvEditorLauncher {...editorLauncher} className="btn-primary px-4 py-2 text-sm" />
         <OnboardingTip id="adapter-cv" text="Analyse ton CV pour ce poste">
           <button
             type="button"
@@ -480,6 +481,11 @@ export function CvAdapter({
           ) : (
             <LegacySuggestionsView suggestions={suggestions} />
           )}
+          <CvEditorLauncher
+            {...editorLauncher}
+            label="Ouvrir dans l'éditeur de CV"
+            className="btn-primary mt-5 px-4 py-2 text-sm"
+          />
         </div>
       )}
     </section>

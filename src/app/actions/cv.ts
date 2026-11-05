@@ -4,29 +4,37 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
-import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
+import { checkAiAccess, checkAiRateLimit, recordAiUsage } from "@/lib/ai-usage";
 import {
   getApplicationDetail,
   saveCvSuggestions,
-  saveImprovedCv,
   type ApplicationDetailResult,
 } from "@/lib/applications";
+import { getCurrentUser } from "@/lib/auth";
 import {
   claudeErrorMessage,
+  extractCvContent,
   isClaudeConfigured,
   suggestCvAdaptations,
-  transcribeCv,
+  type CvSource,
   type OfferContext,
 } from "@/lib/claude";
+import {
+  assertBuilderCvRoom,
+  createBuilderCv,
+  CvBuilderError,
+  deleteBuilderCv,
+  getBuilderCvByApplication,
+  linkBuilderCvToApplication,
+} from "@/lib/cv-builder";
+import { importedToCvData } from "@/lib/cv-builder-import";
+import { CvDataSchema, type CvData } from "@/lib/cv-builder-types";
 import { readPdfUpload } from "@/lib/cv-file";
-import { blankCvHtml, CV_HTML_MAX_LENGTH, improvedCvToHtml, sanitizeCvHtml } from "@/lib/cv-html";
+import { htmlToText } from "@/lib/cv-html";
 import { keywordKey, weighKeywords } from "@/lib/cv-keyword-match";
-import { readCvStyle } from "@/lib/cv-style";
-import { fullName } from "@/lib/person-name";
 import { CV_TEXT_MAX_LENGTH, readCvSuggestions, type CvSuggestions } from "@/lib/cv-types";
 import { extractPdfText } from "@/lib/pdf-text";
-import { getProfileCvFile, getProfileCvHtml, saveProfileCvHtml } from "@/lib/profile";
-import { refineApplicationDocument, type RefineResult } from "@/lib/refine";
+import { getProfileCvData, getProfileCvFile, getProfileCvHtml, saveProfileCvData } from "@/lib/profile";
 
 export type AdaptCvState =
   | { status: "idle" }
@@ -169,41 +177,85 @@ export async function ignoreCvKeywordAction(
 }
 
 // ---------------------------------------------------------------------------
-// 2. Éditeur de CV de la candidature
+// 2. CV de la candidature, ouvert dans le CV Builder
 // ---------------------------------------------------------------------------
 
-/** PDF (CV du profil ou importé) → HTML de l'éditeur, retranscrit par Claude. */
-async function transcribeToHtml(bytes: Buffer): Promise<{ ok: true; html: string } | { ok: false; state: OpenCvEditorState }> {
-  if (!isClaudeConfigured()) {
-    return { ok: false, state: { status: "error", message: "L'import d'un CV n'est pas disponible sur ce site." } };
-  }
-  const gate = await checkAiAccess("cv_ameliore");
-  if (!gate.ok) {
-    return { ok: false, state: { status: "error", message: gate.message, limitReached: gate.limitReached } };
-  }
+/** Résultat d'une étape de l'ouverture : la valeur, ou l'état d'erreur à afficher. */
+type OpenStep<T> = { ok: true; value: T } | { ok: false; state: OpenCvEditorState };
+
+const openError = (message: string, limitReached?: boolean): { ok: false; state: OpenCvEditorState } => ({
+  ok: false,
+  state: { status: "error", message, limitReached },
+});
+
+/**
+ * Contenu d'un CV extrait par Claude. `charge` : compte dans la limite « CV ouverts dans
+ * l'éditeur ». Sans décompte (ancien CV déjà payé), seule la limite anti-rafale s'applique.
+ */
+async function extractForBuilder(source: CvSource, charge: boolean): Promise<OpenStep<CvData>> {
+  if (!isClaudeConfigured()) return openError("L'import d'un CV n'est pas disponible sur ce site.");
+  const gate = charge ? await checkAiAccess("cv_ameliore") : await checkAiRateLimit();
+  if (!gate.ok) return openError(gate.message, charge && gate.limitReached);
   try {
-    const cv = await transcribeCv(bytes.toString("base64"));
-    if (!cv) {
-      return {
-        ok: false,
-        state: { status: "error", message: "Ce CV n'a pas pu être lu. Vérifie qu'il s'agit bien d'un PDF de CV." },
-      };
-    }
-    await recordAiUsage("cv_ameliore");
-    return { ok: true, html: sanitizeCvHtml(improvedCvToHtml(cv)) };
+    const extracted = await extractCvContent(source);
+    if (!extracted) return openError("Ce CV n'a pas pu être lu. Vérifie qu'il s'agit bien d'un PDF de CV.");
+    if (charge) await recordAiUsage("cv_ameliore");
+    return { ok: true, value: importedToCvData(extracted) };
   } catch (error) {
-    return { ok: false, state: { status: "error", message: claudeErrorMessage(error, "transcribeCv") } };
+    unstable_rethrow(error);
+    return openError(claudeErrorMessage(error, "openCvEditor"));
   }
 }
 
+/** Contenu du nouveau CV selon le choix de la fenêtre (toutes les sources sauf le CV déjà lié). */
+async function builderDataFor(
+  source: string,
+  formData: FormData,
+  app: ApplicationDetailResult["application"],
+): Promise<OpenStep<CvData>> {
+  if (source === "vierge") {
+    const [user, name] = await Promise.all([getCurrentUser(), getAccountName().catch(() => null)]);
+    return {
+      ok: true,
+      value: CvDataSchema.parse({
+        personal: { firstName: name?.firstName ?? "", lastName: name?.lastName ?? "", email: user?.email ?? "" },
+        origin: "scratch",
+      }),
+    };
+  }
+  if (source === "upload") {
+    const upload = await readPdfUpload(formData.get("cv"));
+    if (!upload.ok) return openError(upload.error);
+    return extractForBuilder({ kind: "pdf", base64: upload.bytes.toString("base64") }, true);
+  }
+  if (source === "profil") {
+    const cvId = String(formData.get("cvId") ?? "");
+    const cached = await getProfileCvData(cvId);
+    if (cached) return { ok: true, value: cached };
+    const profileCv = await getProfileCvFile(cvId);
+    if (!profileCv) return openError("Ce CV n'existe plus dans ton profil. Choisis-en un autre.");
+    // Déjà retranscrit pour l'ancien éditeur : l'ouverture ne se paie pas une seconde fois.
+    const alreadyPaid = Boolean(await getProfileCvHtml(cvId));
+    const result = await extractForBuilder({ kind: "pdf", base64: profileCv.bytes.toString("base64") }, !alreadyPaid);
+    if (result.ok) await saveProfileCvData(cvId, result.value);
+    return result;
+  }
+  if (source === "actuel") {
+    // CV de l'ancien éditeur, converti une seule fois : le changement d'éditeur ne se paie pas.
+    const text = htmlToText(app.cv_improved_html);
+    if (text) return extractForBuilder({ kind: "text", text: text.slice(0, 40_000) }, false);
+  }
+  return openError("Choisis comment ouvrir l'éditeur.");
+}
+
 /**
- * « Ouvrir l'éditeur de CV » : le CV de la candidature est (re)créé selon le choix, puis
- * l'éditeur s'ouvre.
- *   - actuel : reprendre le CV déjà ouvert pour cette candidature ;
- *   - profil : un CV du profil, retranscrit une seule fois (version mémorisée ensuite) ;
- *   - upload : un PDF importé depuis l'ordinateur, retranscrit ;
- *   - vierge : la structure habituelle avec des exemples à remplacer.
- * Chaque retranscription compte dans la limite « CV ouverts dans l'éditeur ».
+ * « Ouvrir l'éditeur de CV » : le CV s'ouvre dans le CV Builder, lié à la candidature.
+ *   - actuel : le CV déjà lié, sinon celui de l'ancien éditeur (converti une seule fois) ;
+ *   - profil : un CV du profil, extrait une seule fois (version mémorisée ensuite) ;
+ *   - upload : un PDF importé depuis l'ordinateur ;
+ *   - vierge : un CV vide, avec le nom et l'email du compte.
+ * Chaque extraction compte dans la limite « CV ouverts dans l'éditeur ». Un nouveau CV prend la
+ * place de l'ancien sur la candidature, qui reste dans le CV Builder.
  */
 export async function openCvEditorAction(
   _prev: OpenCvEditorState,
@@ -216,85 +268,45 @@ export async function openCvEditorAction(
   const app = detail.application;
   const source = String(formData.get("source") ?? "");
 
-  if (source !== "actuel" || !app.cv_improved_html) {
-    let html: string;
-    if (source === "vierge") {
-      const name = await getAccountName().catch(() => null);
-      html = sanitizeCvHtml(blankCvHtml(name ? fullName(name) : null));
-    } else if (source === "upload") {
-      const upload = await readPdfUpload(formData.get("cv"));
-      if (!upload.ok) return { status: "error", message: upload.error };
-      const result = await transcribeToHtml(upload.bytes);
-      if (!result.ok) return result.state;
-      html = result.html;
-    } else if (source === "profil") {
-      const cvId = String(formData.get("cvId") ?? "");
-      const cached = await getProfileCvHtml(cvId);
-      if (cached) {
-        html = cached;
-      } else {
-        const profileCv = await getProfileCvFile(cvId);
-        if (!profileCv) return { status: "error", message: "Ce CV n'existe plus dans ton profil. Choisis-en un autre." };
-        const result = await transcribeToHtml(profileCv.bytes);
-        if (!result.ok) return result.state;
-        html = result.html;
-        await saveProfileCvHtml(cvId, html);
-      }
+  let builderId: string;
+  try {
+    const linked = source === "actuel" ? await getBuilderCvByApplication(app.id) : null;
+    if (linked) {
+      builderId = linked.id;
     } else {
-      return { status: "error", message: "Choisis comment ouvrir l'éditeur." };
+      // Avant l'appel à l'IA : pas d'attente ni de quota perdus si la limite de CV est atteinte.
+      await assertBuilderCvRoom();
+      const result = await builderDataFor(source, formData, app);
+      if (!result.ok) return result.state;
+      const data = result.value;
+      const targetJob = app.position.trim().slice(0, 120);
+      const jobTitle = data.personal.jobTitle.trim() || targetJob;
+      builderId = await createBuilderCv(
+        { ...data, targetJob, personal: { ...data.personal, jobTitle } },
+        `CV ${app.position} - ${app.company}`,
+      );
+      try {
+        await linkBuilderCvToApplication(builderId, app.id);
+      } catch (error) {
+        // CV déjà lié encore en place : le nouveau CV, sans lien, ne reste pas dans la liste.
+        await deleteBuilderCv(builderId).catch((e) => console.error("[openCvEditor] suppression", e));
+        throw error;
+      }
+      revalidatePath(`/candidatures/${app.id}`);
+      revalidatePath("/cv-builder");
     }
-
-    try {
-      await saveImprovedCv(app.id, html);
-    } catch (error) {
-      unstable_rethrow(error);
-      console.error("[openCvEditor] enregistrement", error);
-      return { status: "error", message: "Le CV n'a pas pu être ouvert. Réessaie dans un instant." };
-    }
-    revalidatePath(`/candidatures/${app.id}`);
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof CvBuilderError) return { status: "error", message: error.message };
+    console.error("[openCvEditor]", error);
+    return { status: "error", message: "Le CV n'a pas pu être ouvert. Réessaie dans un instant." };
   }
 
-  redirect(`/candidatures/${app.id}/cv`);
+  redirect(`/cv-builder/${builderId}`);
 }
 
 // ---------------------------------------------------------------------------
-// 3. Enregistrement des modifications faites dans l'éditeur
+// Résultat d'un enregistrement de l'éditeur (lettre de motivation)
 // ---------------------------------------------------------------------------
 
 export type SaveCvResult = { ok: true; savedAt: string } | { ok: false; error: string };
-
-export async function saveImprovedCvAction(
-  id: string,
-  html: string,
-  style?: unknown,
-): Promise<SaveCvResult> {
-  if (typeof id !== "string" || typeof html !== "string") return { ok: false, error: "Requête invalide." };
-  if (html.length > CV_HTML_MAX_LENGTH) return { ok: false, error: "Le CV est trop long." };
-
-  // getApplicationDetail vérifie la connexion et la propriété de la candidature.
-  const detail = await getApplicationDetail(id);
-  if (!detail) return { ok: false, error: "Candidature introuvable." };
-
-  try {
-    // Style revalidé côté serveur : toute valeur inconnue revient à sa valeur par défaut.
-    await saveImprovedCv(id, sanitizeCvHtml(html), style === undefined ? undefined : readCvStyle(style));
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("[saveImprovedCv]", error);
-    return { ok: false, error: "L'enregistrement a échoué. Réessaie dans un instant." };
-  }
-  return { ok: true, savedAt: new Date().toISOString() };
-}
-
-// ---------------------------------------------------------------------------
-// 4. Affinage du CV par chat (« Affiner avec l'IA »), cf. lib/refine
-// ---------------------------------------------------------------------------
-
-export async function refineCvAction(
-  id: string,
-  html: string,
-  message: string,
-  history: unknown,
-): Promise<RefineResult> {
-  return refineApplicationDocument("cv", id, html, message, history);
-}

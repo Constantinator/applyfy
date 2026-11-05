@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useId, useRef, useState } from "react";
 
 import { importCoverLetterAction, type GenerateCoverLetterState } from "@/app/actions/cover-letter";
 import { openCvEditorAction, type OpenCvEditorState } from "@/app/actions/cv";
@@ -161,6 +161,7 @@ export function CvEditorLauncher({
   limitReached,
   resetLabel,
   className,
+  label = "Ouvrir l'éditeur de CV",
 }: {
   applicationId: string;
   profileCvs: ProfileCv[];
@@ -171,7 +172,11 @@ export function CvEditorLauncher({
   limitReached: boolean;
   resetLabel: string;
   className: string;
+  /** Texte du bouton. */
+  label?: string;
 }) {
+  // Identifiants propres à chaque fenêtre : la fiche en affiche plusieurs.
+  const uid = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState(openCvEditorAction, initialCvState);
   const [source, setSource] = useState<string>(hasCv ? "actuel" : profileCvs.length ? "profil" : "upload");
@@ -196,19 +201,20 @@ export function CvEditorLauncher({
     startTransition(() => action(formData));
   }
 
-  const replaceNote = hasCv ? " Remplace le CV en cours." : "";
+  const replaceNote = hasCv ? " Ton CV en cours reste dans le CV Builder." : "";
+  const startName = `${uid}-cv-start`;
 
   return (
     <>
       <button type="button" onClick={() => dialogRef.current?.showModal()} className={className}>
-        Ouvrir l&apos;éditeur de CV
+        {label}
       </button>
-      <Dialog dialogRef={dialogRef} titleId="cv-editor-title" title="Ouvrir l'éditeur de CV">
+      <Dialog dialogRef={dialogRef} titleId={`${uid}-title`} title="Ouvrir l'éditeur de CV">
         <fieldset className="space-y-2" disabled={pending}>
           <legend className="mb-1 text-sm text-slate-600 dark:text-slate-300">Avec quel CV commencer ?</legend>
           {hasCv && (
             <Option
-              name="cv-start"
+              name={startName}
               value="actuel"
               selected={source === "actuel"}
               onSelect={setSource}
@@ -217,7 +223,7 @@ export function CvEditorLauncher({
             />
           )}
           <Option
-            name="cv-start"
+            name={startName}
             value="upload"
             selected={source === "upload"}
             onSelect={setSource}
@@ -226,7 +232,7 @@ export function CvEditorLauncher({
             description={`Ton CV au format PDF est repris tel quel dans l'éditeur.${replaceNote}`}
           >
             <FileField
-              id="cv-editor-file"
+              id={`${uid}-file`}
               accept="application/pdf,.pdf"
               hint={`PDF, ${CV_MAX_LABEL} max.`}
               onChange={setFile}
@@ -234,7 +240,7 @@ export function CvEditorLauncher({
             />
           </Option>
           <Option
-            name="cv-start"
+            name={startName}
             value="profil"
             selected={source === "profil"}
             onSelect={setSource}
@@ -251,7 +257,7 @@ export function CvEditorLauncher({
                 <label key={cv.id} className="flex cursor-pointer items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
                   <input
                     type="radio"
-                    name="cv-profile"
+                    name={`${uid}-cv-profile`}
                     checked={cvId === cv.id}
                     onChange={() => setCvId(cv.id)}
                     className="mt-0.5 accent-blue-600"
@@ -264,12 +270,12 @@ export function CvEditorLauncher({
             </div>
           </Option>
           <Option
-            name="cv-start"
+            name={startName}
             value="vierge"
             selected={source === "vierge"}
             onSelect={setSource}
             title="Commencer avec un CV vierge"
-            description={`La structure habituelle, avec des exemples à remplacer.${replaceNote}`}
+            description={`Un CV à remplir, déjà réglé sur le poste de cette candidature.${replaceNote}`}
           />
         </fieldset>
 
@@ -287,9 +293,9 @@ export function CvEditorLauncher({
         {pending && (
           <p role="status" className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <Spinner />
-            {source === "upload" || source === "profil"
-              ? "Préparation de ton CV dans l'éditeur… cela peut prendre jusqu'à une minute."
-              : "Ouverture de l'éditeur…"}
+            {source === "vierge"
+              ? "Ouverture de l'éditeur…"
+              : "Préparation de ton CV dans l'éditeur… cela peut prendre jusqu'à une minute."}
           </p>
         )}
         {state.status === "error" && !state.limitReached && !pending && (
