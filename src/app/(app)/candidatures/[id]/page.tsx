@@ -27,13 +27,9 @@ import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { fullName } from "@/lib/person-name";
 import { getBuilderCvByApplication } from "@/lib/cv-builder";
-import { cvDataToText } from "@/lib/cv-builder-types";
-import { htmlToText } from "@/lib/cv-html";
-import { detectSector } from "@/lib/cv-sector-context";
-import { readCvSuggestions } from "@/lib/cv-types";
 import { getLatestProfileCvText, listProfileCvs } from "@/lib/profile";
 
-// Analyse de CV, ouverture du CV dans l'éditeur et lettre (Server Actions de cette page) : 30 à 90 s.
+// Ouverture du CV dans l'éditeur et lettre (Server Actions de cette page) : 30 à 90 s.
 export const maxDuration = 120;
 
 // Date sans heure (YYYY-MM-DD) : formatée en UTC pour ne pas dépendre du fuseau du serveur.
@@ -98,10 +94,6 @@ export default async function ApplicationPage({
   // « S'aider du CV en cours » (lettre) : le chat reçoit le CV de la candidature, à défaut
   // le dernier CV du profil importé dans l'éditeur.
   const hasCvForLetter = Boolean(hasEditorCv || latestProfileCvText);
-  // « Adapter mon CV » : mots-clés comparés au CV de l'éditeur s'il existe (recalculés à chaque
-  // affichage), sinon au texte du CV analysé.
-  const savedAnalysis = readCvSuggestions(app.cv_suggestions);
-  const improvedCvText = (linkedCv && cvDataToText(linkedCv.data)) || htmlToText(app.cv_improved_html);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -225,15 +217,9 @@ export default async function ApplicationPage({
 
           <CvAdapter
             applicationId={app.id}
-            hasOfferDescription={Boolean(app.offer_description)}
             aiEnabled={isClaudeConfigured()}
-            saved={savedAnalysis}
-            savedAt={app.cv_suggestions_at ?? null}
-            improvedCvText={improvedCvText}
-            sector={detectSector(improvedCvText ?? (savedAnalysis?.kind === "keywords" ? savedAnalysis.cvText : null) ?? "", app.position)}
             profileCvs={profileCvs}
             hasImprovedCv={hasEditorCv}
-            usage={usage.counts.adaptation_cv}
             editorUsage={usage.counts.cv_ameliore}
             resetLabel={formatResetDate(usage.resetsOn)}
           />
