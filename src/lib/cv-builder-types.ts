@@ -340,23 +340,26 @@ const BULLET_PATH = /^experiences\.([^.]+)\.bullets\.(\d+)$/;
 /** Chemin d'une puce d'expérience dans l'aperçu ? */
 export const isBulletPath = (path: string) => BULLET_PATH.test(path);
 
-/** Chemin de la puce qui suit celle de `path`. */
-export function nextBulletPath(path: string) {
-  const match = path.match(BULLET_PATH);
-  return match ? `experiences.${match[1]}.bullets.${Number(match[2]) + 1}` : null;
-}
-
 /**
  * Touche Entrée dans une puce : `before` reste dans la puce, `after` passe dans une nouvelle puce
- * juste en dessous. Même objet renvoyé si l'expérience a déjà le nombre maximum de puces.
+ * juste en dessous, au chemin `nextPath`. null si l'expérience a déjà le nombre maximum de puces
+ * remplies ; les puces vides ne comptent pas et sont retirées s'il faut de la place (le schéma
+ * limite toute la liste).
  */
-export function splitBullet(data: CvData, path: string, before: string, after: string): CvData {
+export function splitBullet(data: CvData, path: string, before: string, after: string): { data: CvData; nextPath: string } | null {
   const match = path.match(BULLET_PATH);
   const index = Number(match?.[2]);
   const experience = data.experiences.find((e) => e.id === match?.[1]);
-  if (!experience || index >= experience.bullets.length || experience.bullets.length >= CV_LIMITS.bullets) return data;
-  const bullets = [...experience.bullets.slice(0, index), before, after, ...experience.bullets.slice(index + 1)];
-  return { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets } : e)) };
+  if (!experience || index >= experience.bullets.length) return null;
+  if (experience.bullets.filter((b) => b.trim()).length >= CV_LIMITS.bullets) return null;
+  const full = experience.bullets.length >= CV_LIMITS.bullets;
+  const others = (list: string[]) => (full ? list.filter((b) => b.trim()) : list);
+  const head = others(experience.bullets.slice(0, index));
+  const bullets = [...head, before, after, ...others(experience.bullets.slice(index + 1))];
+  return {
+    data: { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets } : e)) },
+    nextPath: `experiences.${experience.id}.bullets.${head.length + 1}`,
+  };
 }
 
 /** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo ni les réglages de mise en page. */

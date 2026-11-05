@@ -31,7 +31,7 @@ import {
   type CoachContext,
   type ImportedCvAnalysis,
 } from "@/lib/claude";
-import { applyCoachChange, buildProposal, checkProposal, withoutProblems } from "@/lib/coach-proposals";
+import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems } from "@/lib/coach-proposals";
 import {
   CvBuilderError,
   createBuilderCv,
@@ -791,8 +791,8 @@ function coachTurns(history: unknown) {
  * nouvelle puce est vérifiée par le code avant d'être écrite. `json` : contenu du CV
  * (chatContent) ; le CV mis à jour est renvoyé au même format dans `html` (nom imposé par le
  * composant du chat), ou null s'il ne change pas. Quota : une réponse qui modifie le CV compte
- * comme adaptation (cvb_chat, 2 par mois avec le plan gratuit) ; les autres comme échanges
- * (cvb_coach, CVB_COACH_DAILY_LIMIT par jour avec le plan gratuit).
+ * comme adaptation (cvb_chat, 2 par mois avec le plan gratuit) ; les autres, et celles qui ne font
+ * que réorganiser le contenu, comme échanges (cvb_coach, CVB_COACH_DAILY_LIMIT par jour avec le plan gratuit).
  */
 export async function refineBuilderCvAction(
   id: string,
@@ -826,28 +826,16 @@ export async function refineBuilderCvAction(
   }
   if (!reply) return { ok: false, error: "Le coach n'a pas pu répondre. Reformule ton message." };
 
-  // Adaptations du mois épuisées : pas de modification, le coach continue avec sa question.
-  // L'appel compte comme un échange (cvb_coach).
-  if (reply.raw && isLimitReached(gate.chat)) {
-    await recordAiUsage("cvb_coach");
-    return {
-      ok: true,
-      reply: reply.message || MISSING_FIGURE_QUESTION,
-      html: null,
-      usage: gate.chat,
-      limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
-      skippedPoints: reply.skippedPoints,
-    };
-  }
+  const limitReached = isLimitReached(gate.chat);
 
   // Modification vérifiée par le code ; textes refusés (ou contenu invalide) : un nouvel essai,
-  // invisible pour le candidat.
+  // invisible pour le candidat (sauf si les adaptations du mois sont épuisées).
   let answer = reply;
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
   let problems = proposal ? checkProposal(proposal, context.scoring) : [];
   const firstRefused = problems.length;
   let retried = false;
-  if (reply.raw && (reply.invalid || problems.length)) {
+  if (reply.raw && !limitReached && (reply.invalid || problems.length)) {
     const rate = await checkAiRateLimit();
     const second = rate.ok
       ? await coachBuilderCv(context, turns, request, {
@@ -878,10 +866,27 @@ export async function refineBuilderCvAction(
     } else console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
   }
   const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints])];
+  // Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées.
+  const reorganized = applied > 0 && isReorganization(current, updated);
+
+  // Adaptations du mois épuisées : pas de modification, le coach continue avec sa question.
+  // L'appel compte comme un échange (cvb_coach).
+  if (reply.raw && limitReached && !reorganized) {
+    await recordAiUsage("cvb_coach");
+    return {
+      ok: true,
+      reply: reply.message || MISSING_FIGURE_QUESTION,
+      html: null,
+      usage: gate.chat,
+      limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
+      skippedPoints: reply.skippedPoints,
+    };
+  }
+
   console.warn(
     `[cv-builder coach] réponse : section=${reply.raw?.section ?? "aucune"}, changements appliqués=${applied}, ` +
       `textes refusés=${firstRefused} (après le second essai : ${problems.length}), second essai=${retried ? "oui" : "non"}, ` +
-      `contenu invalide=${reply.invalid ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
+      `contenu invalide=${reply.invalid ? "oui" : "non"}, réorganisation=${reorganized ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
   );
 
   // Texte affiché, décidé par le code : l'annonce de l'IA seulement si un changement a vraiment
@@ -902,12 +907,12 @@ export async function refineBuilderCvAction(
           .join(" ");
 
   if (applied) {
-    await recordAiUsage("cvb_chat");
+    await recordAiUsage(reorganized ? "cvb_coach" : "cvb_chat");
     return {
       ok: true,
       reply: text,
       html: JSON.stringify(chatContent(updated)),
-      usage: { used: gate.chat.used + 1, limit: gate.chat.limit },
+      usage: reorganized ? gate.chat : { used: gate.chat.used + 1, limit: gate.chat.limit },
       skippedPoints: skippedNow,
     };
   }

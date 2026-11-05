@@ -16,7 +16,6 @@ import {
   cvFontFile,
   densityFactor,
   isBulletPath,
-  nextBulletPath,
   splitBullet,
   type CvData,
   type CvTemplateId,
@@ -297,6 +296,7 @@ export function CvHtmlPreview({
   templateId,
   onEdit,
   onBulletBreak,
+  onBulletLimit,
   onPagesChange,
   highlights,
   highlightFading = false,
@@ -306,6 +306,8 @@ export function CvHtmlPreview({
   onEdit: (path: EditPath, value: string) => void;
   /** Entrée dans une puce : scinde la puce (cf. splitBullet), le curseur passe à la suivante. */
   onBulletBreak: (path: EditPath, before: string, after: string) => void;
+  /** Entrée bloquée : l'expérience a déjà le nombre maximum de puces. */
+  onBulletLimit: () => void;
   onPagesChange?: (pages: number) => void;
   /** Chemins des textes à surligner (cf. diffCvData). */
   highlights?: ReadonlySet<string>;
@@ -343,11 +345,14 @@ export function CvHtmlPreview({
   const [activeBullet, setActiveBullet] = useState<EditPath | null>(null);
   const focusAfterRender = useRef<EditPath | null>(null);
   const breakBullet = (path: EditPath, before: string, after: string) => {
+    const split = splitBullet(data, path, before, after);
     // Nombre maximum de puces atteint : rien ne change, le curseur reste en place.
-    if (splitBullet(data, path, before, after) === data) return;
-    const next = nextBulletPath(path);
-    focusAfterRender.current = next;
-    setActiveBullet(next);
+    if (!split) {
+      onBulletLimit();
+      return;
+    }
+    focusAfterRender.current = split.nextPath;
+    setActiveBullet(split.nextPath);
     onBulletBreak(path, before, after);
   };
   useLayoutEffect(() => {

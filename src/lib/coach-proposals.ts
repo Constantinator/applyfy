@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { CvDataSchema, newItemId, type CvData } from "./cv-builder-types";
+import { CV_LIMITS, CvDataSchema, newItemId, type CvData } from "./cv-builder-types";
 import { actionDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
 
 // Modifications du CV par le coach du CV Builder : la réponse du coach est transformée en
@@ -383,6 +383,38 @@ const valid = (data: CvData) => {
   return parsed.success ? parsed.data : null;
 };
 
+/** Mots de textes, sans casse, accents ni ponctuation, triés : le contenu, quel que soit son ordre. */
+function contentWords(texts: string[]) {
+  const words = texts.join(" ").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().match(/[\p{L}\p{N}+#]+/gu);
+  return (words ?? []).sort().join(" ");
+}
+
+/** Intitulé de groupe en tête de ligne (« Hard skills : Excel, SQL ») : 4 mots au plus. */
+const GROUP_LABEL = /^\s*(?:[^\s:]+\s*){1,4}:\s*/;
+
+/** Contenu d'un CV, indépendant de la façon dont il est rangé (ordre, lignes, intitulés de groupes). */
+function contentFingerprint(data: CvData) {
+  return JSON.stringify({
+    personal: data.personal,
+    summary: contentWords([data.summary]),
+    interests: contentWords([data.interests]),
+    experiences: data.experiences.map((e) => ({ ...e, bullets: contentWords(e.bullets) })),
+    education: data.education,
+    projects: data.projects,
+    skills: contentWords(data.skills.map((s) => `${s.name.replace(GROUP_LABEL, "")} ${s.level}`)),
+    languages: contentWords(data.languages.map((l) => `${l.name} ${l.level}`)),
+    certifications: contentWords(data.certifications.map((c) => `${c.name} ${c.issuer} ${c.date}`)),
+  });
+}
+
+/**
+ * Les deux CV ont-ils le même contenu, seulement réorganisé ? Rien d'ajouté ni de retiré, à part un
+ * intitulé de groupe de compétences : une modification de ce type n'est pas décomptée.
+ */
+export function isReorganization(before: CvData, after: CvData) {
+  return contentFingerprint(before) === contentFingerprint(after);
+}
+
 /**
  * CV avec le changement appliqué ; null si le passage concerné a changé entre-temps (le « avant »
  * n'est plus là) ou si le résultat est invalide.
@@ -393,8 +425,11 @@ export function applyCoachChange(data: CvData, change: CoachChange): CvData | nu
     case "bullet": {
       const experience = next.experiences.find((e) => e.id === change.experienceId);
       if (!experience) return null;
-      if (change.before === null) experience.bullets.push(change.after);
-      else {
+      if (change.before === null) {
+        // Les puces vides ne comptent pas dans la limite : retirées s'il faut de la place.
+        if (experience.bullets.length >= CV_LIMITS.bullets) experience.bullets = experience.bullets.filter((b) => b.trim());
+        experience.bullets.push(change.after);
+      } else {
         const index = experience.bullets[change.index ?? -1] === change.before ? change.index! : experience.bullets.indexOf(change.before);
         if (index < 0) return null;
         experience.bullets[index] = change.after;
