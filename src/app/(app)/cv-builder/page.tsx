@@ -91,6 +91,14 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{heading}</h1>
+          {detail && (
+            <Link
+              href={`/candidatures/${detail.application.id}`}
+              className="mt-1.5 inline-block text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            >
+              ← Retour à la candidature
+            </Link>
+          )}
           <p className="mt-1.5 text-slate-500 dark:text-slate-400">
             Choisis un modèle parmi 5, améliore ton CV avec l&apos;assistant IA et télécharge-le en PDF.
           </p>
@@ -104,6 +112,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
                   position: detail.application.position,
                   // La conversion passe par l'IA, et seulement tant qu'aucun CV n'est lié.
                   hasLegacyCv: !linked && Boolean(detail.application.cv_improved_html) && isClaudeConfigured(),
+                  linkedCvTitle: linked?.title ?? null,
                 }
               }
               autoOpen={Boolean(detail && !linked)}

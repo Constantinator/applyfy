@@ -187,7 +187,8 @@ export function NewCvDialog({
   autoOpen = false,
   error = null,
 }: {
-  application?: { id: string; position: string; hasLegacyCv: boolean } | null;
+  /** `linkedCvTitle` : nom du CV déjà lié, que le nouveau CV remplacera pour cette candidature. */
+  application?: { id: string; position: string; hasLegacyCv: boolean; linkedCvTitle: string | null } | null;
   /** Fenêtre ouverte d'office à l'affichage de la page. */
   autoOpen?: boolean;
   /** Message affiché dans la fenêtre, qui masque celui de la page quand elle est ouverte. */
@@ -230,6 +231,11 @@ export function NewCvDialog({
               <h2 id={titleId} className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
               </h2>
+              {application?.linkedCvTitle && (
+                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                  Ce CV remplacera « {application.linkedCvTitle} » pour cette offre. L&apos;ancien CV restera dans ta bibliothèque.
+                </p>
+              )}
             </div>
             <button
               type="button"
