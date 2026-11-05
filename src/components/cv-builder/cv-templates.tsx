@@ -11,7 +11,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 
-import { Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
+import { ActiveBulletContext, Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
 
 // Les 6 modèles du CV Builder, écrits une fois avec les briques de cv-primitives : rendus
 // en PDF (téléchargement) et en HTML modifiable (aperçu de l'éditeur). Chaque texte relié
@@ -96,16 +96,22 @@ function Dates({ base, start, end, current, style }: { base: string; start: stri
   );
 }
 
+/** Puces à afficher : les puces vides sont masquées, sauf celle en cours de saisie dans l'aperçu. */
+function useBulletLines(base: string, items: string[]) {
+  const active = useContext(ActiveBulletContext);
+  return items.map((text, index) => ({ text, index })).filter((b) => b.text.trim() || `${base}.bullets.${b.index}` === active);
+}
+
 function Bullets({ base, items, color, style }: { base: string; items: string[]; color?: string; style?: StyleProp }) {
   const align = useContext(AlignContext);
-  const lines = items.map((text, index) => ({ text, index })).filter((b) => b.text.trim());
+  const lines = useBulletLines(base, items);
   if (!lines.length) return null;
   return (
     <View style={{ marginTop: 3 }}>
       {lines.map((b) => (
         <View key={b.index} style={{ flexDirection: "row", marginTop: 1.5 }} wrap={false}>
           <Text style={[{ width: 10, color: color ?? "#111827" }, ...(Array.isArray(style) ? style : [style])]}>•</Text>
-          <Text edit={`${base}.bullets.${b.index}`} style={[{ flex: 1, textAlign: align }, ...(Array.isArray(style) ? style : [style])]}>
+          <Text edit={`${base}.bullets.${b.index}`} placeholder="Nouvelle puce" style={[{ flex: 1, textAlign: align }, ...(Array.isArray(style) ? style : [style])]}>
             {b.text}
           </Text>
         </View>
@@ -409,7 +415,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
       {s.hasInterests ? (
         <View style={section} wrap={false}>
           <Heading>Centres d&apos;intérêt</Heading>
-          <Text edit="interests">{data.interests}</Text>
+          <Text edit="interests" multiline>{data.interests}</Text>
         </View>
       ) : null}
     </Page>
@@ -581,7 +587,7 @@ function Sidebar({ data }: { data: CvData }) {
           {s.hasInterests ? (
             <>
               <SideHeading>Centres d&apos;intérêt</SideHeading>
-              <Text edit="interests" style={{ fontSize: 8.5 }}>
+              <Text edit="interests" multiline style={{ fontSize: 8.5 }}>
                 {data.interests}
               </Text>
             </>
@@ -691,14 +697,14 @@ function FinanceHeading({ children }: { children: string }) {
 /** Puces carrées ▪. */
 function FinanceBullets({ base, items }: { base: string; items: string[] }) {
   const align = useContext(AlignContext);
-  const lines = items.map((text, index) => ({ text, index })).filter((b) => b.text.trim());
+  const lines = useBulletLines(base, items);
   if (!lines.length) return null;
   return (
     <View style={{ marginTop: 1 }}>
       {lines.map((b) => (
         <View key={b.index} style={{ flexDirection: "row", marginTop: 0.5 }} wrap={false}>
           <Text style={{ width: 10, fontSize: 8 }}>▪</Text>
-          <Text edit={`${base}.bullets.${b.index}`} style={{ flex: 1, textAlign: align }}>
+          <Text edit={`${base}.bullets.${b.index}`} placeholder="Nouvelle puce" style={{ flex: 1, textAlign: align }}>
             {b.text}
           </Text>
         </View>
@@ -886,7 +892,7 @@ function Finance({ data }: { data: CvData }) {
           ) : null}
           {s.hasInterests ? (
             <FinanceLine label="Centres d'intérêt">
-              <Text edit="interests">{data.interests}</Text>
+              <Text edit="interests" multiline>{data.interests}</Text>
             </FinanceLine>
           ) : null}
         </View>

@@ -17,6 +17,9 @@ export type StyleProp = CvStyle | (CvStyle | undefined | false)[] | undefined;
  */
 export type EditPath = string;
 
+/** Puce en cours de saisie dans l'aperçu : affichée même vide (le PDF masque les puces vides). */
+export const ActiveBulletContext = createContext<EditPath | null>(null);
+
 type CommonProps = { style?: StyleProp; children?: ReactNode };
 export type ViewProps = CommonProps & { fixed?: boolean; wrap?: boolean };
 export type TextProps = CommonProps & {

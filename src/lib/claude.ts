@@ -920,7 +920,7 @@ const COACH_DATA_FORMAT = `Ta modification de la section choisie ; chaîne vide 
 - experience : JSON {"id": id de l'expérience, "bullets": [{"index": position de la puce remplacée (0 = première), ou -1 pour une nouvelle puce, "after": "la puce proposée"}], "bullets_to_remove": [positions des puces à supprimer]} ; seulement les puces modifiées, ajoutées ou supprimées. Supprimer l'expérience entière : {"id", "remove": true}. Nouvelle expérience : "id" vide, avec "position","company","startDate","endDate","current" (booléen),"location" et ses puces (index -1).
 - education : JSON {"id", et les seuls champs modifiés parmi "school","degree","startDate","endDate","honors"} ; supprimer la formation : {"id", "remove": true} ; nouvelle formation : "id" vide et tous les champs.
 - projects : JSON d'UN projet {"id", et les seuls champs modifiés parmi "name","description","link"} ; supprimer le projet : {"id", "remove": true} ; nouveau projet : "id" vide et tous les champs.
-- skills : JSON de la liste complète proposée [{"name","level"}], level parmi "", "debutant", "intermediaire", "avance", "expert".
+- skills : JSON de la liste complète proposée [{"name","level"}], level parmi "", "debutant", "intermediaire", "avance", "expert". Chaque entrée est une ligne du CV (300 caractères maximum) : pour regrouper ou séparer des compétences sur plusieurs lignes, une entrée par groupe, ex. [{"name":"Hard skills : Excel, SQL","level":""},{"name":"Soft skills : Écoute, Organisation","level":""}].
 - languages : JSON de la liste complète proposée [{"name","level"}].
 - certifications : JSON de la liste complète proposée [{"name","issuer","date"}].`;
 
@@ -1026,6 +1026,7 @@ Méthode :
 - Tu peux poser plusieurs questions d'affilée sur le même point tant qu'il te manque des faits (section = « aucune »). Ne modifie le CV que lorsque tu as assez d'informations.
 - Dès que tu as assez d'informations : modifie la section (« section » et « data »), décris en une phrase ce que tu as changé dans « change_summary », puis passe de toi-même au point suivant avec une nouvelle question dans « message », sans attendre qu'on te le demande.
 - Si le candidat demande lui-même une modification précise, fais-la directement.
+- Modification structurelle demandée par le candidat (réorganiser, séparer, regrouper, déplacer, trier, mettre sur plusieurs lignes…) : exécute-la immédiatement, dans cette réponse, sans demander de chiffre, de résultat ni de précision, même si elle ne change pas le score. Garde les textes existants tels quels, même s'ils contiennent une formule à éviter. Les demandes de chiffres ne s'appliquent qu'au contenu des puces d'expérience professionnelle : jamais aux compétences, aux langues, aux certifications, aux centres d'intérêt ou à l'accroche, ni au simple déplacement de puces existantes. Ne passe à un autre point qu'après l'avoir exécutée.
 - Relis toute la conversation avant d'écrire ta question et compte combien de fois tu as déjà demandé chaque information (même reformulée). Si le candidat a répondu sans donner le fait demandé, tu peux le redemander une seule fois.
 - Une question compte comme « posée une fois de plus » à chaque fois que tu la poses et que le candidat n'y répond pas directement : réponse à côté, changement de sujet, « jsp », « je sais pas », information sur un autre point, réponse sans le chiffre demandé. Une information donnée sur un autre point ne répond pas à ta question.
 - Une demande générale d'aide (ex. « Aide-moi à améliorer mon CV ») n'est pas une réponse à ta question et ne compte pas comme une question restée sans réponse : continue simplement avec le point en cours.
@@ -1135,7 +1136,9 @@ function retryInstructions({ previous, problems }: CoachRetry) {
     `Ta modification précédente (section ${previous.section}) a été refusée par la vérification automatique :`,
     reasons,
     `Proposition refusée : ${previous.data}`,
-    "Corrige-la. Chaque puce commence par un verbe ou un nom d'action, contient un chiffre ou un ordre de grandeur donné par le candidat ou déjà présent dans le CV, sans formule à éviter. N'invente AUCUN chiffre : si le candidat ne l'a pas donné, retire cette puce de ta proposition et termine ton message par une question précise pour obtenir ce chiffre (ou section = « aucune » s'il ne reste rien à proposer).",
+    previous.section === "experience"
+      ? "Corrige-la. Chaque puce commence par un verbe ou un nom d'action, contient un chiffre ou un ordre de grandeur donné par le candidat ou déjà présent dans le CV, sans formule à éviter. N'invente AUCUN chiffre : si le candidat ne l'a pas donné, retire cette puce de ta proposition et termine ton message par une question précise pour obtenir ce chiffre (ou section = « aucune » s'il ne reste rien à proposer)."
+      : "Corrige-la en respectant le format demandé et sans ajouter de formule à éviter. Ne demande aucun chiffre : ils ne concernent que les puces d'expérience.",
     "</verification>",
   ].join("\n");
 }

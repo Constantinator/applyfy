@@ -93,7 +93,8 @@ type ChangeBase = {
 };
 
 export type CoachChange =
-  | (ChangeBase & { kind: "bullet"; experienceId: string; index: number | null })
+  /** `moved` : le texte existe déjà dans cette expérience, la puce est seulement déplacée. */
+  | (ChangeBase & { kind: "bullet"; experienceId: string; index: number | null; moved: boolean })
   | (ChangeBase & { kind: "field"; target: FieldTarget; itemId: string | null; field: string })
   | (ChangeBase & { kind: "list"; target: ListTarget; value: Item[]; previous: Item[] })
   | (ChangeBase & { kind: "item"; target: ItemTarget; value: Item })
@@ -239,6 +240,7 @@ export function buildProposal(current: CvData, update: CoachUpdate, makeId: () =
             kind: "bullet",
             experienceId: existing.id,
             index: replaced ? b.index : null,
+            moved: replaced && bullets.some((text) => clean(text) === after),
             label: replaced ? `${name} — puce ${b.index + 1}` : `${name} — nouvelle puce`,
             before: replaced ? bullets[b.index] : null,
             after,
@@ -302,7 +304,8 @@ export type ChangeProblem = { changeId: string; text: string; problems: string[]
 /**
  * Défauts des textes proposés : une puce d'expérience doit commencer par un verbe ou un nom
  * d'action, contenir un chiffre ou un ordre de grandeur, et n'utiliser aucune formule de la liste
- * noire ; les autres textes, seulement la liste noire.
+ * noire ; les autres textes, seulement la liste noire. Une réorganisation n'ajoute rien : une puce
+ * déplacée n'est pas vérifiée, et une liste n'est refusée que pour une formule qu'elle n'avait pas.
  */
 export function checkProposal(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">): ChangeProblem[] {
   const isAction = actionDetector(context.actionVerbs);
@@ -315,6 +318,14 @@ export function checkProposal(proposal: CoachProposal, context: Pick<ScoringCont
 
   return proposal.changes.flatMap((change) => {
     if (change.kind === "removeBullet" || change.kind === "removeItem") return [];
+    if (change.kind === "bullet" && change.moved) return [];
+    if (change.kind === "list") {
+      const existing = findBannedPhrases(change.before ?? "", banned);
+      const added = findBannedPhrases(change.after, banned).filter((phrase) => !existing.includes(phrase));
+      return added.length
+        ? [{ changeId: change.id, text: change.after, problems: added.map((phrase) => `contient la formule à éviter « ${phrase} »`) }]
+        : [];
+    }
     const texts =
       change.kind === "bullet"
         ? [{ text: change.after, bullet: true }]

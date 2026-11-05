@@ -11,10 +11,20 @@ import {
   type CSSProperties,
 } from "react";
 
-import { CV_FONTS, cvFontFile, densityFactor, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import {
+  CV_FONTS,
+  cvFontFile,
+  densityFactor,
+  isBulletPath,
+  nextBulletPath,
+  splitBullet,
+  type CvData,
+  type CvTemplateId,
+} from "@/lib/cv-builder-types";
 import { parseRich, type RichFormat } from "@/lib/cv-rich-text";
 
 import {
+  ActiveBulletContext,
   DensityContext,
   densityStyle,
   PrimitivesContext,
@@ -74,6 +84,8 @@ function toCss(style: CvStyle): CSSProperties {
 
 const InTextContext = createContext(false);
 const EditContext = createContext<((path: EditPath, value: string) => void) | null>(null);
+/** Entrée dans une puce : texte avant et après le curseur. */
+const BulletBreakContext = createContext<((path: EditPath, before: string, after: string) => void) | null>(null);
 /** Textes surlignés après une modification du coach : l'aperçu seul le fournit, pas le PDF. */
 const HighlightContext = createContext<{ paths: ReadonlySet<string>; fading: boolean } | null>(null);
 
@@ -81,6 +93,21 @@ function useHighlightClass(path: EditPath | undefined) {
   const highlight = useContext(HighlightContext);
   if (!path || !highlight?.paths.has(path)) return undefined;
   return highlight.fading ? "cv-highlight cv-highlight-fade" : "cv-highlight";
+}
+
+/** Texte de part et d'autre de la sélection (le texte sélectionné est remplacé). */
+function textAroundSelection(el: HTMLElement): [string, string] {
+  const text = el.textContent ?? "";
+  const selection = window.getSelection();
+  if (!selection?.rangeCount) return [text, ""];
+  const selected = selection.getRangeAt(0);
+  const offset = (container: Node, position: number) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.setEnd(container, position);
+    return range.toString().length;
+  };
+  return [text.slice(0, offset(selected.startContainer, selected.startOffset)), text.slice(offset(selected.endContainer, selected.endOffset))];
 }
 
 /** Texte modifiable en place : le DOM n'est réécrit que si la valeur change d'ailleurs (curseur conservé). */
@@ -103,6 +130,7 @@ function EditableText({
 }) {
   const ref = useRef<HTMLElement>(null);
   const onEdit = useContext(EditContext);
+  const onBulletBreak = useContext(BulletBreakContext);
   // Hors saisie : texte mis en forme. Pendant la saisie : texte brut avec son marquage
   // (**gras**…), réécrit seulement si la valeur change d'ailleurs (curseur conservé).
   const [focused, setFocused] = useState(false);
@@ -134,10 +162,14 @@ function EditableText({
     style,
     onInput: (e: React.FormEvent<HTMLElement>) => onEdit?.(path, e.currentTarget.textContent ?? ""),
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
-      if (e.key === "Enter" && !multiline) {
-        e.preventDefault();
-        e.currentTarget.blur();
-      }
+      // Paragraphes : saut de ligne du navigateur. Validation d'un mot pendant une saisie assistée : ignorée.
+      if (e.key !== "Enter" || multiline || e.nativeEvent.isComposing) return;
+      e.preventDefault();
+      // Puce : nouvelle puce en dessous ; depuis une puce vide, sortie de la liste. Champ d'une ligne : validation.
+      if (isBulletPath(path) && e.currentTarget.textContent?.trim()) {
+        const [before, after] = textAroundSelection(e.currentTarget);
+        onBulletBreak?.(path, before.trimEnd(), after.trimStart());
+      } else e.currentTarget.blur();
     },
   };
   return as === "span" ? (
@@ -264,6 +296,7 @@ export function CvHtmlPreview({
   data,
   templateId,
   onEdit,
+  onBulletBreak,
   onPagesChange,
   highlights,
   highlightFading = false,
@@ -271,6 +304,8 @@ export function CvHtmlPreview({
   data: CvData;
   templateId: CvTemplateId;
   onEdit: (path: EditPath, value: string) => void;
+  /** Entrée dans une puce : scinde la puce (cf. splitBullet), le curseur passe à la suivante. */
+  onBulletBreak: (path: EditPath, before: string, after: string) => void;
   onPagesChange?: (pages: number) => void;
   /** Chemins des textes à surligner (cf. diffCvData). */
   highlights?: ReadonlySet<string>;
@@ -304,6 +339,26 @@ export function CvHtmlPreview({
 
   const pages = Math.max(1, Math.ceil((height - 2) / A4_HEIGHT_PX));
 
+  // Puce en cours de saisie, gardée à l'écran même vide ; et puce à activer après une scission.
+  const [activeBullet, setActiveBullet] = useState<EditPath | null>(null);
+  const focusAfterRender = useRef<EditPath | null>(null);
+  const breakBullet = (path: EditPath, before: string, after: string) => {
+    // Nombre maximum de puces atteint : rien ne change, le curseur reste en place.
+    if (splitBullet(data, path, before, after) === data) return;
+    const next = nextBulletPath(path);
+    focusAfterRender.current = next;
+    setActiveBullet(next);
+    onBulletBreak(path, before, after);
+  };
+  useLayoutEffect(() => {
+    const path = focusAfterRender.current;
+    if (!path) return;
+    focusAfterRender.current = null;
+    const target = pageRef.current?.querySelector<HTMLElement>(`[data-edit-path="${CSS.escape(path)}"]`);
+    target?.focus();
+    if (target) window.getSelection()?.collapse(target, 0);
+  }, [data, activeBullet]);
+
   return (
     <div ref={frameRef} className="w-full">
       <style>{FONT_FACES + EDITABLE_CSS}</style>
@@ -312,15 +367,24 @@ export function CvHtmlPreview({
           ref={pageRef}
           style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_WIDTH_PX }}
           className="absolute top-0 left-0 shadow-sm ring-1 ring-slate-200"
+          onFocusCapture={(e) => {
+            const path = (e.target as HTMLElement).dataset.editPath;
+            setActiveBullet(path && isBulletPath(path) ? path : null);
+          }}
+          onBlurCapture={() => setActiveBullet(null)}
         >
           <EditContext value={onEdit}>
-            <PrimitivesContext value={HTML_PRIMITIVES}>
-              <DensityContext value={densityFactor(data.style.density)}>
-                <HighlightContext value={highlight}>
-                  <CvPages data={data} templateId={templateId} />
-                </HighlightContext>
-              </DensityContext>
-            </PrimitivesContext>
+            <BulletBreakContext value={breakBullet}>
+              <ActiveBulletContext value={activeBullet}>
+                <PrimitivesContext value={HTML_PRIMITIVES}>
+                  <DensityContext value={densityFactor(data.style.density)}>
+                    <HighlightContext value={highlight}>
+                      <CvPages data={data} templateId={templateId} />
+                    </HighlightContext>
+                  </DensityContext>
+                </PrimitivesContext>
+              </ActiveBulletContext>
+            </BulletBreakContext>
           </EditContext>
           {Array.from({ length: pages - 1 }, (_, i) => (
             <div

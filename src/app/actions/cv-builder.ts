@@ -724,6 +724,8 @@ const MISSING_FIGURE_QUESTION =
   "Peux-tu me donner un ordre de grandeur (nombre, %, durée, budget) pour que je puisse l'écrire ?";
 /** Le coach voulait modifier le CV, mais rien n'a pu être appliqué (texte refusé, contenu invalide). */
 const NOT_APPLIED_MESSAGE = "Je n'ai pas pu modifier ton CV : il me manque une information précise (un chiffre, un résultat).";
+/** Hors puces d'expérience : aucun chiffre n'est en cause, et le coach ne change pas de sujet. */
+const SECTION_NOT_APPLIED_MESSAGE = "Je n'ai pas pu appliquer cette modification à ton CV. Peux-tu reformuler ta demande ?";
 /** Une partie seulement de la modification a été appliquée. */
 const PARTIAL_MESSAGE = "Pour certaines puces, il me manque encore un chiffre.";
 
@@ -887,14 +889,17 @@ export async function refineBuilderCvAction(
   const intended = Boolean(reply.raw);
   const missing = intended && (!applied || problems.length > 0);
   const question = answer.message && (!missing || answer.message.includes("?")) ? answer.message : MISSING_FIGURE_QUESTION;
-  const text = [
-    applied ? answer.changeSummary || "C'est fait : j'ai mis à jour ton CV." : null,
-    intended && !applied ? NOT_APPLIED_MESSAGE : null,
-    applied && problems.length ? PARTIAL_MESSAGE : null,
-    question,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const text =
+    intended && !applied && reply.raw?.section !== "experience"
+      ? SECTION_NOT_APPLIED_MESSAGE
+      : [
+          applied ? answer.changeSummary || "C'est fait : j'ai mis à jour ton CV." : null,
+          intended && !applied ? NOT_APPLIED_MESSAGE : null,
+          applied && problems.length ? PARTIAL_MESSAGE : null,
+          question,
+        ]
+          .filter(Boolean)
+          .join(" ");
 
   if (applied) {
     await recordAiUsage("cvb_chat");

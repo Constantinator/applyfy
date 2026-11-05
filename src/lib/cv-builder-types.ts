@@ -335,6 +335,30 @@ export function applyEdit(data: CvData, path: string, value: string): CvData {
   return set(data, 0) as CvData;
 }
 
+const BULLET_PATH = /^experiences\.([^.]+)\.bullets\.(\d+)$/;
+
+/** Chemin d'une puce d'expérience dans l'aperçu ? */
+export const isBulletPath = (path: string) => BULLET_PATH.test(path);
+
+/** Chemin de la puce qui suit celle de `path`. */
+export function nextBulletPath(path: string) {
+  const match = path.match(BULLET_PATH);
+  return match ? `experiences.${match[1]}.bullets.${Number(match[2]) + 1}` : null;
+}
+
+/**
+ * Touche Entrée dans une puce : `before` reste dans la puce, `after` passe dans une nouvelle puce
+ * juste en dessous. Même objet renvoyé si l'expérience a déjà le nombre maximum de puces.
+ */
+export function splitBullet(data: CvData, path: string, before: string, after: string): CvData {
+  const match = path.match(BULLET_PATH);
+  const index = Number(match?.[2]);
+  const experience = data.experiences.find((e) => e.id === match?.[1]);
+  if (!experience || index >= experience.bullets.length || experience.bullets.length >= CV_LIMITS.bullets) return data;
+  const bullets = [...experience.bullets.slice(0, index), before, after, ...experience.bullets.slice(index + 1)];
+  return { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets } : e)) };
+}
+
 /** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo ni les réglages de mise en page. */
 export function chatContent({ personal, summary, experiences, education, skills, languages, certifications, projects, interests }: CvData) {
   // photo: undefined → absente du JSON.

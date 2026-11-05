@@ -16,6 +16,7 @@ import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
+  splitBullet,
   chatContent,
   CV_LIMITS,
   CvDataSchema,
@@ -498,6 +499,7 @@ export function CvBuilderEditor({
               data={data}
               templateId={templateId}
               onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
+              onBulletBreak={(path, before, after) => edit((d) => splitBullet(d, path, before, after))}
               onPagesChange={setPages}
               highlights={highlights}
               highlightFading={highlightFading}
