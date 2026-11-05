@@ -25,6 +25,7 @@ import {
   createBuilderCv,
   CvBuilderError,
   deleteBuilderCv,
+  getBuilderCv,
   getBuilderCvByApplication,
   linkBuilderCvToApplication,
 } from "@/lib/cv-builder";
@@ -287,8 +288,10 @@ async function ensureOfferKeywords(detail: ApplicationDetailResult): Promise<voi
 }
 
 /**
- * « Ouvrir l'éditeur de CV » : le CV s'ouvre dans le CV Builder, lié à la candidature.
+ * « Adapter mon CV à l'offre » : le CV s'ouvre dans le CV Builder, lié à la candidature.
  *   - actuel : le CV déjà lié, sinon celui de l'ancien éditeur (converti une seule fois) ;
+ *   - builder : un CV du CV Builder, ouvert s'il est lié à cette candidature, sinon copié (il peut
+ *     servir à une autre candidature : l'original ne change pas) ;
  *   - profil : un CV du profil, extrait une seule fois (version mémorisée ensuite) ;
  *   - upload : un PDF importé depuis l'ordinateur ;
  *   - vierge : un CV vide, avec le nom et l'email du compte.
@@ -308,7 +311,10 @@ export async function openCvEditorAction(
 
   let builderId: string;
   try {
-    const linked = source === "actuel" ? await getBuilderCvByApplication(app.id) : null;
+    // getBuilderCv vérifie que le CV choisi appartient bien à l'utilisateur.
+    const chosen = source === "builder" ? await getBuilderCv(String(formData.get("cvId") ?? "")) : null;
+    if (source === "builder" && !chosen) return { status: "error", message: "Ce CV n'existe plus. Choisis-en un autre." };
+    const linked = source === "actuel" ? await getBuilderCvByApplication(app.id) : chosen?.applicationId === app.id ? chosen : null;
     if (linked) {
       await ensureOfferKeywords(detail);
       builderId = linked.id;
@@ -316,7 +322,11 @@ export async function openCvEditorAction(
       // Avant l'appel à l'IA : pas d'attente ni de quota perdus si la limite de CV est atteinte.
       await assertBuilderCvRoom();
       // En parallèle : les deux appels à l'IA doivent tenir dans la durée maximale de la requête.
-      const [result] = await Promise.all([builderDataFor(source, formData, app), ensureOfferKeywords(detail)]);
+      const [result] = await Promise.all([
+        // Copie : le coach repart de zéro sur le nouveau CV.
+        chosen ? ({ ok: true, value: { ...chosen.data, coach: null } } as const) : builderDataFor(source, formData, app),
+        ensureOfferKeywords(detail),
+      ]);
       if (!result.ok) return result.state;
       const data = result.value;
       const targetJob = app.position.trim().slice(0, 120);
@@ -324,6 +334,7 @@ export async function openCvEditorAction(
       builderId = await createBuilderCv(
         { ...data, targetJob, personal: { ...data.personal, jobTitle } },
         builderCvTitle(await getAccountName().catch(() => null), app.company),
+        chosen?.templateId,
       );
       try {
         await linkBuilderCvToApplication(builderId, app.id);

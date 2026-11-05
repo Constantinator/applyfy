@@ -7,9 +7,10 @@ import { startTransition, useActionState, useId, useRef, useState } from "react"
 import { importCoverLetterAction, type GenerateCoverLetterState } from "@/app/actions/cover-letter";
 import { openCvEditorAction, type OpenCvEditorState } from "@/app/actions/cv";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import type { BuilderCvChoice } from "@/lib/cv-builder-types";
 import { CV_MAX_BYTES, CV_MAX_LABEL, type ProfileCv } from "@/lib/cv-types";
 
-// Fenêtres « Ouvrir l'éditeur de CV » et « Ouvrir l'éditeur de lettre » de la fiche
+// Fenêtres « Adapter mon CV à l'offre » et « Ouvrir l'éditeur de lettre » de la fiche
 // candidature : choix du point de départ, puis ouverture de l'éditeur.
 
 function Spinner() {
@@ -156,79 +157,113 @@ const initialCvState: OpenCvEditorState = { status: "idle" };
 export function CvEditorLauncher({
   applicationId,
   profileCvs,
-  hasCv,
+  builderCvs,
+  linkedCvId,
+  hasLegacyCv,
   aiEnabled,
   limitReached,
   resetLabel,
   className,
-  label = "Ouvrir l'éditeur de CV",
 }: {
   applicationId: string;
   profileCvs: ProfileCv[];
-  /** Un CV est déjà ouvert dans l'éditeur pour cette candidature. */
-  hasCv: boolean;
+  /** CV du CV Builder de l'utilisateur. */
+  builderCvs: BuilderCvChoice[];
+  /** CV du CV Builder lié à cette candidature. */
+  linkedCvId: string | null;
+  /** CV de l'ancien éditeur, ouvert pour cette candidature (converti à sa reprise). */
+  hasLegacyCv: boolean;
   aiEnabled: boolean;
   /** Limite mensuelle des CV importés atteinte. */
   limitReached: boolean;
   resetLabel: string;
   className: string;
-  /** Texte du bouton. */
-  label?: string;
 }) {
-  // Identifiants propres à chaque fenêtre : la fiche en affiche plusieurs.
   const uid = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState(openCvEditorAction, initialCvState);
-  const [source, setSource] = useState<string>(hasCv ? "actuel" : profileCvs.length ? "profil" : "upload");
-  const [cvId, setCvId] = useState(profileCvs[0]?.id ?? "");
+
+  // « Reprendre un CV existant » : le CV de cette candidature d'abord, puis les autres.
+  const linkedCv = builderCvs.find((cv) => cv.id === linkedCvId);
+  const otherBuilderCvs = builderCvs.filter((cv) => cv.id !== linkedCvId);
+  const legacy = hasLegacyCv && !linkedCv;
+  const firstChoice = linkedCv
+    ? `builder:${linkedCv.id}`
+    : legacy && aiEnabled
+      ? "actuel:"
+      : otherBuilderCvs[0]
+        ? `builder:${otherBuilderCvs[0].id}`
+        : profileCvs[0] && aiEnabled
+          ? `profil:${profileCvs[0].id}`
+          : "";
+  const [choice, setChoice] = useState(firstChoice);
+  const [source, setSource] = useState<string>(firstChoice ? "existant" : "vierge");
   const [file, setFile] = useState<File | null>(null);
   const fileError = pdfError(file);
 
   const ready =
-    source === "actuel" ||
-    source === "vierge" ||
-    (source === "profil" && Boolean(cvId)) ||
-    (source === "upload" && Boolean(file) && !fileError);
+    source === "vierge" || (source === "existant" && Boolean(choice)) || (source === "upload" && Boolean(file) && !fileError);
   const limitHit = limitReached || (state.status === "error" && state.limitReached === true);
 
   function submit() {
     if (!ready || pending) return;
     const formData = new FormData();
     formData.set("id", applicationId);
-    formData.set("source", source);
-    if (source === "profil") formData.set("cvId", cvId);
-    if (source === "upload" && file) formData.set("cv", file);
+    if (source === "existant") {
+      const [choiceSource, cvId] = choice.split(":");
+      formData.set("source", choiceSource);
+      formData.set("cvId", cvId);
+    } else {
+      formData.set("source", source);
+      if (source === "upload" && file) formData.set("cv", file);
+    }
     startTransition(() => action(formData));
   }
 
-  const replaceNote = hasCv ? " Ton CV en cours reste dans le CV Builder." : "";
+  const replaceNote = linkedCv || legacy ? " Ton CV en cours reste dans le CV Builder." : "";
   const startName = `${uid}-cv-start`;
+  const choiceRow = (value: string, label: React.ReactNode, disabled = false) => (
+    <label
+      key={value}
+      className={`flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+    >
+      <input
+        type="radio"
+        name={`${uid}-cv-choice`}
+        checked={choice === value}
+        disabled={disabled}
+        onChange={() => setChoice(value)}
+        className="mt-0.5 accent-blue-600"
+      />
+      <span>{label}</span>
+    </label>
+  );
+
+  const hasExisting = builderCvs.length > 0 || legacy || profileCvs.length > 0;
 
   return (
     <>
       <button type="button" onClick={() => dialogRef.current?.showModal()} className={className}>
-        {label}
+        Adapter mon CV à l&apos;offre
       </button>
-      <Dialog dialogRef={dialogRef} titleId={`${uid}-title`} title="Ouvrir l'éditeur de CV">
+      <Dialog dialogRef={dialogRef} titleId={`${uid}-title`} title="Adapter mon CV à l'offre">
         <fieldset className="space-y-2" disabled={pending}>
           <legend className="mb-1 text-sm text-slate-600 dark:text-slate-300">Avec quel CV commencer ?</legend>
-          {hasCv && (
-            <Option
-              name={startName}
-              value="actuel"
-              selected={source === "actuel"}
-              onSelect={setSource}
-              title="Reprendre mon CV en cours"
-              description="Le CV déjà ouvert pour cette candidature, avec tes modifications."
-            />
-          )}
+          <Option
+            name={startName}
+            value="vierge"
+            selected={source === "vierge"}
+            onSelect={setSource}
+            title="Commencer d'un CV vierge"
+            description={`Un CV à remplir, déjà réglé sur le poste de cette candidature.${replaceNote}`}
+          />
           <Option
             name={startName}
             value="upload"
             selected={source === "upload"}
             onSelect={setSource}
             disabled={!aiEnabled || limitHit}
-            title="Importer un CV depuis mon ordinateur"
+            title="Importer un CV depuis mon PC"
             description={`Ton CV au format PDF est repris tel quel dans l'éditeur.${replaceNote}`}
           >
             <FileField
@@ -241,42 +276,32 @@ export function CvEditorLauncher({
           </Option>
           <Option
             name={startName}
-            value="profil"
-            selected={source === "profil"}
+            value="existant"
+            selected={source === "existant"}
             onSelect={setSource}
-            disabled={profileCvs.length === 0 || !aiEnabled}
-            title="Utiliser un CV de mon profil"
+            disabled={!hasExisting}
+            title="Reprendre un CV existant"
             description={
-              profileCvs.length === 0
-                ? "Aucun CV enregistré dans Mon profil pour l'instant."
-                : `Un des CV enregistrés dans Mon profil.${replaceNote}`
+              hasExisting
+                ? "Un autre CV est copié pour cette candidature : l'original ne change pas."
+                : "Aucun CV pour l'instant."
             }
           >
-            <div className="space-y-1.5">
-              {profileCvs.map((cv) => (
-                <label key={cv.id} className="flex cursor-pointer items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
-                  <input
-                    type="radio"
-                    name={`${uid}-cv-profile`}
-                    checked={cvId === cv.id}
-                    onChange={() => setCvId(cv.id)}
-                    className="mt-0.5 accent-blue-600"
-                  />
-                  <span>
+            <div className="max-h-48 space-y-1.5 overflow-y-auto">
+              {linkedCv && choiceRow(`builder:${linkedCv.id}`, `${linkedCv.title} (cette candidature)`)}
+              {legacy && choiceRow("actuel:", "Mon CV en cours pour cette candidature", !aiEnabled)}
+              {otherBuilderCvs.map((cv) => choiceRow(`builder:${cv.id}`, cv.title))}
+              {profileCvs.map((cv) =>
+                choiceRow(
+                  `profil:${cv.id}`,
+                  <>
                     {cv.name} <span className="text-slate-500 dark:text-slate-400">({cv.fileName})</span>
-                  </span>
-                </label>
-              ))}
+                  </>,
+                  !aiEnabled,
+                ),
+              )}
             </div>
           </Option>
-          <Option
-            name={startName}
-            value="vierge"
-            selected={source === "vierge"}
-            onSelect={setSource}
-            title="Commencer avec un CV vierge"
-            description={`Un CV à remplir, déjà réglé sur le poste de cette candidature.${replaceNote}`}
-          />
         </fieldset>
 
         {profileCvs.length === 0 && (

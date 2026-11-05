@@ -259,6 +259,9 @@ export type BuilderCv = {
 
 export type BuilderCvSummary = Omit<BuilderCv, "data" | "applicationId"> & { jobTitle: string };
 
+/** CV proposé à la reprise depuis une fiche. */
+export type BuilderCvChoice = Pick<BuilderCv, "id" | "title">;
+
 /** Origine du CV : créé depuis zéro ou importé (CV antérieurs au champ : importé s'il a une analyse d'import). */
 export function cvOrigin(data: CvData): "scratch" | "import" {
   return data.origin ?? (data.analysis ? "import" : "scratch");

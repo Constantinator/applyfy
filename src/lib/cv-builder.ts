@@ -6,6 +6,7 @@ import {
   isTemplateId,
   readCvData,
   type BuilderCv,
+  type BuilderCvChoice,
   type BuilderCvSummary,
   type CvData,
   type CvTemplateId,
@@ -72,6 +73,23 @@ export async function listBuilderCvs(): Promise<BuilderCvSummary[]> {
     .order("updated_at", { ascending: false });
   if (error) throw new Error(`Chargement des CV impossible : ${error.message}`);
   return (data as Row[]).map(toCv).map(toSummary);
+}
+
+/** CV de l'utilisateur proposés à la reprise, du plus récent au plus ancien (sans leur contenu). */
+export async function listBuilderCvChoices(): Promise<BuilderCvChoice[]> {
+  if (!isSupabaseConfigured()) {
+    return [...demoCvs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(({ id, title }) => ({ id, title }));
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cv_builder")
+    .select("id, title")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(`Chargement des CV impossible : ${error.message}`);
+  return data as BuilderCvChoice[];
 }
 
 export async function getBuilderCv(id: string): Promise<BuilderCv | null> {

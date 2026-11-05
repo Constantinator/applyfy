@@ -26,7 +26,7 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { fullName } from "@/lib/person-name";
-import { getBuilderCvByApplication } from "@/lib/cv-builder";
+import { getBuilderCvByApplication, listBuilderCvChoices } from "@/lib/cv-builder";
 import { getLatestProfileCvText, listProfileCvs } from "@/lib/profile";
 
 // Ouverture du CV dans l'éditeur et lettre (Server Actions de cette page) : 30 à 90 s.
@@ -67,7 +67,7 @@ export default async function ApplicationPage({
 }: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
   const { creee } = await searchParams;
-  const [detail, profileCvs, accountName, usage, latestProfileCvText, linkedCv] = await Promise.all([
+  const [detail, profileCvs, accountName, usage, latestProfileCvText, linkedCv, builderCvs] = await Promise.all([
     getApplicationDetail(id),
     // Non bloquant : la fiche reste affichée même si le profil est indisponible
     // (ex. migration 0007 pas encore appliquée).
@@ -85,6 +85,11 @@ export default async function ApplicationPage({
     getLatestProfileCvText(),
     // Sans échec (null si indisponible) : CV du CV Builder lié à cette candidature.
     getBuilderCvByApplication(id),
+    // Non bloquant : la fiche reste affichée, sans ces CV à reprendre.
+    listBuilderCvChoices().catch((error) => {
+      console.error("[fiche] CV du CV Builder", error);
+      return [];
+    }),
   ]);
   if (!detail) notFound();
 
@@ -219,7 +224,9 @@ export default async function ApplicationPage({
             applicationId={app.id}
             aiEnabled={isClaudeConfigured()}
             profileCvs={profileCvs}
-            hasImprovedCv={hasEditorCv}
+            builderCvs={builderCvs}
+            linkedCvId={linkedCv?.id ?? null}
+            hasLegacyCv={Boolean(app.cv_improved_html)}
             editorUsage={usage.counts.cv_ameliore}
             resetLabel={formatResetDate(usage.resetsOn)}
           />
