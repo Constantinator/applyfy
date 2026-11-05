@@ -316,15 +316,27 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
           <Heading>Compétences</Heading>
           {variant === "tech" ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-              {s.skills.map((k) => (
-                <Text
-                  key={k.id}
-                  style={{ backgroundColor: custom ? "#F3F4F6" : "#ECFDF5", color: custom || "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }}
-                >
-                  <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
-                  {k.level ? ` · ${levelLabel(k.level)}` : ""}
-                </Text>
-              ))}
+              {s.skills.map((k) => {
+                const badge = (
+                  <Text
+                    key={k.id}
+                    style={{ backgroundColor: custom ? "#F3F4F6" : "#ECFDF5", color: custom || "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }}
+                  >
+                    <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+                      {k.name}
+                    </Text>
+                    {k.level ? ` · ${levelLabel(k.level)}` : ""}
+                  </Text>
+                );
+                // Compétence groupée : un badge par ligne, même court.
+                return splitSkillGroup(k.name) ? (
+                  <View key={k.id} style={{ width: "100%", alignItems: "flex-start" }}>
+                    {badge}
+                  </View>
+                ) : (
+                  badge
+                );
+              })}
             </View>
           ) : variant === "moderne" ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
@@ -350,7 +362,9 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
               items={s.skills}
               render={(k) => (
                 <>
-                  <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
+                  <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+                    {k.name}
+                  </Text>
                   {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
                 </>
               )}
