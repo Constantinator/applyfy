@@ -11,9 +11,6 @@ export type KeywordGroup = (typeof KEYWORD_GROUPS)[number]["id"];
 /** Mot-clé de l'offre, écrit comme dans l'offre ; `weight` : importance (répétitions, intitulé). */
 export type OfferKeyword = { keyword: string; group: KeywordGroup; variants: string[]; weight: number };
 
-/** Taux de correspondance des mots-clés à atteindre, en %. */
-export const KEYWORD_MATCH_TARGET = 75;
-
 /**
  * Analyse d'offre de « Adapter mon CV » : mots-clés de l'offre (comparés au CV par le code,
  * cv-keyword-match.ts), conseils courts et titre de CV proposé. `cvText` : texte du PDF

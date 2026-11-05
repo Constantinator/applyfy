@@ -1,51 +1,27 @@
 "use client";
 
 import type { KeywordMatch } from "@/lib/cv-keyword-match";
-import { KEYWORD_GROUPS, KEYWORD_MATCH_TARGET } from "@/lib/cv-types";
+import { KEYWORD_GROUPS } from "@/lib/cv-types";
 
-/** Chevron des accordéons ; `className` : rotation à l'ouverture (variante group-open du parent). */
-export function Chevron({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true" className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${className}`}>
-      <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** Taux de correspondance des mots-clés, avec la cible. */
+/** Taux de correspondance des mots-clés. */
 export function KeywordRate({ rate }: { rate: number | null }) {
   if (rate === null) return null;
-  return (
-    <p className="text-sm text-slate-500 dark:text-slate-400">
-      {rate} % de correspondance avec l&apos;offre (cible : {KEYWORD_MATCH_TARGET} %)
-    </p>
-  );
+  return <p className="text-sm text-slate-500 dark:text-slate-400">{rate} % de correspondance avec l&apos;offre</p>;
 }
 
-const TAG = "rounded-full border-0 bg-slate-100 px-3 py-1 text-sm text-slate-700 dark:bg-slate-700 dark:text-slate-200";
+const TAG = "rounded-full bg-red-50 px-3 py-1 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300";
 
-/**
- * Mots-clés de l'offre absents du CV, par catégorie en accordéon (replié par défaut). `onPick` :
- * les mots-clés deviennent cliquables.
- */
+/** Mots-clés de l'offre absents du CV, par catégorie. `onPick` : les mots-clés deviennent cliquables. */
 export function KeywordMatchView({ match, onPick }: { match: KeywordMatch; onPick?: (keyword: string) => void }) {
   const rows = match.rows.filter((r) => !r.present && !r.ignored);
   const groups = KEYWORD_GROUPS.map((g) => ({ ...g, rows: rows.filter((r) => r.group === g.id) })).filter((g) => g.rows.length > 0);
-  if (groups.length === 0) {
-    return <p className="text-sm text-slate-500 dark:text-slate-400">Tous les mots-clés de l&apos;offre sont dans ton CV.</p>;
-  }
 
   return (
-    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+    <div className="space-y-4">
       {groups.map((g) => (
-        <details key={g.id} className="group/keywords">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase [&::-webkit-details-marker]:hidden dark:text-slate-400">
-            <span>
-              {g.label} ({g.rows.length})
-            </span>
-            <Chevron className="group-open/keywords:rotate-180" />
-          </summary>
-          <ul className="flex flex-wrap gap-1.5 pb-3">
+        <section key={g.id} aria-label={g.label}>
+          <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">{g.label}</h3>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
             {g.rows.map((row) => (
               <li key={row.keyword}>
                 {onPick ? (
@@ -53,7 +29,7 @@ export function KeywordMatchView({ match, onPick }: { match: KeywordMatch; onPic
                     type="button"
                     onClick={() => onPick(row.keyword)}
                     title="Préparer un message pour le chat"
-                    className={`${TAG} transition hover:bg-slate-200 dark:hover:bg-slate-600`}
+                    className={`${TAG} transition hover:bg-red-100 dark:hover:bg-red-900/50`}
                   >
                     {row.keyword}
                   </button>
@@ -63,7 +39,7 @@ export function KeywordMatchView({ match, onPick }: { match: KeywordMatch; onPic
               </li>
             ))}
           </ul>
-        </details>
+        </section>
       ))}
     </div>
   );

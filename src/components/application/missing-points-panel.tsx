@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 
-import { matchCvKeywords } from "@/lib/cv-keyword-match";
-import type { Sector } from "@/lib/cv-sector-context";
-import type { KeywordGroup, OfferKeyword } from "@/lib/cv-types";
+import type { KeywordMatch } from "@/lib/cv-keyword-match";
+import type { KeywordGroup } from "@/lib/cv-types";
 
-import { Chevron, KeywordMatchView, KeywordRate } from "./keyword-match-view";
-
-/** Mots-clés de l'analyse « Adapter mon CV », comparés au CV affiché dans l'éditeur. */
-export type EditorKeywords = { keywords: OfferKeyword[]; ignored: string[]; sector: Sector };
+import { KeywordMatchView, KeywordRate } from "./keyword-match-view";
 
 /** Phrase à compléter par le candidat : le mot-clé n'est ajouté que s'il décrit une vraie expérience. */
 const PROMPTS: Record<KeywordGroup, (keyword: string) => string> = {
@@ -18,48 +14,21 @@ const PROMPTS: Record<KeywordGroup, (keyword: string) => string> = {
   mise_en_avant: (k) => `J'ai une expérience en « ${k} » : … (précise le contexte et un résultat)`,
 };
 
-/** Encart repliable au-dessus du chat, à hauteur limitée pour laisser la place à la conversation. */
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <details open className="card group/panel shrink-0">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-2.5 text-sm font-semibold text-slate-900 [&::-webkit-details-marker]:hidden dark:text-white">
-        {title}
-        <Chevron className="group-open/panel:rotate-180" />
-      </summary>
-      <div className="max-h-44 space-y-2 overflow-y-auto px-4 pb-3">{children}</div>
-    </details>
-  );
-}
-
 /**
- * Mots-clés de l'offre manquants dans le CV : taux de correspondance et mots-clés, recalculés sur
- * le texte affiché. Un clic pré-remplit le chat avec une phrase à compléter : rien n'est envoyé.
+ * Onglet « Mots-clés » du CV Builder : taux de correspondance et mots-clés de l'offre absents du
+ * CV. Un clic prépare une phrase à compléter dans le chat : rien n'est envoyé.
  */
-export function MissingKeywordsPanel({
-  analysis,
-  cvText,
-  onInsert,
-}: {
-  analysis: EditorKeywords;
-  cvText: string | null;
-  onInsert?: (text: string) => void;
-}) {
-  const match = matchCvKeywords(analysis, cvText, analysis.sector);
-  const groupOf = new Map(analysis.keywords.map((k) => [k.keyword, k.group]));
+export function MissingKeywordsPanel({ match, onInsert }: { match: KeywordMatch; onInsert?: (text: string) => void }) {
+  const groupOf = new Map(match.rows.map((r) => [r.keyword, r.group]));
 
   return (
-    <Panel title="Mots-clés manquants">
-      {onInsert && (
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Clique sur un mot-clé pour préparer un message au coach, à compléter avec ton expérience.
-        </p>
-      )}
+    <div className="space-y-4">
       <KeywordRate rate={match.rate} />
       <KeywordMatchView
         match={match}
         onPick={onInsert ? (keyword) => onInsert(PROMPTS[groupOf.get(keyword) ?? "technique"](keyword)) : undefined}
       />
-    </Panel>
+    </div>
   );
 }
 
@@ -79,7 +48,7 @@ export function MissingPointsPanel({ points, onInsert }: { points: string[]; onI
   }
 
   return (
-    <Panel title="Ce qui manque">
+    <div className="space-y-3">
       <p className="text-xs text-slate-500 dark:text-slate-400">
         D&apos;après l&apos;analyse de ton CV.{onInsert ? " Clique sur un point pour l'envoyer dans le chat." : " Clique sur un point pour le copier."}
       </p>
@@ -101,6 +70,6 @@ export function MissingPointsPanel({ points, onInsert }: { points: string[]; onI
           </li>
         ))}
       </ul>
-    </Panel>
+    </div>
   );
 }

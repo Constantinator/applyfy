@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import {
   coachOpeningAction,
@@ -27,6 +28,7 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { matchCvKeywords } from "@/lib/cv-keyword-match";
 import { scoreCv, type ScoringContext } from "@/lib/cv-score";
 import type { OfferKeyword } from "@/lib/cv-types";
 import { createClient } from "@/lib/supabase/client";
@@ -85,7 +87,7 @@ function readStrings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [];
 }
 
-type TabId = "content" | "chat" | "style";
+type TabId = "content" | "chat" | "style" | "keywords";
 const SCRATCH_TABS: [TabId, string][] = [
   ["content", "Contenu"],
   ["chat", "Chat IA"],
@@ -127,8 +129,8 @@ export function CvBuilderEditor({
   // Modèle et couleur d'accent : panneau « Style du CV » (enregistrés avec le CV).
   const [templateId, setTemplateId] = useState<CvTemplateId>(cv.templateId);
   // CV créé depuis zéro : onglet « Contenu » en plus, ouvert d'abord (le CV est vide).
-  const tabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
-  const [tab, setTab] = useState<TabId>(tabs[0][0]);
+  const baseTabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
+  const [chosenTab, setTab] = useState<TabId>(baseTabs[0][0]);
   const [data, setData] = useState<CvData>(cv.data);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -203,10 +205,19 @@ export function CvBuilderEditor({
   const [scoringContext, setScoringContext] = useState(scoring);
   const score = useMemo(() => scoreCv(data, scoringContext), [data, scoringContext]);
 
-  // Encart de la candidature liée : mots-clés comparés au CV affiché ; un clic pré-remplit le chat.
+  // Candidature liée : mots-clés de l'offre comparés au CV affiché, onglet tant qu'il en manque.
+  const offerKeywords = application?.keywords;
+  const sector = scoringContext.sector;
+  const keywordMatch = useMemo(
+    () => (offerKeywords ? matchCvKeywords(offerKeywords, cvDataToText(data), sector) : null),
+    [offerKeywords, data, sector],
+  );
+  const missingPoints = offerKeywords ? [] : (application?.missingPoints ?? []);
+  const showKeywords = Boolean(keywordMatch?.rows.some((r) => !r.present && !r.ignored)) || missingPoints.length > 0;
+  const tabs: [TabId, string][] = showKeywords ? [...baseTabs, ["keywords", "Mots-clés"]] : baseTabs;
+  // Dernier mot-clé ajouté au CV depuis l'aperçu : l'onglet disparaît, retour au chat.
+  const tab = chosenTab === "keywords" && !showKeywords ? "chat" : chosenTab;
   const chatRef = useRef<RefineChatHandle>(null);
-  const cvText = useMemo(() => cvDataToText(data), [data]);
-  const insertInChat = usage.aiEnabled ? (text: string) => chatRef.current?.insert(text) : undefined;
 
   // Poste cible modifié (titre du CV ou poste visé) : secteur redétecté par le serveur.
   const target = `${data.personal.jobTitle.trim()}|${targetJobOf(data)}`;
@@ -254,6 +265,16 @@ export function CvBuilderEditor({
       cancelled = true;
     };
   }, [cv.id]);
+
+  // Clic sur un mot-clé : le chat s'affiche d'abord (le champ masqué ne peut pas prendre le focus),
+  // puis reçoit le message. Pas de chat tant que l'historique n'est pas lu.
+  const insertInChat =
+    usage.aiEnabled && coachHistory !== null
+      ? (text: string) => {
+          flushSync(() => setTab("chat"));
+          chatRef.current?.insert(text);
+        }
+      : undefined;
 
   // Échange du coach : points abandonnés renvoyés, puis conversation enregistrée (sans échec :
   // une sauvegarde manquée est seulement journalisée).
@@ -382,16 +403,6 @@ export function CvBuilderEditor({
           </div>
           {/* Chat masqué (pas démonté) pendant l'onglet Style : la conversation en cours est gardée. */}
           <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" className={tab === "chat" ? "contents" : "hidden"}>
-            {application?.keywords && (
-              <MissingKeywordsPanel
-                analysis={{ ...application.keywords, sector: scoringContext.sector }}
-                cvText={cvText}
-                onInsert={insertInChat}
-              />
-            )}
-            {!application?.keywords && Boolean(application?.missingPoints.length) && (
-              <MissingPointsPanel points={application?.missingPoints ?? []} onInsert={insertInChat} />
-            )}
             {coachHistory === null ? (
               <p role="status" className="card p-5 text-sm text-slate-500 dark:text-slate-400">
                 Chargement de la conversation…
@@ -446,6 +457,15 @@ export function CvBuilderEditor({
           {tab === "content" && (
             <div id="panel-content" role="tabpanel" aria-labelledby="tab-content" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <CvContentPanel data={data} onChange={edit} />
+            </div>
+          )}
+          {tab === "keywords" && (
+            <div id="panel-keywords" role="tabpanel" aria-labelledby="tab-keywords" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              {keywordMatch ? (
+                <MissingKeywordsPanel match={keywordMatch} onInsert={insertInChat} />
+              ) : (
+                <MissingPointsPanel points={missingPoints} onInsert={insertInChat} />
+              )}
             </div>
           )}
           {tab === "style" && (
