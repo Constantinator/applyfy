@@ -172,6 +172,15 @@ export function TemplateChoiceDialog({
   );
 }
 
+/** Prévient qu'un nouveau CV prendra la place de celui déjà lié à la candidature. */
+export function CvReplacementNotice({ title, className = "" }: { title: string; className?: string }) {
+  return (
+    <p className={`text-sm text-amber-700 dark:text-amber-300 ${className}`}>
+      Ce CV remplacera « {title} » pour cette offre. L&apos;ancien CV restera dans ta bibliothèque.
+    </p>
+  );
+}
+
 /** Poste visé : saisi à l'étape 1 de « Créer un CV depuis zéro ». */
 const TARGET_JOB_MIN = 2;
 const TARGET_JOB_MAX = 120;
@@ -231,11 +240,7 @@ export function NewCvDialog({
               <h2 id={titleId} className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
               </h2>
-              {application?.linkedCvTitle && (
-                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                  Ce CV remplacera « {application.linkedCvTitle} » pour cette offre. L&apos;ancien CV restera dans ta bibliothèque.
-                </p>
-              )}
+              {application?.linkedCvTitle && <CvReplacementNotice title={application.linkedCvTitle} className="mt-1" />}
             </div>
             <button
               type="button"

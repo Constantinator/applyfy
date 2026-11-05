@@ -15,7 +15,7 @@ import {
 import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
 
 import { CvImportProgress, type ImportedCv } from "./cv-import-progress";
-import { TemplateChoiceDialog } from "./new-cv-dialog";
+import { CvReplacementNotice, TemplateChoiceDialog } from "./new-cv-dialog";
 import { SCORE_TONES, ScoreGauge, scoreLabel } from "./cv-score-card";
 
 const STEPS = ["Import", "Analyse", "Modèle", "Éditeur"] as const;
@@ -32,10 +32,15 @@ export function CvImportFlow({
 }: {
   resetLabel: string;
   aiEnabled: boolean;
-  /** Arrivée depuis une fiche : CV lié à cette candidature, son poste pré-rempli. */
-  application?: { id: string; position: string } | null;
+  /**
+   * Arrivée depuis une fiche : CV lié à cette candidature, son poste pré-rempli.
+   * `linkedCvTitle` : nom du CV déjà lié, que ce nouveau CV remplacera.
+   */
+  application?: { id: string; position: string; linkedCvTitle: string | null } | null;
 }) {
   const router = useRouter();
+  // Figé à l'arrivée : le CV importé est lié dès l'extraction, et la page se recharge alors avec lui.
+  const [replacedTitle] = useState(application?.linkedCvTitle ?? null);
   const [step, setStep] = useState(0);
   const [imported, setImported] = useState<ImportedCv | null>(null);
   const [targetJob, setTargetJob] = useState((application?.position ?? "").slice(0, 120));
@@ -67,6 +72,7 @@ export function CvImportFlow({
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
           Créer un CV à partir d&apos;un CV existant
         </h1>
+        {replacedTitle && step === 0 && <CvReplacementNotice title={replacedTitle} />}
         <Stepper current={step} />
       </div>
 

@@ -96,7 +96,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
               href={`/candidatures/${detail.application.id}`}
               className="mt-1.5 inline-block text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
             >
-              ← Retour à la candidature
+              Retour à la candidature
             </Link>
           )}
           <p className="mt-1.5 text-slate-500 dark:text-slate-400">

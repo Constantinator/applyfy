@@ -6,6 +6,7 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
+import { getBuilderCvByApplication } from "@/lib/cv-builder";
 
 export const metadata: Metadata = { title: "Créer un CV à partir d'un CV existant — Applyfy" };
 
@@ -22,13 +23,16 @@ export default async function CvImportPage({ searchParams }: PageProps<"/cv-buil
     readAiUsage(),
     typeof applicationId === "string" ? getApplicationDetail(applicationId) : null,
   ]);
+  const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
       <CvImportFlow
         resetLabel={formatResetDate(usage.resetsOn)}
         aiEnabled={isClaudeConfigured()}
-        application={detail && { id: detail.application.id, position: detail.application.position }}
+        application={
+          detail && { id: detail.application.id, position: detail.application.position, linkedCvTitle: linked?.title ?? null }
+        }
       />
     </main>
   );
