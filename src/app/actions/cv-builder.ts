@@ -14,6 +14,7 @@ import {
   isLimitReached,
   type AiUsageKind,
 } from "@/lib/ai-usage-limits";
+import { applicationCvTitle, ensureOfferKeywords } from "@/lib/application-cv";
 import { getApplicationDetail } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -36,6 +37,7 @@ import {
   createBuilderCv,
   deleteBuilderCv,
   getBuilderCv,
+  linkBuilderCvToApplication,
   saveBuilderCv,
 } from "@/lib/cv-builder";
 import { clip, importedToCvData } from "@/lib/cv-builder-import";
@@ -72,13 +74,22 @@ import { recordUserJobOffer } from "@/lib/user-job-offers";
 /**
  * « Créer un CV depuis zéro » : CV pré-rempli avec le nom et l'email du compte, dans le modèle
  * choisi (à lier au formulaire : `createBuilderCvAction.bind(null, templateId)`), avec le poste
- * visé du formulaire (champ « targetJob », aussi titre du CV), puis l'éditeur.
+ * visé du formulaire (champ « targetJob », aussi titre du CV), puis l'éditeur. Champ
+ * « applicationId » : CV lié à cette candidature, et mots-clés de son offre générés.
  */
 export async function createBuilderCvAction(templateId: CvTemplateId, formData?: FormData) {
   let id: string;
   const targetJob = String(formData?.get("targetJob") ?? "").trim().slice(0, 120);
+  const applicationId = String(formData?.get("applicationId") ?? "");
   try {
-    const [user, name] = await Promise.all([getCurrentUser(), getAccountName().catch(() => null)]);
+    // Vérifie la connexion ET que la candidature appartient bien à l'utilisateur.
+    const detail = applicationId ? await getApplicationDetail(applicationId) : null;
+    if (applicationId && !detail) redirect("/cv-builder?erreur=creation");
+    const [user, name] = await Promise.all([
+      getCurrentUser(),
+      getAccountName().catch(() => null),
+      detail ? ensureOfferKeywords(detail) : null,
+    ]);
     id = await createBuilderCv(
       CvDataSchema.parse({
         personal: {
@@ -90,9 +101,18 @@ export async function createBuilderCvAction(templateId: CvTemplateId, formData?:
         targetJob,
         origin: "scratch",
       }),
-      "Mon CV",
+      detail ? applicationCvTitle(name, detail.application.company) : "Mon CV",
       isTemplateId(templateId) ? templateId : "minimaliste",
     );
+    if (detail) {
+      try {
+        await linkBuilderCvToApplication(id, applicationId);
+      } catch (error) {
+        // CV sans lien : il ne reste pas dans la liste.
+        await deleteBuilderCv(id).catch((e) => console.error("[cv-builder] suppression", e));
+        throw error;
+      }
+    }
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof CvBuilderError) redirect("/cv-builder?erreur=limite");
@@ -100,6 +120,7 @@ export async function createBuilderCvAction(templateId: CvTemplateId, formData?:
     redirect("/cv-builder?erreur=creation");
   }
   revalidatePath("/cv-builder");
+  if (applicationId) revalidatePath(`/candidatures/${applicationId}`);
   redirect(`/cv-builder/${id}`);
 }
 

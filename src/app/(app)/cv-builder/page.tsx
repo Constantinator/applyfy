@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
 import { NewCvDialog } from "@/components/cv-builder/new-cv-dialog";
 import { IconDocument } from "@/components/icons";
-import { CV_BUILDER_MAX, listBuilderCvs } from "@/lib/cv-builder";
+import { getApplicationDetail } from "@/lib/applications";
+import { CV_BUILDER_MAX, getBuilderCvByApplication, listBuilderCvs } from "@/lib/cv-builder";
 import { CV_TEMPLATES } from "@/lib/cv-builder-types";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
+
+// CV d'une candidature (Server Action de cette page) : mots-clés de l'offre, jusqu'à une minute.
+export const maxDuration = 120;
 
 const ERRORS: Record<string, string> = {
   creation: "Le CV n'a pas pu être créé. Réessaie dans un instant.",
@@ -28,8 +33,12 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 /** « CV Builder » : CV créés dans Applyfy, et création d'un nouveau CV. */
 export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-builder">) {
   await connection();
-  const { erreur } = await searchParams;
-  const error = typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
+  const { erreur, applicationId } = await searchParams;
+
+  // Arrivée depuis une fiche (candidature de l'utilisateur, vérifiée ici) : son CV s'il en a déjà un.
+  const detail = typeof applicationId === "string" ? await getApplicationDetail(applicationId) : null;
+  const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
+  if (linked) redirect(`/cv-builder/${linked.id}`);
 
   let cvs: Awaited<ReturnType<typeof listBuilderCvs>> | null = null;
   try {
@@ -37,6 +46,8 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
   } catch (e) {
     console.error("[cv-builder] liste", e);
   }
+  const full = cvs !== null && cvs.length >= CV_BUILDER_MAX;
+  const error = detail && full ? ERRORS.limite : typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -49,7 +60,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
         </div>
         {cvs && cvs.length < CV_BUILDER_MAX && (
           <div className="flex flex-wrap items-start gap-2">
-            <NewCvDialog />
+            <NewCvDialog application={detail && { id: detail.application.id, position: detail.application.position }} />
             <Link href="/cv-builder/importer" className="btn-secondary px-5 py-2.5 text-sm">
               Créer un CV à partir d&apos;un CV existant
             </Link>

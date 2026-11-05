@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createBuilderCvAction } from "@/app/actions/cv-builder";
@@ -177,12 +177,17 @@ const TARGET_JOB_MAX = 120;
 
 /**
  * « Créer un CV depuis zéro », en deux étapes : poste visé (secteur du score et du coach, aussi
- * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre.
+ * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre. `application` : fenêtre
+ * ouverte d'office, poste de la candidature pré-rempli, CV lié à cette candidature.
  */
-export function NewCvDialog() {
+export function NewCvDialog({ application = null }: { application?: { id: string; position: string } | null }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState<1 | 2>(1);
-  const [targetJob, setTargetJob] = useState("");
+  const [targetJob, setTargetJob] = useState((application?.position ?? "").slice(0, TARGET_JOB_MAX));
+  const autoOpen = Boolean(application);
+  useEffect(() => {
+    if (autoOpen && !dialogRef.current?.open) dialogRef.current?.showModal();
+  }, [autoOpen]);
   const [templateId, setTemplateId] = useState<CvTemplateId>("minimaliste");
   const titleId = useId();
   const jobId = useId();
@@ -269,6 +274,7 @@ export function NewCvDialog() {
                 </button>
                 <form action={createBuilderCvAction.bind(null, templateId)}>
                   <input type="hidden" name="targetJob" value={targetJob.trim()} />
+                  {application && <input type="hidden" name="applicationId" value={application.id} />}
                   <SubmitButton className="btn-primary px-6 py-2.5 text-sm">Créer mon CV</SubmitButton>
                 </form>
               </div>

@@ -6,7 +6,6 @@ import {
   isTemplateId,
   readCvData,
   type BuilderCv,
-  type BuilderCvChoice,
   type BuilderCvSummary,
   type CvData,
   type CvTemplateId,
@@ -75,23 +74,6 @@ export async function listBuilderCvs(): Promise<BuilderCvSummary[]> {
   return (data as Row[]).map(toCv).map(toSummary);
 }
 
-/** CV de l'utilisateur proposés à la reprise, du plus récent au plus ancien (sans leur contenu). */
-export async function listBuilderCvChoices(): Promise<BuilderCvChoice[]> {
-  if (!isSupabaseConfigured()) {
-    return [...demoCvs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(({ id, title }) => ({ id, title }));
-  }
-
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("cv_builder")
-    .select("id, title")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false });
-  if (error) throw new Error(`Chargement des CV impossible : ${error.message}`);
-  return data as BuilderCvChoice[];
-}
-
 export async function getBuilderCv(id: string): Promise<BuilderCv | null> {
   if (!isSupabaseConfigured()) return demoCvs.find((cv) => cv.id === id) ?? null;
 
@@ -126,22 +108,6 @@ export async function getBuilderCvByApplication(applicationId: string): Promise<
     return null;
   }
   return data ? toCv(data as Row) : null;
-}
-
-/** Vérifié avant un appel à l'IA : une place est libre pour un nouveau CV. */
-export async function assertBuilderCvRoom(): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    if (demoCvs.length >= CV_BUILDER_MAX) throw new CvBuilderError(`Tu as atteint la limite de ${CV_BUILDER_MAX} CV.`);
-    return;
-  }
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from("cv_builder")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
-  if (error) throw new Error(`Création du CV impossible : ${error.message}`);
-  if ((count ?? 0) >= CV_BUILDER_MAX) throw new CvBuilderError(`Tu as atteint la limite de ${CV_BUILDER_MAX} CV.`);
 }
 
 /**
