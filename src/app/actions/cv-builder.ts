@@ -14,6 +14,7 @@ import {
   isLimitReached,
   type AiUsageKind,
 } from "@/lib/ai-usage-limits";
+import { getApplicationDetail } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
 import {
   adaptCvToOffer,
@@ -43,6 +44,7 @@ import {
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
   chatContent,
+  cvDataToText,
   CvAnalysisSchema,
   CV_CRITERIA,
   CvDataSchema,
@@ -57,7 +59,9 @@ import {
 } from "@/lib/cv-builder-types";
 import { bannedPhrasesInCv, scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
 import { loadScoringContext } from "@/lib/cv-score-context";
-import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
+import { matchCvKeywords } from "@/lib/cv-keyword-match";
+import type { Sector } from "@/lib/cv-sector-context";
+import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import { matchKeywords } from "@/lib/keyword-match";
 import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
@@ -520,22 +524,53 @@ export async function completeCvImportAction(
 /** Échanges précédents transmis au coach (un coaching s'étale sur plusieurs messages). */
 const COACH_HISTORY_MAX = 30;
 
+/** Mots-clés de l'offre transmis au coach, pour garder une session courte. */
+const COACH_OFFER_KEYWORDS_MAX = 8;
+
+/**
+ * Mots-clés de l'offre encore absents du CV (recalculés à chaque échange), les plus importants
+ * d'abord. Sans échec : le coach continue sans eux.
+ */
+async function missingOfferKeywords(applicationId: string, data: CvData, sector: Sector): Promise<string[]> {
+  try {
+    const detail = await getApplicationDetail(applicationId);
+    const saved = readCvSuggestions(detail?.application.cv_suggestions);
+    const missing =
+      saved?.kind === "keywords"
+        ? matchCvKeywords(saved, cvDataToText(data), sector)
+            .rows.filter((r) => !r.present && !r.ignored)
+            .map((r) => r.keyword)
+        : (saved?.ce_qui_manque ?? []);
+    return missing.slice(0, COACH_OFFER_KEYWORDS_MAX);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[cv-builder coach] mots-clés de l'offre", error);
+    return [];
+  }
+}
+
 /**
  * Contenu du CV transmis au coach, son empreinte (cache du premier message) et les données du
  * secteur (vérification des modifications). Le coach reçoit à chaque échange la liste à jour
  * des points à corriger : toutes les corrections du score, de la plus rentable à la moins
  * rentable, et les formules à éviter présentes dans le CV.
  */
-async function coachContext(data: CvData): Promise<CoachContext & { contentKey: string; scoring: ScoringContext }> {
+async function coachContext(
+  data: CvData,
+  applicationId: string | null,
+): Promise<CoachContext & { contentKey: string; scoring: ScoringContext }> {
   const cvJson = JSON.stringify(chatContent(data));
   const a = data.analysis;
   // Score calculé par le code, le même que celui affiché dans l'éditeur.
   const scoring = await loadScoringContext(data);
   const score = scoreCv(data, scoring);
+  const offerKeywords = applicationId ? await missingOfferKeywords(applicationId, data, scoring.sector) : [];
   return {
     scoring,
     cvJson,
-    contentKey: createHash("sha256").update(cvJson).digest("hex").slice(0, 32),
+    offerKeywords,
+    // Mots-clés compris : le premier message est réécrit quand ils changent.
+    contentKey: createHash("sha256").update(cvJson + offerKeywords.join()).digest("hex").slice(0, 32),
     score: {
       value: score.score,
       corrections: score.corrections.map((c) => `${c.message} (+${c.points} pts)`),
@@ -567,7 +602,7 @@ export async function coachOpeningAction(
   try {
     const cv = await getBuilderCv(id);
     if (!cv) return { ok: false };
-    const context = await coachContext(cv.data);
+    const context = await coachContext(cv.data, cv.applicationId);
     if (cv.data.coach?.contentKey === context.contentKey) return { ok: true, coach: cv.data.coach };
 
     const rate = await checkAiRateLimit();
@@ -621,7 +656,7 @@ function skippedPoints(value: unknown): string[] {
  * CV affiché dans l'éditeur (modifications non enregistrées comprises), avec la photo, les
  * réglages et l'analyse enregistrés ; message d'erreur s'il est invalide ou n'est pas à l'utilisateur.
  */
-async function readShownCv(id: string, json: string): Promise<CvData | string> {
+async function readShownCv(id: string, json: string): Promise<{ data: CvData; applicationId: string | null } | string> {
   if (json.length > 200_000) return "Le CV est trop long.";
   let shown: CvData;
   try {
@@ -635,14 +670,17 @@ async function readShownCv(id: string, json: string): Promise<CvData | string> {
   const stored = await getBuilderCv(id);
   if (!stored) return "Ce CV n'existe plus.";
   return {
-    ...shown,
-    personal: { ...shown.personal, photo: stored.data.personal.photo },
-    style: stored.data.style,
-    analysis: stored.data.analysis,
-    // Hors du contenu envoyé par l'éditeur (chatContent) : le poste visé guide le coach et le score.
-    targetJob: stored.data.targetJob,
-    origin: stored.data.origin,
-    coach: null,
+    applicationId: stored.applicationId,
+    data: {
+      ...shown,
+      personal: { ...shown.personal, photo: stored.data.personal.photo },
+      style: stored.data.style,
+      analysis: stored.data.analysis,
+      // Hors du contenu envoyé par l'éditeur (chatContent) : le poste visé guide le coach et le score.
+      targetJob: stored.data.targetJob,
+      origin: stored.data.origin,
+      coach: null,
+    },
   };
 }
 
@@ -683,8 +721,9 @@ export async function refineBuilderCvAction(
   if (request.length > REFINE_MESSAGE_MAX_LENGTH) return { ok: false, error: "Ton message est trop long." };
   if (!isClaudeConfigured()) return { ok: false, error: "L'assistant n'est pas activé (clé API Claude manquante)." };
 
-  const current = await readShownCv(id, json);
-  if (typeof current === "string") return { ok: false, error: current };
+  const shown = await readShownCv(id, json);
+  if (typeof shown === "string") return { ok: false, error: shown };
+  const current = shown.data;
   const gate = await coachGate();
   if (!gate.ok) return gate;
   const turns = coachTurns(history);
@@ -692,7 +731,7 @@ export async function refineBuilderCvAction(
   let context;
   let reply;
   try {
-    context = { ...(await coachContext(current)), skipped: skippedPoints(skipped) };
+    context = { ...(await coachContext(current, shown.applicationId)), skipped: skippedPoints(skipped) };
     reply = await coachBuilderCv(context, turns, request);
   } catch (error) {
     return { ok: false, error: claudeErrorMessage(error, "cv-builder coach") };

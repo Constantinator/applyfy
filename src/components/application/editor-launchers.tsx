@@ -293,9 +293,7 @@ export function CvEditorLauncher({
         {pending && (
           <p role="status" className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <Spinner />
-            {source === "vierge"
-              ? "Ouverture de l'éditeur…"
-              : "Préparation de ton CV dans l'éditeur… cela peut prendre jusqu'à une minute."}
+            Préparation de ton CV dans l&apos;éditeur… cela peut prendre jusqu&apos;à une minute.
           </p>
         )}
         {state.status === "error" && !state.limitReached && !pending && (

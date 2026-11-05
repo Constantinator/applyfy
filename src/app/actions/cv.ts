@@ -14,6 +14,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   claudeErrorMessage,
   extractCvContent,
+  extractOfferKeywords,
   isClaudeConfigured,
   suggestCvAdaptations,
   type CvSource,
@@ -249,6 +250,33 @@ async function builderDataFor(
 }
 
 /**
+ * Mots-clés de l'offre, générés une seule fois par candidature : encart du CV Builder et coach.
+ * Hors quota et sans échec : sans eux, le CV s'ouvre quand même (nouvel essai à la prochaine
+ * ouverture). Sans texte d'offre, rien à comparer : pas d'appel à l'IA.
+ */
+async function ensureOfferKeywords(detail: ApplicationDetailResult): Promise<void> {
+  const app = detail.application;
+  if (!isClaudeConfigured() || readCvSuggestions(app.cv_suggestions)?.kind === "keywords") return;
+  if (!app.offer_description?.trim() && !app.offer_summary?.trim()) return;
+  try {
+    const rate = await checkAiRateLimit();
+    if (!rate.ok) return;
+    const extracted = await extractOfferKeywords(offerContext(detail));
+    if (!extracted) return;
+    const keywords = weighKeywords(extracted.mots_cles, {
+      usefulText: extracted.offre_utile,
+      position: app.position,
+      company: app.company,
+    });
+    if (!keywords.length) return;
+    await saveCvSuggestions(app.id, { kind: "keywords", keywords, ignored: [], conseils: [], titre_cv: "", cvText: null });
+  } catch (error) {
+    unstable_rethrow(error);
+    claudeErrorMessage(error, "openCvEditor : mots-clés de l'offre"); // journalisation
+  }
+}
+
+/**
  * « Ouvrir l'éditeur de CV » : le CV s'ouvre dans le CV Builder, lié à la candidature.
  *   - actuel : le CV déjà lié, sinon celui de l'ancien éditeur (converti une seule fois) ;
  *   - profil : un CV du profil, extrait une seule fois (version mémorisée ensuite) ;
@@ -272,11 +300,13 @@ export async function openCvEditorAction(
   try {
     const linked = source === "actuel" ? await getBuilderCvByApplication(app.id) : null;
     if (linked) {
+      await ensureOfferKeywords(detail);
       builderId = linked.id;
     } else {
       // Avant l'appel à l'IA : pas d'attente ni de quota perdus si la limite de CV est atteinte.
       await assertBuilderCvRoom();
-      const result = await builderDataFor(source, formData, app);
+      // En parallèle : les deux appels à l'IA doivent tenir dans la durée maximale de la requête.
+      const [result] = await Promise.all([builderDataFor(source, formData, app), ensureOfferKeywords(detail)]);
       if (!result.ok) return result.state;
       const data = result.value;
       const targetJob = app.position.trim().slice(0, 120);
