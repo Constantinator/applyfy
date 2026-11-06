@@ -94,6 +94,8 @@ export function CvImportFlow({
           score={imported.score}
           targetJob={targetJob}
           onTargetJob={setTargetJob}
+          // Le poste vient de la candidature : pas de question, sauf s'il est inutilisable.
+          askTargetJob={(application?.position.trim().length ?? 0) < 2}
           onContinue={chooseTemplate}
         />
       )}
@@ -291,6 +293,7 @@ function AnalysisStep({
   score,
   targetJob,
   onTargetJob,
+  askTargetJob,
   onContinue,
 }: {
   analysis: CvAnalysis | null;
@@ -298,8 +301,10 @@ function AnalysisStep({
   score: CvScore;
   targetJob: string;
   onTargetJob: (value: string) => void;
+  askTargetJob: boolean;
   onContinue: () => void;
 }) {
+  const screens = ANALYSIS_SCREENS.filter((label) => askTargetJob || label !== "Poste visé");
   const [screen, setScreen] = useState(0);
   const headingRef = useRef<HTMLDivElement>(null);
 
@@ -319,7 +324,8 @@ function AnalysisStep({
     );
   }
 
-  const last = screen === ANALYSIS_SCREENS.length - 1;
+  const current = screens[screen];
+  const last = screen === screens.length - 1;
   function go(next: number) {
     setScreen(next);
     // Nouvel écran : retour en haut, focus sur son contenu (lecteurs d'écran).
@@ -331,10 +337,10 @@ function AnalysisStep({
     <div className="mx-auto max-w-2xl space-y-5">
       <div ref={headingRef} tabIndex={-1} className="flex items-center justify-between gap-3 outline-none">
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-          {screen + 1}/{ANALYSIS_SCREENS.length} · {ANALYSIS_SCREENS[screen]}
+          {screen + 1}/{screens.length} · {current}
         </p>
         <div aria-hidden="true" className="flex gap-1.5">
-          {ANALYSIS_SCREENS.map((label, i) => (
+          {screens.map((label, i) => (
             <span
               key={label}
               className={`h-1.5 w-6 rounded-full ${i <= screen ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"}`}
@@ -343,10 +349,10 @@ function AnalysisStep({
         </div>
       </div>
 
-      {screen === 0 && <ScoreCard score={score} />}
-      {screen === 1 && <PointsCard analysis={analysis} />}
-      {screen === 2 && <TargetJobCard suggestions={analysis.suggestedJobs} value={targetJob} onChange={onTargetJob} />}
-      {screen === 3 && <OptimizationsCard analysis={analysis} />}
+      {current === "Score" && <ScoreCard score={score} />}
+      {current === "Points forts et faibles" && <PointsCard analysis={analysis} />}
+      {current === "Poste visé" && <TargetJobCard suggestions={analysis.suggestedJobs} value={targetJob} onChange={onTargetJob} />}
+      {current === "Optimisations" && <OptimizationsCard analysis={analysis} />}
 
       <div className="flex items-center justify-between gap-3">
         {screen > 0 ? (

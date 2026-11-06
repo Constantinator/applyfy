@@ -59,9 +59,34 @@ function CvCardContent({ cv }: { cv: BuilderCvSummary }) {
   );
 }
 
+/** Liste de CV, chacun dans sa carte. */
+function CvList({ cvs }: { cvs: BuilderCvSummary[] }) {
+  return (
+    <ul className="grid gap-4 sm:grid-cols-2">
+      {cvs.map((cv) => (
+        <li key={cv.id} className="card flex flex-col gap-4 p-5">
+          <CvCardContent cv={cv} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Section de la page d'une candidature : les CV sous leur titre. */
+function CvSection({ id, title, cvs }: { id: string; title: string; cvs: BuilderCvSummary[] }) {
+  return (
+    <section aria-labelledby={id} className="space-y-3">
+      <h2 id={id} className="font-semibold text-slate-900 dark:text-white">
+        {title}
+      </h2>
+      <CvList cvs={cvs} />
+    </section>
+  );
+}
+
 /**
  * « CV Builder » : CV créés dans Applyfy, et création d'un nouveau CV. Avec `applicationId` (arrivée
- * depuis une fiche) : page de cette candidature, son CV en tête, et tout nouveau CV lui est lié.
+ * depuis une fiche) : page de cette candidature, où tout nouveau CV lui est lié.
  */
 export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-builder">) {
   await connection();
@@ -80,10 +105,24 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
   const currentCv = linked ? (cvs?.find((cv) => cv.id === linked.id) ?? null) : null;
   const otherCvs = cvs?.filter((cv) => cv.id !== currentCv?.id) ?? [];
   const full = cvs !== null && cvs.length >= CV_BUILDER_MAX;
-  // Limite signalée d'office seulement quand il faut créer le CV de cette candidature.
-  const error = detail && !linked && full ? ERRORS.limite : typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
+  // Page d'une candidature : limite signalée d'office, ses boutons de création étant retirés.
+  const error = detail && full ? ERRORS.limite : typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
+  const importLink = (
+    <Link
+      href={detail ? `/cv-builder/importer?applicationId=${detail.application.id}` : "/cv-builder/importer"}
+      className="btn-secondary px-5 py-2.5 text-sm"
+    >
+      {detail ? "Importer un CV" : "Créer un CV à partir d'un CV existant"}
+    </Link>
+  );
   const heading = detail
-    ? `CV pour ${detail.application.position}${detail.application.company.trim() ? ` chez ${detail.application.company}` : ""}`
+    ? [
+        "CV",
+        detail.application.position.trim() && `pour ${detail.application.position}`,
+        detail.application.company.trim() && `chez ${detail.application.company}`,
+      ]
+        .filter(Boolean)
+        .join(" ")
     : "CV Builder";
 
   return (
@@ -105,6 +144,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
         </div>
         {cvs && cvs.length < CV_BUILDER_MAX && (
           <div className="flex flex-wrap items-start gap-2">
+            {detail && importLink}
             <NewCvDialog
               application={
                 detail && {
@@ -115,15 +155,8 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
                   linkedCvTitle: linked?.title ?? null,
                 }
               }
-              autoOpen={Boolean(detail && !linked)}
-              error={detail ? error : null}
             />
-            <Link
-              href={detail ? `/cv-builder/importer?applicationId=${detail.application.id}` : "/cv-builder/importer"}
-              className="btn-secondary px-5 py-2.5 text-sm"
-            >
-              Créer un CV à partir d&apos;un CV existant
-            </Link>
+            {!detail && importLink}
           </div>
         )}
       </div>
@@ -151,29 +184,13 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
             </p>
           </div>
         </div>
-      ) : (
+      ) : currentCv ? (
         <>
-          {currentCv && (
-            <section
-              aria-label="CV actuel pour cette offre"
-              className="card flex flex-col gap-4 bg-blue-50/60 p-5 ring-2 ring-blue-600 dark:bg-blue-500/10 dark:ring-blue-400"
-            >
-              <span className="w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
-                CV actuel pour cette offre
-              </span>
-              <CvCardContent cv={currentCv} />
-            </section>
-          )}
-          {otherCvs.length > 0 && (
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {otherCvs.map((cv) => (
-                <li key={cv.id} className="card flex flex-col gap-4 p-5">
-                  <CvCardContent cv={cv} />
-                </li>
-              ))}
-            </ul>
-          )}
+          <CvSection id="cv-lie" title="CV lié à l'offre" cvs={[currentCv]} />
+          {otherCvs.length > 0 && <CvSection id="cv-autres" title="Autres CV" cvs={otherCvs} />}
         </>
+      ) : (
+        <CvList cvs={otherCvs} />
       )}
     </main>
   );

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 
 import { convertLegacyCvAction, createBuilderCvAction } from "@/app/actions/cv-builder";
@@ -187,42 +186,36 @@ const TARGET_JOB_MAX = 120;
 
 /**
  * « Créer un CV depuis zéro », en deux étapes : poste visé (secteur du score et du coach, aussi
- * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre. `application` : poste de
- * la candidature pré-rempli, CV lié à cette candidature, et autres points de départ proposés
- * (CV existant, ancien CV de la candidature).
+ * titre du CV), puis modèle ; le CV vide est créé et l'éditeur s'ouvre. `application` : CV lié à
+ * cette candidature, dont le poste évite la première étape, et ancien CV de la candidature proposé.
  */
 export function NewCvDialog({
   application = null,
-  autoOpen = false,
-  error = null,
 }: {
   /** `linkedCvTitle` : nom du CV déjà lié, que le nouveau CV remplacera pour cette candidature. */
   application?: { id: string; position: string; hasLegacyCv: boolean; linkedCvTitle: string | null } | null;
-  /** Fenêtre ouverte d'office à l'affichage de la page. */
-  autoOpen?: boolean;
-  /** Message affiché dans la fenêtre, qui masque celui de la page quand elle est ouverte. */
-  error?: string | null;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [targetJob, setTargetJob] = useState((application?.position ?? "").slice(0, TARGET_JOB_MAX));
-  useEffect(() => {
-    if (autoOpen && !dialogRef.current?.open) dialogRef.current?.showModal();
-  }, [autoOpen]);
+  const position = (application?.position ?? "").trim().slice(0, TARGET_JOB_MAX);
+  // Le poste vient de la candidature : pas de question, sauf s'il est inutilisable.
+  const jobKnown = position.length >= TARGET_JOB_MIN;
+  const firstStep = jobKnown ? 2 : 1;
+  const [step, setStep] = useState<1 | 2>(firstStep);
+  const [targetJob, setTargetJob] = useState(position);
   const [templateId, setTemplateId] = useState<CvTemplateId>("minimaliste");
   const titleId = useId();
   const jobId = useId();
   const jobReady = targetJob.trim().length >= TARGET_JOB_MIN;
 
   function open() {
-    setStep(1);
+    setStep(firstStep);
     dialogRef.current?.showModal();
   }
 
   return (
     <>
       <button type="button" onClick={open} className="btn-primary px-5 py-2.5 text-sm">
-        Créer un CV depuis zéro
+        {application ? "Créer un CV à partir de zéro" : "Créer un CV depuis zéro"}
       </button>
       <dialog
         ref={dialogRef}
@@ -236,7 +229,7 @@ export function NewCvDialog({
         <div className="flex max-h-[92vh] flex-col">
           <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
             <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Étape {step} sur 2</p>
+              {!jobKnown && <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Étape {step} sur 2</p>}
               <h2 id={titleId} className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
               </h2>
@@ -253,12 +246,6 @@ export function NewCvDialog({
               </svg>
             </button>
           </div>
-
-          {error && (
-            <p role="alert" className="mx-6 mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30">
-              {error}
-            </p>
-          )}
 
           {step === 1 ? (
             <form
@@ -296,10 +283,23 @@ export function NewCvDialog({
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 <TemplateGrid selected={templateId} onSelect={setTemplateId} />
               </div>
-              <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
-                <button type="button" onClick={() => setStep(1)} className="btn-secondary px-5 py-2.5 text-sm">
-                  Retour
-                </button>
+              {application?.hasLegacyCv && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
+                  <p className="min-w-0 flex-1 basis-64 text-xs text-slate-500 dark:text-slate-400">
+                    Ton ancien CV est converti une seule fois, sans décompte. Cela peut prendre jusqu&apos;à une minute.
+                  </p>
+                  <form action={convertLegacyCvAction}>
+                    <input type="hidden" name="applicationId" value={application.id} />
+                    <SubmitButton className="btn-secondary px-4 py-2 text-sm">Reprendre mon ancien CV</SubmitButton>
+                  </form>
+                </div>
+              )}
+              <div className={`flex items-center gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700 ${jobKnown ? "justify-end" : "justify-between"}`}>
+                {!jobKnown && (
+                  <button type="button" onClick={() => setStep(1)} className="btn-secondary px-5 py-2.5 text-sm">
+                    Retour
+                  </button>
+                )}
                 <form action={createBuilderCvAction.bind(null, templateId)}>
                   <input type="hidden" name="targetJob" value={targetJob.trim()} />
                   {application && <input type="hidden" name="applicationId" value={application.id} />}
@@ -307,28 +307,6 @@ export function NewCvDialog({
                 </form>
               </div>
             </>
-          )}
-
-          {step === 1 && application && (
-            <div className="space-y-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
-              <p className="text-sm text-slate-600 dark:text-slate-300">Tu as déjà un CV ?</p>
-              <div className="flex flex-wrap items-center gap-2">
-                {application.hasLegacyCv && (
-                  <form action={convertLegacyCvAction}>
-                    <input type="hidden" name="applicationId" value={application.id} />
-                    <SubmitButton className="btn-secondary px-4 py-2 text-sm">Reprendre mon ancien CV</SubmitButton>
-                  </form>
-                )}
-                <Link href={`/cv-builder/importer?applicationId=${application.id}`} className="btn-secondary px-4 py-2 text-sm">
-                  Partir d&apos;un CV existant
-                </Link>
-              </div>
-              {application.hasLegacyCv && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Ton ancien CV est converti une seule fois, sans décompte. Cela peut prendre jusqu&apos;à une minute.
-                </p>
-              )}
-            </div>
           )}
         </div>
       </dialog>
