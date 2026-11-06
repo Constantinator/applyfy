@@ -4,13 +4,19 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
-import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
+import { CvCard, type LatestCv } from "@/components/dashboard/cv-card";
 import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversion";
 import { IconSparkles } from "@/components/icons";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { TodoCard } from "@/components/dashboard/todo-card";
+import { getAccountName } from "@/lib/account";
 import { getApplications } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
 import { getBetaSpotsLeft, getMyBeta, hasBetaPremium } from "@/lib/beta";
+import { getLatestBuilderCv } from "@/lib/cv-builder";
+import { scoreCv } from "@/lib/cv-score";
+import { loadScoringContext } from "@/lib/cv-score-context";
+import { buildTodo, todayLabel, todoCountLabel } from "@/lib/dashboard-todo";
 import { FOLLOW_UP_AFTER_DAYS, needsFollowUp } from "@/lib/follow-up";
 import { isStripeConfigured, syncCheckoutSession } from "@/lib/stripe";
 import { getSubscription } from "@/lib/subscription";
@@ -19,6 +25,18 @@ export const metadata: Metadata = { title: "Tableau de bord — Applyfy" };
 
 /** Paramètres de l'ancienne liste, qui était sur /dashboard : favoris et e-mails déjà envoyés. */
 const LIST_PARAMS = ["filtre", "tri", "ajout", "suppression"];
+
+/** Dernier CV et son score, le même que dans l'éditeur ; undefined si la lecture échoue. */
+async function loadLatestCv(): Promise<LatestCv | null | undefined> {
+  try {
+    const cv = await getLatestBuilderCv();
+    if (!cv) return null;
+    return { id: cv.id, title: cv.title, score: scoreCv(cv.data, await loadScoringContext(cv.data)).score };
+  } catch (error) {
+    console.error("[dashboard] lecture du dernier CV", error);
+    return undefined;
+  }
+}
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const params = await searchParams;
@@ -44,17 +62,23 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }
   }
 
-  const [{ applications, source }, subscription, beta] = await Promise.all([
+  const [{ applications, source }, subscription, beta, accountName, latestCv] = await Promise.all([
     getApplications(),
     getSubscription(),
     getMyBeta(),
+    // Non bloquant : sans nom, « Bonjour » seul.
+    getAccountName().catch(() => null),
+    loadLatestCv(),
   ]);
   const premium = (subscription?.premium ?? false) || hasBetaPremium(beta);
   // Programme beta : proposé à ceux qui n'y participent pas encore.
   const canJoinBeta = source !== "demo" && !beta;
   const betaSpotsLeft = canJoinBeta ? await getBetaSpotsLeft() : 0;
+  const canGoPremium = source !== "demo" && !premium;
   const now = new Date();
   const toFollowUp = applications.filter((app) => needsFollowUp(app, now));
+  const todo = buildTodo(applications, now);
+  const hasRealApplication = applications.some((app) => !app.is_example);
 
   const countByStatus = (status: string) =>
     applications.filter((app) => app.status === status).length;
@@ -84,43 +108,77 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </p>
       )}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Tableau de bord</h1>
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          {canJoinBeta && (
-            <BetaJoinDialog mode="join" spotsLeft={betaSpotsLeft} autoOpen={betaParam === "rejoindre"} />
-          )}
-          {source !== "demo" && !premium && (
-            <Link href="/premium" className="btn-secondary px-4 py-2.5 text-sm">
-              <IconSparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              Passer au Premium
-            </Link>
-          )}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{todayLabel(now)}</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight break-words text-slate-900 sm:text-4xl dark:text-white">
+            Bonjour{accountName ? ` ${accountName.firstName}` : ""}
+          </h1>
+          <p className="mt-2 text-lg text-slate-600 dark:text-slate-300">
+            {!hasRealApplication ? (
+              "Commence par ajouter ta première candidature."
+            ) : todo.length > 0 ? (
+              <>
+                Tu as{" "}
+                <strong className="font-semibold text-slate-900 dark:text-white">{todoCountLabel(todo.length)}</strong>{" "}
+                pour faire avancer tes candidatures.
+              </>
+            ) : (
+              "Bravo, tout est à jour aujourd'hui."
+            )}
+          </p>
         </div>
+        {(canJoinBeta || canGoPremium) && (
+          <div className="flex flex-wrap items-center gap-2 self-start">
+            {canJoinBeta && (
+              <BetaJoinDialog
+                mode="join"
+                spotsLeft={betaSpotsLeft}
+                autoOpen={betaParam === "rejoindre"}
+                triggerClassName="btn-secondary min-h-11 px-4 text-sm"
+              />
+            )}
+            {canGoPremium && (
+              <Link href="/premium" className="btn-secondary min-h-11 px-4 text-sm">
+                <IconSparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                Passer au Premium
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
-      {applications.length === 0 ? (
-        <EmptyDashboard />
-      ) : (
-        <StatsCards
-          stats={[
-            { label: "Candidatures", value: applications.length, tone: "blue" },
-            {
-              label: "En attente de réponse",
-              value:
-                countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
-              tone: "indigo",
-            },
-            { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
-            {
-              label: "À relancer",
-              value: toFollowUp.length,
-              hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
-              tone: "amber",
-              highlight: toFollowUp.length > 0,
-            },
-          ]}
-        />
+      <div className={`grid items-start gap-6 ${latestCv === undefined ? "" : "lg:grid-cols-[minmax(0,1fr)_22rem]"}`}>
+        <TodoCard items={todo} hasRealApplication={hasRealApplication} />
+        {/* Lecture du CV en échec : pas de carte, plutôt qu'un « Crée ton CV » trompeur. */}
+        {latestCv !== undefined && <CvCard cv={latestCv} />}
+      </div>
+
+      {applications.length > 0 && (
+        <section aria-labelledby="stats-title" className="space-y-3">
+          <h2 id="stats-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+            Tes chiffres
+          </h2>
+          <StatsCards
+            stats={[
+              { label: "Candidatures", value: applications.length, tone: "blue" },
+              {
+                label: "En attente de réponse",
+                value:
+                  countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
+                tone: "indigo",
+              },
+              { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
+              {
+                label: "À relancer",
+                value: toFollowUp.length,
+                hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
+                tone: "amber",
+                highlight: toFollowUp.length > 0,
+              },
+            ]}
+          />
+        </section>
       )}
     </main>
   );

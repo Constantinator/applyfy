@@ -75,6 +75,25 @@ export async function listBuilderCvs(): Promise<BuilderCvSummary[]> {
   return (data as Row[]).map(toCv).map(toSummary);
 }
 
+/** CV le plus récemment modifié (carte « Ton CV » du tableau de bord), ou null. */
+export async function getLatestBuilderCv(): Promise<BuilderCv | null> {
+  if (!isSupabaseConfigured()) {
+    return [...demoCvs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cv_builder")
+    .select("id, title, template_id, data, created_at, updated_at")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Chargement du CV impossible : ${error.message}`);
+  return data ? toCv(data as Row) : null;
+}
+
 export async function getBuilderCv(id: string): Promise<BuilderCv | null> {
   if (!isSupabaseConfigured()) return demoCvs.find((cv) => cv.id === id) ?? null;
 
