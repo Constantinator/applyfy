@@ -16,15 +16,13 @@ import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
-  mergeLine,
-  splitLine,
   chatContent,
-  CV_LIMITS,
   CvDataSchema,
   cvDataToText,
   cvOrigin,
   diffCvData,
   targetJobOf,
+  withoutEmptyLines,
   type BuilderCv,
   type CvData,
   type CvTemplateId,
@@ -38,6 +36,7 @@ import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
 import { CvContentPanel } from "./cv-content-panel";
 import { CvStylePanel } from "./cv-style-panel";
+import { FieldEditingContext, FieldInput } from "./form-controls";
 
 export type CvBuilderUsage = {
   /** Chat « Affiner avec l'IA » : utilisation du mois. */
@@ -138,14 +137,15 @@ export function CvBuilderEditor({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [pages, setPages] = useState(1);
-  // Entrée bloquée dans une liste : message affiché quelques secondes au-dessus de l'aperçu.
+  // Saisie bloquée (limite d'un champ, liste pleine) : message affiché quelques secondes.
   const [lineLimit, setLineLimit] = useState<string | null>(null);
   const lineLimitTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const showLineLimit = (message: string) => {
+  const showLineLimit = useCallback((message: string) => {
     setLineLimit(message);
     clearTimeout(lineLimitTimer.current);
     lineLimitTimer.current = setTimeout(() => setLineLimit(null), 4000);
-  };
+  }, []);
+  const titleEditing = useMemo(() => ({ notify: showLineLimit }), [showLineLimit]);
   useEffect(() => () => clearTimeout(lineLimitTimer.current), []);
   const version = useRef(0);
   const touched = useRef(false);
@@ -192,7 +192,7 @@ export function CvBuilderEditor({
       const result = await saveBuilderCvAction(cv.id, { title, templateId, data });
       if (current !== version.current) return; // une modification plus récente suivra
       setStatus(result.ok ? "saved" : "error");
-      setSaveError(result.ok ? null : result.error);
+      setSaveError(result.ok ? (result.notice ?? null) : result.error);
     }, 1000);
     return () => clearTimeout(timer);
   }, [cv.id, title, templateId, data]);
@@ -321,7 +321,7 @@ export function CvBuilderEditor({
         import("./cv-document"),
       ]);
       registerCvFonts(window.location.origin);
-      const blob = await pdf(<CvDocument data={data} templateId={templateId} title={title} />).toBlob();
+      const blob = await pdf(<CvDocument data={withoutEmptyLines(data)} templateId={templateId} title={title} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -359,17 +359,19 @@ export function CvBuilderEditor({
           </svg>
           Menu
         </button>
-        <input
-          aria-label="Nom du CV"
-          value={title}
-          maxLength={CV_LIMITS.title}
-          onChange={(e) => {
-            touched.current = true;
-            setStatus("pending");
-            setTitle(e.target.value);
-          }}
-          className="min-w-0 flex-1 basis-40 rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-bold tracking-tight text-slate-900 hover:border-slate-200 focus:border-blue-500 focus:outline-none dark:text-white dark:hover:border-slate-700"
-        />
+        <FieldEditingContext value={titleEditing}>
+          <FieldInput
+            aria-label="Nom du CV"
+            path="title"
+            value={title}
+            onChange={(value) => {
+              touched.current = true;
+              setStatus("pending");
+              setTitle(value);
+            }}
+            className="min-w-0 flex-1 basis-40 rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-bold tracking-tight text-slate-900 hover:border-slate-200 focus:border-blue-500 focus:outline-none dark:text-white dark:hover:border-slate-700"
+          />
+        </FieldEditingContext>
         <p
           role="status"
           className={`text-sm ${status === "error" ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}
@@ -467,7 +469,7 @@ export function CvBuilderEditor({
           </div>
           {tab === "content" && (
             <div id="panel-content" role="tabpanel" aria-labelledby="tab-content" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-              <CvContentPanel data={data} onChange={edit} />
+              <CvContentPanel data={data} onChange={edit} onLimit={showLineLimit} />
             </div>
           )}
           {tab === "keywords" && (
@@ -511,13 +513,7 @@ export function CvBuilderEditor({
               data={data}
               templateId={templateId}
               onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
-              onLineBreak={(path, before, after, newId) => edit((d) => splitLine(d, path, before, after, newId)?.data ?? d)}
-              onLineMerge={(path) =>
-                edit((d) => {
-                  const merged = mergeLine(d, path);
-                  return merged && "data" in merged ? merged.data : d;
-                })
-              }
+              onChange={edit}
               onLineLimit={showLineLimit}
               onPagesChange={setPages}
               highlights={highlights}
@@ -526,6 +522,11 @@ export function CvBuilderEditor({
           </div>
         </section>
       </div>
+      {lineLimit && (
+        <p aria-hidden="true" className="fixed inset-x-4 bottom-4 z-40 rounded-xl bg-amber-100 px-4 py-2 text-center text-sm font-medium text-amber-900 shadow-lg lg:hidden dark:bg-amber-900 dark:text-amber-100">
+          {lineLimit}
+        </p>
+      )}
     </div>
   );
 }

@@ -94,6 +94,13 @@ export const CV_LIMITS = {
   /** Intitulés (poste, diplôme, école…) : un intitulé long ne doit jamais être coupé. */
   short: 300,
   url: 300,
+  /** Prénom, nom, langue et son niveau. */
+  name: 60,
+  phone: 40,
+  date: 40,
+  /** Poste visé (score et coach). */
+  targetJob: 120,
+  interests: 500,
   text: 2000,
   bullet: 500,
   bullets: 12,
@@ -110,8 +117,8 @@ const ExperienceSchema = z.object({
   id,
   company: text(CV_LIMITS.short),
   position: text(CV_LIMITS.short),
-  startDate: text(40),
-  endDate: text(40),
+  startDate: text(CV_LIMITS.date),
+  endDate: text(CV_LIMITS.date),
   current: z.boolean().default(false),
   location: text(CV_LIMITS.short),
   bullets: z.array(z.string().max(CV_LIMITS.bullet)).max(CV_LIMITS.bullets).default([]),
@@ -121,8 +128,8 @@ const EducationSchema = z.object({
   id,
   school: text(CV_LIMITS.short),
   degree: text(CV_LIMITS.short),
-  startDate: text(40),
-  endDate: text(40),
+  startDate: text(CV_LIMITS.date),
+  endDate: text(CV_LIMITS.date),
   honors: text(CV_LIMITS.short),
   /** Cours suivis, classements… : puces sous la mention (absentes des CV plus anciens). */
   bullets: z.array(z.string().max(CV_LIMITS.bullet)).max(CV_LIMITS.bullets).default([]),
@@ -134,9 +141,9 @@ const SkillSchema = z.object({
   level: z.enum(["", "debutant", "intermediaire", "avance", "expert"]).default(""),
 });
 
-const LanguageSchema = z.object({ id, name: text(60), level: text(60) });
+const LanguageSchema = z.object({ id, name: text(CV_LIMITS.name), level: text(CV_LIMITS.name) });
 
-const CertificationSchema = z.object({ id, name: text(CV_LIMITS.short), issuer: text(CV_LIMITS.short), date: text(40) });
+const CertificationSchema = z.object({ id, name: text(CV_LIMITS.short), issuer: text(CV_LIMITS.short), date: text(CV_LIMITS.date) });
 
 const ProjectSchema = z.object({
   id,
@@ -188,11 +195,11 @@ export type CvAnalysis = z.infer<typeof CvAnalysisSchema>;
 export const CvDataSchema = z.object({
   personal: z
     .object({
-      firstName: text(60),
-      lastName: text(60),
+      firstName: text(CV_LIMITS.name),
+      lastName: text(CV_LIMITS.name),
       jobTitle: text(CV_LIMITS.short),
       email: text(CV_LIMITS.short),
-      phone: text(40),
+      phone: text(CV_LIMITS.phone),
       city: text(CV_LIMITS.short),
       linkedin: text(CV_LIMITS.url),
       website: text(CV_LIMITS.url),
@@ -212,7 +219,7 @@ export const CvDataSchema = z.object({
   languages: z.array(LanguageSchema).max(CV_LIMITS.items).default([]),
   certifications: z.array(CertificationSchema).max(CV_LIMITS.items).default([]),
   projects: z.array(ProjectSchema).max(CV_LIMITS.items).default([]),
-  interests: text(500),
+  interests: text(CV_LIMITS.interests),
   style: z
     .object({
       font: z.enum(CV_FONT_IDS).catch("inter").default("inter"),
@@ -227,7 +234,7 @@ export const CvDataSchema = z.object({
   /** CV importé : analyse de l'import (null pour un CV créé à partir d'un modèle vierge). */
   analysis: CvAnalysisSchema.nullable().catch(null).default(null),
   /** Poste visé, saisi à la création « depuis zéro » (ou à la fin de l'import) : secteur du score et du coach. */
-  targetJob: z.string().max(120).catch("").default(""),
+  targetJob: z.string().max(CV_LIMITS.targetJob).catch("").default(""),
   /** Origine du CV ; absente sur les CV créés avant ce champ (cf. cvOrigin). */
   origin: z.enum(["scratch", "import"]).optional().catch(undefined),
   /**
@@ -271,10 +278,9 @@ export function targetJobOf(data: CvData): string {
   return data.targetJob.trim() || data.analysis?.targetJob.trim() || "";
 }
 
-/** Données d'un CV lues en base : jamais d'échec, les champs invalides sont remis à zéro. */
+/** Données d'un CV lues en base : jamais d'échec, seuls les champs invalides sont corrigés (cf. fitCvData). */
 export function readCvData(value: unknown): CvData {
-  const parsed = CvDataSchema.safeParse(value ?? {});
-  return parsed.success ? parsed.data : CvDataSchema.parse({});
+  return fitCvData(value).data;
 }
 
 export function isTemplateId(value: unknown): value is CvTemplateId {
@@ -338,7 +344,19 @@ export function applyEdit(data: CvData, path: string, value: string): CvData {
   return set(data, 0) as CvData;
 }
 
-const SKILL_GROUP = /^(\s*(?:[^\s:]+\s*){1,4}:)(\s+\S[\s\S]*|\s*)$/;
+/** Texte du champ de ce chemin (cf. applyEdit), undefined s'il n'existe pas. */
+export function readField(data: CvData, path: string): string | undefined {
+  let node: unknown = data;
+  for (const key of path.split(".")) {
+    if (Array.isArray(node)) node = node.find((item, i) => (item && typeof item === "object" && "id" in item ? item.id === key : String(i) === key));
+    else node = node && typeof node === "object" ? (node as Record<string, unknown>)[key] : undefined;
+  }
+  return typeof node === "string" ? node : undefined;
+}
+
+// Mots séparés par des blancs obligatoires : un long mot sans deux-points n'a qu'un seul découpage possible
+// (sinon, des millions d'essais à chaque rendu, et la page gèle).
+const SKILL_GROUP = /^(\s*[^\s:]+(?:\s+[^\s:]+){0,3}\s*:)(\s+\S[\s\S]*|\s*)$/;
 
 /**
  * Compétence groupée, « Intitulé : a, b, c » (intitulé de 4 mots au plus) : intitulé avec ses deux
@@ -352,28 +370,60 @@ export function splitSkillGroup(name: string) {
 
 const BULLET_PATH = /^(experiences|education)\.([^.]+)\.bullets\.(\d+)$/;
 const HONORS_PATH = /^education\.([^.]+)\.honors$/;
-const SKILL_PATH = /^skills\.([^.]+)\.name$/;
+/** Élément d'une liste, désigné par son nom : Entrée crée l'élément suivant. */
+const ITEM_NAME_PATH = /^(skills|languages|certifications|projects)\.([^.]+)\.name$/;
+/** Autre texte d'un élément : Entrée crée l'élément suivant, sans couper le texte. */
+const ITEM_DETAIL_PATH = /^(languages|certifications)\.([^.]+)\.(level|issuer)$/;
+/** Intitulé d'une expérience ou d'une formation : Entrée ajoute une puce dessous, sans couper le texte. */
+const HEADING_PATH = /^(?:experiences\.([^.]+)\.(?:position|company|location)|education\.([^.]+)\.(?:degree|school))$/;
+const DESCRIPTION_PATH = /^projects\.([^.]+)\.description$/;
+/** Ligne de l'onglet Contenu : dans l'aperçu, les centres d'intérêt sont un seul texte (« interests »). */
+const INTEREST_PATH = /^interests\.(\d+)$/;
 
 /**
- * Ligne d'une liste dans l'aperçu (puce d'expérience ou de formation, mention d'une formation, qui
- * précède ses puces, compétence) : Entrée y crée la ligne suivante.
+ * Effet d'Entrée dans un champ, le même dans l'aperçu et dans l'onglet Contenu :
+ * - `line` : coupe au curseur, la suite passe dans une nouvelle ligne de la liste ;
+ * - `below` : le texte reste entier, nouvelle ligne vide dessous ;
+ * - `newline` : paragraphe, saut de ligne dans le champ ;
+ * - `validate` : champ court, la saisie se termine.
  */
-export const isLinePath = (path: string) => BULLET_PATH.test(path) || HONORS_PATH.test(path) || SKILL_PATH.test(path);
+export type EnterAction = "line" | "below" | "newline" | "validate";
+
+export function enterAction(path: string): EnterAction {
+  if (path === "summary" || path === "interests" || DESCRIPTION_PATH.test(path)) return "newline";
+  if (BULLET_PATH.test(path) || HONORS_PATH.test(path) || ITEM_NAME_PATH.test(path) || INTEREST_PATH.test(path)) return "line";
+  if (HEADING_PATH.test(path) || ITEM_DETAIL_PATH.test(path)) return "below";
+  return "validate";
+}
+
+/** Ligne d'une liste : Retour arrière au début la recolle à la précédente. */
+export const isLinePath = (path: string) => enterAction(path) === "line";
+
+/**
+ * Entrée sur une ligne vide : le curseur y reste, pour qu'un double appui n'empile pas de lignes. Sauf
+ * dans une mention vide, qui n'est pas une ligne créée par Entrée : la première puce se crée dessous.
+ */
+export const keepsCaretOnBlank = (path: string) => !HONORS_PATH.test(path);
+
+/** Retour arrière au début de ce champ : geste inverse d'Entrée (cf. mergeLine). */
+export const hasLineMerge = (path: string) => isLinePath(path) || DESCRIPTION_PATH.test(path);
 
 /** Nombre maximal de caractères du champ de ce chemin (cf. CvDataSchema), pour limiter la saisie. */
 export function fieldLimit(path: string): number {
   const keys = path.split(".");
   const field = keys.at(-1) ?? "";
+  if (path === "title") return CV_LIMITS.title;
+  if (path === "targetJob") return CV_LIMITS.targetJob;
+  if (keys[0] === "interests") return CV_LIMITS.interests;
   if (keys[0] === "personal") {
-    if (field === "firstName" || field === "lastName") return 60;
-    if (field === "phone") return 40;
+    if (field === "firstName" || field === "lastName") return CV_LIMITS.name;
+    if (field === "phone") return CV_LIMITS.phone;
     if (field === "linkedin" || field === "website" || field === "github") return CV_LIMITS.url;
     return CV_LIMITS.short;
   }
   if (field === "summary") return CV_LIMITS.text;
-  if (field === "interests") return 500;
-  if (keys[0] === "languages") return 60;
-  if (field === "startDate" || field === "endDate" || field === "date") return 40;
+  if (keys[0] === "languages") return CV_LIMITS.name;
+  if (field === "startDate" || field === "endDate" || field === "date") return CV_LIMITS.date;
   if (field === "description") return CV_LIMITS.text;
   if (field === "link") return CV_LIMITS.url;
   if (keys.at(-2) === "bullets") return CV_LIMITS.bullet;
@@ -389,6 +439,8 @@ const SECTION_LABELS: Record<string, string> = {
   projects: "Projet",
 };
 const FIELD_LABELS: Record<string, string> = {
+  title: "Nom du CV",
+  targetJob: "Poste visé",
   firstName: "Prénom",
   lastName: "Nom",
   jobTitle: "Titre du CV",
@@ -416,21 +468,45 @@ const FIELD_LABELS: Record<string, string> = {
   link: "lien",
 };
 
-/** Nom lisible d'un champ du CV, d'après son chemin : « Formation 2 : mention », « Expérience 1 : puce 3 ». */
+/**
+ * Nom lisible d'un champ du CV, d'après son chemin : « Formation 2 : mention », « Expérience 1 : puce 3 ».
+ * Dans l'éditeur, les éléments sont désignés par leur id : « Formation : mention ».
+ */
 function fieldLabel(path: readonly PropertyKey[]): string {
   const [section, index, field, line] = path;
   if (section === "personal") return FIELD_LABELS[String(index)] ?? String(index);
   const name = SECTION_LABELS[String(section)];
   if (!name) return FIELD_LABELS[String(section)] ?? path.map(String).join(".");
-  if (typeof index !== "number") return name;
-  const item = `${name} ${index + 1}`;
-  if (field === "bullets") return typeof line === "number" ? `${item} : puce ${line + 1}` : `${item} : puces`;
+  if (index === undefined) return name;
+  const item = typeof index === "number" ? `${name} ${index + 1}` : name;
+  if (field === "bullets") return line === undefined ? `${item} : puces` : `${item} : puce ${Number(line) + 1}`;
   return field === undefined ? item : `${item} : ${FIELD_LABELS[String(field)] ?? String(field)}`;
+}
+
+const tooLong = (label: string, max: number) => `Le champ « ${label} » est trop long, maximum ${max} caractères.`;
+
+/** Message à la limite de caractères d'un champ de l'éditeur (cf. fieldLimit), ou à la limite `max` donnée. */
+export const fieldLimitMessage = (path: string, max = fieldLimit(path)) => {
+  const keys = path.split(".");
+  return tooLong(keys[0] === "interests" ? FIELD_LABELS.interests : fieldLabel(keys), max);
+};
+
+const NEW_ITEM_NAMES: Record<string, string> = {
+  skills: "Nouvelle compétence",
+  languages: "Nouvelle langue",
+  certifications: "Nouvelle certification",
+  projects: "Nouveau projet",
+};
+
+/** Indication affichée dans un champ vide de l'aperçu. */
+export function fieldPlaceholder(path: string) {
+  const keys = path.split(".");
+  return (keys[2] === "name" && NEW_ITEM_NAMES[keys[0]]) || (keys[2] === "bullets" ? "Nouvelle puce" : fieldLabel(keys));
 }
 
 /**
  * Premier champ refusé par CvDataSchema : son chemin (journal du serveur, sans le contenu du CV) et un
- * message pour l'utilisateur, ex. « Le champ « Formation 2 : mention » est trop long (300 caractères maximum). »
+ * message pour l'utilisateur, ex. « Le champ « Formation 2 : mention » est trop long, maximum 300 caractères. »
  */
 export function invalidCvField(error: z.ZodError): { path: string; message: string } {
   const issue = error.issues[0];
@@ -440,15 +516,80 @@ export function invalidCvField(error: z.ZodError): { path: string; message: stri
   const message =
     issue?.code === "too_big"
       ? tooMany
-        ? `Le champ « ${label} » contient trop d'éléments (${issue.maximum} maximum).`
-        : `Le champ « ${label} » est trop long (${issue.maximum} caractères maximum).`
+        ? `Le champ « ${label} » contient trop d'éléments, maximum ${issue.maximum}.`
+        : tooLong(label, Number(issue.maximum))
       : `Le champ « ${label} » est invalide.`;
   return { path: path.map(String).join("."), message };
 }
 
+/** Élément sans contenu : texte vide, ou objet dont tous les textes sont vides (son id mis à part). */
+function isEmptyEntry(entry: unknown): boolean {
+  if (typeof entry === "string") return !entry.trim();
+  if (!entry || typeof entry !== "object") return false;
+  return Object.entries(entry).every(([key, value]) => key === "id" || (typeof value === "string" ? !value.trim() : Array.isArray(value) ? !value.length : !value));
+}
+
+/** Données impossibles à corriger (cf. fitCvData). */
+export const CV_UNFIXABLE = "unfixable";
+
+/** Correction d'un champ refusé, à annoncer à l'utilisateur. */
+export type CvFix = { path: string; code: string; message: string };
+
+/**
+ * CV toujours valide, quelles que soient les données reçues : seuls les champs refusés par le schéma
+ * sont corrigés (texte raccourci à sa limite, liste réduite, valeur invalide remise à zéro), jamais le
+ * reste du CV. Dernier filet de sécurité : l'éditeur et le coach respectent déjà les limites.
+ */
+export function fitCvData(value: unknown): { data: CvData; fixes: CvFix[] } {
+  const raw: unknown = value && typeof value === "object" ? structuredClone(value) : {};
+  const fixes: CvFix[] = [];
+  for (let pass = 0; pass < 5; pass++) {
+    const parsed = CvDataSchema.safeParse(raw);
+    if (parsed.success) return { data: parsed.data, fixes };
+    // À l'envers : retirer un élément d'une liste ne décale pas les problèmes qui restent à traiter.
+    for (const issue of [...parsed.error.issues].reverse()) {
+      const keys = issue.path;
+      const key = keys.at(-1);
+      let owner = raw as Record<PropertyKey, unknown> | undefined;
+      for (const k of keys.slice(0, -1)) owner = owner?.[k] as Record<PropertyKey, unknown> | undefined;
+      if (!owner || key === undefined) continue;
+      const current = owner[key];
+      const label = fieldLabel(keys);
+      const path = keys.map(String).join(".");
+      if (issue.code === "too_big" && typeof current === "string") {
+        owner[key] = current.slice(0, Number(issue.maximum));
+        fixes.push({ path, code: issue.code, message: `${tooLong(label, Number(issue.maximum))} Seuls les ${issue.maximum} premiers caractères sont enregistrés : raccourcis-le pour garder ton texte.` });
+      } else if (issue.code === "too_big" && Array.isArray(current)) {
+        const filled = current.filter((entry) => !isEmptyEntry(entry));
+        owner[key] = filled.slice(0, Number(issue.maximum));
+        if (filled.length > Number(issue.maximum)) {
+          fixes.push({ path, code: issue.code, message: `Le champ « ${label} » contient trop d'éléments, maximum ${issue.maximum} : les suivants ne sont pas enregistrés.` });
+        }
+      } else if (key === "id") {
+        owner[key] = newItemId();
+      } else {
+        if (Array.isArray(owner)) owner.splice(Number(key), 1);
+        else delete owner[key];
+        fixes.push({ path, code: issue.code, message: `Le champ « ${label} » est invalide : il n'a pas été enregistré.` });
+      }
+    }
+  }
+  return { data: CvDataSchema.parse({}), fixes: [{ path: "", code: CV_UNFIXABLE, message: "Le CV contient des informations illisibles : il n'a pas été enregistré." }] };
+}
+
+const LIST_NAMES: Record<string, string> = {
+  skills: `${CV_LIMITS.skills} compétences`,
+  languages: `${CV_LIMITS.items} langues`,
+  certifications: `${CV_LIMITS.items} certifications`,
+  projects: `${CV_LIMITS.items} projets`,
+};
+
 /** Message affiché quand Entrée est bloquée dans cette liste. */
-export const lineLimitMessage = (path: string) =>
-  SKILL_PATH.test(path) ? `Maximum ${CV_LIMITS.skills} compétences atteint` : `Maximum ${CV_LIMITS.bullets} puces atteint`;
+export const lineLimitMessage = (path: string) => {
+  if (INTEREST_PATH.test(path)) return fieldLimitMessage(path);
+  const list = LIST_NAMES[path.split(".")[0]];
+  return `Maximum ${list ?? `${CV_LIMITS.bullets} puces`} atteint`;
+};
 
 /**
  * Liste avec une ligne ajoutée après celle d'`index`, et la position de cette nouvelle ligne. null
@@ -480,14 +621,56 @@ function withBullets(data: CvData, section: string, id: string, bullets: string[
   return { ...data, experiences: data.experiences.map((e) => (e.id === id ? { ...e, bullets } : e)) };
 }
 
+type NamedSection = "skills" | "languages" | "certifications" | "projects";
+type NamedItem = { id: string; name: string };
+
+/** Élément vide d'une liste, créé par Entrée. */
+const NEW_ITEM: Record<NamedSection, (id: string) => NamedItem> = {
+  skills: (id) => ({ id, name: "", level: "" }) as NamedItem,
+  languages: (id) => ({ id, name: "", level: "" }) as NamedItem,
+  certifications: (id) => ({ id, name: "", issuer: "", date: "" }) as NamedItem,
+  projects: (id) => ({ id, name: "", description: "", link: "" }) as NamedItem,
+};
+const listMax = (section: NamedSection) => (section === "skills" ? CV_LIMITS.skills : CV_LIMITS.items);
+/** Séparateur à la jonction de deux éléments recollés : ces listes s'écrivent avec des virgules. */
+const ITEM_JOINT: Record<NamedSection, string> = { skills: ", ", languages: ", ", certifications: " ", projects: " " };
+const itemsOf = (data: CvData, section: NamedSection) => data[section] as NamedItem[];
+const withItems = (data: CvData, section: NamedSection, items: NamedItem[]) => ({ ...data, [section]: items }) as CvData;
+
+/** Centres d'intérêt, un par ligne ; un texte sans retour à la ligne (CV importé) est lu séparé par des virgules. */
+export function readInterests(text: string) {
+  if (!text) return [];
+  if (!text.trim()) return [""]; // une seule ligne, encore vide
+  return text.includes("\n") ? text.split("\n") : text.split(",").map((s) => s.trim());
+}
+
+/** Texte enregistré pour ces lignes ; une seule ligne vide reste une ligne (cf. readInterests). */
+export function writeInterests(lines: string[]) {
+  return lines.length === 1 && !lines[0] ? "\n" : lines.join("\n");
+}
+
+/** Le CV avec une nouvelle ligne de liste, et le chemin de cette ligne. */
+type LineSplit = { data: CvData; nextPath: string };
+
+/** Puce vide ajoutée en tête des puces de cet élément : l'intitulé précède les puces. */
+function firstBullet(data: CvData, section: string, id: string): LineSplit | null {
+  const owner = bulletOwner(data, section, id);
+  if (!owner) return null;
+  const split = withLineAfter(["intitulé", ...owner.bullets], 0, "intitulé", "", (line) => !line.trim(), CV_LIMITS.bullets + 1);
+  return split && { data: withBullets(data, section, id, split.list.slice(1)), nextPath: `${section}.${id}.bullets.${split.next - 1}` };
+}
+
 /**
  * Touche Entrée dans une ligne de liste : `before` reste dans la ligne, `after` passe dans une
  * nouvelle ligne juste en dessous, au chemin `nextPath`. Curseur au tout début : le texte ne bouge
- * pas et la nouvelle ligne est vide. null si la liste est pleine ou si le chemin ne correspond à
- * rien. `newId` : identifiant d'une nouvelle compétence, fourni par l'appelant pour que le résultat
- * ne change pas si la fonction est rejouée.
+ * pas et la nouvelle ligne est vide. Intitulé d'un élément (`below`, cf. enterAction) : le texte ne
+ * change pas, la ligne vide est créée dessous. null si la liste est pleine ou si le chemin ne
+ * correspond à rien. `newId` : identifiant d'un nouvel élément, fourni par l'appelant pour que le
+ * résultat ne change pas si la fonction est rejouée.
  */
-export function splitLine(data: CvData, path: string, textBefore: string, textAfter: string, newId: string): { data: CvData; nextPath: string } | null {
+export function splitLine(data: CvData, path: string, textBefore: string, textAfter: string, newId: string): LineSplit | null {
+  const heading = path.match(HEADING_PATH);
+  if (heading) return heading[1] ? firstBullet(data, "experiences", heading[1]) : firstBullet(data, "education", heading[2]);
   const [before, after] = textBefore.trim() ? [textBefore, textAfter] : [textAfter, ""];
   const isBlank = (line: string) => !line.trim();
   const honorsOf = path.match(HONORS_PATH);
@@ -512,18 +695,43 @@ export function splitLine(data: CvData, path: string, textBefore: string, textAf
     if (!split) return null;
     return { data: withBullets(data, section, id, split.list), nextPath: `${section}.${id}.bullets.${split.next}` };
   }
-  const skillId = path.match(SKILL_PATH)?.[1];
-  const index = data.skills.findIndex((s) => s.id === skillId);
+  const interest = path.match(INTEREST_PATH);
+  if (interest) {
+    const lines = readInterests(data.interests);
+    const index = Number(interest[1]);
+    if (index >= lines.length) return null;
+    const split = withLineAfter(lines, index, before, after, isBlank, Infinity);
+    const text = split && writeInterests(split.list);
+    if (!split || !text || text.length > CV_LIMITS.interests) return null;
+    return { data: { ...data, interests: text }, nextPath: `interests.${split.next}` };
+  }
+  const detail = path.match(ITEM_DETAIL_PATH);
+  const named = path.match(ITEM_NAME_PATH);
+  const section = (detail?.[1] ?? named?.[1]) as NamedSection | undefined;
+  if (!section) return null;
+  const items = itemsOf(data, section);
+  const index = items.findIndex((item) => item.id === (detail?.[2] ?? named?.[2]));
   if (index < 0) return null;
+  // Projet sans description : Entrée y descend, la suite du nom y passe.
+  if (section === "projects" && !data.projects[index].description.trim()) {
+    const project = data.projects[index];
+    return {
+      data: { ...data, projects: data.projects.map((p, i) => (i === index ? { ...p, name: before, description: after } : p)) },
+      nextPath: `projects.${project.id}.description`,
+    };
+  }
   // Coupe sur une virgule : elle séparait les deux parties, elle ne reste sur aucune.
-  const added = { id: newId, name: after.replace(/^[\s,;]+/, ""), level: "" as const };
-  const current = { ...data.skills[index], name: before.replace(/[\s,;]+$/, "") };
-  const split = withLineAfter(data.skills, index, current, added, (s) => !s.name.trim(), CV_LIMITS.skills);
-  return split && { data: { ...data, skills: split.list }, nextPath: `skills.${split.list[split.next].id}.name` };
+  const added = { ...NEW_ITEM[section](newId), name: detail ? "" : after.replace(/^[\s,;]+/, "") };
+  const current = detail ? items[index] : { ...items[index], name: before.replace(/[\s,;]+$/, "") };
+  const split = withLineAfter(items, index, current, added, isEmptyEntry, listMax(section));
+  return split && { data: withItems(data, section, split.list), nextPath: `${section}.${split.list[split.next].id}.name` };
 }
 
-/** Résultat d'un Retour arrière : CV et position du curseur, ou texte trop long pour être recollé. */
-export type LineMerge = { data: CvData; targetPath: string; offset: number } | { tooLong: true };
+/**
+ * Résultat d'un Retour arrière : CV et position du curseur, texte trop long pour être recollé, ou
+ * élément qui a d'autres informations (niveau, organisme, lien…), qu'un recollage ferait perdre.
+ */
+export type LineMerge = { data: CvData; targetPath: string; offset: number } | { tooLong: true } | { hasDetails: true };
 
 /**
  * Liste où la ligne d'`index` rejoint la précédente non vide (les lignes vides cachées entre les deux
@@ -547,13 +755,39 @@ function withLineMerged<T>(list: T[], index: number, textOf: (item: T) => string
   };
 }
 
+/** Ligne vide en tête des puces : retirée, le curseur revient à la fin de l'intitulé qu'elle suit. */
+function blankBulletRemoved(data: CvData, section: string, id: string, index: number): LineMerge | null {
+  const owner = bulletOwner(data, section, id);
+  if (!owner || owner.bullets[index]?.trim()) return null;
+  const heading =
+    section === "education"
+      ? data.education.find((e) => e.id === id)?.degree.trim() ? "degree" : "school"
+      : data.experiences.find((e) => e.id === id)?.position.trim() ? "position" : "company";
+  const text = String((owner as unknown as Record<string, unknown>)[heading] ?? "");
+  return { data: withBullets(data, section, id, owner.bullets.filter((_, i) => i !== index)), targetPath: `${section}.${id}.${heading}`, offset: text.length };
+}
+
 /**
  * Retour arrière au tout début d'une ligne de liste, geste inverse d'Entrée : son texte rejoint la fin
  * de la ligne précédente, séparé comme Entrée l'avait coupé (espace entre puces et après un intitulé
  * seul, virgule entre compétences). Une ligne vide est simplement retirée. La première puce d'une
- * formation rejoint sa mention. null pour la première ligne.
+ * formation rejoint sa mention. Une description de projet sur une ligne rejoint le nom. Un élément qui
+ * a d'autres informations reste en place (`hasDetails`). null pour la première ligne.
  */
 export function mergeLine(data: CvData, path: string): LineMerge | null {
+  const description = path.match(DESCRIPTION_PATH);
+  if (description) {
+    const project = data.projects.find((p) => p.id === description[1]);
+    if (!project || project.description.includes("\n")) return null;
+    const blank = !project.description.trim();
+    const name = blank ? project.name : `${project.name} ${project.description}`;
+    if (name.length > CV_LIMITS.short) return { tooLong: true };
+    return {
+      data: { ...data, projects: data.projects.map((p) => (p.id === project.id ? { ...p, name, description: "" } : p)) },
+      targetPath: `projects.${project.id}.name`,
+      offset: project.name.length + (blank ? 0 : 1),
+    };
+  }
   const bullet = path.match(BULLET_PATH);
   if (bullet) {
     const [, section, id, position] = bullet;
@@ -572,7 +806,7 @@ export function mergeLine(data: CvData, path: string): LineMerge | null {
       (previous) => (head.length && previous === 0 ? CV_LIMITS.short : CV_LIMITS.bullet),
     );
     if (merged === "tooLong") return { tooLong: true };
-    if (!merged) return null;
+    if (!merged) return blankBulletRemoved(data, section, id, index);
     const bullets = merged.list.slice(head.length);
     const updated = withBullets(data, section, id, bullets);
     if (head.length && merged.previous === 0) {
@@ -580,35 +814,56 @@ export function mergeLine(data: CvData, path: string): LineMerge | null {
     }
     return { data: updated, targetPath: `${section}.${id}.bullets.${merged.previous - head.length}`, offset: merged.offset };
   }
-  const skillId = path.match(SKILL_PATH)?.[1];
-  const index = data.skills.findIndex((s) => s.id === skillId);
+  const interest = path.match(INTEREST_PATH);
+  if (interest) {
+    const merged = withLineMerged(readInterests(data.interests), Number(interest[1]), (line) => line, (_, text) => text, () => " ", () => CV_LIMITS.interests);
+    if (merged === "tooLong") return { tooLong: true };
+    if (!merged) return null;
+    return { data: { ...data, interests: writeInterests(merged.list) }, targetPath: `interests.${merged.previous}`, offset: merged.offset };
+  }
+  const named = path.match(ITEM_NAME_PATH);
+  if (!named) return null;
+  const section = named[1] as NamedSection;
+  const items = itemsOf(data, section);
+  const index = items.findIndex((item) => item.id === named[2]);
   if (index < 0) return null;
   const merged = withLineMerged(
-    data.skills,
+    items,
     index,
-    (s) => s.name,
-    (s, name) => ({ ...s, name }),
-    (previous) => (splitSkillGroup(previous)?.items.trim() === "" ? " " : ", "),
-    () => CV_LIMITS.short,
+    (item) => item.name,
+    (item, name) => ({ ...item, name }),
+    (previous) => (section === "skills" && splitSkillGroup(previous)?.items.trim() === "" ? " " : ITEM_JOINT[section]),
+    () => fieldLimit(path),
   );
-  if (merged === "tooLong") return { tooLong: true };
   if (!merged) return null;
-  return { data: { ...data, skills: merged.list }, targetPath: `skills.${merged.list[merged.previous].id}.name`, offset: merged.offset };
+  if (!isEmptyEntry({ ...items[index], name: "" })) return { hasDetails: true };
+  if (merged === "tooLong") return { tooLong: true };
+  return { data: withItems(data, section, merged.list), targetPath: `${section}.${merged.list[merged.previous].id}.name`, offset: merged.offset };
 }
 
+/** Message d'un Retour arrière bloqué. */
+export const lineMergeMessage = (merge: { tooLong: true } | { hasDetails: true }) =>
+  "tooLong" in merge ? "Texte trop long pour être recollé à la ligne précédente" : "Cet élément a d'autres informations : efface-les d'abord pour le recoller au précédent";
+
 /**
- * CV sans ses lignes de liste vides ou faites d'espaces (puces d'expérience et de formation,
- * compétences). Elles ne servent qu'à l'éditeur, le temps d'une saisie : ni la base ni le coach ne les
- * voient, et la ligne en cours de saisie reste dans l'état de l'éditeur.
+ * CV sans ses lignes de liste vides ou faites d'espaces (puces, compétences, langues, certifications,
+ * projets entièrement vides, lignes vides des centres d'intérêt). Elles ne servent qu'à l'éditeur, le
+ * temps d'une saisie : ni la base ni le coach ne les voient, et la ligne en cours de saisie reste dans
+ * l'état de l'éditeur. Les sauts de ligne de l'accroche et des descriptions ne sont pas touchés.
  */
-export function withoutEmptyLines<T extends Pick<CvData, "experiences" | "education" | "skills">>(data: T): T {
+export function withoutEmptyLines<T extends Pick<CvData, "experiences" | "education" | "skills" | "languages" | "certifications" | "projects" | "interests">>(data: T): T {
   const filled = <I extends { bullets: string[] }>(item: I): I =>
     item.bullets.every((b) => b.trim()) ? item : { ...item, bullets: item.bullets.filter((b) => b.trim()) };
+  const interests = data.interests.includes("\n") ? data.interests.split("\n").filter((line) => line.trim()).join("\n") : data.interests;
   return {
     ...data,
     experiences: data.experiences.map(filled),
     education: data.education.map(filled),
     skills: data.skills.filter((s) => s.name.trim()),
+    languages: data.languages.filter((l) => !isEmptyEntry(l)),
+    certifications: data.certifications.filter((c) => !isEmptyEntry(c)),
+    projects: data.projects.filter((p) => !isEmptyEntry(p)),
+    interests,
   };
 }
 

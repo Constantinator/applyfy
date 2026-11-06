@@ -12,7 +12,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 
-import { ActiveLineContext, Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
+import { Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
 
 // Les 6 modèles du CV Builder, écrits une fois avec les briques de cv-primitives : rendus
 // en PDF (téléchargement) et en HTML modifiable (aperçu de l'éditeur). Chaque texte relié
@@ -122,15 +122,14 @@ function Dates({ base, start, end, current, style }: { base: string; start: stri
   );
 }
 
-/** Puces à afficher : les puces vides sont masquées, sauf celle en cours de saisie dans l'aperçu. */
-function useBulletLines(base: string, items: string[]) {
-  const active = useContext(ActiveLineContext);
-  return items.map((text, index) => ({ text, index })).filter((b) => b.text.trim() || `${base}.bullets.${b.index}` === active);
+/** Puces à afficher : les puces vides sont masquées (l'aperçu garde à l'écran le champ en cours de saisie). */
+function bulletLines(items: string[]) {
+  return items.map((text, index) => ({ text, index })).filter((b) => b.text.trim());
 }
 
 function Bullets({ base, items, color, style }: { base: string; items: string[]; color?: string; style?: StyleProp }) {
   const align = useContext(AlignContext);
-  const lines = useBulletLines(base, items);
+  const lines = bulletLines(items);
   if (!lines.length) return null;
   return (
     <View style={{ marginTop: 3 }}>
@@ -146,14 +145,13 @@ function Bullets({ base, items, color, style }: { base: string; items: string[];
   );
 }
 
-/** Contenu des sections, dans l'ordre d'affichage (éléments vides masqués, sauf la compétence en cours de saisie). */
-function useSections(data: CvData) {
-  const active = useContext(ActiveLineContext);
+/** Contenu des sections, dans l'ordre d'affichage (éléments vides masqués). */
+function sections(data: CvData) {
   return {
     summary: data.summary.trim() ? data.summary : "",
     experiences: data.experiences.filter((e) => e.position || e.company),
     education: data.education.filter((e) => e.school || e.degree),
-    skills: data.skills.filter((s) => s.name.trim() || `skills.${s.id}.name` === active),
+    skills: data.skills.filter((s) => s.name.trim()),
     languages: data.languages.filter((l) => l.name.trim()),
     certifications: data.certifications.filter((c) => c.name.trim()),
     projects: data.projects.filter((p) => p.name.trim()),
@@ -195,7 +193,7 @@ type Theme = {
 };
 
 function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; variant: CvTemplateId }) {
-  const s = useSections(data);
+  const s = sections(data);
   const items = contacts(data);
   const center = theme.headerAlign === "center";
   const photo = (variant === "moderne" || variant === "tech") && data.personal.photo;
@@ -560,7 +558,7 @@ function MainHeading({ children }: { children: string }) {
 }
 
 function Sidebar({ data }: { data: CvData }) {
-  const s = useSections(data);
+  const s = sections(data);
   const items = contacts(data);
 
   return (
@@ -751,7 +749,7 @@ function FinanceHeading({ children }: { children: string }) {
 /** Puces carrées ▪. */
 function FinanceBullets({ base, items }: { base: string; items: string[] }) {
   const align = useContext(AlignContext);
-  const lines = useBulletLines(base, items);
+  const lines = bulletLines(items);
   if (!lines.length) return null;
   return (
     <View style={{ marginTop: 1 }}>
@@ -836,7 +834,7 @@ function joined<T>(items: T[], render: (item: T) => ReactNode) {
 }
 
 function Finance({ data }: { data: CvData }) {
-  const s = useSections(data);
+  const s = sections(data);
   const items = contacts(data);
   const row = { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" };
   const section = { marginTop: 7 };

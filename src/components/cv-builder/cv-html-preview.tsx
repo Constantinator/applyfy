@@ -13,22 +13,23 @@ import {
 } from "react";
 
 import {
+  applyEdit,
   CV_FONTS,
   cvFontFile,
   densityFactor,
+  enterAction,
   fieldLimit,
-  isLinePath,
-  lineLimitMessage,
-  mergeLine,
-  newItemId,
-  splitLine,
+  fieldLimitMessage,
+  fieldPlaceholder,
+  hasLineMerge,
+  keepsCaretOnBlank,
+  readField,
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { parseRich, splitRich, type RichFormat } from "@/lib/cv-rich-text";
+import { parseRich, type RichFormat } from "@/lib/cv-rich-text";
 
 import {
-  ActiveLineContext,
   DensityContext,
   densityStyle,
   PrimitivesContext,
@@ -38,6 +39,7 @@ import {
   type StyleProp,
 } from "./cv-primitives";
 import { CvPages } from "./cv-templates";
+import { cutLine, useLineEditing } from "./use-line-editing";
 
 // Aperçu de l'éditeur : les modèles rendus en HTML (mêmes styles et mêmes polices que le
 // PDF), à l'échelle de la colonne. Les textes reliés à un champ se modifient au clic.
@@ -86,6 +88,16 @@ function toCss(style: CvStyle): CSSProperties {
   return css as CSSProperties;
 }
 
+/**
+ * Champ en cours de saisie, gardé à l'écran même vide : les modèles masquent les textes vides (le
+ * PDF aussi), et il reçoit donc ce caractère invisible à la place de son texte, le temps de la saisie.
+ * Il n'existe que dans les données passées aux modèles de l'aperçu, jamais dans le CV.
+ */
+const SHOWN_EMPTY = "\u200b";
+const withoutShownEmpty = (text: string) => text.split(SHOWN_EMPTY).join("");
+
+/** Champ qui a le curseur. */
+const ActiveLineContext = createContext<EditPath | null>(null);
 const InTextContext = createContext(false);
 const EditContext = createContext<((path: EditPath, value: string) => void) | null>(null);
 /** Entrée dans une ligne de liste : texte avant et après le curseur. */
@@ -171,7 +183,7 @@ function EditableText({
   const showNotice = useContext(LimitNoticeContext);
   const limitNotice = useRef(() => {});
   useLayoutEffect(() => {
-    limitNotice.current = () => showNotice?.(`Limite de ${limit} caractères atteinte pour ce champ`);
+    limitNotice.current = () => showNotice?.(fieldLimitMessage(path));
   });
   useEffect(() => {
     const el = ref.current;
@@ -225,6 +237,7 @@ function EditableText({
     selection?.selectAllChildren(el);
     selection?.collapseToEnd();
   }, []);
+  const shownPlaceholder = placeholder ?? fieldPlaceholder(path);
   const props = {
     "data-edit-path": path,
     onFocus: () => setFocused(true),
@@ -232,38 +245,46 @@ function EditableText({
     contentEditable: "plaintext-only" as const,
     suppressContentEditableWarning: true,
     role: "textbox",
-    "aria-label": placeholder ?? "Texte du CV",
+    "aria-label": shownPlaceholder,
     "aria-multiline": multiline || undefined,
-    "data-placeholder": placeholder,
+    "data-placeholder": shownPlaceholder,
     spellCheck: true,
     className: highlightClass ? `cv-editable ${highlightClass}` : "cv-editable",
     style,
     onInput: (e: React.FormEvent<HTMLElement>) => {
       const text = toStored(e.currentTarget.textContent ?? "");
       // Saisie assistée ou correction du navigateur, qui ne peuvent pas être bloquées avant coup.
-      if (text.length > limit) limitNotice.current();
-      onEdit?.(path, text.slice(0, limit));
+      // Un texte déjà trop long reste entier pendant qu'on le raccourcit.
+      const grew = text.length > limit && text.length > value.length;
+      if (grew) limitNotice.current();
+      onEdit?.(path, grew ? text.slice(0, limit) : text);
     },
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
       // Retour arrière au tout début d'une ligne de liste : geste inverse d'Entrée.
-      if (e.key === "Backspace" && !e.nativeEvent.isComposing && isLinePath(path) && window.getSelection()?.isCollapsed) {
+      if (e.key === "Backspace" && !e.nativeEvent.isComposing && hasLineMerge(path) && window.getSelection()?.isCollapsed) {
         const [textBefore] = textAroundSelection(e.currentTarget);
         if (textBefore === "" && mergeWithPrevious?.(path)) e.preventDefault();
         return;
       }
-      // Paragraphes : saut de ligne du navigateur. Validation d'un mot pendant une saisie assistée : ignorée.
-      if (e.key !== "Enter" || multiline || e.nativeEvent.isComposing) return;
+      // Validation d'un mot pendant une saisie assistée : ignorée.
+      if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+      const action = enterAction(path);
+      if (action === "newline") return; // paragraphe : saut de ligne du navigateur
       e.preventDefault();
-      if (!isLinePath(path)) {
-        e.currentTarget.blur(); // champ d'une ligne : validation
+      if (action === "validate") {
+        e.currentTarget.blur();
+        return;
+      }
+      if (action === "below") {
+        breakLine?.(path, value, "");
         return;
       }
       // Ligne de liste : nouvelle ligne en dessous. Déjà sur une ligne vide : le curseur y reste, pour
       // qu'un double appui ne fasse pas sortir du champ (la frappe suivante serait perdue).
-      if (!e.currentTarget.textContent?.trim()) return;
+      if (!e.currentTarget.textContent?.trim() && keepsCaretOnBlank(path)) return;
       const [textBefore, textAfter] = textAroundSelection(e.currentTarget);
-      const [before, after] = splitRich(toStored(textBefore), textAfter);
-      breakLine?.(path, before.trimEnd(), after.trimStart());
+      const [before, after] = cutLine(path, toStored(textBefore), textAfter);
+      breakLine?.(path, before, after);
     },
   };
   return as === "span" ? (
@@ -309,7 +330,7 @@ function HtmlText({ style, children, edit, multiline, placeholder, display }: Pa
       <EditableText
         as={as}
         style={css}
-        value={children == null ? "" : String(children)}
+        value={children == null ? "" : withoutShownEmpty(String(children))}
         path={edit}
         multiline={multiline}
         placeholder={placeholder}
@@ -391,8 +412,7 @@ export function CvHtmlPreview({
   data,
   templateId,
   onEdit,
-  onLineBreak,
-  onLineMerge,
+  onChange,
   onLineLimit,
   onPagesChange,
   highlights,
@@ -401,11 +421,9 @@ export function CvHtmlPreview({
   data: CvData;
   templateId: CvTemplateId;
   onEdit: (path: EditPath, value: string) => void;
-  /** Entrée dans une ligne de liste : la scinde (cf. splitLine), le curseur passe à la suivante. */
-  onLineBreak: (path: EditPath, before: string, after: string, newId: string) => void;
-  /** Retour arrière au début d'une ligne de liste : la recolle à la précédente (cf. mergeLine). */
-  onLineMerge: (path: EditPath) => void;
-  /** Entrée ou Retour arrière bloqué : liste pleine, ou texte recollé trop long. */
+  /** Entrée ou Retour arrière dans une ligne de liste (cf. useLineEditing). */
+  onChange: (fn: (d: CvData) => CvData) => void;
+  /** Saisie bloquée : limite du champ, liste pleine ou texte recollé trop long. */
   onLineLimit: (message: string) => void;
   onPagesChange?: (pages: number) => void;
   /** Chemins des textes à surligner (cf. diffCvData). */
@@ -440,43 +458,25 @@ export function CvHtmlPreview({
 
   const pages = Math.max(1, Math.ceil((height - 2) / A4_HEIGHT_PX));
 
-  // Ligne en cours de saisie, gardée à l'écran même vide ; et ligne à activer après une scission.
+  // Champ en cours de saisie, gardé à l'écran même vide (cf. SHOWN_EMPTY).
   const [activeLine, setActiveLine] = useState<EditPath | null>(null);
-  const focusAfterRender = useRef<{ path: EditPath; offset: number } | null>(null);
-  const mergeWithPrevious = (path: EditPath) => {
-    const merged = mergeLine(data, path);
-    if (!merged) return false;
-    if ("tooLong" in merged) {
-      onLineLimit("Texte trop long pour être recollé à la ligne précédente");
-      return true;
-    }
-    focusAfterRender.current = { path: merged.targetPath, offset: merged.offset };
-    setActiveLine(merged.targetPath);
-    onLineMerge(path);
-    return true;
-  };
-  const breakLine = (path: EditPath, before: string, after: string) => {
-    const newId = newItemId();
-    const split = splitLine(data, path, before, after, newId);
-    // Nombre maximum de lignes atteint : rien ne change, le curseur reste en place.
-    if (!split) {
-      onLineLimit(lineLimitMessage(path));
-      return;
-    }
-    focusAfterRender.current = { path: split.nextPath, offset: 0 };
-    setActiveLine(split.nextPath);
-    onLineBreak(path, before, after, newId);
-  };
-  useLayoutEffect(() => {
-    const pending = focusAfterRender.current;
-    if (!pending) return;
-    focusAfterRender.current = null;
-    const target = pageRef.current?.querySelector<HTMLElement>(`[data-edit-path="${CSS.escape(pending.path)}"]`);
-    if (!target) return;
-    target.dataset.caretOffset = String(pending.offset);
-    target.focus();
-    placeCaret(target, pending.offset);
-  }, [data, activeLine]);
+  const { breakLine, mergeWithPrevious } = useLineEditing({
+    data,
+    apply: onChange,
+    notify: onLineLimit,
+    onActivate: setActiveLine,
+    focus: (path, offset) => {
+      const target = pageRef.current?.querySelector<HTMLElement>(`[data-edit-path="${CSS.escape(path)}"]`);
+      if (!target) return;
+      target.dataset.caretOffset = String(offset);
+      target.focus();
+      placeCaret(target, offset);
+    },
+  });
+  const shownData = useMemo(
+    () => (activeLine && readField(data, activeLine)?.trim() === "" ? applyEdit(data, activeLine, SHOWN_EMPTY) : data),
+    [data, activeLine],
+  );
 
   return (
     <div ref={frameRef} className="w-full">
@@ -487,8 +487,7 @@ export function CvHtmlPreview({
           style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_WIDTH_PX }}
           className="absolute top-0 left-0 shadow-sm ring-1 ring-slate-200"
           onFocusCapture={(e) => {
-            const path = (e.target as HTMLElement).dataset.editPath;
-            setActiveLine(path && isLinePath(path) ? path : null);
+            setActiveLine((e.target as HTMLElement).dataset.editPath ?? null);
           }}
           onBlurCapture={() => setActiveLine(null)}
         >
@@ -500,7 +499,7 @@ export function CvHtmlPreview({
                     <PrimitivesContext value={HTML_PRIMITIVES}>
                       <DensityContext value={densityFactor(data.style.density)}>
                         <HighlightContext value={highlight}>
-                          <CvPages data={data} templateId={templateId} />
+                          <CvPages data={shownData} templateId={templateId} />
                         </HighlightContext>
                       </DensityContext>
                     </PrimitivesContext>

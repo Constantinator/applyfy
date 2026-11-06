@@ -1,28 +1,100 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { createContext, useContext, useId, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
 
-import { CV_LIMITS } from "@/lib/cv-builder-types";
+import { enterAction, fieldLimit, fieldLimitMessage, hasLineMerge, keepsCaretOnBlank } from "@/lib/cv-builder-types";
 
-// Champs du formulaire du CV Builder.
+import { cutLine } from "./use-line-editing";
+
+// Champs du formulaire du CV Builder : Entrée, Retour arrière et limites sont ceux de l'aperçu.
 
 const labelClass = "text-sm font-medium text-slate-700 dark:text-slate-200";
 
+/** Lignes de liste et messages de l'éditeur, fournis par le panneau qui contient les champs. */
+export const FieldEditingContext = createContext<{
+  notify: (message: string) => void;
+  breakLine?: (path: string, before: string, after: string) => void;
+  mergeWithPrevious?: (path: string) => boolean;
+} | null>(null);
+
+/**
+ * Comportement commun d'un champ du formulaire, désigné par son chemin dans le CV. Saisie au-delà de
+ * la limite refusée avec un message (`limit` : place restante, si elle est plus petite que la limite du
+ * champ). Un texte déjà trop long peut toujours être raccourci.
+ */
+export function useFieldControl(path: string, value: string, onChange: (value: string) => void, limit = fieldLimit(path)) {
+  const editing = useContext(FieldEditingContext);
+  return {
+    value,
+    "data-line-path": path,
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const next = e.target.value;
+      if (next.length > limit && next.length > value.length) {
+        editing?.notify(fieldLimitMessage(path, limit));
+        return;
+      }
+      onChange(next);
+    },
+    onKeyDown: (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (e.nativeEvent.isComposing) return;
+      const el = e.currentTarget;
+      if (e.key === "Backspace") {
+        if (hasLineMerge(path) && el.selectionStart === 0 && el.selectionEnd === 0 && editing?.mergeWithPrevious?.(path)) e.preventDefault();
+        return;
+      }
+      if (e.key !== "Enter") return;
+      const action = enterAction(path);
+      if (action === "newline") return; // paragraphe : saut de ligne du navigateur
+      e.preventDefault();
+      if (action === "validate") el.blur();
+      else if (action === "below") editing?.breakLine?.(path, value, "");
+      else if (value.trim() || !keepsCaretOnBlank(path)) {
+        // Ligne de liste : sur une ligne vide, le curseur reste en place.
+        const [before, after] = cutLine(path, value.slice(0, el.selectionStart ?? value.length), value.slice(el.selectionEnd ?? value.length));
+        editing?.breakLine?.(path, before, after);
+      }
+    },
+  };
+}
+
+/** Champ d'une ligne. */
+export function FieldInput({
+  path,
+  value,
+  onChange,
+  limit,
+  ...props
+}: {
+  path: string;
+  value: string;
+  onChange: (value: string) => void;
+  limit?: number;
+  id?: string;
+  type?: "text" | "email" | "tel" | "url";
+  placeholder?: string;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const control = useFieldControl(path, value, onChange, limit);
+  return <input {...props} {...control} />;
+}
+
 export function Field({
   label,
+  path,
   value,
   onChange,
   placeholder,
   type = "text",
-  maxLength = CV_LIMITS.short,
   className = "",
 }: {
   label: string;
+  /** Chemin du champ dans le CV : sa limite et l'effet d'Entrée en dépendent. */
+  path: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   type?: "text" | "email" | "tel" | "url";
-  maxLength?: number;
   className?: string;
 }) {
   const id = useId();
@@ -31,55 +103,34 @@ export function Field({
       <label htmlFor={id} className={labelClass}>
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="input"
-      />
+      <FieldInput id={id} path={path} type={type} value={value} placeholder={placeholder} onChange={onChange} className="input" />
     </div>
   );
 }
 
 export function TextArea({
   label,
+  path,
   value,
   onChange,
   placeholder,
   rows = 4,
-  maxLength = 2000,
-  action,
 }: {
   label: string;
+  path: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   rows?: number;
-  maxLength?: number;
-  /** Bouton affiché à droite du libellé (ex. IA). */
-  action?: ReactNode;
 }) {
   const id = useId();
+  const control = useFieldControl(path, value, onChange);
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label htmlFor={id} className={labelClass}>
-          {label}
-        </label>
-        {action}
-      </div>
-      <textarea
-        id={id}
-        value={value}
-        rows={rows}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="input resize-y"
-      />
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+      <textarea id={id} rows={rows} placeholder={placeholder} className="input resize-y" {...control} />
     </div>
   );
 }

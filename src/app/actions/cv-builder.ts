@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
-import type { ZodError } from "zod";
 
 import { getAccountName } from "@/lib/account";
 import { checkAiAccess, checkAiRateLimit, countAiUsageToday, recordAiUsage } from "@/lib/ai-usage";
@@ -47,7 +46,8 @@ import {
   CV_IMPORT_FOLDER,
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
-  invalidCvField,
+  CV_UNFIXABLE,
+  fitCvData,
   withoutEmptyLines,
   chatContent,
   cvDataToText,
@@ -206,16 +206,17 @@ export async function convertLegacyCvAction(formData: FormData) {
   redirect(`/cv-builder/${id}`);
 }
 
-export type SaveCvResult = { ok: true; savedAt: string } | { ok: false; error: string };
+/** `notice` : le CV est enregistré, mais un champ refusé a été corrigé (cf. fitCvData). */
+export type SaveCvResult = { ok: true; savedAt: string; notice?: string } | { ok: false; error: string };
 
 /**
- * CV refusé par la validation : champ en cause journalisé (son chemin, pas son contenu) et message
- * pour l'utilisateur, qui le nomme pour qu'il puisse le corriger.
+ * CV reçu de l'éditeur, toujours valide : un champ refusé est corrigé, sans bloquer le reste du CV, et
+ * journalisé (son chemin, pas son contenu). `notice` : message pour l'utilisateur, qui le nomme.
  */
-function rejectedCvMessage(error: ZodError, context: string) {
-  const field = invalidCvField(error);
-  console.error(`[cv-builder] CV refusé (${context}) : champ ${field.path || "racine"}, ${error.issues.length} problème(s), ${error.issues[0]?.code}`);
-  return field.message;
+function fittedCv(raw: unknown, context: string) {
+  const { data, fixes } = fitCvData(raw);
+  if (fixes.length) console.error(`[cv-builder] CV corrigé (${context}) : champ ${fixes[0].path || "racine"}, ${fixes.length} correction(s), ${fixes[0].code}`);
+  return { data, notice: fixes[0]?.message, unfixable: fixes.some((f) => f.code === CV_UNFIXABLE) };
 }
 
 /** Sauvegarde automatique de l'éditeur. */
@@ -224,16 +225,18 @@ export async function saveBuilderCvAction(
   input: { title: string; templateId: CvTemplateId; data: CvData },
 ): Promise<SaveCvResult> {
   if (!isTemplateId(input?.templateId)) return { ok: false, error: "Modèle inconnu." };
-  const parsed = CvDataSchema.safeParse(input.data);
-  if (!parsed.success) return { ok: false, error: rejectedCvMessage(parsed.error, "enregistrement") };
+  // Pas de contenu : surtout ne pas enregistrer un CV vide à la place du CV.
+  if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) return { ok: false, error: "Requête invalide." };
+  const { data, notice, unfixable } = fittedCv(input.data, "enregistrement");
+  if (unfixable) return { ok: false, error: notice ?? "Requête invalide." };
   try {
     const savedAt = await saveBuilderCv(String(id), {
       title: String(input.title ?? ""),
       templateId: input.templateId,
-      data: parsed.data,
+      data,
     });
     revalidatePath("/cv-builder");
-    return { ok: true, savedAt };
+    return notice ? { ok: true, savedAt, notice } : { ok: true, savedAt };
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
@@ -319,9 +322,7 @@ function cvToText(data: CvData) {
 
 /** « Générer un résumé » de la section Profil. */
 export async function generateSummaryAction(rawData: CvData) {
-  const parsed = CvDataSchema.safeParse(rawData);
-  if (!parsed.success) return { ok: false, error: rejectedCvMessage(parsed.error, "résumé") } satisfies AiResult<string>;
-  const data = parsed.data;
+  const { data } = fittedCv(rawData, "résumé");
   if (!data.experiences.length && !data.education.length && !data.skills.length) {
     return { ok: false, error: "Ajoute d'abord une expérience, une formation ou des compétences." } satisfies AiResult<string>;
   }
@@ -332,9 +333,7 @@ export type AdaptedExperiences = { experiences: { id: string; bullets: string[] 
 
 /** « Adapter à une offre » : `offer` est l'adresse de l'offre ou son texte collé. */
 export async function adaptToOfferAction(rawData: CvData, offer: string) {
-  const parsed = CvDataSchema.safeParse(rawData);
-  if (!parsed.success) return { ok: false, error: rejectedCvMessage(parsed.error, "adaptation") } satisfies AiResult<AdaptedExperiences>;
-  const experiences = parsed.data.experiences
+  const experiences = fittedCv(rawData, "adaptation").data.experiences
     .map((e) => ({
       id: e.id,
       heading: `${e.position} — ${e.company}`,
@@ -628,11 +627,10 @@ export async function analyseCvImportAction(id: string): Promise<ImportStepResul
  */
 export async function scoringContextAction(id: string, rawData: unknown): Promise<ScoringContext | null> {
   if (typeof id !== "string") return null;
-  const parsed = CvDataSchema.safeParse(rawData);
-  if (!parsed.success) return null;
+  const { data } = fittedCv(rawData, "score");
   // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
   if (!(await getBuilderCv(id))) return null;
-  return loadScoringContext(parsed.data);
+  return loadScoringContext(data);
 }
 
 /**
@@ -800,18 +798,21 @@ function skippedPoints(value: unknown): string[] {
 }
 
 /**
- * CV affiché dans l'éditeur (modifications non enregistrées comprises), avec la photo, les
- * réglages et l'analyse enregistrés ; message d'erreur s'il est invalide ou n'est pas à l'utilisateur.
+ * CV affiché dans l'éditeur (modifications non enregistrées comprises), avec la photo, les réglages et
+ * l'analyse enregistrés ; `notice` si un champ refusé a été corrigé ; message d'erreur s'il est
+ * illisible ou n'est pas à l'utilisateur.
  */
-async function readShownCv(id: string, json: string): Promise<{ data: CvData; applicationId: string | null } | string> {
+async function readShownCv(id: string, json: string): Promise<{ data: CvData; applicationId: string | null; notice?: string } | string> {
   if (json.length > 200_000) return "Le CV est trop long.";
   let shown: CvData;
+  let notice: string | undefined;
   try {
-    const parsed = CvDataSchema.safeParse(JSON.parse(json));
-    if (!parsed.success) return rejectedCvMessage(parsed.error, "coach");
+    const fitted = fittedCv(JSON.parse(json), "coach");
+    if (fitted.unfixable) return fitted.notice ?? "Requête invalide.";
+    notice = fitted.notice;
     // Le coach désigne les puces par leur position dans le contenu qu'il a reçu (chatContent) :
     // ses modifications s'appliquent sur le même contenu, sans lignes vides.
-    shown = withoutEmptyLines(parsed.data);
+    shown = withoutEmptyLines(fitted.data);
   } catch {
     return "Requête invalide.";
   }
@@ -820,6 +821,7 @@ async function readShownCv(id: string, json: string): Promise<{ data: CvData; ap
   if (!stored) return "Ce CV n'existe plus.";
   return {
     applicationId: stored.applicationId,
+    notice,
     data: {
       ...shown,
       personal: { ...shown.personal, photo: stored.data.personal.photo },
@@ -974,7 +976,7 @@ export async function refineBuilderCvAction(
     await recordAiUsage(reorganized ? "cvb_coach" : "cvb_chat");
     return {
       ok: true,
-      reply: text,
+      reply: shown.notice ? `${shown.notice} ${text}` : text,
       html: JSON.stringify(chatContent(updated)),
       usage: reorganized ? gate.chat : { used: gate.chat.used + 1, limit: gate.chat.limit },
       skippedPoints: skippedNow,

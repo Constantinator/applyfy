@@ -1,31 +1,26 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 
 import {
   CV_LIMITS,
   newItemId,
+  readInterests,
   SKILL_LEVELS,
+  writeInterests,
   type CvData,
   type CvExperience,
   type SkillLevel,
 } from "@/lib/cv-builder-types";
 
-import { AddButton, Field, ItemCard, move, TextArea } from "./form-controls";
+import { AddButton, Field, FieldEditingContext, FieldInput, ItemCard, move, TextArea, useFieldControl } from "./form-controls";
+import { useLineEditing } from "./use-line-editing";
 
 // Onglet « Contenu » de l'éditeur (CV créé depuis zéro) : le CV section par section. Chaque
 // saisie passe par `onChange` (edit() de l'éditeur) : aperçu, score et sauvegarde suivent.
 
 /** Mise à jour du CV, la même que celle de l'aperçu modifiable au clic. */
 type Edit = (fn: (d: CvData) => CvData) => void;
-
-/** Poste visé : longueur maximale (cf. CvDataSchema). */
-const TARGET_JOB_MAX = 120;
-/** Centres d'intérêt : texte total (cf. CvDataSchema) et longueur d'un centre d'intérêt. */
-const INTERESTS_MAX = 500;
-const INTEREST_MAX = 100;
-/** Compétences : nombre maximal (cf. CvDataSchema). */
-const SKILLS_MAX = 40;
 
 const LANGUAGE_LEVELS = ["Débutant", "Intermédiaire", "Courant", "Bilingue", "Natif"];
 
@@ -50,32 +45,33 @@ function Identity({ data, onChange }: { data: CvData; onChange: Edit }) {
     onChange((d) => ({ ...d, personal: { ...d.personal, [field]: value } }));
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Prénom" value={p.firstName} maxLength={60} onChange={(v) => set("firstName", v)} />
-      <Field label="Nom" value={p.lastName} maxLength={60} onChange={(v) => set("lastName", v)} />
+      <Field label="Prénom" path="personal.firstName" value={p.firstName} onChange={(v) => set("firstName", v)} />
+      <Field label="Nom" path="personal.lastName" value={p.lastName} onChange={(v) => set("lastName", v)} />
       <Field
         label="Titre du CV"
+        path="personal.jobTitle"
         value={p.jobTitle}
         onChange={(v) => set("jobTitle", v)}
         placeholder="Ex. Data Analyst"
         className="sm:col-span-2"
       />
-      <Field label="Email" type="email" value={p.email} onChange={(v) => set("email", v)} />
-      <Field label="Téléphone" type="tel" value={p.phone} maxLength={40} onChange={(v) => set("phone", v)} />
-      <Field label="Ville" value={p.city} onChange={(v) => set("city", v)} placeholder="Ex. Lyon" />
+      <Field label="Email" path="personal.email" type="email" value={p.email} onChange={(v) => set("email", v)} />
+      <Field label="Téléphone" path="personal.phone" type="tel" value={p.phone} onChange={(v) => set("phone", v)} />
+      <Field label="Ville" path="personal.city" value={p.city} onChange={(v) => set("city", v)} placeholder="Ex. Lyon" />
       <Field
         label="LinkedIn"
+        path="personal.linkedin"
         type="url"
         value={p.linkedin}
-        maxLength={CV_LIMITS.url}
         onChange={(v) => set("linkedin", v)}
         placeholder="linkedin.com/in/…"
       />
-      <Field label="Site web / portfolio" type="url" value={p.website} maxLength={CV_LIMITS.url} onChange={(v) => set("website", v)} />
+      <Field label="Site web / portfolio" path="personal.website" type="url" value={p.website} onChange={(v) => set("website", v)} />
       <Field
         label="GitHub"
+        path="personal.github"
         type="url"
         value={p.github}
-        maxLength={CV_LIMITS.url}
         onChange={(v) => set("github", v)}
         placeholder="github.com/…"
       />
@@ -103,21 +99,21 @@ function Experiences({ data, onChange }: { data: CvData; onChange: Edit }) {
           onRemove={() => onChange((d) => ({ ...d, experiences: d.experiences.filter((e) => e.id !== exp.id) }))}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Poste" value={exp.position} onChange={(v) => update(exp.id, { position: v })} />
-            <Field label="Entreprise" value={exp.company} onChange={(v) => update(exp.id, { company: v })} />
-            <Field label="Ville" value={exp.location} onChange={(v) => update(exp.id, { location: v })} className="sm:col-span-2" />
+            <Field label="Poste" path={`experiences.${exp.id}.position`} value={exp.position} onChange={(v) => update(exp.id, { position: v })} />
+            <Field label="Entreprise" path={`experiences.${exp.id}.company`} value={exp.company} onChange={(v) => update(exp.id, { company: v })} />
+            <Field label="Ville" path={`experiences.${exp.id}.location`} value={exp.location} onChange={(v) => update(exp.id, { location: v })} className="sm:col-span-2" />
             <Field
               label="Début"
+              path={`experiences.${exp.id}.startDate`}
               value={exp.startDate}
-              maxLength={40}
               placeholder="Ex. 09/2022"
               onChange={(v) => update(exp.id, { startDate: v })}
             />
             <div className="space-y-1.5">
               <Field
                 label="Fin"
+                path={`experiences.${exp.id}.endDate`}
                 value={exp.current ? "" : exp.endDate}
-                maxLength={40}
                 placeholder={exp.current ? "Aujourd'hui" : "Ex. 06/2024"}
                 onChange={(v) => update(exp.id, { endDate: v, current: false })}
               />
@@ -134,6 +130,7 @@ function Experiences({ data, onChange }: { data: CvData; onChange: Edit }) {
             </div>
           </div>
           <Bullets
+            base={`experiences.${exp.id}`}
             label="Missions et réalisations"
             placeholder="Ex. Réduction de 30 % du temps de préparation des reportings"
             bullets={exp.bullets}
@@ -151,41 +148,59 @@ function Experiences({ data, onChange }: { data: CvData; onChange: Edit }) {
   );
 }
 
+function Bullet({
+  path,
+  index,
+  value,
+  placeholder,
+  onChange,
+  onRemove,
+}: {
+  path: string;
+  index: number;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onRemove: () => void;
+}) {
+  const control = useFieldControl(path, value, onChange);
+  return (
+    <div className="flex items-start gap-2">
+      <textarea aria-label={`Puce ${index + 1}`} rows={2} placeholder={placeholder} className="input resize-y" {...control} />
+      <button type="button" onClick={onRemove} aria-label={`Supprimer la puce ${index + 1}`} className={removeButton}>
+        ×
+      </button>
+    </div>
+  );
+}
+
 function Bullets({
+  base,
   label,
   placeholder,
   bullets,
   onChange,
 }: {
+  /** Chemin de l'expérience ou de la formation. */
+  base: string;
   label: string;
   placeholder: string;
   bullets: string[];
   onChange: (bullets: string[]) => void;
 }) {
-  const setBullet = (i: number, value: string) => onChange(bullets.map((b, j) => (j === i ? value : b)));
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</p>
       {bullets.map((bullet, i) => (
-        <div key={i} className="flex items-start gap-2">
-          <textarea
-            aria-label={`Puce ${i + 1}`}
-            value={bullet}
-            rows={2}
-            maxLength={CV_LIMITS.bullet}
-            placeholder={placeholder}
-            onChange={(e) => setBullet(i, e.target.value)}
-            className="input resize-y"
-          />
-          <button
-            type="button"
-            onClick={() => onChange(bullets.filter((_, j) => j !== i))}
-            aria-label={`Supprimer la puce ${i + 1}`}
-            className={removeButton}
-          >
-            ×
-          </button>
-        </div>
+        <Bullet
+          key={i}
+          path={`${base}.bullets.${i}`}
+          index={i}
+          value={bullet}
+          placeholder={placeholder}
+          onChange={(value) => onChange(bullets.map((b, j) => (j === i ? value : b)))}
+          onRemove={() => onChange(bullets.filter((_, j) => j !== i))}
+        />
       ))}
       <button
         type="button"
@@ -215,13 +230,14 @@ function Education({ data, onChange }: { data: CvData; onChange: Edit }) {
           onRemove={() => onChange((d) => ({ ...d, education: d.education.filter((e) => e.id !== edu.id) }))}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Diplôme" value={edu.degree} onChange={(v) => update(edu.id, { degree: v })} className="sm:col-span-2" />
-            <Field label="Établissement" value={edu.school} onChange={(v) => update(edu.id, { school: v })} className="sm:col-span-2" />
-            <Field label="Début" value={edu.startDate} maxLength={40} placeholder="Ex. 2020" onChange={(v) => update(edu.id, { startDate: v })} />
-            <Field label="Fin" value={edu.endDate} maxLength={40} placeholder="Ex. 2022" onChange={(v) => update(edu.id, { endDate: v })} />
-            <Field label="Mention (optionnelle)" value={edu.honors} onChange={(v) => update(edu.id, { honors: v })} className="sm:col-span-2" />
+            <Field label="Diplôme" path={`education.${edu.id}.degree`} value={edu.degree} onChange={(v) => update(edu.id, { degree: v })} className="sm:col-span-2" />
+            <Field label="Établissement" path={`education.${edu.id}.school`} value={edu.school} onChange={(v) => update(edu.id, { school: v })} className="sm:col-span-2" />
+            <Field label="Début" path={`education.${edu.id}.startDate`} value={edu.startDate} placeholder="Ex. 2020" onChange={(v) => update(edu.id, { startDate: v })} />
+            <Field label="Fin" path={`education.${edu.id}.endDate`} value={edu.endDate} placeholder="Ex. 2022" onChange={(v) => update(edu.id, { endDate: v })} />
+            <Field label="Mention (optionnelle)" path={`education.${edu.id}.honors`} value={edu.honors} onChange={(v) => update(edu.id, { honors: v })} className="sm:col-span-2" />
           </div>
           <Bullets
+            base={`education.${edu.id}`}
             label="Cours suivis, classements…"
             placeholder="Ex. Classement : 3e sur 120"
             bullets={edu.bullets}
@@ -291,12 +307,12 @@ function Skills({ data, onChange }: { data: CvData; onChange: Edit }) {
           onMove={(delta) => onChange((d) => ({ ...d, skills: move(d.skills, index, delta) }))}
           onRemove={() => onChange((d) => ({ ...d, skills: d.skills.filter((s) => s.id !== skill.id) }))}
         >
-          <input
+          <FieldInput
             aria-label={`Compétence ${index + 1}`}
+            path={`skills.${skill.id}.name`}
             value={skill.name}
-            maxLength={CV_LIMITS.short}
             placeholder="Ex. SQL"
-            onChange={(e) => update(skill.id, { name: e.target.value })}
+            onChange={(name) => update(skill.id, { name })}
             className="input min-w-0"
           />
           <select
@@ -314,7 +330,7 @@ function Skills({ data, onChange }: { data: CvData; onChange: Edit }) {
         </ListRow>
       ))}
       <AddButton
-        disabled={data.skills.length >= SKILLS_MAX}
+        disabled={data.skills.length >= CV_LIMITS.skills}
         onClick={() => onChange((d) => ({ ...d, skills: [...d.skills, { id: newItemId(), name: "", level: "" }] }))}
       >
         + Ajouter une compétence
@@ -340,12 +356,12 @@ function Languages({ data, onChange }: { data: CvData; onChange: Edit }) {
             onMove={(delta) => onChange((d) => ({ ...d, languages: move(d.languages, index, delta) }))}
             onRemove={() => onChange((d) => ({ ...d, languages: d.languages.filter((l) => l.id !== lang.id) }))}
           >
-            <input
+            <FieldInput
               aria-label={`Langue ${index + 1}`}
+              path={`languages.${lang.id}.name`}
               value={lang.name}
-              maxLength={60}
               placeholder="Ex. Anglais"
-              onChange={(e) => update(lang.id, { name: e.target.value })}
+              onChange={(name) => update(lang.id, { name })}
               className="input min-w-0"
             />
             <select
@@ -389,9 +405,9 @@ function Certifications({ data, onChange }: { data: CvData; onChange: Edit }) {
           onRemove={() => onChange((d) => ({ ...d, certifications: d.certifications.filter((c) => c.id !== cert.id) }))}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Certification" value={cert.name} onChange={(v) => update(cert.id, { name: v })} className="sm:col-span-2" />
-            <Field label="Organisme" value={cert.issuer} onChange={(v) => update(cert.id, { issuer: v })} />
-            <Field label="Date" value={cert.date} maxLength={40} placeholder="Ex. 2024" onChange={(v) => update(cert.id, { date: v })} />
+            <Field label="Certification" path={`certifications.${cert.id}.name`} value={cert.name} onChange={(v) => update(cert.id, { name: v })} className="sm:col-span-2" />
+            <Field label="Organisme" path={`certifications.${cert.id}.issuer`} value={cert.issuer} onChange={(v) => update(cert.id, { issuer: v })} />
+            <Field label="Date" path={`certifications.${cert.id}.date`} value={cert.date} placeholder="Ex. 2024" onChange={(v) => update(cert.id, { date: v })} />
           </div>
         </ItemCard>
       ))}
@@ -421,19 +437,19 @@ function Projects({ data, onChange }: { data: CvData; onChange: Edit }) {
           onMove={(delta) => onChange((d) => ({ ...d, projects: move(d.projects, index, delta) }))}
           onRemove={() => onChange((d) => ({ ...d, projects: d.projects.filter((p) => p.id !== project.id) }))}
         >
-          <Field label="Nom du projet" value={project.name} onChange={(v) => update(project.id, { name: v })} />
+          <Field label="Nom du projet" path={`projects.${project.id}.name`} value={project.name} onChange={(v) => update(project.id, { name: v })} />
           <TextArea
             label="Description"
+            path={`projects.${project.id}.description`}
             value={project.description}
             rows={3}
-            maxLength={CV_LIMITS.text}
             onChange={(v) => update(project.id, { description: v })}
           />
           <Field
             label="Lien (facultatif)"
+            path={`projects.${project.id}.link`}
             type="url"
             value={project.link}
-            maxLength={CV_LIMITS.url}
             onChange={(v) => update(project.id, { link: v })}
           />
         </ItemCard>
@@ -449,17 +465,12 @@ function Projects({ data, onChange }: { data: CvData; onChange: Edit }) {
 }
 
 /**
- * Centres d'intérêt, un par ligne : enregistrés dans data.interests (texte) séparés par des
- * retours à la ligne ; un texte sans retour à la ligne (CV importé) est lu séparé par des virgules.
+ * Centres d'intérêt, un par ligne : enregistrés dans data.interests (texte) séparés par des retours à
+ * la ligne (cf. readInterests). La limite porte sur le texte entier : chaque ligne a la place restante.
  */
-function readInterests(text: string) {
-  if (!text) return [];
-  return text.includes("\n") ? text.split("\n") : text.split(",").map((s) => s.trim());
-}
-
 function Interests({ data, onChange }: { data: CvData; onChange: Edit }) {
   const items = readInterests(data.interests);
-  const write = (next: string[]) => onChange((d) => ({ ...d, interests: next.join("\n").slice(0, INTERESTS_MAX) }));
+  const write = (next: string[]) => onChange((d) => ({ ...d, interests: writeInterests(next) }));
   return (
     <>
       {items.map((interest, index) => (
@@ -471,21 +482,19 @@ function Interests({ data, onChange }: { data: CvData; onChange: Edit }) {
           onMove={(delta) => write(move(items, index, delta))}
           onRemove={() => write(items.filter((_, i) => i !== index))}
         >
-          <input
+          <FieldInput
             aria-label={`Centre d'intérêt ${index + 1}`}
+            path={`interests.${index}`}
             value={interest}
-            maxLength={INTEREST_MAX}
+            limit={CV_LIMITS.interests - (data.interests.length - interest.length)}
             placeholder="Ex. Course à pied"
             // Une virgule séparerait l'intérêt en deux dans le CV.
-            onChange={(e) => write(items.map((s, i) => (i === index ? e.target.value.replace(/[,\n]/g, " ") : s)))}
+            onChange={(value) => write(items.map((s, i) => (i === index ? value.replace(/[,\n]/g, " ") : s)))}
             className="input min-w-0"
           />
         </ListRow>
       ))}
-      <AddButton
-        disabled={data.interests.length + 1 >= INTERESTS_MAX}
-        onClick={() => write([...items, ""])}
-      >
+      <AddButton disabled={data.interests.length + 1 >= CV_LIMITS.interests} onClick={() => write([...items, ""])}>
         + Ajouter un centre d&apos;intérêt
       </AddButton>
     </>
@@ -493,17 +502,29 @@ function Interests({ data, onChange }: { data: CvData; onChange: Edit }) {
 }
 
 /** Onglet « Contenu » de l'éditeur : le CV section par section, mis à jour en temps réel. */
-export function CvContentPanel({ data, onChange }: { data: CvData; onChange: Edit }) {
+export function CvContentPanel({ data, onChange, onLimit }: { data: CvData; onChange: Edit; onLimit: (message: string) => void }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { breakLine, mergeWithPrevious } = useLineEditing({
+    data,
+    apply: onChange,
+    notify: onLimit,
+    focus: (path, offset) => {
+      const target = rootRef.current?.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-line-path="${CSS.escape(path)}"]`);
+      target?.focus();
+      target?.setSelectionRange(offset, offset);
+    },
+  });
   return (
-    <div className="space-y-8">
+    <FieldEditingContext value={{ notify: onLimit, breakLine, mergeWithPrevious }}>
+    <div ref={rootRef} className="space-y-8">
       <Section title="Identité">
         <Identity data={data} onChange={onChange} />
       </Section>
       <Section title="Poste visé">
         <Field
           label="Poste visé (pour le score et le coach)"
+          path="targetJob"
           value={data.targetJob}
-          maxLength={TARGET_JOB_MAX}
           placeholder="Ex. Analyste financier"
           onChange={(v) => onChange((d) => ({ ...d, targetJob: v }))}
         />
@@ -511,9 +532,9 @@ export function CvContentPanel({ data, onChange }: { data: CvData; onChange: Edi
       <Section title="Accroche">
         <TextArea
           label="Résumé de profil"
+          path="summary"
           value={data.summary}
           rows={5}
-          maxLength={CV_LIMITS.text}
           placeholder="En 2 à 4 phrases : ton métier, ton expérience, tes points forts et ce que tu recherches."
           onChange={(v) => onChange((d) => ({ ...d, summary: v }))}
         />
@@ -540,5 +561,6 @@ export function CvContentPanel({ data, onChange }: { data: CvData; onChange: Edi
         <Interests data={data} onChange={onChange} />
       </Section>
     </div>
+    </FieldEditingContext>
   );
 }
