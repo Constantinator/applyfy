@@ -36,7 +36,7 @@ export function ApplicationsView({
   const [sort, setSort] = useState<SortKey>(initialSort);
 
   // Changement de statut depuis la liste : affiché tout de suite (liste, filtres, tri), puis
-  // remplacé par les données du serveur (updateStatusAction revalide /dashboard : statistiques,
+  // remplacé par les données du serveur (updateStatusAction revalide /candidatures : compteurs,
   // dates d'envoi et de dernier contact). En cas d'erreur, l'ancien statut revient.
   const [applications, setOptimisticStatus] = useOptimistic(
     saved,

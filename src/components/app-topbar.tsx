@@ -8,6 +8,7 @@ import { flushSync } from "react-dom";
 import { logoutAction } from "@/app/actions/auth";
 import {
   IconActivity,
+  IconBriefcase,
   IconDocument,
   IconGrid,
   IconHome,
@@ -49,7 +50,7 @@ const PROFILE: NavItem = {
   isActive: (p) => p.startsWith("/profil"),
 };
 
-/** Dans le menu du compte : avec lui, la barre déborde à 1024 px (beta testeurs, admin). */
+/** Dans le menu du compte : la barre n'a pas la place de ce lien à 1024 px. */
 const EXTENSION: NavItem = {
   href: "/extension",
   label: "Extension Chrome",
@@ -70,8 +71,14 @@ const BAR_LINKS: NavItem[] = [
     href: "/dashboard",
     label: "Tableau de bord",
     icon: IconGrid,
+    isActive: (p) => p === "/dashboard",
+  },
+  {
+    href: "/candidatures",
+    label: "Candidatures",
+    icon: IconBriefcase,
     // Les fiches candidature appartiennent à cette section.
-    isActive: (p) => p === "/dashboard" || (p.startsWith("/candidatures/") && p !== "/candidatures/nouvelle"),
+    isActive: (p) => p === "/candidatures" || (p.startsWith("/candidatures/") && p !== "/candidatures/nouvelle"),
   },
   {
     href: "/offres",
@@ -123,11 +130,15 @@ const MENU_ITEM = `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left
 const MENU_ITEM_ACTIVE = "bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-300";
 const PANEL_SECONDARY_ITEM = `flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`;
 
+/** Compteur affiché dans un badge : « 99+ » à partir de 100, pour que la barre ne déborde pas. */
+const badgeCount = (count: number) => (count >= 100 ? "99+" : String(count));
+
 function UnreadBadge({ count, className = "" }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
     <span className={`${UNREAD_BADGE} ${className}`}>
-      {count}
+      <span aria-hidden="true">{badgeCount(count)}</span>
+      <span className="sr-only">{count}</span>
       <span className="sr-only"> message{count > 1 ? "s" : ""} non lu{count > 1 ? "s" : ""}</span>
     </span>
   );
@@ -170,8 +181,10 @@ export function AppTopbar({
   // Messages non lus de la messagerie beta : badge rouge sur le lien concerné.
   const unread: Record<string, number> = { "/beta": unreadBeta, "/admin/beta": unreadAdmin };
   const barLinks = isBetaTester ? [...BAR_LINKS, BETA_ITEM] : BAR_LINKS;
-  // Panneau : tous les liens à plat, dans l'ordre historique de la navigation.
-  const panelLinks = [...BAR_LINKS.slice(0, 2), PROFILE, EXTENSION, ...barLinks.slice(2), ...(isAdmin ? ADMIN_ITEMS : [])];
+  // Panneau : les liens de la barre, puis ceux des menus, à plat.
+  const panelLinks = [...barLinks, PROFILE, EXTENSION, ...(isAdmin ? ADMIN_ITEMS : [])];
+  // Beta + admin : six entrées, la barre ne tient à 1024 px qu'avec un bouton plus court.
+  const compactNewApplication = isAdmin && isBetaTester;
 
   // Le panneau mobile n'a plus lieu d'être si l'écran s'élargit (rotation, fenêtre).
   useEffect(() => {
@@ -291,7 +304,7 @@ export function AppTopbar({
   const accountItems = [PROFILE, EXTENSION, PREMIUM];
   const accountActive = accountItems.some((item) => item.isActive(pathname));
   const barLink = (active: boolean) =>
-    `flex h-full items-center gap-1.5 border-b-2 px-2.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600 ${
+    `flex h-full items-center gap-1 border-b-2 px-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600 ${
       active
         ? "border-blue-600 text-blue-700 dark:border-blue-400 dark:text-blue-300"
         : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
@@ -300,7 +313,7 @@ export function AppTopbar({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white print:hidden dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex h-14 items-center gap-4 px-4 sm:px-6 lg:h-16">
+        <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:h-16">
           {logo("sm")}
 
           {/* Grand écran : liens dans la barre. */}
@@ -329,7 +342,7 @@ export function AppTopbar({
                     <Chevron />
                     {unreadAdmin > 0 && (
                       <span aria-hidden="true" className={UNREAD_BADGE}>
-                        {unreadAdmin}
+                        {badgeCount(unreadAdmin)}
                       </span>
                     )}
                   </>
@@ -360,10 +373,17 @@ export function AppTopbar({
             <Link
               href={NEW_APPLICATION.href}
               aria-current={NEW_APPLICATION.isActive(pathname) ? "page" : undefined}
+              aria-label={compactNewApplication ? NEW_APPLICATION.label : undefined}
               className="btn-primary px-3.5 py-2 text-sm"
             >
               <IconPlus className="h-4 w-4" />
-              {NEW_APPLICATION.label}
+              {compactNewApplication ? (
+                <span>
+                  Nouvelle<span className="hidden xl:inline"> candidature</span>
+                </span>
+              ) : (
+                NEW_APPLICATION.label
+              )}
             </Link>
 
             <NavDropdown

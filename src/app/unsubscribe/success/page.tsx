@@ -25,7 +25,7 @@ export default async function UnsubscribeSuccessPage({ searchParams }: PageProps
             : "Tu ne recevras plus d'emails de notre part."}
         </p>
         <Link href="/dashboard" className="btn-primary mt-6 inline-flex px-5 py-2.5 text-sm">
-          Retour au dashboard
+          Retour au tableau de bord
         </Link>
       </div>
     </main>

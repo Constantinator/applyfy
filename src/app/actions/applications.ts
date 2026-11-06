@@ -26,9 +26,15 @@ export type ActionState =
 
 const MAX_MESSAGE_LENGTH = 5000;
 
+/** Pages qui affichent les candidatures : la liste et le tableau de bord. */
+function revalidateApplicationLists() {
+  revalidatePath("/candidatures");
+  revalidatePath("/dashboard");
+}
+
 function revalidateApplication(id: string) {
   revalidatePath(`/candidatures/${id}`);
-  revalidatePath("/dashboard");
+  revalidateApplicationLists();
 }
 
 export async function updateStatusAction(
@@ -182,8 +188,8 @@ export async function deleteApplicationAction(
     return { status: "error", message: "La suppression a échoué. Réessaie dans un instant." };
   }
 
-  revalidatePath("/dashboard");
-  redirect("/dashboard?suppression=ok");
+  revalidateApplicationLists();
+  redirect("/candidatures?suppression=ok");
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +297,6 @@ export async function createApplicationAction(
   }
 
   recordUserJobOffer({ title: values.position, company: values.company, description: values.offer_description });
-  revalidatePath("/dashboard");
+  revalidateApplicationLists();
   redirect(`/candidatures/${id}?creee=1`);
 }

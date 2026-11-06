@@ -498,7 +498,7 @@ export function NewApplicationForm({
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Link
-          href="/dashboard"
+          href="/candidatures"
           className="btn-secondary px-4 py-2.5 text-sm"
         >
           Annuler

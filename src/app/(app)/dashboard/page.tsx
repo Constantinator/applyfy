@@ -1,25 +1,39 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
-import { ApplicationsView } from "@/components/dashboard/applications-view";
 import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
 import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversion";
-import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
-import { IconPlus, IconSparkles } from "@/components/icons";
+import { IconSparkles } from "@/components/icons";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { getApplications } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
 import { getBetaSpotsLeft, getMyBeta, hasBetaPremium } from "@/lib/beta";
-import { FOLLOW_UP_AFTER_DAYS, FOLLOW_UP_FILTER, needsFollowUp } from "@/lib/follow-up";
-import { DEFAULT_SORT, isSortKey } from "@/lib/sort-applications";
+import { FOLLOW_UP_AFTER_DAYS, needsFollowUp } from "@/lib/follow-up";
 import { isStripeConfigured, syncCheckoutSession } from "@/lib/stripe";
 import { getSubscription } from "@/lib/subscription";
-import { isApplicationStatus } from "@/lib/types";
+
+export const metadata: Metadata = { title: "Tableau de bord — Applyfy" };
+
+/** Paramètres de l'ancienne liste, qui était sur /dashboard : favoris et e-mails déjà envoyés. */
+const LIST_PARAMS = ["filtre", "tri", "ajout", "suppression"];
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
-  const { filtre, tri, ajout, suppression, premium: premiumWelcome, session_id, beta: betaParam } = await searchParams;
+  const params = await searchParams;
+  const { premium: premiumWelcome, session_id, beta: betaParam } = params;
   const welcomePremium = premiumWelcome === "bienvenue";
+
+  // Jamais au retour de Stripe : la conversion Google Ads est envoyée depuis cette page.
+  if (!welcomePremium && LIST_PARAMS.some((name) => params[name] !== undefined)) {
+    const query = new URLSearchParams();
+    for (const [name, value] of Object.entries(params)) {
+      for (const item of [value ?? []].flat()) query.append(name, item);
+    }
+    redirect(`/candidatures?${query}`);
+  }
+
   // Retour de Stripe Checkout : abonnement enregistré tout de suite, sans attendre le webhook.
   if (welcomePremium && typeof session_id === "string" && isStripeConfigured()) {
     const user = await getCurrentUser();
@@ -29,9 +43,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       });
     }
   }
-  const initialFilter =
-    filtre === FOLLOW_UP_FILTER || isApplicationStatus(filtre) ? filtre : "toutes";
-  const initialSort = isSortKey(tri) ? tri : DEFAULT_SORT;
 
   const [{ applications, source }, subscription, beta] = await Promise.all([
     getApplications(),
@@ -42,7 +53,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // Programme beta : proposé à ceux qui n'y participent pas encore.
   const canJoinBeta = source !== "demo" && !beta;
   const betaSpotsLeft = canJoinBeta ? await getBetaSpotsLeft() : 0;
-  // Date de référence unique, transmise au client pour des calculs identiques des deux côtés.
   const now = new Date();
   const toFollowUp = applications.filter((app) => needsFollowUp(app, now));
 
@@ -74,30 +84,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </p>
       )}
 
-      {ajout === "ok" && (
-        <p
-          role="status"
-          className="rounded-lg bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
-        >
-          ✓ Candidature ajoutée.
-        </p>
-      )}
-      {suppression === "ok" && (
-        <p
-          role="status"
-          className="rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 ring-1 ring-slate-200 dark:ring-slate-700"
-        >
-          Candidature supprimée.
-        </p>
-      )}
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Mes candidatures</h1>
-          <p className="mt-1.5 text-slate-500 dark:text-slate-400">
-            Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Tableau de bord</h1>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {canJoinBeta && (
             <BetaJoinDialog mode="join" spotsLeft={betaSpotsLeft} autoOpen={betaParam === "rejoindre"} />
@@ -108,59 +96,31 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               Passer au Premium
             </Link>
           )}
-          <OnboardingTip id="nouvelle-candidature" text="Clique ici pour ajouter une offre" align="end">
-            <Link href="/candidatures/nouvelle" className="btn-primary px-4 py-2.5 text-sm">
-              <IconPlus className="h-4 w-4" />
-              Nouvelle candidature
-            </Link>
-          </OnboardingTip>
         </div>
       </div>
 
       {applications.length === 0 ? (
         <EmptyDashboard />
       ) : (
-        <>
-          <StatsCards
-            stats={[
-              { label: "Candidatures", value: applications.length, tone: "blue" },
-              {
-                label: "En attente de réponse",
-                value:
-                  countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
-                tone: "indigo",
-              },
-              { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
-              {
-                label: "À relancer",
-                value: toFollowUp.length,
-                hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
-                tone: "amber",
-                highlight: toFollowUp.length > 0,
-              },
-            ]}
-          />
-
-          {/* Seulement la candidature exemple créée à l'inscription : invitation à ajouter la vraie. */}
-          {applications.every((app) => app.is_example) && (
-            <div className="flex flex-col gap-3 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between dark:bg-slate-800/60 dark:ring-slate-700">
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Ceci est un exemple — ajoute ta première vraie candidature !
-              </p>
-              <Link href="/candidatures/nouvelle" className="btn-primary shrink-0 self-start px-4 py-2 text-sm sm:self-auto">
-                <IconPlus className="h-4 w-4" />
-                Ajouter une candidature
-              </Link>
-            </div>
-          )}
-
-          <ApplicationsView
-            applications={applications}
-            nowIso={now.toISOString()}
-            initialFilter={initialFilter}
-            initialSort={initialSort}
-          />
-        </>
+        <StatsCards
+          stats={[
+            { label: "Candidatures", value: applications.length, tone: "blue" },
+            {
+              label: "En attente de réponse",
+              value:
+                countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
+              tone: "indigo",
+            },
+            { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
+            {
+              label: "À relancer",
+              value: toFollowUp.length,
+              hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
+              tone: "amber",
+              highlight: toFollowUp.length > 0,
+            },
+          ]}
+        />
       )}
     </main>
   );

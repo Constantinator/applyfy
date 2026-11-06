@@ -7,7 +7,7 @@ export const FOLLOW_UP_AFTER_DAYS = 7;
 /** Statuts « en attente d'une réponse » : candidats à une relance. */
 export const FOLLOW_UP_STATUSES: ApplicationStatus[] = ["envoyee", "en_attente", "relancee"];
 
-/** Valeur du filtre « À relancer » du dashboard (?filtre=a_relancer). */
+/** Valeur du filtre « À relancer » de la liste (/candidatures?filtre=a_relancer). */
 export const FOLLOW_UP_FILTER = "a_relancer";
 
 export function daysSince(date: string | null, now = new Date()): number | null {

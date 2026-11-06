@@ -106,7 +106,8 @@ src/
     page.tsx                       # Landing page (/)
     (auth)/login, (auth)/signup    # Connexion, création de compte
     auth/confirm/route.ts          # Lien de confirmation d'email Supabase
-    (app)/dashboard/               # Dashboard des candidatures
+    (app)/dashboard/               # Tableau de bord (accueil après connexion)
+    (app)/candidatures/            # Liste des candidatures
     (app)/candidatures/[id]/       # Fiche candidature (historique, relance, documents)
     (app)/candidatures/nouvelle/   # Formulaire + assistant (à venir)
     actions/                       # Server Actions (auth, candidatures)

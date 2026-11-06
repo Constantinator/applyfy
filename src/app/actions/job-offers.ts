@@ -55,6 +55,7 @@ export async function addOfferToApplicationsAction(
     return { status: "error", message: "L'ajout a échoué. Réessaie dans un instant." };
   }
 
+  revalidatePath("/candidatures");
   revalidatePath("/dashboard");
   redirect(`/candidatures/${id}?creee=1`);
 }
