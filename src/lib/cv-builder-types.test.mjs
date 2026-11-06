@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CV_LIMITS, chatContent, CvDataSchema, isLinePath, lineLimitMessage, splitLine, splitSkillGroup, withoutEmptyLines } from "./cv-builder-types.ts";
+import { CV_LIMITS, chatContent, CvDataSchema, isLinePath, lineLimitMessage, mergeLine, splitLine, splitSkillGroup, withoutEmptyLines } from "./cv-builder-types.ts";
 import { splitRich, stripRich } from "./cv-rich-text.ts";
 
 const cv = (bullets = ["Premier", "Second"], skills = [{ id: "a", name: "Excel" }, { id: "b", name: "SQL" }]) =>
@@ -150,6 +150,75 @@ test("une scission reste possible sur l'état de l'éditeur, qui garde sa puce v
   const editor = splitLine(cv(["A", "B"]), BULLET(0), "A", "", "x").data;
   assert.deepEqual(editor.experiences[0].bullets, ["A", "", "B"]);
   assert.deepEqual(withoutEmptyLines(editor).experiences[0].bullets, ["A", "B"]);
+});
+
+const skillsOf = (result) => result.data.skills.map((s) => s.name);
+const GROUPS = [{ id: "h", name: "Hard skills :" }, { id: "l", name: "Analyse, Excel" }, { id: "s", name: "Soft skills : Rigueur" }];
+
+test("Retour arrière après un intitulé seul : recollé avec une espace, curseur à la jonction", () => {
+  const merged = mergeLine(cv(undefined, GROUPS), "skills.l.name");
+  assert.deepEqual(skillsOf(merged), ["Hard skills : Analyse, Excel", "Soft skills : Rigueur"]);
+  assert.equal(merged.targetPath, "skills.h.name");
+  assert.equal(merged.offset, "Hard skills : ".length);
+});
+
+test("Retour arrière entre deux compétences : recollé avec une virgule", () => {
+  const merged = mergeLine(cv(), "skills.b.name");
+  assert.deepEqual(skillsOf(merged), ["Excel, SQL"]);
+  assert.equal(merged.offset, "Excel, ".length);
+});
+
+test("Entrée puis Retour arrière rendent le texte d'origine", () => {
+  const start = "Hard skills : Analyse, Modèle, Excel";
+  for (const [before, after] of [["Hard skills :", "Analyse, Modèle, Excel"], ["Hard skills : Analyse,", "Modèle, Excel"], ["Hard skills : Analyse", ", Modèle, Excel"]]) {
+    const split = splitLine(cv(undefined, [{ id: "g", name: start }]), "skills.g.name", before, after, "x");
+    assert.deepEqual(skillsOf(mergeLine(split.data, "skills.x.name")), [start]);
+  }
+  const text = "Pilotage de 3 budgets";
+  const split = splitLine(cv([text]), BULLET(0), "Pilotage de", "3 budgets", "x");
+  assert.deepEqual(mergeLine(split.data, BULLET(1)).data.experiences[0].bullets, [text]);
+});
+
+test("Retour arrière entre deux puces : recollé avec une espace, positions justes", () => {
+  const merged = mergeLine(cv(["A", "B", "C"]), BULLET(1));
+  assert.deepEqual(merged.data.experiences[0].bullets, ["A B", "C"]);
+  assert.equal(merged.targetPath, BULLET(0));
+  assert.equal(merged.offset, 2);
+});
+
+test("Retour arrière sur une ligne vide : simplement retirée, curseur en fin de la précédente", () => {
+  const bullet = mergeLine(cv(["A", "", "C"]), BULLET(1));
+  assert.deepEqual(bullet.data.experiences[0].bullets, ["A", "C"]);
+  assert.equal(bullet.offset, 1);
+  const skill = mergeLine(cv(undefined, [{ id: "a", name: "Excel" }, { id: "v", name: "  " }, { id: "b", name: "SQL" }]), "skills.v.name");
+  assert.deepEqual(skillsOf(skill), ["Excel", "SQL"]);
+  assert.equal(skill.offset, 5);
+});
+
+test("Retour arrière par-dessus une ligne vide cachée : elle disparaît, la vraie précédente reçoit le texte", () => {
+  const merged = mergeLine(cv(["A", "", " ", "C", "D"]), BULLET(3));
+  assert.deepEqual(merged.data.experiences[0].bullets, ["A C", "D"]);
+  assert.equal(merged.targetPath, BULLET(0));
+});
+
+test("Retour arrière sur la première ligne : rien, même avec des lignes vides au-dessus", () => {
+  assert.equal(mergeLine(cv(), BULLET(0)), null);
+  assert.equal(mergeLine(cv(["", "A"]), BULLET(1)), null);
+  assert.equal(mergeLine(cv(), "skills.a.name"), null);
+  assert.equal(mergeLine(cv(), "summary"), null);
+  assert.equal(mergeLine(cv(), "experiences.inconnue.bullets.0"), null);
+});
+
+test("Retour arrière : texte recollé trop long refusé, CV toujours valide sinon", () => {
+  const half = "x".repeat(CV_LIMITS.bullet / 2 + 1);
+  assert.deepEqual(mergeLine(cv([half, half]), BULLET(1)), { tooLong: true });
+  const fits = "y".repeat(CV_LIMITS.bullet / 2 - 1);
+  assert.equal(CvDataSchema.safeParse(mergeLine(cv([fits, fits]), BULLET(1)).data).success, true);
+});
+
+test("Retour arrière : le niveau de la compétence précédente est gardé", () => {
+  const merged = mergeLine(cv(undefined, [{ id: "a", name: "Excel", level: "avance" }, { id: "b", name: "SQL" }]), "skills.b.name");
+  assert.equal(merged.data.skills[0].level, "avance");
 });
 
 test("un intitulé seul est reconnu comme groupe, sans liste", () => {

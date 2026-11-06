@@ -405,6 +405,67 @@ export function splitLine(data: CvData, path: string, textBefore: string, textAf
   return split && { data: { ...data, skills: split.list }, nextPath: `skills.${split.list[split.next].id}.name` };
 }
 
+/** Résultat d'un Retour arrière : CV et position du curseur, ou texte trop long pour être recollé. */
+export type LineMerge = { data: CvData; targetPath: string; offset: number } | { tooLong: true };
+
+/**
+ * Liste où la ligne d'`index` rejoint la précédente non vide (les lignes vides cachées entre les deux
+ * disparaissent), et position du curseur : à la jonction, ou en fin de ligne si la ligne était vide.
+ * null s'il n'y a pas de ligne précédente.
+ */
+function withLineMerged<T>(list: T[], index: number, textOf: (item: T) => string, withText: (item: T, text: string) => T, separator: (previous: string) => string, max: number) {
+  let previous = index - 1;
+  while (previous >= 0 && !textOf(list[previous]).trim()) previous--;
+  if (previous < 0) return null;
+  const before = textOf(list[previous]);
+  const current = textOf(list[index]);
+  const empty = !current.trim();
+  const joint = empty ? "" : separator(before);
+  const text = empty ? before : `${before}${joint}${current}`;
+  if (text.length > max) return "tooLong" as const;
+  return {
+    list: [...list.slice(0, previous), withText(list[previous], text), ...list.slice(index + 1)],
+    previous,
+    offset: before.length + joint.length,
+  };
+}
+
+/**
+ * Retour arrière au tout début d'une ligne de liste, geste inverse d'Entrée : son texte rejoint la fin
+ * de la ligne précédente, séparé comme Entrée l'avait coupé (espace entre puces et après un intitulé
+ * seul, virgule entre compétences). Une ligne vide est simplement retirée. null pour la première ligne.
+ */
+export function mergeLine(data: CvData, path: string): LineMerge | null {
+  const bullet = path.match(BULLET_PATH);
+  if (bullet) {
+    const index = Number(bullet[2]);
+    const experience = data.experiences.find((e) => e.id === bullet[1]);
+    if (!experience || index >= experience.bullets.length) return null;
+    const merged = withLineMerged(experience.bullets, index, (b) => b, (_, text) => text, () => " ", CV_LIMITS.bullet);
+    if (merged === "tooLong") return { tooLong: true };
+    if (!merged) return null;
+    return {
+      data: { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets: merged.list } : e)) },
+      targetPath: `experiences.${experience.id}.bullets.${merged.previous}`,
+      offset: merged.offset,
+    };
+  }
+  const skillId = path.match(SKILL_PATH)?.[1];
+  const index = data.skills.findIndex((s) => s.id === skillId);
+  if (index < 0) return null;
+  const merged = withLineMerged(
+    data.skills,
+    index,
+    (s) => s.name,
+    (s, name) => ({ ...s, name }),
+    (previous) => (splitSkillGroup(previous)?.items.trim() === "" ? " " : ", "),
+    CV_LIMITS.short,
+  );
+  if (merged === "tooLong") return { tooLong: true };
+  if (!merged) return null;
+  return { data: { ...data, skills: merged.list }, targetPath: `skills.${merged.list[merged.previous].id}.name`, offset: merged.offset };
+}
+
 /**
  * CV sans ses lignes de liste vides ou faites d'espaces (puces, compétences). Elles ne servent qu'à
  * l'éditeur, le temps d'une saisie : ni la base ni le coach ne les voient, et la ligne en cours de

@@ -16,6 +16,7 @@ import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
+  mergeLine,
   splitLine,
   chatContent,
   CV_LIMITS,
@@ -511,6 +512,12 @@ export function CvBuilderEditor({
               templateId={templateId}
               onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
               onLineBreak={(path, before, after, newId) => edit((d) => splitLine(d, path, before, after, newId)?.data ?? d)}
+              onLineMerge={(path) =>
+                edit((d) => {
+                  const merged = mergeLine(d, path);
+                  return merged && "data" in merged ? merged.data : d;
+                })
+              }
               onLineLimit={showLineLimit}
               onPagesChange={setPages}
               highlights={highlights}

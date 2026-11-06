@@ -17,6 +17,7 @@ import {
   densityFactor,
   isLinePath,
   lineLimitMessage,
+  mergeLine,
   newItemId,
   splitLine,
   type CvData,
@@ -87,6 +88,8 @@ const InTextContext = createContext(false);
 const EditContext = createContext<((path: EditPath, value: string) => void) | null>(null);
 /** Entrée dans une ligne de liste : texte avant et après le curseur. */
 const LineBreakContext = createContext<((path: EditPath, before: string, after: string) => void) | null>(null);
+/** Retour arrière au tout début d'une ligne de liste : true si la ligne a été recollée ou retirée. */
+const LineMergeContext = createContext<((path: EditPath) => boolean) | null>(null);
 /** Textes surlignés après une modification du coach : l'aperçu seul le fournit, pas le PDF. */
 const HighlightContext = createContext<{ paths: ReadonlySet<string>; fading: boolean } | null>(null);
 
@@ -98,6 +101,22 @@ function useHighlightClass(path: EditPath | undefined) {
 
 /** Mêmes textes, aux blancs près. */
 const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim();
+
+/** Curseur à la position `offset` du texte de `el`, quels que soient les nœuds qui le composent. */
+function placeCaret(el: HTMLElement, offset: number) {
+  const selection = window.getSelection();
+  let left = offset;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+    if (left <= node.data.length) {
+      selection?.collapse(node, left);
+      return;
+    }
+    left -= node.data.length;
+  }
+  selection?.selectAllChildren(el);
+  selection?.collapseToEnd();
+}
 
 /** Texte de part et d'autre de la sélection (le texte sélectionné est remplacé). */
 function textAroundSelection(el: HTMLElement): [string, string] {
@@ -137,6 +156,7 @@ function EditableText({
   const ref = useRef<HTMLElement>(null);
   const onEdit = useContext(EditContext);
   const breakLine = useContext(LineBreakContext);
+  const mergeWithPrevious = useContext(LineMergeContext);
   const activeLine = useContext(ActiveLineContext);
   const wasActive = useRef(activeLine === path);
   // Intitulé seul sur sa ligne à l'affichage : le texte enregistré garde son espace (« Intitulé : a »).
@@ -151,18 +171,18 @@ function EditableText({
       el.replaceChildren(...richNodes(display ?? value));
       return;
     }
-    // Nouvelle ligne activée après Entrée : le curseur doit y rester au début.
-    const caretAtStart = el.dataset.caretStart !== undefined;
-    delete el.dataset.caretStart;
+    // Ligne activée après Entrée ou Retour arrière : le curseur reste à la position demandée.
+    const caretOffset = el.dataset.caretOffset;
+    delete el.dataset.caretOffset;
     // Seuls les blancs diffèrent (intitulé seul sur sa ligne à l'affichage) : le texte ne bouge pas sous
     // le clic, et le curseur reste où il a été posé.
     if (sameWords(el.textContent ?? "", value)) return;
     if (el.textContent !== value) {
       el.textContent = value;
       // Curseur en fin de texte (le texte affiché vient de changer).
-      const selection = window.getSelection();
-      if (caretAtStart) selection?.collapse(el, 0);
+      if (caretOffset !== undefined) placeCaret(el, Number(caretOffset));
       else {
+        const selection = window.getSelection();
         selection?.selectAllChildren(el);
         selection?.collapseToEnd();
       }
@@ -194,6 +214,12 @@ function EditableText({
     style,
     onInput: (e: React.FormEvent<HTMLElement>) => onEdit?.(path, toStored(e.currentTarget.textContent ?? "")),
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+      // Retour arrière au tout début d'une ligne de liste : geste inverse d'Entrée.
+      if (e.key === "Backspace" && !e.nativeEvent.isComposing && isLinePath(path) && window.getSelection()?.isCollapsed) {
+        const [textBefore] = textAroundSelection(e.currentTarget);
+        if (textBefore === "" && mergeWithPrevious?.(path)) e.preventDefault();
+        return;
+      }
       // Paragraphes : saut de ligne du navigateur. Validation d'un mot pendant une saisie assistée : ignorée.
       if (e.key !== "Enter" || multiline || e.nativeEvent.isComposing) return;
       e.preventDefault();
@@ -335,6 +361,7 @@ export function CvHtmlPreview({
   templateId,
   onEdit,
   onLineBreak,
+  onLineMerge,
   onLineLimit,
   onPagesChange,
   highlights,
@@ -345,7 +372,9 @@ export function CvHtmlPreview({
   onEdit: (path: EditPath, value: string) => void;
   /** Entrée dans une ligne de liste : la scinde (cf. splitLine), le curseur passe à la suivante. */
   onLineBreak: (path: EditPath, before: string, after: string, newId: string) => void;
-  /** Entrée bloquée : la liste a déjà le nombre maximum de lignes. */
+  /** Retour arrière au début d'une ligne de liste : la recolle à la précédente (cf. mergeLine). */
+  onLineMerge: (path: EditPath) => void;
+  /** Entrée ou Retour arrière bloqué : liste pleine, ou texte recollé trop long. */
   onLineLimit: (message: string) => void;
   onPagesChange?: (pages: number) => void;
   /** Chemins des textes à surligner (cf. diffCvData). */
@@ -382,7 +411,19 @@ export function CvHtmlPreview({
 
   // Ligne en cours de saisie, gardée à l'écran même vide ; et ligne à activer après une scission.
   const [activeLine, setActiveLine] = useState<EditPath | null>(null);
-  const focusAfterRender = useRef<EditPath | null>(null);
+  const focusAfterRender = useRef<{ path: EditPath; offset: number } | null>(null);
+  const mergeWithPrevious = (path: EditPath) => {
+    const merged = mergeLine(data, path);
+    if (!merged) return false;
+    if ("tooLong" in merged) {
+      onLineLimit("Texte trop long pour être recollé à la ligne précédente");
+      return true;
+    }
+    focusAfterRender.current = { path: merged.targetPath, offset: merged.offset };
+    setActiveLine(merged.targetPath);
+    onLineMerge(path);
+    return true;
+  };
   const breakLine = (path: EditPath, before: string, after: string) => {
     const newId = newItemId();
     const split = splitLine(data, path, before, after, newId);
@@ -391,19 +432,19 @@ export function CvHtmlPreview({
       onLineLimit(lineLimitMessage(path));
       return;
     }
-    focusAfterRender.current = split.nextPath;
+    focusAfterRender.current = { path: split.nextPath, offset: 0 };
     setActiveLine(split.nextPath);
     onLineBreak(path, before, after, newId);
   };
   useLayoutEffect(() => {
-    const path = focusAfterRender.current;
-    if (!path) return;
+    const pending = focusAfterRender.current;
+    if (!pending) return;
     focusAfterRender.current = null;
-    const target = pageRef.current?.querySelector<HTMLElement>(`[data-edit-path="${CSS.escape(path)}"]`);
+    const target = pageRef.current?.querySelector<HTMLElement>(`[data-edit-path="${CSS.escape(pending.path)}"]`);
     if (!target) return;
-    target.dataset.caretStart = "";
+    target.dataset.caretOffset = String(pending.offset);
     target.focus();
-    window.getSelection()?.collapse(target, 0);
+    placeCaret(target, pending.offset);
   }, [data, activeLine]);
 
   return (
@@ -422,15 +463,17 @@ export function CvHtmlPreview({
         >
           <EditContext value={onEdit}>
             <LineBreakContext value={breakLine}>
-              <ActiveLineContext value={activeLine}>
-                <PrimitivesContext value={HTML_PRIMITIVES}>
-                  <DensityContext value={densityFactor(data.style.density)}>
-                    <HighlightContext value={highlight}>
-                      <CvPages data={data} templateId={templateId} />
-                    </HighlightContext>
-                  </DensityContext>
-                </PrimitivesContext>
-              </ActiveLineContext>
+              <LineMergeContext value={mergeWithPrevious}>
+                <ActiveLineContext value={activeLine}>
+                  <PrimitivesContext value={HTML_PRIMITIVES}>
+                    <DensityContext value={densityFactor(data.style.density)}>
+                      <HighlightContext value={highlight}>
+                        <CvPages data={data} templateId={templateId} />
+                      </HighlightContext>
+                    </DensityContext>
+                  </PrimitivesContext>
+                </ActiveLineContext>
+              </LineMergeContext>
             </LineBreakContext>
           </EditContext>
           {Array.from({ length: pages - 1 }, (_, i) => (
