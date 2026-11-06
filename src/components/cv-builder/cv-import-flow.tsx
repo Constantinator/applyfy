@@ -335,7 +335,7 @@ function AnalysisStep({
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <div ref={headingRef} tabIndex={-1} className="flex items-center justify-between gap-3 outline-none">
+      <div ref={headingRef} tabIndex={-1} className="flex scroll-mt-22 items-center justify-between gap-3 outline-none">
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
           {screen + 1}/{screens.length} · {current}
         </p>

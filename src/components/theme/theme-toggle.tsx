@@ -3,7 +3,7 @@
 import { IconMoon, IconSun } from "@/components/icons";
 
 /**
- * Bascule mode clair / mode sombre (sidebar de l'app). Le choix est enregistré dans
+ * Bascule mode clair / mode sombre (menu du compte de l'app). Le choix est enregistré dans
  * localStorage (« theme ») et relu au chargement par le script du layout racine. L'icône et
  * le libellé suivent la classe « dark » en CSS (variante theme-dark : le choix réel, y compris
  * sur les éditeurs restés en clair) : aucun état React, donc aucun décalage avec le rendu serveur.

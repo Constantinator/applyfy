@@ -35,3 +35,9 @@ export function readAccountName(metadata: unknown): AccountName | null {
 }
 
 export const fullName = (name: AccountName) => `${name.firstName} ${name.lastName}`;
+
+/** Initiales de l'avatar : prénom et nom, sinon première lettre de l'e-mail (vide si aucun). */
+export function accountInitials(name: AccountName | null, email: string | null) {
+  const initial = (text: string) => (Array.from(text.trim())[0] ?? "").toUpperCase();
+  return name ? initial(name.firstName) + initial(name.lastName) : initial(email ?? "");
+}

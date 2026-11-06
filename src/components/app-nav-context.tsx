@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 // Navigation de l'application pour les pages en plein écran (éditeur du CV Builder) : la
-// barre latérale y est remplacée par un panneau « Menu » ouvert par la page, et la page peut
+// barre de navigation y est remplacée par un panneau « Menu » ouvert par la page, et la page peut
 // demander confirmation avant de quitter (modifications non enregistrées).
 
 /** Pages en plein écran : l'éditeur d'un CV du CV Builder (/cv-builder/<id>). */

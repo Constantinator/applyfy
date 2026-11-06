@@ -8,7 +8,7 @@
  * bordures slate-200 (#E2E8F0), succès emerald-500, alerte amber-500, erreur red-500.
  */
 /*
- * Mode sombre (classe « dark » sur <html>, choisie dans la sidebar ; voir ThemeToggle et le
+ * Mode sombre (classe « dark » sur <html>, choisie dans le menu du compte ; voir ThemeToggle et le
  * script du layout racine). Limité aux pages de l'app, marquées par data-theme-scope : la
  * landing, le blog et les pages légales restent en clair, comme les éditeurs de CV et de
  * lettre (data-theme-off : la feuille reste blanche, comme à l'impression).

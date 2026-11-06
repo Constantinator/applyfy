@@ -381,7 +381,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           {selected ? (
             // Collant sur grand écran : l'élément de la grille (et non la carte, aussi haute que
             // lui) reste visible pendant le défilement de la liste.
-            <div className={result ? "lg:sticky lg:top-6" : "lg:col-span-2"}>
+            <div className={result ? "lg:sticky lg:top-22" : "lg:col-span-2"}>
               <OfferDetails
                 key={selected.id}
                 offer={selected}
@@ -392,7 +392,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           ) : (
             result &&
             result.offers.length > 0 && (
-              <div className="hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center lg:sticky lg:top-6 lg:block">
+              <div className="hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center lg:sticky lg:top-22 lg:block">
                 <p className="font-medium text-slate-900 dark:text-white">Sélectionne une offre</p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Ses détails s&apos;afficheront ici : description, salaire, profil recherché.

@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useImperativeHandle, useRef, useState, useTransition } from "react";
 
 import { loadFeedbackAction, saveFeedbackAction } from "@/app/actions/feedback";
-import { IconStar } from "@/components/icons";
 import {
   FAVORITE_FEATURES,
   IMPROVEMENT_MAX_LENGTH,
@@ -44,10 +43,13 @@ const choice = (selected: boolean) =>
   }`;
 
 /**
- * « Donner mon avis » : bouton discret de la sidebar et fenêtre du questionnaire. Un seul
- * avis par utilisateur : à la réouverture, le formulaire reprend l'avis déjà donné.
+ * « Donner mon avis » : fenêtre du questionnaire, ouverte par les entrées de la navigation
+ * (via `ref`). Un seul avis par utilisateur : à la réouverture, le formulaire reprend l'avis
+ * déjà donné.
  */
-export function FeedbackDialog({ className = "" }: { className?: string }) {
+export type FeedbackDialogHandle = { open: () => void };
+
+export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [hasExisting, setHasExisting] = useState(false);
@@ -74,6 +76,8 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
         : EMPTY,
     );
   }
+
+  useImperativeHandle(ref, () => ({ open }));
 
   function close() {
     dialogRef.current?.close();
@@ -103,15 +107,6 @@ export function FeedbackDialog({ className = "" }: { className?: string }) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={open}
-        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white ${className}`}
-      >
-        <IconStar className="text-blue-600 dark:text-blue-400 h-5 w-5" />
-        Donner mon avis
-      </button>
-
       <dialog
         ref={dialogRef}
         aria-labelledby="feedback-title"

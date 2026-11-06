@@ -41,7 +41,7 @@ export function FollowUpBox({
     <section
       id="relance"
       aria-labelledby="relance-title"
-      className={`scroll-mt-6 rounded-2xl border bg-white dark:bg-slate-900 p-4 ${
+      className={`scroll-mt-22 rounded-2xl border bg-white dark:bg-slate-900 p-4 ${
         highlight ? "border-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30" : "border-slate-200 dark:border-slate-800"
       }`}
     >

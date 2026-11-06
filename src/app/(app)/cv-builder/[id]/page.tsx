@@ -29,7 +29,7 @@ export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-bui
   const analysis = readCvSuggestions(detail?.application.cv_suggestions);
 
   return (
-    // Éditeur en plein écran (sans barre latérale ni en-tête de l'application, cf. app-nav-context).
+    // Éditeur en plein écran (sans barre de navigation de l'application, cf. app-nav-context).
     <main className="w-full flex-1">
       <CvBuilderEditor
         cv={cv}

@@ -449,7 +449,7 @@ export function CvEditor({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start print:block">
       <div className="min-w-0 space-y-4 print:space-y-0">
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur print:hidden">
+        <div className="sticky top-16 z-10 flex flex-wrap lg:top-18 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur print:hidden">
           {/* Affichage seulement : masquer les surlignages ne modifie pas le document. */}
           <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-slate-700">
             <input
@@ -567,7 +567,7 @@ export function CvEditor({
         )}
       </div>
 
-      <div className="xl:sticky xl:top-6">
+      <div className="xl:sticky xl:top-22 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
         <StylePanel
           kind={kind}
           style={style}

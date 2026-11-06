@@ -239,7 +239,7 @@ export default async function ApplicationPage({
           />
         </div>
 
-        <Card title="Historique" className="h-fit lg:sticky lg:top-6">
+        <Card title="Historique" className="h-fit lg:sticky lg:top-22">
           <Timeline events={events} />
         </Card>
       </div>

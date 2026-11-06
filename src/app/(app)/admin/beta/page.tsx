@@ -241,7 +241,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
       </section>
 
       {/* Messagerie interne (s'ajoute aux emails) */}
-      <section id="messages" aria-labelledby="beta-messages-title" className="scroll-mt-6 space-y-3">
+      <section id="messages" aria-labelledby="beta-messages-title" className="scroll-mt-22 space-y-3">
         <h2 id="beta-messages-title" className="text-lg font-semibold text-slate-900">
           Messages
         </h2>
@@ -309,7 +309,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
         )}
       </section>
 
-      <section id="email" aria-labelledby="beta-email-title" className="scroll-mt-6 space-y-3">
+      <section id="email" aria-labelledby="beta-email-title" className="scroll-mt-22 space-y-3">
         <h2 id="beta-email-title" className="text-lg font-semibold text-slate-900">
           Envoyer un email
         </h2>

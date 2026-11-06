@@ -64,7 +64,7 @@ export function CollapsibleBox({
             setAtBottom(box.scrollTop + box.clientHeight >= box.scrollHeight - 4);
           }}
           style={expanded ? undefined : { maxHeight }}
-          className={`rounded-lg focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:outline-none ${
+          className={`scroll-mt-22 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:outline-none ${
             expanded ? "" : "overflow-y-auto overscroll-contain pr-2"
           }`}
         >
