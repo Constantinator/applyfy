@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { CV_LIMITS, CvDataSchema, newItemId, splitSkillGroup, type CvData } from "./cv-builder-types";
+import { CV_LIMITS, CvDataSchema, invalidCvField, newItemId, splitSkillGroup, type CvData } from "./cv-builder-types";
 import { actionDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
 
 // Modifications du CV par le coach du CV Builder : la réponse du coach est transformée en
@@ -63,6 +63,8 @@ export const COACH_DATA_SCHEMAS = {
     startDate: optional,
     endDate: optional,
     honors: optional,
+    /** Liste complète des puces de la formation (cours suivis, classements…). */
+    bullets: z.array(z.string()).optional(),
     remove: z.boolean().optional(),
   }),
   projects: z.object({ id: z.string(), name: optional, description: optional, link: optional, remove: z.boolean().optional() }),
@@ -98,6 +100,8 @@ export type CoachChange =
   | (ChangeBase & { kind: "field"; target: FieldTarget; itemId: string | null; field: string })
   | (ChangeBase & { kind: "list"; target: ListTarget; value: Item[]; previous: Item[] })
   | (ChangeBase & { kind: "item"; target: ItemTarget; value: Item })
+  /** Puces d'une formation : toute la liste est remplacée. */
+  | (ChangeBase & { kind: "educationBullets"; educationId: string; bullets: string[] })
   /** Suppression d'une puce : `before` est son texte dans le CV, `index` sa position. */
   | (ChangeBase & { kind: "removeBullet"; experienceId: string; index: number })
   /** Suppression d'une expérience, d'une formation ou d'un projet entier. */
@@ -228,6 +232,21 @@ export function buildProposal(current: CvData, update: CoachUpdate, makeId: () =
         if (key === "id" || key === "bullets" || key === "bullets_to_remove" || key === "current" || typeof value !== "string") continue;
         if (key in existing) field(target, existing.id, key, `${name} — ${ITEM_FIELD_LABELS[key] ?? key}`, String(existing[key] ?? ""), value);
       }
+      if (update.section === "education" && update.data.bullets) {
+        const next = update.data.bullets.map(clean).filter(Boolean);
+        const before = (existing.bullets as string[]).map(clean).filter(Boolean);
+        if (next.join("\n") !== before.join("\n")) {
+          changes.push({
+            id: makeId(),
+            kind: "educationBullets",
+            educationId: existing.id,
+            bullets: next,
+            label: `${name} — puces`,
+            before: before.join("\n"),
+            after: next.join("\n"),
+          });
+        }
+      }
       if (update.section === "experience") {
         const bullets = existing.bullets as string[];
         for (const b of update.data.bullets) {
@@ -289,6 +308,7 @@ function newItemChange(target: ItemTarget, data: Record<string, unknown>, makeId
     value.current = data.current === true;
     value.bullets = ((data.bullets as { after: string }[] | undefined) ?? []).map((b) => clean(b.after)).filter(Boolean);
   }
+  if (target === "education") value.bullets = ((data.bullets as string[] | undefined) ?? []).map(clean).filter(Boolean);
   if (itemName(target, value) === itemName(target, {}) && !(value.bullets as string[] | undefined)?.length) return [];
   const label = { experience: "Nouvelle expérience", education: "Nouvelle formation", projects: "Nouveau projet" }[target];
   return [{ id: makeId(), kind: "item", target, label, before: null, after: itemText(target, value), value }];
@@ -299,15 +319,36 @@ function newItemChange(target: ItemTarget, data: Record<string, unknown>, makeId
 // ---------------------------------------------------------------------------
 
 /** Textes refusés d'un changement et leurs défauts. */
-export type ChangeProblem = { changeId: string; text: string; problems: string[] };
+export type ChangeProblem = {
+  changeId: string;
+  text: string;
+  problems: string[];
+  /** Refus lié à une limite du CV (longueur, nombre d'éléments), et non au contenu du texte. */
+  limit?: boolean;
+};
 
 /**
  * Défauts des textes proposés : une puce d'expérience doit commencer par un verbe ou un nom
  * d'action, contenir un chiffre ou un ordre de grandeur, et n'utiliser aucune formule de la liste
  * noire ; les autres textes, seulement la liste noire. Une réorganisation n'ajoute rien : une puce
  * déplacée n'est pas vérifiée, et une liste n'est refusée que pour une formule qu'elle n'avait pas.
+ * Tout changement qui rendrait le CV invalide (limite dépassée) est refusé aussi, avec le champ en cause.
  */
-export function checkProposal(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">): ChangeProblem[] {
+export function checkProposal(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">, current: CvData): ChangeProblem[] {
+  const problems = textProblems(proposal, context);
+  let state = current;
+  for (const change of proposal.changes) {
+    if (problems.some((p) => p.changeId === change.id)) continue;
+    const next = withChange(state, change);
+    if (!next) continue; // passage introuvable : ignoré à l'application
+    const parsed = CvDataSchema.safeParse(next);
+    if (parsed.success) state = parsed.data;
+    else problems.push({ changeId: change.id, text: change.after.slice(0, 120), problems: [invalidCvField(parsed.error).message], limit: true });
+  }
+  return problems;
+}
+
+function textProblems(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">): ChangeProblem[] {
   const isAction = actionDetector(context.actionVerbs);
   const banned = bannedPhrases(context.avoid);
   const check = (text: string, bullet: boolean) => [
@@ -396,7 +437,7 @@ function contentFingerprint(data: CvData) {
     summary: contentWords([data.summary]),
     interests: contentWords([data.interests]),
     experiences: data.experiences.map((e) => ({ ...e, bullets: contentWords(e.bullets) })),
-    education: data.education,
+    education: data.education.map((e) => ({ ...e, bullets: contentWords(e.bullets) })),
     projects: data.projects,
     skills: contentWords(data.skills.map((s) => `${splitSkillGroup(s.name)?.items ?? s.name} ${s.level}`)),
     languages: contentWords(data.languages.map((l) => `${l.name} ${l.level}`)),
@@ -417,6 +458,12 @@ export function isReorganization(before: CvData, after: CvData) {
  * n'est plus là) ou si le résultat est invalide.
  */
 export function applyCoachChange(data: CvData, change: CoachChange): CvData | null {
+  const next = withChange(data, change);
+  return next && valid(next);
+}
+
+/** CV avec le changement appliqué, pas encore validé ; null si le passage concerné n'est plus là. */
+function withChange(data: CvData, change: CoachChange): CvData | null {
   const next = copy(data);
   switch (change.kind) {
     case "bullet": {
@@ -466,6 +513,12 @@ export function applyCoachChange(data: CvData, change: CoachChange): CvData | nu
       items.push(change.value);
       break;
     }
+    case "educationBullets": {
+      const education = next.education.find((e) => e.id === change.educationId);
+      if (!education) return null;
+      education.bullets = change.bullets;
+      break;
+    }
   }
-  return valid(next);
+  return next;
 }

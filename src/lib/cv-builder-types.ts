@@ -124,6 +124,8 @@ const EducationSchema = z.object({
   startDate: text(40),
   endDate: text(40),
   honors: text(CV_LIMITS.short),
+  /** Cours suivis, classements… : puces sous la mention (absentes des CV plus anciens). */
+  bullets: z.array(z.string().max(CV_LIMITS.bullet)).max(CV_LIMITS.bullets).default([]),
 });
 
 const SkillSchema = z.object({
@@ -348,11 +350,101 @@ export function splitSkillGroup(name: string) {
   return match ? { label: match[1], items: match[2] } : null;
 }
 
-const BULLET_PATH = /^experiences\.([^.]+)\.bullets\.(\d+)$/;
+const BULLET_PATH = /^(experiences|education)\.([^.]+)\.bullets\.(\d+)$/;
+const HONORS_PATH = /^education\.([^.]+)\.honors$/;
 const SKILL_PATH = /^skills\.([^.]+)\.name$/;
 
-/** Ligne d'une liste dans l'aperçu (puce d'expérience, compétence) : Entrée y crée la ligne suivante. */
-export const isLinePath = (path: string) => BULLET_PATH.test(path) || SKILL_PATH.test(path);
+/**
+ * Ligne d'une liste dans l'aperçu (puce d'expérience ou de formation, mention d'une formation, qui
+ * précède ses puces, compétence) : Entrée y crée la ligne suivante.
+ */
+export const isLinePath = (path: string) => BULLET_PATH.test(path) || HONORS_PATH.test(path) || SKILL_PATH.test(path);
+
+/** Nombre maximal de caractères du champ de ce chemin (cf. CvDataSchema), pour limiter la saisie. */
+export function fieldLimit(path: string): number {
+  const keys = path.split(".");
+  const field = keys.at(-1) ?? "";
+  if (keys[0] === "personal") {
+    if (field === "firstName" || field === "lastName") return 60;
+    if (field === "phone") return 40;
+    if (field === "linkedin" || field === "website" || field === "github") return CV_LIMITS.url;
+    return CV_LIMITS.short;
+  }
+  if (field === "summary") return CV_LIMITS.text;
+  if (field === "interests") return 500;
+  if (keys[0] === "languages") return 60;
+  if (field === "startDate" || field === "endDate" || field === "date") return 40;
+  if (field === "description") return CV_LIMITS.text;
+  if (field === "link") return CV_LIMITS.url;
+  if (keys.at(-2) === "bullets") return CV_LIMITS.bullet;
+  return CV_LIMITS.short;
+}
+
+const SECTION_LABELS: Record<string, string> = {
+  experiences: "Expérience",
+  education: "Formation",
+  skills: "Compétence",
+  languages: "Langue",
+  certifications: "Certification",
+  projects: "Projet",
+};
+const FIELD_LABELS: Record<string, string> = {
+  firstName: "Prénom",
+  lastName: "Nom",
+  jobTitle: "Titre du CV",
+  email: "Email",
+  phone: "Téléphone",
+  city: "Ville",
+  linkedin: "LinkedIn",
+  website: "Site web",
+  github: "GitHub",
+  summary: "Accroche",
+  interests: "Centres d'intérêt",
+  position: "poste",
+  company: "entreprise",
+  location: "lieu",
+  startDate: "date de début",
+  endDate: "date de fin",
+  school: "établissement",
+  degree: "diplôme",
+  honors: "mention",
+  name: "nom",
+  level: "niveau",
+  issuer: "organisme",
+  date: "date",
+  description: "description",
+  link: "lien",
+};
+
+/** Nom lisible d'un champ du CV, d'après son chemin : « Formation 2 : mention », « Expérience 1 : puce 3 ». */
+function fieldLabel(path: readonly PropertyKey[]): string {
+  const [section, index, field, line] = path;
+  if (section === "personal") return FIELD_LABELS[String(index)] ?? String(index);
+  const name = SECTION_LABELS[String(section)];
+  if (!name) return FIELD_LABELS[String(section)] ?? path.map(String).join(".");
+  if (typeof index !== "number") return name;
+  const item = `${name} ${index + 1}`;
+  if (field === "bullets") return typeof line === "number" ? `${item} : puce ${line + 1}` : `${item} : puces`;
+  return field === undefined ? item : `${item} : ${FIELD_LABELS[String(field)] ?? String(field)}`;
+}
+
+/**
+ * Premier champ refusé par CvDataSchema : son chemin (journal du serveur, sans le contenu du CV) et un
+ * message pour l'utilisateur, ex. « Le champ « Formation 2 : mention » est trop long (300 caractères maximum). »
+ */
+export function invalidCvField(error: z.ZodError): { path: string; message: string } {
+  const issue = error.issues[0];
+  const path = issue?.path ?? [];
+  const label = fieldLabel(path);
+  const tooMany = issue?.code === "too_big" && issue.origin === "array";
+  const message =
+    issue?.code === "too_big"
+      ? tooMany
+        ? `Le champ « ${label} » contient trop d'éléments (${issue.maximum} maximum).`
+        : `Le champ « ${label} » est trop long (${issue.maximum} caractères maximum).`
+      : `Le champ « ${label} » est invalide.`;
+  return { path: path.map(String).join("."), message };
+}
 
 /** Message affiché quand Entrée est bloquée dans cette liste. */
 export const lineLimitMessage = (path: string) =>
@@ -374,6 +466,20 @@ function withLineAfter<T>(list: T[], index: number, current: T, added: T, isBlan
   return { list: [...head, current, added, ...others(list.slice(index + 1))], next: head.length + 1 };
 }
 
+/** Expérience ou formation qui porte ces puces. */
+function bulletOwner(data: CvData, section: string, id: string) {
+  return section === "education" ? data.education.find((e) => e.id === id) : data.experiences.find((e) => e.id === id);
+}
+
+function withEducation(data: CvData, id: string, patch: Partial<CvEducation>): CvData {
+  return { ...data, education: data.education.map((e) => (e.id === id ? { ...e, ...patch } : e)) };
+}
+
+function withBullets(data: CvData, section: string, id: string, bullets: string[]): CvData {
+  if (section === "education") return withEducation(data, id, { bullets });
+  return { ...data, experiences: data.experiences.map((e) => (e.id === id ? { ...e, bullets } : e)) };
+}
+
 /**
  * Touche Entrée dans une ligne de liste : `before` reste dans la ligne, `after` passe dans une
  * nouvelle ligne juste en dessous, au chemin `nextPath`. Curseur au tout début : le texte ne bouge
@@ -383,17 +489,28 @@ function withLineAfter<T>(list: T[], index: number, current: T, added: T, isBlan
  */
 export function splitLine(data: CvData, path: string, textBefore: string, textAfter: string, newId: string): { data: CvData; nextPath: string } | null {
   const [before, after] = textBefore.trim() ? [textBefore, textAfter] : [textAfter, ""];
-  const bullet = path.match(BULLET_PATH);
-  if (bullet) {
-    const index = Number(bullet[2]);
-    const experience = data.experiences.find((e) => e.id === bullet[1]);
-    if (!experience || index >= experience.bullets.length) return null;
-    const split = withLineAfter(experience.bullets, index, before, after, (b) => !b.trim(), CV_LIMITS.bullets);
+  const isBlank = (line: string) => !line.trim();
+  const honorsOf = path.match(HONORS_PATH);
+  if (honorsOf) {
+    // La mention précède les puces de sa formation : Entrée y crée la première puce.
+    const education = data.education.find((e) => e.id === honorsOf[1]);
+    if (!education) return null;
+    const split = withLineAfter([education.honors, ...education.bullets], 0, before, after, isBlank, CV_LIMITS.bullets + 1);
     if (!split) return null;
     return {
-      data: { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets: split.list } : e)) },
-      nextPath: `experiences.${experience.id}.bullets.${split.next}`,
+      data: withEducation(data, education.id, { honors: split.list[0], bullets: split.list.slice(1) }),
+      nextPath: `education.${education.id}.bullets.${split.next - 1}`,
     };
+  }
+  const bullet = path.match(BULLET_PATH);
+  if (bullet) {
+    const [, section, id, position] = bullet;
+    const index = Number(position);
+    const owner = bulletOwner(data, section, id);
+    if (!owner || index >= owner.bullets.length) return null;
+    const split = withLineAfter(owner.bullets, index, before, after, isBlank, CV_LIMITS.bullets);
+    if (!split) return null;
+    return { data: withBullets(data, section, id, split.list), nextPath: `${section}.${id}.bullets.${split.next}` };
   }
   const skillId = path.match(SKILL_PATH)?.[1];
   const index = data.skills.findIndex((s) => s.id === skillId);
@@ -413,7 +530,7 @@ export type LineMerge = { data: CvData; targetPath: string; offset: number } | {
  * disparaissent), et position du curseur : à la jonction, ou en fin de ligne si la ligne était vide.
  * null s'il n'y a pas de ligne précédente.
  */
-function withLineMerged<T>(list: T[], index: number, textOf: (item: T) => string, withText: (item: T, text: string) => T, separator: (previous: string) => string, max: number) {
+function withLineMerged<T>(list: T[], index: number, textOf: (item: T) => string, withText: (item: T, text: string) => T, separator: (previous: string) => string, max: (previous: number) => number) {
   let previous = index - 1;
   while (previous >= 0 && !textOf(list[previous]).trim()) previous--;
   if (previous < 0) return null;
@@ -422,7 +539,7 @@ function withLineMerged<T>(list: T[], index: number, textOf: (item: T) => string
   const empty = !current.trim();
   const joint = empty ? "" : separator(before);
   const text = empty ? before : `${before}${joint}${current}`;
-  if (text.length > max) return "tooLong" as const;
+  if (text.length > max(previous)) return "tooLong" as const;
   return {
     list: [...list.slice(0, previous), withText(list[previous], text), ...list.slice(index + 1)],
     previous,
@@ -433,22 +550,35 @@ function withLineMerged<T>(list: T[], index: number, textOf: (item: T) => string
 /**
  * Retour arrière au tout début d'une ligne de liste, geste inverse d'Entrée : son texte rejoint la fin
  * de la ligne précédente, séparé comme Entrée l'avait coupé (espace entre puces et après un intitulé
- * seul, virgule entre compétences). Une ligne vide est simplement retirée. null pour la première ligne.
+ * seul, virgule entre compétences). Une ligne vide est simplement retirée. La première puce d'une
+ * formation rejoint sa mention. null pour la première ligne.
  */
 export function mergeLine(data: CvData, path: string): LineMerge | null {
   const bullet = path.match(BULLET_PATH);
   if (bullet) {
-    const index = Number(bullet[2]);
-    const experience = data.experiences.find((e) => e.id === bullet[1]);
-    if (!experience || index >= experience.bullets.length) return null;
-    const merged = withLineMerged(experience.bullets, index, (b) => b, (_, text) => text, () => " ", CV_LIMITS.bullet);
+    const [, section, id, position] = bullet;
+    const index = Number(position);
+    const owner = bulletOwner(data, section, id);
+    if (!owner || index >= owner.bullets.length) return null;
+    // Formation : sa mention est la ligne qui précède ses puces.
+    const honors = section === "education" ? (data.education.find((e) => e.id === id)?.honors ?? "") : "";
+    const head = honors.trim() ? [honors] : [];
+    const merged = withLineMerged(
+      [...head, ...owner.bullets],
+      index + head.length,
+      (line) => line,
+      (_, text) => text,
+      () => " ",
+      (previous) => (head.length && previous === 0 ? CV_LIMITS.short : CV_LIMITS.bullet),
+    );
     if (merged === "tooLong") return { tooLong: true };
     if (!merged) return null;
-    return {
-      data: { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets: merged.list } : e)) },
-      targetPath: `experiences.${experience.id}.bullets.${merged.previous}`,
-      offset: merged.offset,
-    };
+    const bullets = merged.list.slice(head.length);
+    const updated = withBullets(data, section, id, bullets);
+    if (head.length && merged.previous === 0) {
+      return { data: withEducation(updated, id, { honors: merged.list[0] }), targetPath: `education.${id}.honors`, offset: merged.offset };
+    }
+    return { data: updated, targetPath: `${section}.${id}.bullets.${merged.previous - head.length}`, offset: merged.offset };
   }
   const skillId = path.match(SKILL_PATH)?.[1];
   const index = data.skills.findIndex((s) => s.id === skillId);
@@ -459,7 +589,7 @@ export function mergeLine(data: CvData, path: string): LineMerge | null {
     (s) => s.name,
     (s, name) => ({ ...s, name }),
     (previous) => (splitSkillGroup(previous)?.items.trim() === "" ? " " : ", "),
-    CV_LIMITS.short,
+    () => CV_LIMITS.short,
   );
   if (merged === "tooLong") return { tooLong: true };
   if (!merged) return null;
@@ -467,14 +597,17 @@ export function mergeLine(data: CvData, path: string): LineMerge | null {
 }
 
 /**
- * CV sans ses lignes de liste vides ou faites d'espaces (puces, compétences). Elles ne servent qu'à
- * l'éditeur, le temps d'une saisie : ni la base ni le coach ne les voient, et la ligne en cours de
- * saisie reste dans l'état de l'éditeur.
+ * CV sans ses lignes de liste vides ou faites d'espaces (puces d'expérience et de formation,
+ * compétences). Elles ne servent qu'à l'éditeur, le temps d'une saisie : ni la base ni le coach ne les
+ * voient, et la ligne en cours de saisie reste dans l'état de l'éditeur.
  */
-export function withoutEmptyLines<T extends Pick<CvData, "experiences" | "skills">>(data: T): T {
+export function withoutEmptyLines<T extends Pick<CvData, "experiences" | "education" | "skills">>(data: T): T {
+  const filled = <I extends { bullets: string[] }>(item: I): I =>
+    item.bullets.every((b) => b.trim()) ? item : { ...item, bullets: item.bullets.filter((b) => b.trim()) };
   return {
     ...data,
-    experiences: data.experiences.map((e) => (e.bullets.every((b) => b.trim()) ? e : { ...e, bullets: e.bullets.filter((b) => b.trim()) })),
+    experiences: data.experiences.map(filled),
+    education: data.education.map(filled),
     skills: data.skills.filter((s) => s.name.trim()),
   };
 }
@@ -493,7 +626,7 @@ export function cvDataToText(data: CvData) {
     data.personal.jobTitle,
     data.summary,
     ...data.experiences.flatMap((e) => [e.position, e.company, e.location, ...e.bullets]),
-    ...data.education.flatMap((e) => [e.degree, e.school, e.honors]),
+    ...data.education.flatMap((e) => [e.degree, e.school, e.honors, ...e.bullets]),
     ...data.skills.map((s) => s.name),
     ...data.languages.map((l) => `${l.name} ${l.level}`),
     ...data.certifications.flatMap((c) => [c.name, c.issuer]),

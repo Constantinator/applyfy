@@ -133,7 +133,12 @@ function Experiences({ data, onChange }: { data: CvData; onChange: Edit }) {
               </label>
             </div>
           </div>
-          <Bullets exp={exp} update={update} />
+          <Bullets
+            label="Missions et réalisations"
+            placeholder="Ex. Réduction de 30 % du temps de préparation des reportings"
+            bullets={exp.bullets}
+            onChange={(bullets) => update(exp.id, { bullets })}
+          />
         </ItemCard>
       ))}
       <AddButton
@@ -146,25 +151,35 @@ function Experiences({ data, onChange }: { data: CvData; onChange: Edit }) {
   );
 }
 
-function Bullets({ exp, update }: { exp: CvExperience; update: (id: string, patch: Partial<CvExperience>) => void }) {
-  const setBullet = (i: number, value: string) => update(exp.id, { bullets: exp.bullets.map((b, j) => (j === i ? value : b)) });
+function Bullets({
+  label,
+  placeholder,
+  bullets,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  bullets: string[];
+  onChange: (bullets: string[]) => void;
+}) {
+  const setBullet = (i: number, value: string) => onChange(bullets.map((b, j) => (j === i ? value : b)));
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Missions et réalisations</p>
-      {exp.bullets.map((bullet, i) => (
+      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</p>
+      {bullets.map((bullet, i) => (
         <div key={i} className="flex items-start gap-2">
           <textarea
             aria-label={`Puce ${i + 1}`}
             value={bullet}
             rows={2}
             maxLength={CV_LIMITS.bullet}
-            placeholder="Ex. Réduction de 30 % du temps de préparation des reportings"
+            placeholder={placeholder}
             onChange={(e) => setBullet(i, e.target.value)}
             className="input resize-y"
           />
           <button
             type="button"
-            onClick={() => update(exp.id, { bullets: exp.bullets.filter((_, j) => j !== i) })}
+            onClick={() => onChange(bullets.filter((_, j) => j !== i))}
             aria-label={`Supprimer la puce ${i + 1}`}
             className={removeButton}
           >
@@ -174,8 +189,8 @@ function Bullets({ exp, update }: { exp: CvExperience; update: (id: string, patc
       ))}
       <button
         type="button"
-        disabled={exp.bullets.length >= CV_LIMITS.bullets}
-        onClick={() => update(exp.id, { bullets: [...exp.bullets, ""] })}
+        disabled={bullets.length >= CV_LIMITS.bullets}
+        onClick={() => onChange([...bullets, ""])}
         className="text-sm font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-400"
       >
         + Ajouter une puce
@@ -206,6 +221,12 @@ function Education({ data, onChange }: { data: CvData; onChange: Edit }) {
             <Field label="Fin" value={edu.endDate} maxLength={40} placeholder="Ex. 2022" onChange={(v) => update(edu.id, { endDate: v })} />
             <Field label="Mention (optionnelle)" value={edu.honors} onChange={(v) => update(edu.id, { honors: v })} className="sm:col-span-2" />
           </div>
+          <Bullets
+            label="Cours suivis, classements…"
+            placeholder="Ex. Classement : 3e sur 120"
+            bullets={edu.bullets}
+            onChange={(bullets) => update(edu.id, { bullets })}
+          />
         </ItemCard>
       ))}
       <AddButton
@@ -213,7 +234,7 @@ function Education({ data, onChange }: { data: CvData; onChange: Edit }) {
         onClick={() =>
           onChange((d) => ({
             ...d,
-            education: [...d.education, { id: newItemId(), school: "", degree: "", startDate: "", endDate: "", honors: "" }],
+            education: [...d.education, { id: newItemId(), school: "", degree: "", startDate: "", endDate: "", honors: "", bullets: [] }],
           }))
         }
       >

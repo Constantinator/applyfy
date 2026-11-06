@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CV_LIMITS, chatContent, CvDataSchema, isLinePath, lineLimitMessage, mergeLine, splitLine, splitSkillGroup, withoutEmptyLines } from "./cv-builder-types.ts";
+import { CV_LIMITS, chatContent, CvDataSchema, fieldLimit, invalidCvField, isLinePath, lineLimitMessage, mergeLine, splitLine, splitSkillGroup, withoutEmptyLines } from "./cv-builder-types.ts";
 import { splitRich, stripRich } from "./cv-rich-text.ts";
 
 const cv = (bullets = ["Premier", "Second"], skills = [{ id: "a", name: "Excel" }, { id: "b", name: "SQL" }]) =>
@@ -246,6 +246,122 @@ test("Entrée sur une virgule : elle ne reste sur aucune des deux lignes", () =>
 test("une virgule dans une puce n'est pas retirée par la coupe", () => {
   const split = splitLine(cv(["Avec, puis, fin"]), BULLET(0), "Avec,", "puis, fin", "x");
   assert.deepEqual(split.data.experiences[0].bullets, ["Avec,", "puis, fin"]);
+});
+
+const EDU = (i) => `education.f.bullets.${i}`;
+const school = (honors, bullets) => CvDataSchema.parse({ education: [{ id: "f", school: "EM", degree: "Master", honors, bullets }] });
+const eduOf = (result) => result.data.education[0];
+
+test("une ancienne formation, sans puces, reste lisible", () => {
+  assert.deepEqual(CvDataSchema.parse({ education: [{ id: "f", honors: "Mention bien" }] }).education[0].bullets, []);
+});
+
+test("formation : les puces et la mention sont des lignes de liste, pas les autres champs", () => {
+  assert.equal(isLinePath(EDU(0)), true);
+  assert.equal(isLinePath("education.f.honors"), true);
+  assert.equal(isLinePath("education.f.degree"), false);
+  assert.equal(isLinePath("education.f.school"), false);
+});
+
+test("Entrée en fin de mention : première puce en dessous", () => {
+  const split = splitLine(school("Cours suivis", []), "education.f.honors", "Cours suivis", "", "x");
+  assert.equal(eduOf(split).honors, "Cours suivis");
+  assert.deepEqual(eduOf(split).bullets, [""]);
+  assert.equal(split.nextPath, EDU(0));
+});
+
+test("Entrée au milieu d'une mention : coupe, et la suite passe en première puce", () => {
+  const split = splitLine(school("Cours : finance", ["Classement"]), "education.f.honors", "Cours :", "finance", "x");
+  assert.equal(eduOf(split).honors, "Cours :");
+  assert.deepEqual(eduOf(split).bullets, ["finance", "Classement"]);
+});
+
+test("Entrée dans une puce de formation : coupe au curseur, curseur en dessous", () => {
+  const split = splitLine(school("", ["Cours de finance", "Classement"]), EDU(0), "Cours", "de finance", "x");
+  assert.deepEqual(eduOf(split).bullets, ["Cours", "de finance", "Classement"]);
+  assert.equal(split.nextPath, EDU(1));
+});
+
+test("formation : limite de 12 puces, puces vides hors décompte", () => {
+  const full = Array.from({ length: CV_LIMITS.bullets }, (_, i) => `Puce ${i}`);
+  assert.equal(splitLine(school("", full), EDU(0), "Puce 0", "", "x"), null);
+  assert.equal(splitLine(school("Mention", full), "education.f.honors", "Mention", "", "x"), null);
+  assert.equal(lineLimitMessage(EDU(0)), `Maximum ${CV_LIMITS.bullets} puces atteint`);
+  const withBlank = ["", ...full.slice(1)];
+  assert.equal(CvDataSchema.safeParse(splitLine(school("", withBlank), EDU(1), "Puce 1", "", "x").data).success, true);
+});
+
+test("Retour arrière dans la formation : recolle entre puces, et la première puce à la mention", () => {
+  const between = mergeLine(school("", ["Cours", "de finance", "Fin"]), EDU(1));
+  assert.deepEqual(eduOf(between).bullets, ["Cours de finance", "Fin"]);
+  assert.equal(between.targetPath, EDU(0));
+  const toHonors = mergeLine(school("Cours :", ["finance", "Fin"]), EDU(0));
+  assert.equal(eduOf(toHonors).honors, "Cours : finance");
+  assert.deepEqual(eduOf(toHonors).bullets, ["Fin"]);
+  assert.equal(toHonors.targetPath, "education.f.honors");
+  assert.equal(toHonors.offset, "Cours : ".length);
+});
+
+test("Retour arrière dans la formation : ligne vide retirée, première ligne intacte, longueur vérifiée", () => {
+  assert.deepEqual(eduOf(mergeLine(school("Mention", [""]), EDU(0))).bullets, []);
+  assert.equal(mergeLine(school("", ["Seule"]), EDU(0)), null);
+  assert.equal(mergeLine(school("Mention", []), "education.f.honors"), null);
+  assert.deepEqual(mergeLine(school("x".repeat(250), ["y".repeat(100)]), EDU(0)), { tooLong: true });
+});
+
+test("formation : Entrée puis Retour arrière rendent le texte d'origine", () => {
+  const split = splitLine(school("Cours suivis finance", []), "education.f.honors", "Cours suivis", "finance", "x");
+  assert.equal(eduOf(mergeLine(split.data, EDU(0))).honors, "Cours suivis finance");
+});
+
+test("formation : puces vides nettoyées à l'enregistrement et invisibles pour le coach", () => {
+  assert.deepEqual(withoutEmptyLines(school("M", ["A", "", " ", "B"])).education[0].bullets, ["A", "B"]);
+  assert.deepEqual(JSON.parse(JSON.stringify(chatContent(school("M", ["A", ""])))).education[0].bullets, ["A"]);
+});
+
+test("limite de caractères de chaque champ, identique à la validation", () => {
+  for (const [path, build] of [
+    ["personal.firstName", (v) => ({ personal: { firstName: v } })],
+    ["personal.phone", (v) => ({ personal: { phone: v } })],
+    ["personal.jobTitle", (v) => ({ personal: { jobTitle: v } })],
+    ["personal.linkedin", (v) => ({ personal: { linkedin: v } })],
+    ["summary", (v) => ({ summary: v })],
+    ["interests", (v) => ({ interests: v })],
+    ["experiences.e.startDate", (v) => ({ experiences: [{ id: "e", startDate: v }] })],
+    ["experiences.e.position", (v) => ({ experiences: [{ id: "e", position: v }] })],
+    ["experiences.e.bullets.0", (v) => ({ experiences: [{ id: "e", bullets: [v] }] })],
+    ["education.f.endDate", (v) => ({ education: [{ id: "f", endDate: v }] })],
+    ["education.f.honors", (v) => ({ education: [{ id: "f", honors: v }] })],
+    ["education.f.bullets.0", (v) => ({ education: [{ id: "f", bullets: [v] }] })],
+    ["skills.a.name", (v) => ({ skills: [{ id: "a", name: v }] })],
+    ["languages.l.name", (v) => ({ languages: [{ id: "l", name: v }] })],
+    ["languages.l.level", (v) => ({ languages: [{ id: "l", level: v }] })],
+    ["certifications.c.name", (v) => ({ certifications: [{ id: "c", name: v }] })],
+    ["certifications.c.date", (v) => ({ certifications: [{ id: "c", date: v }] })],
+    ["projects.p.name", (v) => ({ projects: [{ id: "p", name: v }] })],
+    ["projects.p.description", (v) => ({ projects: [{ id: "p", description: v }] })],
+    ["projects.p.link", (v) => ({ projects: [{ id: "p", link: v }] })],
+  ]) {
+    const limit = fieldLimit(path);
+    assert.equal(CvDataSchema.safeParse(build("x".repeat(limit))).success, true, `${path} : ${limit} accepté`);
+    assert.equal(CvDataSchema.safeParse(build("x".repeat(limit + 1))).success, false, `${path} : ${limit + 1} refusé`);
+  }
+});
+
+test("le champ refusé est nommé, avec sa limite", () => {
+  const message = (input) => invalidCvField(CvDataSchema.safeParse(input).error);
+  assert.deepEqual(message({ education: [{ id: "a" }, { id: "b", honors: "x".repeat(301) }] }), {
+    path: "education.1.honors",
+    message: "Le champ « Formation 2 : mention » est trop long (300 caractères maximum).",
+  });
+  assert.deepEqual(message({ experiences: [{ id: "a", bullets: ["x".repeat(501)] }] }), {
+    path: "experiences.0.bullets.0",
+    message: "Le champ « Expérience 1 : puce 1 » est trop long (500 caractères maximum).",
+  });
+  assert.equal(message({ personal: { jobTitle: "x".repeat(301) } }).message, "Le champ « Titre du CV » est trop long (300 caractères maximum).");
+  assert.equal(message({ summary: "x".repeat(2001) }).message, "Le champ « Accroche » est trop long (2000 caractères maximum).");
+  assert.equal(message({ skills: Array.from({ length: 41 }, (_, i) => ({ id: `s${i}`, name: "a" })) }).message, "Le champ « Compétence » contient trop d'éléments (40 maximum).");
+  assert.equal(message({ skills: [{ id: "a", name: "x", level: "inconnu" }] }).message, "Le champ « Compétence 1 : niveau » est invalide.");
 });
 
 const SKILLS = [{ id: "a", name: "Excel", level: "avance" }, { id: "v", name: "" }, { id: "b", name: "SQL" }, { id: "s", name: "   " }, { id: "g", name: "Hard skills : Python, Java" }];

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
+import type { ZodError } from "zod";
 
 import { getAccountName } from "@/lib/account";
 import { checkAiAccess, checkAiRateLimit, countAiUsageToday, recordAiUsage } from "@/lib/ai-usage";
@@ -46,6 +47,7 @@ import {
   CV_IMPORT_FOLDER,
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
+  invalidCvField,
   withoutEmptyLines,
   chatContent,
   cvDataToText,
@@ -206,6 +208,16 @@ export async function convertLegacyCvAction(formData: FormData) {
 
 export type SaveCvResult = { ok: true; savedAt: string } | { ok: false; error: string };
 
+/**
+ * CV refusé par la validation : champ en cause journalisé (son chemin, pas son contenu) et message
+ * pour l'utilisateur, qui le nomme pour qu'il puisse le corriger.
+ */
+function rejectedCvMessage(error: ZodError, context: string) {
+  const field = invalidCvField(error);
+  console.error(`[cv-builder] CV refusé (${context}) : champ ${field.path || "racine"}, ${error.issues.length} problème(s), ${error.issues[0]?.code}`);
+  return field.message;
+}
+
 /** Sauvegarde automatique de l'éditeur. */
 export async function saveBuilderCvAction(
   id: string,
@@ -213,7 +225,7 @@ export async function saveBuilderCvAction(
 ): Promise<SaveCvResult> {
   if (!isTemplateId(input?.templateId)) return { ok: false, error: "Modèle inconnu." };
   const parsed = CvDataSchema.safeParse(input.data);
-  if (!parsed.success) return { ok: false, error: "Certaines informations sont trop longues pour être enregistrées." };
+  if (!parsed.success) return { ok: false, error: rejectedCvMessage(parsed.error, "enregistrement") };
   try {
     const savedAt = await saveBuilderCv(String(id), {
       title: String(input.title ?? ""),
@@ -308,7 +320,7 @@ function cvToText(data: CvData) {
 /** « Générer un résumé » de la section Profil. */
 export async function generateSummaryAction(rawData: CvData) {
   const parsed = CvDataSchema.safeParse(rawData);
-  if (!parsed.success) return { ok: false, error: "Le CV contient des informations invalides." } satisfies AiResult<string>;
+  if (!parsed.success) return { ok: false, error: rejectedCvMessage(parsed.error, "résumé") } satisfies AiResult<string>;
   const data = parsed.data;
   if (!data.experiences.length && !data.education.length && !data.skills.length) {
     return { ok: false, error: "Ajoute d'abord une expérience, une formation ou des compétences." } satisfies AiResult<string>;
@@ -321,7 +333,7 @@ export type AdaptedExperiences = { experiences: { id: string; bullets: string[] 
 /** « Adapter à une offre » : `offer` est l'adresse de l'offre ou son texte collé. */
 export async function adaptToOfferAction(rawData: CvData, offer: string) {
   const parsed = CvDataSchema.safeParse(rawData);
-  if (!parsed.success) return { ok: false, error: "Le CV contient des informations invalides." } satisfies AiResult<AdaptedExperiences>;
+  if (!parsed.success) return { ok: false, error: rejectedCvMessage(parsed.error, "adaptation") } satisfies AiResult<AdaptedExperiences>;
   const experiences = parsed.data.experiences
     .map((e) => ({
       id: e.id,
@@ -771,7 +783,8 @@ const MISSING_FIGURE_QUESTION =
 /** Le coach voulait modifier le CV, mais rien n'a pu être appliqué (texte refusé, contenu invalide). */
 const NOT_APPLIED_MESSAGE = "Je n'ai pas pu modifier ton CV : il me manque une information précise (un chiffre, un résultat).";
 /** Hors puces d'expérience : aucun chiffre n'est en cause, et le coach ne change pas de sujet. */
-const SECTION_NOT_APPLIED_MESSAGE = "Je n'ai pas pu appliquer cette modification à ton CV. Peux-tu reformuler ta demande ?";
+const sectionNotAppliedMessage = (reason: string | null) =>
+  ["Je n'ai pas pu appliquer cette modification à ton CV.", reason, "Peux-tu reformuler ta demande ?"].filter(Boolean).join(" ");
 /** Une partie seulement de la modification a été appliquée. */
 const PARTIAL_MESSAGE = "Pour certaines puces, il me manque encore un chiffre.";
 
@@ -795,7 +808,7 @@ async function readShownCv(id: string, json: string): Promise<{ data: CvData; ap
   let shown: CvData;
   try {
     const parsed = CvDataSchema.safeParse(JSON.parse(json));
-    if (!parsed.success) return "Le CV contient des informations invalides.";
+    if (!parsed.success) return rejectedCvMessage(parsed.error, "coach");
     // Le coach désigne les puces par leur position dans le contenu qu'il a reçu (chatContent) :
     // ses modifications s'appliquent sur le même contenu, sans lignes vides.
     shown = withoutEmptyLines(parsed.data);
@@ -880,7 +893,8 @@ export async function refineBuilderCvAction(
   // invisible pour le candidat (sauf si les adaptations du mois sont épuisées).
   let answer = reply;
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
-  let problems = proposal ? checkProposal(proposal, context.scoring) : [];
+  let problems = proposal ? checkProposal(proposal, context.scoring, current) : [];
+  const firstProblems = problems;
   const firstRefused = problems.length;
   let retried = false;
   if (reply.raw && !limitReached && (reply.invalid || problems.length)) {
@@ -898,7 +912,7 @@ export async function refineBuilderCvAction(
       retried = true;
       answer = second;
       proposal = second.update ? buildProposal(current, second.update) : null;
-      problems = proposal ? checkProposal(proposal, context.scoring) : [];
+      problems = proposal ? checkProposal(proposal, context.scoring, current) : [];
     }
   }
   // Textes encore refusés : retirés, jamais écrits dans le CV.
@@ -942,9 +956,11 @@ export async function refineBuilderCvAction(
   const intended = Boolean(reply.raw);
   const missing = intended && (!applied || problems.length > 0);
   const question = answer.message && (!missing || answer.message.includes("?")) ? answer.message : MISSING_FIGURE_QUESTION;
+  // Motif du refus : une limite, quelle que soit la section, n'a rien à voir avec un chiffre manquant.
+  const refusal = problems[0] ?? firstProblems[0];
   const text =
-    intended && !applied && reply.raw?.section !== "experience"
-      ? SECTION_NOT_APPLIED_MESSAGE
+    intended && !applied && (reply.raw?.section !== "experience" || refusal?.limit)
+      ? sectionNotAppliedMessage(refusal ? (refusal.limit ? refusal.problems[0] : `Le texte proposé ${refusal.problems[0]}.`) : null)
       : [
           applied ? answer.changeSummary || "C'est fait : j'ai mis à jour ton CV." : null,
           intended && !applied ? NOT_APPLIED_MESSAGE : null,

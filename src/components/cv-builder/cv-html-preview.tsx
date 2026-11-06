@@ -4,6 +4,7 @@ import {
   createContext,
   createElement,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -15,6 +16,7 @@ import {
   CV_FONTS,
   cvFontFile,
   densityFactor,
+  fieldLimit,
   isLinePath,
   lineLimitMessage,
   mergeLine,
@@ -90,6 +92,8 @@ const EditContext = createContext<((path: EditPath, value: string) => void) | nu
 const LineBreakContext = createContext<((path: EditPath, before: string, after: string) => void) | null>(null);
 /** Retour arrière au tout début d'une ligne de liste : true si la ligne a été recollée ou retirée. */
 const LineMergeContext = createContext<((path: EditPath) => boolean) | null>(null);
+/** Message à montrer quand une saisie est bloquée : limite de lignes ou de caractères. */
+const LimitNoticeContext = createContext<((message: string) => void) | null>(null);
 /** Textes surlignés après une modification du coach : l'aperçu seul le fournit, pas le PDF. */
 const HighlightContext = createContext<{ paths: ReadonlySet<string>; fading: boolean } | null>(null);
 
@@ -161,6 +165,28 @@ function EditableText({
   const wasActive = useRef(activeLine === path);
   // Intitulé seul sur sa ligne à l'affichage : le texte enregistré garde son espace (« Intitulé : a »).
   const toStored = (text: string) => (display?.includes("\n") ? text.replace(":\n", ": ") : text);
+  // Limite de caractères du champ (la même que la validation du CV) : la saisie s'y arrête, pour qu'un
+  // seul champ trop long ne bloque jamais la sauvegarde ni le coach.
+  const limit = fieldLimit(path);
+  const showNotice = useContext(LimitNoticeContext);
+  const limitNotice = useRef(() => {});
+  useLayoutEffect(() => {
+    limitNotice.current = () => showNotice?.(`Limite de ${limit} caractères atteinte pour ce champ`);
+  });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onBeforeInput = (e: InputEvent) => {
+      if (!e.inputType.startsWith("insert") || e.isComposing) return;
+      const inserted = e.data ?? e.dataTransfer?.getData("text/plain") ?? "\n";
+      const selected = window.getSelection()?.toString().length ?? 0;
+      if ((el.textContent?.length ?? 0) - selected + inserted.length <= limit) return;
+      e.preventDefault();
+      limitNotice.current();
+    };
+    el.addEventListener("beforeinput", onBeforeInput);
+    return () => el.removeEventListener("beforeinput", onBeforeInput);
+  }, [limit]);
   // Hors saisie : texte mis en forme. Pendant la saisie : texte brut avec son marquage
   // (**gras**…), réécrit seulement si la valeur change d'ailleurs (curseur conservé).
   const [focused, setFocused] = useState(false);
@@ -212,7 +238,12 @@ function EditableText({
     spellCheck: true,
     className: highlightClass ? `cv-editable ${highlightClass}` : "cv-editable",
     style,
-    onInput: (e: React.FormEvent<HTMLElement>) => onEdit?.(path, toStored(e.currentTarget.textContent ?? "")),
+    onInput: (e: React.FormEvent<HTMLElement>) => {
+      const text = toStored(e.currentTarget.textContent ?? "");
+      // Saisie assistée ou correction du navigateur, qui ne peuvent pas être bloquées avant coup.
+      if (text.length > limit) limitNotice.current();
+      onEdit?.(path, text.slice(0, limit));
+    },
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
       // Retour arrière au tout début d'une ligne de liste : geste inverse d'Entrée.
       if (e.key === "Backspace" && !e.nativeEvent.isComposing && isLinePath(path) && window.getSelection()?.isCollapsed) {
@@ -464,15 +495,17 @@ export function CvHtmlPreview({
           <EditContext value={onEdit}>
             <LineBreakContext value={breakLine}>
               <LineMergeContext value={mergeWithPrevious}>
-                <ActiveLineContext value={activeLine}>
-                  <PrimitivesContext value={HTML_PRIMITIVES}>
-                    <DensityContext value={densityFactor(data.style.density)}>
-                      <HighlightContext value={highlight}>
-                        <CvPages data={data} templateId={templateId} />
-                      </HighlightContext>
-                    </DensityContext>
-                  </PrimitivesContext>
-                </ActiveLineContext>
+                <LimitNoticeContext value={onLineLimit}>
+                  <ActiveLineContext value={activeLine}>
+                    <PrimitivesContext value={HTML_PRIMITIVES}>
+                      <DensityContext value={densityFactor(data.style.density)}>
+                        <HighlightContext value={highlight}>
+                          <CvPages data={data} templateId={templateId} />
+                        </HighlightContext>
+                      </DensityContext>
+                    </PrimitivesContext>
+                  </ActiveLineContext>
+                </LimitNoticeContext>
               </LineMergeContext>
             </LineBreakContext>
           </EditContext>

@@ -914,11 +914,11 @@ export async function analyseCv(
 // ---------------------------------------------------------------------------
 
 /** Format attendu dans « data », section par section (décrit au modèle, validé par COACH_DATA_SCHEMAS). */
-const COACH_DATA_FORMAT = `Ta modification de la section choisie ; chaîne vide si section = « aucune ». N'y mets que ce qui change.
+const COACH_DATA_FORMAT = `Ta modification de la section choisie ; chaîne vide si section = « aucune ». N'y mets que ce qui change. Longueurs maximales : puce 500 caractères, 12 puces par élément, dates 40, langues 60, accroche et description de projet 2000, autres champs 300. Une information qui dépasse va ailleurs : par exemple, une durée va dans une puce, pas dans une date.
 - summary, interests : le nouveau texte lui-même.
 - personal : JSON des seuls champs modifiés, parmi {"firstName","lastName","jobTitle","email","phone","city","linkedin","website","github"} ; jobTitle est le titre du CV.
 - experience : JSON {"id": id de l'expérience, "bullets": [{"index": position de la puce remplacée (0 = première), ou -1 pour une nouvelle puce, "after": "la puce proposée"}], "bullets_to_remove": [positions des puces à supprimer]} ; seulement les puces modifiées, ajoutées ou supprimées. Supprimer l'expérience entière : {"id", "remove": true}. Nouvelle expérience : "id" vide, avec "position","company","startDate","endDate","current" (booléen),"location" et ses puces (index -1).
-- education : JSON {"id", et les seuls champs modifiés parmi "school","degree","startDate","endDate","honors"} ; supprimer la formation : {"id", "remove": true} ; nouvelle formation : "id" vide et tous les champs.
+- education : JSON {"id", et les seuls champs modifiés parmi "school","degree","startDate","endDate","honors","bullets"} ; "bullets" est la liste complète des puces de la formation (cours suivis, classements…), ex. ["Cours : finance de marché","Classement : 3e sur 120"] ; supprimer la formation : {"id", "remove": true} ; nouvelle formation : "id" vide et tous les champs.
 - projects : JSON d'UN projet {"id", et les seuls champs modifiés parmi "name","description","link"} ; supprimer le projet : {"id", "remove": true} ; nouveau projet : "id" vide et tous les champs.
 - skills : JSON de la liste complète proposée [{"name","level"}], level parmi "", "debutant", "intermediaire", "avance", "expert". Chaque entrée est une ligne du CV (300 caractères maximum). Pour regrouper ou séparer des compétences, deux formats : une entrée par groupe, ex. [{"name":"Hard skills : Excel, SQL","level":""},{"name":"Soft skills : Écoute, Organisation","level":""}] ; ou, si le candidat veut l'intitulé sur sa propre ligne ou si la liste est longue, une entrée avec l'intitulé seul puis une entrée avec la liste dessous, ex. [{"name":"Hard skills :","level":""},{"name":"Excel, SQL","level":""},{"name":"Soft skills :","level":""},{"name":"Écoute, Organisation","level":""}].
 - languages : JSON de la liste complète proposée [{"name","level"}].
@@ -1137,8 +1137,8 @@ function retryInstructions({ previous, problems }: CoachRetry) {
     reasons,
     `Proposition refusée : ${previous.data}`,
     previous.section === "experience"
-      ? "Corrige-la. Chaque puce commence par un verbe ou un nom d'action, contient un chiffre ou un ordre de grandeur donné par le candidat ou déjà présent dans le CV, sans formule à éviter. N'invente AUCUN chiffre : si le candidat ne l'a pas donné, retire cette puce de ta proposition et termine ton message par une question précise pour obtenir ce chiffre (ou section = « aucune » s'il ne reste rien à proposer)."
-      : "Corrige-la en respectant le format demandé et sans ajouter de formule à éviter. Ne demande aucun chiffre : ils ne concernent que les puces d'expérience.",
+      ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, contient un chiffre ou un ordre de grandeur donné par le candidat ou déjà présent dans le CV, sans formule à éviter. N'invente AUCUN chiffre : si le candidat ne l'a pas donné, retire cette puce de ta proposition et termine ton message par une question précise pour obtenir ce chiffre (ou section = « aucune » s'il ne reste rien à proposer)."
+      : "Corrige-la en respectant le format et les longueurs maximales demandés, sans ajouter de formule à éviter. Ne demande aucun chiffre : ils ne concernent que les puces d'expérience.",
     "</verification>",
   ].join("\n");
 }

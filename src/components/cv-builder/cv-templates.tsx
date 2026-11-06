@@ -329,6 +329,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                     {e.honors}
                   </Text>
                 ) : null}
+                <Bullets base={base} items={e.bullets} color={variant === "tech" || variant === "moderne" ? accent : undefined} />
               </View>
             );
           })}
@@ -599,6 +600,7 @@ function Sidebar({ data }: { data: CvData }) {
                       {e.honors && (e.startDate || e.endDate) ? " · " : null}
                       {e.honors ? <Text edit={`${base}.honors`}>{e.honors}</Text> : null}
                     </Text>
+                    <Bullets base={base} items={e.bullets} color="#CBD5E1" style={{ fontSize: 8, color: "#CBD5E1" }} />
                   </View>
                 );
               })}
@@ -888,6 +890,7 @@ function Finance({ data }: { data: CvData }) {
                   </Text>
                 ) : null}
                 {e.honors ? <Text edit={`${base}.honors`}>{e.honors}</Text> : null}
+                <FinanceBullets base={base} items={e.bullets} />
               </View>
             );
           })}
