@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { CV_LIMITS, CvDataSchema, isLinePath, lineLimitMessage, splitLine } from "./cv-builder-types.ts";
+import { splitRich, stripRich } from "./cv-rich-text.ts";
 
 const cv = (bullets = ["Premier", "Second"], skills = [{ id: "a", name: "Excel" }, { id: "b", name: "SQL" }]) =>
   CvDataSchema.parse({ experiences: [{ id: "e", position: "Poste", bullets }], skills });
@@ -20,6 +21,58 @@ test("Entrée dans une puce la coupe au curseur et vise la nouvelle puce", () =>
   const split = splitLine(cv(), BULLET(0), "Pre", "mier", "x");
   assert.deepEqual(split.data.experiences[0].bullets, ["Pre", "mier", "Second"]);
   assert.equal(split.nextPath, BULLET(1));
+});
+
+test("curseur en fin de puce : puce vide en dessous, celle du haut intacte", () => {
+  const split = splitLine(cv(), BULLET(0), "Premier", "", "x");
+  assert.deepEqual(split.data.experiences[0].bullets, ["Premier", "", "Second"]);
+  assert.equal(split.nextPath, BULLET(1));
+});
+
+test("curseur au tout début : le texte ne change pas de puce, puce vide en dessous", () => {
+  const split = splitLine(cv(), BULLET(0), "", "Premier", "x");
+  assert.deepEqual(split.data.experiences[0].bullets, ["Premier", "", "Second"]);
+  assert.equal(split.nextPath, BULLET(1));
+});
+
+test("plusieurs Entrée au tout début n'accumulent pas de puces vides cachées", () => {
+  let data = cv();
+  for (let i = 0; i < 4; i++) data = splitLine(data, BULLET(0), "", "Premier", "x").data;
+  assert.deepEqual(data.experiences[0].bullets, ["Premier", "", "Second"]);
+});
+
+test("une puce vide juste après est réutilisée, même au nombre maximum de puces", () => {
+  const bullets = ["A", "", ...Array.from({ length: CV_LIMITS.bullets - 2 }, (_, i) => `Puce ${i}`)];
+  const split = splitLine(cv(bullets), BULLET(0), "A", "", "x");
+  assert.deepEqual(split.data.experiences[0].bullets, bullets);
+  assert.equal(split.nextPath, BULLET(1));
+});
+
+test("une coupe au milieu avec une puce vide après garde tout le texte", () => {
+  const split = splitLine(cv(["Avant apres", "", "Fin"]), BULLET(0), "Avant", "apres", "x");
+  assert.deepEqual(split.data.experiences[0].bullets, ["Avant", "apres", "", "Fin"]);
+});
+
+test("une compétence vide juste après est réutilisée", () => {
+  const skills = [{ id: "a", name: "Excel" }, { id: "v", name: "" }, { id: "b", name: "SQL" }];
+  const split = splitLine(cv(undefined, skills), "skills.a.name", "Excel", "", "x");
+  assert.deepEqual(split.data.skills.map((s) => s.id), ["a", "v", "b"]);
+  assert.equal(split.nextPath, "skills.v.name");
+});
+
+test("coupe dans un passage en gras : marquage refermé et rouvert", () => {
+  assert.deepEqual(splitRich("Puce **en gra", "s** fin"), ["Puce **en gra**", "**s** fin"]);
+  assert.equal(stripRich("Puce **en gra**") + stripRich("**s** fin"), "Puce en gras fin");
+  assert.deepEqual(splitRich("*ita", "lique*"), ["*ita*", "*lique*"]);
+  assert.deepEqual(splitRich("__sou", "ligné__"), ["__sou__", "__ligné__"]);
+});
+
+test("coupe hors d'un passage ou dans ses signes : marquage laissé entier", () => {
+  assert.deepEqual(splitRich("Avant ", "**gras** apres"), ["Avant ", "**gras** apres"]);
+  assert.deepEqual(splitRich("**gras** ", "apres"), ["**gras** ", "apres"]);
+  assert.deepEqual(splitRich("a *", "*gras** b"), ["a ", "**gras** b"]);
+  assert.deepEqual(splitRich("a **gras*", "* b"), ["a **gras**", " b"]);
+  assert.deepEqual(splitRich("Sans marquage", " du tout"), ["Sans marquage", " du tout"]);
 });
 
 test("Entrée dans une compétence crée la suivante, avec l'identifiant fourni", () => {

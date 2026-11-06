@@ -22,7 +22,7 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { parseRich, type RichFormat } from "@/lib/cv-rich-text";
+import { parseRich, splitRich, type RichFormat } from "@/lib/cv-rich-text";
 
 import {
   ActiveLineContext,
@@ -142,12 +142,20 @@ function EditableText({
     if (!el) return;
     if (!focused) {
       el.replaceChildren(...richNodes(display ?? value));
-    } else if (el.textContent !== value) {
+      return;
+    }
+    // Nouvelle ligne activée après Entrée : le curseur doit y rester au début.
+    const caretAtStart = el.dataset.caretStart !== undefined;
+    delete el.dataset.caretStart;
+    if (el.textContent !== value) {
       el.textContent = value;
       // Curseur en fin de texte (le texte affiché vient de changer).
       const selection = window.getSelection();
-      selection?.selectAllChildren(el);
-      selection?.collapseToEnd();
+      if (caretAtStart) selection?.collapse(el, 0);
+      else {
+        selection?.selectAllChildren(el);
+        selection?.collapseToEnd();
+      }
     }
   }, [value, display, focused]);
   const props = {
@@ -175,7 +183,7 @@ function EditableText({
       // Ligne de liste : nouvelle ligne en dessous. Déjà sur une ligne vide : le curseur y reste, pour
       // qu'un double appui ne fasse pas sortir du champ (la frappe suivante serait perdue).
       if (!e.currentTarget.textContent?.trim()) return;
-      const [before, after] = textAroundSelection(e.currentTarget);
+      const [before, after] = splitRich(...textAroundSelection(e.currentTarget));
       breakLine?.(path, before.trimEnd(), after.trimStart());
     },
   };
@@ -370,8 +378,10 @@ export function CvHtmlPreview({
     if (!path) return;
     focusAfterRender.current = null;
     const target = pageRef.current?.querySelector<HTMLElement>(`[data-edit-path="${CSS.escape(path)}"]`);
-    target?.focus();
-    if (target) window.getSelection()?.collapse(target, 0);
+    if (!target) return;
+    target.dataset.caretStart = "";
+    target.focus();
+    window.getSelection()?.collapse(target, 0);
   }, [data, activeLine]);
 
   return (

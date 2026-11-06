@@ -360,9 +360,13 @@ export const lineLimitMessage = (path: string) =>
 /**
  * Liste avec une ligne ajoutée après celle d'`index`, et la position de cette nouvelle ligne. null
  * au nombre maximum de lignes remplies : les lignes vides ne comptent pas et sont retirées s'il
- * faut de la place (le schéma limite toute la liste).
+ * faut de la place (le schéma limite toute la liste). Une ligne vide déjà présente juste après est
+ * réutilisée, pour ne pas accumuler de lignes vides cachées.
  */
 function withLineAfter<T>(list: T[], index: number, current: T, added: T, isBlank: (item: T) => boolean, max: number) {
+  if (isBlank(added) && index + 1 < list.length && isBlank(list[index + 1])) {
+    return { list: list.map((item, i) => (i === index ? current : item)), next: index + 1 };
+  }
   if (list.filter((item) => !isBlank(item)).length >= max) return null;
   const others = (items: T[]) => (list.length >= max ? items.filter((item) => !isBlank(item)) : items);
   const head = others(list.slice(0, index));
@@ -371,11 +375,13 @@ function withLineAfter<T>(list: T[], index: number, current: T, added: T, isBlan
 
 /**
  * Touche Entrée dans une ligne de liste : `before` reste dans la ligne, `after` passe dans une
- * nouvelle ligne juste en dessous, au chemin `nextPath`. null si la liste est pleine ou si le chemin
- * ne correspond à rien. `newId` : identifiant d'une nouvelle compétence, fourni par l'appelant pour
- * que le résultat ne change pas si la fonction est rejouée.
+ * nouvelle ligne juste en dessous, au chemin `nextPath`. Curseur au tout début : le texte ne bouge
+ * pas et la nouvelle ligne est vide. null si la liste est pleine ou si le chemin ne correspond à
+ * rien. `newId` : identifiant d'une nouvelle compétence, fourni par l'appelant pour que le résultat
+ * ne change pas si la fonction est rejouée.
  */
-export function splitLine(data: CvData, path: string, before: string, after: string, newId: string): { data: CvData; nextPath: string } | null {
+export function splitLine(data: CvData, path: string, textBefore: string, textAfter: string, newId: string): { data: CvData; nextPath: string } | null {
+  const [before, after] = textBefore.trim() ? [textBefore, textAfter] : [textAfter, ""];
   const bullet = path.match(BULLET_PATH);
   if (bullet) {
     const index = Number(bullet[2]);
@@ -393,7 +399,7 @@ export function splitLine(data: CvData, path: string, before: string, after: str
   if (index < 0) return null;
   const added = { id: newId, name: after, level: "" as const };
   const split = withLineAfter(data.skills, index, { ...data.skills[index], name: before }, added, (s) => !s.name.trim(), CV_LIMITS.skills);
-  return split && { data: { ...data, skills: split.list }, nextPath: `skills.${newId}.name` };
+  return split && { data: { ...data, skills: split.list }, nextPath: `skills.${split.list[split.next].id}.name` };
 }
 
 /** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo ni les réglages de mise en page. */

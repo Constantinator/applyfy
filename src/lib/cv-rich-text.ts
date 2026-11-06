@@ -32,6 +32,26 @@ export function hasRich(text: string) {
   return parseRich(text).some((run) => run.format !== null);
 }
 
+/**
+ * Texte coupé en deux au curseur (touche Entrée) : une coupe dans un passage mis en forme le referme
+ * d'un côté et le rouvre de l'autre, pour que le marquage n'apparaisse pas tel quel. Une coupe dans
+ * les signes du marquage laisse le passage entier d'un seul côté.
+ */
+export function splitRich(before: string, after: string): [string, string] {
+  const text = before + after;
+  const offset = before.length;
+  for (const match of text.matchAll(RICH_PATTERN)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    if (offset <= start || offset >= end) continue;
+    const marker = match[1] !== undefined ? RICH_MARKERS.bold : match[2] !== undefined ? RICH_MARKERS.underline : RICH_MARKERS.italic;
+    if (offset <= start + marker.length) return [text.slice(0, start), text.slice(start)];
+    if (offset >= end - marker.length) return [text.slice(0, end), text.slice(end)];
+    return [text.slice(0, offset) + marker, marker + text.slice(offset)];
+  }
+  return [before, after];
+}
+
 /** Texte sans marquage (contexte de l'IA, comparaisons). */
 export function stripRich(text: string) {
   return parseRich(text)
