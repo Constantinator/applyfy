@@ -365,7 +365,7 @@ export const lineLimitMessage = (path: string) =>
  */
 function withLineAfter<T>(list: T[], index: number, current: T, added: T, isBlank: (item: T) => boolean, max: number) {
   if (isBlank(added) && index + 1 < list.length && isBlank(list[index + 1])) {
-    return { list: list.map((item, i) => (i === index ? current : item)), next: index + 1 };
+    return { list: list.map((item, i) => (i === index ? current : i === index + 1 ? added : item)), next: index + 1 };
   }
   if (list.filter((item) => !isBlank(item)).length >= max) return null;
   const others = (items: T[]) => (list.length >= max ? items.filter((item) => !isBlank(item)) : items);
@@ -402,8 +402,20 @@ export function splitLine(data: CvData, path: string, textBefore: string, textAf
   return split && { data: { ...data, skills: split.list }, nextPath: `skills.${split.list[split.next].id}.name` };
 }
 
-/** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo ni les réglages de mise en page. */
-export function chatContent({ personal, summary, experiences, education, skills, languages, certifications, projects, interests }: CvData) {
+/**
+ * CV sans ses puces vides (ou faites d'espaces). Elles ne servent qu'à l'éditeur, le temps d'une saisie :
+ * ni la base ni le coach ne les voient, et la puce en cours de saisie reste dans l'état de l'éditeur.
+ */
+export function withoutEmptyBullets<T extends Pick<CvData, "experiences">>(data: T): T {
+  return {
+    ...data,
+    experiences: data.experiences.map((e) => (e.bullets.every((b) => b.trim()) ? e : { ...e, bullets: e.bullets.filter((b) => b.trim()) })),
+  };
+}
+
+/** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo, les réglages de mise en page ni les puces vides. */
+export function chatContent(data: CvData) {
+  const { personal, summary, experiences, education, skills, languages, certifications, projects, interests } = withoutEmptyBullets(data);
   // photo: undefined → absente du JSON.
   return { personal: { ...personal, photo: undefined }, summary, experiences, education, skills, languages, certifications, projects, interests };
 }

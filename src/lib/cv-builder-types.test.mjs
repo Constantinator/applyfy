@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CV_LIMITS, CvDataSchema, isLinePath, lineLimitMessage, splitLine } from "./cv-builder-types.ts";
+import { CV_LIMITS, chatContent, CvDataSchema, isLinePath, lineLimitMessage, splitLine, withoutEmptyBullets } from "./cv-builder-types.ts";
 import { splitRich, stripRich } from "./cv-rich-text.ts";
 
 const cv = (bullets = ["Premier", "Second"], skills = [{ id: "a", name: "Excel" }, { id: "b", name: "SQL" }]) =>
@@ -53,11 +53,16 @@ test("une coupe au milieu avec une puce vide après garde tout le texte", () => 
   assert.deepEqual(split.data.experiences[0].bullets, ["Avant", "apres", "", "Fin"]);
 });
 
-test("une compétence vide juste après est réutilisée", () => {
+test("une compétence vide juste après est réutilisée, sans nouvelle ligne", () => {
   const skills = [{ id: "a", name: "Excel" }, { id: "v", name: "" }, { id: "b", name: "SQL" }];
   const split = splitLine(cv(undefined, skills), "skills.a.name", "Excel", "", "x");
-  assert.deepEqual(split.data.skills.map((s) => s.id), ["a", "v", "b"]);
-  assert.equal(split.nextPath, "skills.v.name");
+  assert.deepEqual(split.data.skills.map((s) => s.name), ["Excel", "", "SQL"]);
+  assert.equal(split.nextPath, `skills.${split.data.skills[1].id}.name`);
+});
+
+test("une puce faite d'espaces réutilisée est vidée : la frappe ne commence pas par des espaces", () => {
+  const split = splitLine(cv(["A", "   ", "B"]), BULLET(0), "A", "", "x");
+  assert.deepEqual(split.data.experiences[0].bullets, ["A", "", "B"]);
 });
 
 test("coupe dans un passage en gras : marquage refermé et rouvert", () => {
@@ -120,6 +125,31 @@ test("chemin inconnu : pas de scission", () => {
   assert.equal(splitLine(cv(), BULLET(9), "a", "", "x"), null);
   assert.equal(splitLine(cv(), "skills.inconnue.name", "a", "", "x"), null);
   assert.equal(splitLine(cv(), "summary", "a", "", "x"), null);
+});
+
+test("les puces vides ou faites d'espaces sont retirées, l'ordre et le reste du CV intacts", () => {
+  const data = cv(["A", "", "B", "   ", "\n", "C"]);
+  const cleaned = withoutEmptyBullets(data);
+  assert.deepEqual(cleaned.experiences[0].bullets, ["A", "B", "C"]);
+  assert.deepEqual({ ...cleaned, experiences: null }, { ...data, experiences: null });
+  assert.deepEqual(data.experiences[0].bullets, ["A", "", "B", "   ", "\n", "C"], "CV d'origine non modifié");
+});
+
+test("une expérience reste présente quand toutes ses puces sont vides", () => {
+  const cleaned = withoutEmptyBullets(cv(["", " "]));
+  assert.equal(cleaned.experiences.length, 1);
+  assert.deepEqual(cleaned.experiences[0].bullets, []);
+});
+
+test("le coach ne reçoit aucune puce vide, et les positions sont celles du contenu nettoyé", () => {
+  const json = JSON.parse(JSON.stringify(chatContent(cv(["A", "", "B", " "]))));
+  assert.deepEqual(json.experiences[0].bullets, ["A", "B"]);
+});
+
+test("une scission reste possible sur l'état de l'éditeur, qui garde sa puce vide", () => {
+  const editor = splitLine(cv(["A", "B"]), BULLET(0), "A", "", "x").data;
+  assert.deepEqual(editor.experiences[0].bullets, ["A", "", "B"]);
+  assert.deepEqual(withoutEmptyBullets(editor).experiences[0].bullets, ["A", "B"]);
 });
 
 test("les sauts de ligne d'un paragraphe sont conservés à l'enregistrement", () => {

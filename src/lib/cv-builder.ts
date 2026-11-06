@@ -5,6 +5,7 @@ import {
   CvDataSchema,
   isTemplateId,
   readCvData,
+  withoutEmptyBullets,
   type BuilderCv,
   type BuilderCvSummary,
   type CvData,
@@ -146,7 +147,7 @@ export async function createBuilderCv(
   rawTitle = "Mon CV",
   templateId: CvTemplateId = "minimaliste",
 ): Promise<string> {
-  const data = CvDataSchema.parse(initial);
+  const data = withoutEmptyBullets(CvDataSchema.parse(initial));
   const title = rawTitle.trim().slice(0, 120) || "Mon CV";
 
   if (!isSupabaseConfigured()) {
@@ -181,7 +182,8 @@ export async function saveBuilderCv(
   input: { title: string; templateId: CvTemplateId; data: CvData },
 ): Promise<string> {
   const title = input.title.trim().slice(0, 120) || "Mon CV";
-  const data = CvDataSchema.parse(input.data);
+  // CV existants : leurs puces vides disparaissent au prochain enregistrement, sans migration.
+  const data = withoutEmptyBullets(CvDataSchema.parse(input.data));
 
   if (!isSupabaseConfigured()) {
     const cv = demoCvs.find((c) => c.id === id);
