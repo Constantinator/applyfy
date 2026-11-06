@@ -16,7 +16,7 @@ import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
   applyEdit,
-  splitBullet,
+  splitLine,
   chatContent,
   CV_LIMITS,
   CvDataSchema,
@@ -137,15 +137,15 @@ export function CvBuilderEditor({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [pages, setPages] = useState(1);
-  // Entrée bloquée dans une puce : message affiché quelques secondes au-dessus de l'aperçu.
-  const [bulletLimit, setBulletLimit] = useState(false);
-  const bulletLimitTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const showBulletLimit = () => {
-    setBulletLimit(true);
-    clearTimeout(bulletLimitTimer.current);
-    bulletLimitTimer.current = setTimeout(() => setBulletLimit(false), 4000);
+  // Entrée bloquée dans une liste : message affiché quelques secondes au-dessus de l'aperçu.
+  const [lineLimit, setLineLimit] = useState<string | null>(null);
+  const lineLimitTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const showLineLimit = (message: string) => {
+    setLineLimit(message);
+    clearTimeout(lineLimitTimer.current);
+    lineLimitTimer.current = setTimeout(() => setLineLimit(null), 4000);
   };
-  useEffect(() => () => clearTimeout(bulletLimitTimer.current), []);
+  useEffect(() => () => clearTimeout(lineLimitTimer.current), []);
   const version = useRef(0);
   const touched = useRef(false);
   // Dernières données, lues par le chat au moment d'un envoi ou d'une annulation.
@@ -498,8 +498,8 @@ export function CvBuilderEditor({
         {/* Aperçu : toute la hauteur disponible sur grand écran. */}
         <section aria-label="Aperçu du CV" className="card flex h-[80vh] flex-col overflow-hidden lg:h-auto lg:min-h-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-xs dark:border-slate-700">
-            <p role="status" className={bulletLimit ? "font-medium text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}>
-              {bulletLimit ? `Maximum ${CV_LIMITS.bullets} puces atteint` : "Clique sur un texte de l'aperçu pour le modifier."}
+            <p role="status" className={lineLimit ? "font-medium text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}>
+              {lineLimit ?? "Clique sur un texte de l'aperçu pour le modifier."}
             </p>
             <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
               {pages > 1 ? `Environ ${pages} pages` : "1 page"}
@@ -510,8 +510,8 @@ export function CvBuilderEditor({
               data={data}
               templateId={templateId}
               onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
-              onBulletBreak={(path, before, after) => edit((d) => splitBullet(d, path, before, after)?.data ?? d)}
-              onBulletLimit={showBulletLimit}
+              onLineBreak={(path, before, after, newId) => edit((d) => splitLine(d, path, before, after, newId)?.data ?? d)}
+              onLineLimit={showLineLimit}
               onPagesChange={setPages}
               highlights={highlights}
               highlightFading={highlightFading}

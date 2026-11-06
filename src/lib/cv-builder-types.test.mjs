@@ -1,0 +1,74 @@
+// Touche Entrée dans les listes du CV Builder. Lancé par `npm test` (Node 22.18 ou plus).
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { CV_LIMITS, CvDataSchema, isLinePath, lineLimitMessage, splitLine } from "./cv-builder-types.ts";
+
+const cv = (bullets = ["Premier", "Second"], skills = [{ id: "a", name: "Excel" }, { id: "b", name: "SQL" }]) =>
+  CvDataSchema.parse({ experiences: [{ id: "e", position: "Poste", bullets }], skills });
+const BULLET = (i) => `experiences.e.bullets.${i}`;
+
+test("seules les puces et les compétences sont des lignes de liste", () => {
+  assert.equal(isLinePath(BULLET(0)), true);
+  assert.equal(isLinePath("skills.a.name"), true);
+  assert.equal(isLinePath("summary"), false);
+  assert.equal(isLinePath("personal.city"), false);
+  assert.equal(isLinePath("languages.a.name"), false);
+});
+
+test("Entrée dans une puce la coupe au curseur et vise la nouvelle puce", () => {
+  const split = splitLine(cv(), BULLET(0), "Pre", "mier", "x");
+  assert.deepEqual(split.data.experiences[0].bullets, ["Pre", "mier", "Second"]);
+  assert.equal(split.nextPath, BULLET(1));
+});
+
+test("Entrée dans une compétence crée la suivante, avec l'identifiant fourni", () => {
+  const split = splitLine(cv(), "skills.a.name", "Excel", "", "x");
+  assert.deepEqual(split.data.skills.map((s) => [s.id, s.name]), [["a", "Excel"], ["x", ""], ["b", "SQL"]]);
+  assert.equal(split.nextPath, "skills.x.name");
+});
+
+test("le même identifiant donne le même résultat (fonction de mise à jour rejouée par React)", () => {
+  const data = cv();
+  assert.deepEqual(splitLine(data, "skills.a.name", "Excel", "", "x"), splitLine(data, "skills.a.name", "Excel", "", "x"));
+});
+
+test("plusieurs Entrée à la suite gardent le contenu et l'ordre", () => {
+  let data = cv();
+  let path = BULLET(1);
+  for (const [before, after] of [["Second", ""], ["Trois", ""], ["Quatre", ""]]) {
+    const split = splitLine(data, path, before, after, "x");
+    data = split.data;
+    path = split.nextPath;
+  }
+  assert.deepEqual(data.experiences[0].bullets, ["Premier", "Second", "Trois", "Quatre", ""]);
+  assert.equal(path, BULLET(4));
+});
+
+test("bloqué à la limite de lignes remplies, avec le message de la liste", () => {
+  const full = Array.from({ length: CV_LIMITS.bullets }, (_, i) => `Puce ${i}`);
+  assert.equal(splitLine(cv(full), BULLET(0), "Puce 0", "", "x"), null);
+  assert.equal(lineLimitMessage(BULLET(0)), `Maximum ${CV_LIMITS.bullets} puces atteint`);
+  const skills = Array.from({ length: CV_LIMITS.skills }, (_, i) => ({ id: `s${i}`, name: `C ${i}` }));
+  assert.equal(splitLine(cv(undefined, skills), "skills.s0.name", "C 0", "", "x"), null);
+  assert.equal(lineLimitMessage("skills.s0.name"), `Maximum ${CV_LIMITS.skills} compétences atteint`);
+});
+
+test("les lignes vides ne comptent pas : retirées s'il faut de la place, résultat valide", () => {
+  const bullets = ["", ...Array.from({ length: CV_LIMITS.bullets - 1 }, (_, i) => `Puce ${i}`)];
+  const split = splitLine(cv(bullets), BULLET(1), "Puce 0", "", "x");
+  assert.equal(split.data.experiences[0].bullets.length, CV_LIMITS.bullets);
+  assert.equal(split.nextPath, BULLET(1));
+  assert.equal(CvDataSchema.safeParse(split.data).success, true);
+});
+
+test("chemin inconnu : pas de scission", () => {
+  assert.equal(splitLine(cv(), "experiences.inconnue.bullets.0", "a", "", "x"), null);
+  assert.equal(splitLine(cv(), BULLET(9), "a", "", "x"), null);
+  assert.equal(splitLine(cv(), "skills.inconnue.name", "a", "", "x"), null);
+  assert.equal(splitLine(cv(), "summary", "a", "", "x"), null);
+});
+
+test("les sauts de ligne d'un paragraphe sont conservés à l'enregistrement", () => {
+  assert.equal(CvDataSchema.parse({ summary: "Ligne 1\n\nLigne 3\n" }).summary, "Ligne 1\n\nLigne 3\n");
+});

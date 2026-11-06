@@ -97,6 +97,7 @@ export const CV_LIMITS = {
   text: 2000,
   bullet: 500,
   bullets: 12,
+  skills: 40,
   items: 20,
   /** Photo en data URL (JPEG ~300 px) : ~50 Ko en pratique. */
   photo: 400_000,
@@ -205,7 +206,7 @@ export const CvDataSchema = z.object({
   summary: text(CV_LIMITS.text),
   experiences: z.array(ExperienceSchema).max(CV_LIMITS.items).default([]),
   education: z.array(EducationSchema).max(CV_LIMITS.items).default([]),
-  skills: z.array(SkillSchema).max(40).default([]),
+  skills: z.array(SkillSchema).max(CV_LIMITS.skills).default([]),
   languages: z.array(LanguageSchema).max(CV_LIMITS.items).default([]),
   certifications: z.array(CertificationSchema).max(CV_LIMITS.items).default([]),
   projects: z.array(ProjectSchema).max(CV_LIMITS.items).default([]),
@@ -346,31 +347,53 @@ export function splitSkillGroup(name: string) {
   return match ? { label: match[1], items: match[2] } : null;
 }
 
-const BULLET_PATH =/^experiences\.([^.]+)\.bullets\.(\d+)$/;
+const BULLET_PATH = /^experiences\.([^.]+)\.bullets\.(\d+)$/;
+const SKILL_PATH = /^skills\.([^.]+)\.name$/;
 
-/** Chemin d'une puce d'expérience dans l'aperçu ? */
-export const isBulletPath = (path: string) => BULLET_PATH.test(path);
+/** Ligne d'une liste dans l'aperçu (puce d'expérience, compétence) : Entrée y crée la ligne suivante. */
+export const isLinePath = (path: string) => BULLET_PATH.test(path) || SKILL_PATH.test(path);
+
+/** Message affiché quand Entrée est bloquée dans cette liste. */
+export const lineLimitMessage = (path: string) =>
+  SKILL_PATH.test(path) ? `Maximum ${CV_LIMITS.skills} compétences atteint` : `Maximum ${CV_LIMITS.bullets} puces atteint`;
 
 /**
- * Touche Entrée dans une puce : `before` reste dans la puce, `after` passe dans une nouvelle puce
- * juste en dessous, au chemin `nextPath`. null si l'expérience a déjà le nombre maximum de puces
- * remplies ; les puces vides ne comptent pas et sont retirées s'il faut de la place (le schéma
- * limite toute la liste).
+ * Liste avec une ligne ajoutée après celle d'`index`, et la position de cette nouvelle ligne. null
+ * au nombre maximum de lignes remplies : les lignes vides ne comptent pas et sont retirées s'il
+ * faut de la place (le schéma limite toute la liste).
  */
-export function splitBullet(data: CvData, path: string, before: string, after: string): { data: CvData; nextPath: string } | null {
-  const match = path.match(BULLET_PATH);
-  const index = Number(match?.[2]);
-  const experience = data.experiences.find((e) => e.id === match?.[1]);
-  if (!experience || index >= experience.bullets.length) return null;
-  if (experience.bullets.filter((b) => b.trim()).length >= CV_LIMITS.bullets) return null;
-  const full = experience.bullets.length >= CV_LIMITS.bullets;
-  const others = (list: string[]) => (full ? list.filter((b) => b.trim()) : list);
-  const head = others(experience.bullets.slice(0, index));
-  const bullets = [...head, before, after, ...others(experience.bullets.slice(index + 1))];
-  return {
-    data: { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets } : e)) },
-    nextPath: `experiences.${experience.id}.bullets.${head.length + 1}`,
-  };
+function withLineAfter<T>(list: T[], index: number, current: T, added: T, isBlank: (item: T) => boolean, max: number) {
+  if (list.filter((item) => !isBlank(item)).length >= max) return null;
+  const others = (items: T[]) => (list.length >= max ? items.filter((item) => !isBlank(item)) : items);
+  const head = others(list.slice(0, index));
+  return { list: [...head, current, added, ...others(list.slice(index + 1))], next: head.length + 1 };
+}
+
+/**
+ * Touche Entrée dans une ligne de liste : `before` reste dans la ligne, `after` passe dans une
+ * nouvelle ligne juste en dessous, au chemin `nextPath`. null si la liste est pleine ou si le chemin
+ * ne correspond à rien. `newId` : identifiant d'une nouvelle compétence, fourni par l'appelant pour
+ * que le résultat ne change pas si la fonction est rejouée.
+ */
+export function splitLine(data: CvData, path: string, before: string, after: string, newId: string): { data: CvData; nextPath: string } | null {
+  const bullet = path.match(BULLET_PATH);
+  if (bullet) {
+    const index = Number(bullet[2]);
+    const experience = data.experiences.find((e) => e.id === bullet[1]);
+    if (!experience || index >= experience.bullets.length) return null;
+    const split = withLineAfter(experience.bullets, index, before, after, (b) => !b.trim(), CV_LIMITS.bullets);
+    if (!split) return null;
+    return {
+      data: { ...data, experiences: data.experiences.map((e) => (e === experience ? { ...e, bullets: split.list } : e)) },
+      nextPath: `experiences.${experience.id}.bullets.${split.next}`,
+    };
+  }
+  const skillId = path.match(SKILL_PATH)?.[1];
+  const index = data.skills.findIndex((s) => s.id === skillId);
+  if (index < 0) return null;
+  const added = { id: newId, name: after, level: "" as const };
+  const split = withLineAfter(data.skills, index, { ...data.skills[index], name: before }, added, (s) => !s.name.trim(), CV_LIMITS.skills);
+  return split && { data: { ...data, skills: split.list }, nextPath: `skills.${newId}.name` };
 }
 
 /** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo ni les réglages de mise en page. */

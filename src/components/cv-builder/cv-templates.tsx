@@ -12,7 +12,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 
-import { ActiveBulletContext, Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
+import { ActiveLineContext, Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
 
 // Les 6 modèles du CV Builder, écrits une fois avec les briques de cv-primitives : rendus
 // en PDF (téléchargement) et en HTML modifiable (aperçu de l'éditeur). Chaque texte relié
@@ -109,7 +109,7 @@ function Dates({ base, start, end, current, style }: { base: string; start: stri
 
 /** Puces à afficher : les puces vides sont masquées, sauf celle en cours de saisie dans l'aperçu. */
 function useBulletLines(base: string, items: string[]) {
-  const active = useContext(ActiveBulletContext);
+  const active = useContext(ActiveLineContext);
   return items.map((text, index) => ({ text, index })).filter((b) => b.text.trim() || `${base}.bullets.${b.index}` === active);
 }
 
@@ -131,13 +131,14 @@ function Bullets({ base, items, color, style }: { base: string; items: string[];
   );
 }
 
-/** Contenu des sections, dans l'ordre d'affichage (éléments vides masqués). */
-function sectionsOf(data: CvData) {
+/** Contenu des sections, dans l'ordre d'affichage (éléments vides masqués, sauf la compétence en cours de saisie). */
+function useSections(data: CvData) {
+  const active = useContext(ActiveLineContext);
   return {
     summary: data.summary.trim() ? data.summary : "",
     experiences: data.experiences.filter((e) => e.position || e.company),
     education: data.education.filter((e) => e.school || e.degree),
-    skills: data.skills.filter((s) => s.name.trim()),
+    skills: data.skills.filter((s) => s.name.trim() || `skills.${s.id}.name` === active),
     languages: data.languages.filter((l) => l.name.trim()),
     certifications: data.certifications.filter((c) => c.name.trim()),
     projects: data.projects.filter((p) => p.name.trim()),
@@ -171,7 +172,7 @@ type Theme = {
 };
 
 function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; variant: CvTemplateId }) {
-  const s = sectionsOf(data);
+  const s = useSections(data);
   const items = contacts(data);
   const center = theme.headerAlign === "center";
   const photo = (variant === "moderne" || variant === "tech") && data.personal.photo;
@@ -322,7 +323,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                     key={k.id}
                     style={{ backgroundColor: custom ? "#F3F4F6" : "#ECFDF5", color: custom || "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }}
                   >
-                    <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+                    <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
                       {k.name}
                     </Text>
                     {k.level ? ` · ${levelLabel(k.level)}` : ""}
@@ -344,7 +345,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                 // Compétence groupée : pleine largeur, un groupe par ligne.
                 <View key={k.id} style={splitSkillGroup(k.name) ? { width: "100%", marginTop: 4 } : { width: "50%", paddingRight: 12, marginTop: 4 }}>
                   <View style={row}>
-                    <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+                    <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
                       {k.name}
                     </Text>
                     {k.level ? <Text style={[muted, { fontSize: 8.5 }]}>{levelLabel(k.level)}</Text> : null}
@@ -362,7 +363,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
               items={s.skills}
               render={(k) => (
                 <>
-                  <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+                  <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
                     {k.name}
                   </Text>
                   {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
@@ -536,7 +537,7 @@ function MainHeading({ children }: { children: string }) {
 }
 
 function Sidebar({ data }: { data: CvData }) {
-  const s = sectionsOf(data);
+  const s = useSections(data);
   const items = contacts(data);
 
   return (
@@ -587,7 +588,7 @@ function Sidebar({ data }: { data: CvData }) {
               {s.skills.map((k) => (
                 // Compétence groupée : intitulé seul sur sa ligne, groupes plus espacés (colonne étroite).
                 <View key={k.id} style={{ marginTop: splitSkillGroup(k.name) ? 6 : 3 }} wrap={false}>
-                  <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name, true)} style={{ fontSize: 8.5 }}>
+                  <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name, true)} style={{ fontSize: 8.5 }}>
                     {k.name}
                   </Text>
                   {k.level ? (
@@ -763,7 +764,9 @@ function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
         <FinanceLine label="Compétences">
           {joined(simple, (k) => (
             <>
-              <Text edit={`skills.${k.id}.name`}>{k.name}</Text>
+              <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence">
+                {k.name}
+              </Text>
               {level(k)}
             </>
           ))}
@@ -773,7 +776,7 @@ function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
         .filter((k) => splitSkillGroup(k.name))
         .map((k) => (
           <Text key={k.id} style={{ marginTop: 1 }}>
-            <Text edit={`skills.${k.id}.name`} display={skillGroupDisplay(k.name)}>
+            <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
               {k.name}
             </Text>
             {level(k)}
@@ -793,7 +796,7 @@ function joined<T>(items: T[], render: (item: T) => ReactNode) {
 }
 
 function Finance({ data }: { data: CvData }) {
-  const s = sectionsOf(data);
+  const s = useSections(data);
   const items = contacts(data);
   const row = { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" };
   const section = { marginTop: 7 };

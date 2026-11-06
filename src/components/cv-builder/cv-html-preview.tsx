@@ -15,15 +15,17 @@ import {
   CV_FONTS,
   cvFontFile,
   densityFactor,
-  isBulletPath,
-  splitBullet,
+  isLinePath,
+  lineLimitMessage,
+  newItemId,
+  splitLine,
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { parseRich, type RichFormat } from "@/lib/cv-rich-text";
 
 import {
-  ActiveBulletContext,
+  ActiveLineContext,
   DensityContext,
   densityStyle,
   PrimitivesContext,
@@ -83,8 +85,8 @@ function toCss(style: CvStyle): CSSProperties {
 
 const InTextContext = createContext(false);
 const EditContext = createContext<((path: EditPath, value: string) => void) | null>(null);
-/** Entrée dans une puce : texte avant et après le curseur. */
-const BulletBreakContext = createContext<((path: EditPath, before: string, after: string) => void) | null>(null);
+/** Entrée dans une ligne de liste : texte avant et après le curseur. */
+const LineBreakContext = createContext<((path: EditPath, before: string, after: string) => void) | null>(null);
 /** Textes surlignés après une modification du coach : l'aperçu seul le fournit, pas le PDF. */
 const HighlightContext = createContext<{ paths: ReadonlySet<string>; fading: boolean } | null>(null);
 
@@ -131,7 +133,7 @@ function EditableText({
 }) {
   const ref = useRef<HTMLElement>(null);
   const onEdit = useContext(EditContext);
-  const onBulletBreak = useContext(BulletBreakContext);
+  const breakLine = useContext(LineBreakContext);
   // Hors saisie : texte mis en forme. Pendant la saisie : texte brut avec son marquage
   // (**gras**…), réécrit seulement si la valeur change d'ailleurs (curseur conservé).
   const [focused, setFocused] = useState(false);
@@ -166,11 +168,15 @@ function EditableText({
       // Paragraphes : saut de ligne du navigateur. Validation d'un mot pendant une saisie assistée : ignorée.
       if (e.key !== "Enter" || multiline || e.nativeEvent.isComposing) return;
       e.preventDefault();
-      // Puce : nouvelle puce en dessous ; depuis une puce vide, sortie de la liste. Champ d'une ligne : validation.
-      if (isBulletPath(path) && e.currentTarget.textContent?.trim()) {
-        const [before, after] = textAroundSelection(e.currentTarget);
-        onBulletBreak?.(path, before.trimEnd(), after.trimStart());
-      } else e.currentTarget.blur();
+      if (!isLinePath(path)) {
+        e.currentTarget.blur(); // champ d'une ligne : validation
+        return;
+      }
+      // Ligne de liste : nouvelle ligne en dessous. Déjà sur une ligne vide : le curseur y reste, pour
+      // qu'un double appui ne fasse pas sortir du champ (la frappe suivante serait perdue).
+      if (!e.currentTarget.textContent?.trim()) return;
+      const [before, after] = textAroundSelection(e.currentTarget);
+      breakLine?.(path, before.trimEnd(), after.trimStart());
     },
   };
   return as === "span" ? (
@@ -298,8 +304,8 @@ export function CvHtmlPreview({
   data,
   templateId,
   onEdit,
-  onBulletBreak,
-  onBulletLimit,
+  onLineBreak,
+  onLineLimit,
   onPagesChange,
   highlights,
   highlightFading = false,
@@ -307,10 +313,10 @@ export function CvHtmlPreview({
   data: CvData;
   templateId: CvTemplateId;
   onEdit: (path: EditPath, value: string) => void;
-  /** Entrée dans une puce : scinde la puce (cf. splitBullet), le curseur passe à la suivante. */
-  onBulletBreak: (path: EditPath, before: string, after: string) => void;
-  /** Entrée bloquée : l'expérience a déjà le nombre maximum de puces. */
-  onBulletLimit: () => void;
+  /** Entrée dans une ligne de liste : la scinde (cf. splitLine), le curseur passe à la suivante. */
+  onLineBreak: (path: EditPath, before: string, after: string, newId: string) => void;
+  /** Entrée bloquée : la liste a déjà le nombre maximum de lignes. */
+  onLineLimit: (message: string) => void;
   onPagesChange?: (pages: number) => void;
   /** Chemins des textes à surligner (cf. diffCvData). */
   highlights?: ReadonlySet<string>;
@@ -344,19 +350,20 @@ export function CvHtmlPreview({
 
   const pages = Math.max(1, Math.ceil((height - 2) / A4_HEIGHT_PX));
 
-  // Puce en cours de saisie, gardée à l'écran même vide ; et puce à activer après une scission.
-  const [activeBullet, setActiveBullet] = useState<EditPath | null>(null);
+  // Ligne en cours de saisie, gardée à l'écran même vide ; et ligne à activer après une scission.
+  const [activeLine, setActiveLine] = useState<EditPath | null>(null);
   const focusAfterRender = useRef<EditPath | null>(null);
-  const breakBullet = (path: EditPath, before: string, after: string) => {
-    const split = splitBullet(data, path, before, after);
-    // Nombre maximum de puces atteint : rien ne change, le curseur reste en place.
+  const breakLine = (path: EditPath, before: string, after: string) => {
+    const newId = newItemId();
+    const split = splitLine(data, path, before, after, newId);
+    // Nombre maximum de lignes atteint : rien ne change, le curseur reste en place.
     if (!split) {
-      onBulletLimit();
+      onLineLimit(lineLimitMessage(path));
       return;
     }
     focusAfterRender.current = split.nextPath;
-    setActiveBullet(split.nextPath);
-    onBulletBreak(path, before, after);
+    setActiveLine(split.nextPath);
+    onLineBreak(path, before, after, newId);
   };
   useLayoutEffect(() => {
     const path = focusAfterRender.current;
@@ -365,7 +372,7 @@ export function CvHtmlPreview({
     const target = pageRef.current?.querySelector<HTMLElement>(`[data-edit-path="${CSS.escape(path)}"]`);
     target?.focus();
     if (target) window.getSelection()?.collapse(target, 0);
-  }, [data, activeBullet]);
+  }, [data, activeLine]);
 
   return (
     <div ref={frameRef} className="w-full">
@@ -377,13 +384,13 @@ export function CvHtmlPreview({
           className="absolute top-0 left-0 shadow-sm ring-1 ring-slate-200"
           onFocusCapture={(e) => {
             const path = (e.target as HTMLElement).dataset.editPath;
-            setActiveBullet(path && isBulletPath(path) ? path : null);
+            setActiveLine(path && isLinePath(path) ? path : null);
           }}
-          onBlurCapture={() => setActiveBullet(null)}
+          onBlurCapture={() => setActiveLine(null)}
         >
           <EditContext value={onEdit}>
-            <BulletBreakContext value={breakBullet}>
-              <ActiveBulletContext value={activeBullet}>
+            <LineBreakContext value={breakLine}>
+              <ActiveLineContext value={activeLine}>
                 <PrimitivesContext value={HTML_PRIMITIVES}>
                   <DensityContext value={densityFactor(data.style.density)}>
                     <HighlightContext value={highlight}>
@@ -391,8 +398,8 @@ export function CvHtmlPreview({
                     </HighlightContext>
                   </DensityContext>
                 </PrimitivesContext>
-              </ActiveBulletContext>
-            </BulletBreakContext>
+              </ActiveLineContext>
+            </LineBreakContext>
           </EditContext>
           {Array.from({ length: pages - 1 }, (_, i) => (
             <div
