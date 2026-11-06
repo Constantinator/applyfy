@@ -336,11 +336,12 @@ export function applyEdit(data: CvData, path: string, value: string): CvData {
   return set(data, 0) as CvData;
 }
 
-const SKILL_GROUP = /^(\s*(?:[^\s:]+\s*){1,4}:)(\s+\S[\s\S]*)$/;
+const SKILL_GROUP = /^(\s*(?:[^\s:]+\s*){1,4}:)(\s+\S[\s\S]*|\s*)$/;
 
 /**
  * Compétence groupée, « Intitulé : a, b, c » (intitulé de 4 mots au plus) : intitulé avec ses deux
- * points, et le reste du texte. null pour une compétence simple.
+ * points, et le reste du texte, vide pour un intitulé seul (« Hard skills : », les compétences
+ * suivantes sont alors dessous). null pour une compétence simple.
  */
 export function splitSkillGroup(name: string) {
   const match = name.match(SKILL_GROUP);
@@ -397,8 +398,10 @@ export function splitLine(data: CvData, path: string, textBefore: string, textAf
   const skillId = path.match(SKILL_PATH)?.[1];
   const index = data.skills.findIndex((s) => s.id === skillId);
   if (index < 0) return null;
-  const added = { id: newId, name: after, level: "" as const };
-  const split = withLineAfter(data.skills, index, { ...data.skills[index], name: before }, added, (s) => !s.name.trim(), CV_LIMITS.skills);
+  // Coupe sur une virgule : elle séparait les deux parties, elle ne reste sur aucune.
+  const added = { id: newId, name: after.replace(/^[\s,;]+/, ""), level: "" as const };
+  const current = { ...data.skills[index], name: before.replace(/[\s,;]+$/, "") };
+  const split = withLineAfter(data.skills, index, current, added, (s) => !s.name.trim(), CV_LIMITS.skills);
   return split && { data: { ...data, skills: split.list }, nextPath: `skills.${split.list[split.next].id}.name` };
 }
 

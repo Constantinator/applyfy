@@ -96,6 +96,9 @@ function useHighlightClass(path: EditPath | undefined) {
   return highlight.fading ? "cv-highlight cv-highlight-fade" : "cv-highlight";
 }
 
+/** Mêmes textes, aux blancs près. */
+const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim();
+
 /** Texte de part et d'autre de la sélection (le texte sélectionné est remplacé). */
 function textAroundSelection(el: HTMLElement): [string, string] {
   const text = el.textContent ?? "";
@@ -134,6 +137,10 @@ function EditableText({
   const ref = useRef<HTMLElement>(null);
   const onEdit = useContext(EditContext);
   const breakLine = useContext(LineBreakContext);
+  const activeLine = useContext(ActiveLineContext);
+  const wasActive = useRef(activeLine === path);
+  // Intitulé seul sur sa ligne à l'affichage : le texte enregistré garde son espace (« Intitulé : a »).
+  const toStored = (text: string) => (display?.includes("\n") ? text.replace(":\n", ": ") : text);
   // Hors saisie : texte mis en forme. Pendant la saisie : texte brut avec son marquage
   // (**gras**…), réécrit seulement si la valeur change d'ailleurs (curseur conservé).
   const [focused, setFocused] = useState(false);
@@ -147,6 +154,9 @@ function EditableText({
     // Nouvelle ligne activée après Entrée : le curseur doit y rester au début.
     const caretAtStart = el.dataset.caretStart !== undefined;
     delete el.dataset.caretStart;
+    // Seuls les blancs diffèrent (intitulé seul sur sa ligne à l'affichage) : le texte ne bouge pas sous
+    // le clic, et le curseur reste où il a été posé.
+    if (sameWords(el.textContent ?? "", value)) return;
     if (el.textContent !== value) {
       el.textContent = value;
       // Curseur en fin de texte (le texte affiché vient de changer).
@@ -158,6 +168,17 @@ function EditableText({
       }
     }
   }, [value, display, focused]);
+  // Une ligne qui change de type pendant la frappe (« Langages : » devient un groupe) peut changer de
+  // place et être recréée : le curseur la suit, en fin de texte (déjà écrit par l'effet ci-dessus),
+  // pour ne perdre aucune frappe.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !wasActive.current || document.activeElement === el) return;
+    el.focus();
+    const selection = window.getSelection();
+    selection?.selectAllChildren(el);
+    selection?.collapseToEnd();
+  }, []);
   const props = {
     "data-edit-path": path,
     onFocus: () => setFocused(true),
@@ -171,7 +192,7 @@ function EditableText({
     spellCheck: true,
     className: highlightClass ? `cv-editable ${highlightClass}` : "cv-editable",
     style,
-    onInput: (e: React.FormEvent<HTMLElement>) => onEdit?.(path, e.currentTarget.textContent ?? ""),
+    onInput: (e: React.FormEvent<HTMLElement>) => onEdit?.(path, toStored(e.currentTarget.textContent ?? "")),
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
       // Paragraphes : saut de ligne du navigateur. Validation d'un mot pendant une saisie assistée : ignorée.
       if (e.key !== "Enter" || multiline || e.nativeEvent.isComposing) return;
@@ -183,7 +204,8 @@ function EditableText({
       // Ligne de liste : nouvelle ligne en dessous. Déjà sur une ligne vide : le curseur y reste, pour
       // qu'un double appui ne fasse pas sortir du champ (la frappe suivante serait perdue).
       if (!e.currentTarget.textContent?.trim()) return;
-      const [before, after] = splitRich(...textAroundSelection(e.currentTarget));
+      const [textBefore, textAfter] = textAroundSelection(e.currentTarget);
+      const [before, after] = splitRich(toStored(textBefore), textAfter);
       breakLine?.(path, before.trimEnd(), after.trimStart());
     },
   };

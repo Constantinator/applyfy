@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CV_LIMITS, chatContent, CvDataSchema, isLinePath, lineLimitMessage, splitLine, withoutEmptyLines } from "./cv-builder-types.ts";
+import { CV_LIMITS, chatContent, CvDataSchema, isLinePath, lineLimitMessage, splitLine, splitSkillGroup, withoutEmptyLines } from "./cv-builder-types.ts";
 import { splitRich, stripRich } from "./cv-rich-text.ts";
 
 const cv = (bullets = ["Premier", "Second"], skills = [{ id: "a", name: "Excel" }, { id: "b", name: "SQL" }]) =>
@@ -150,6 +150,33 @@ test("une scission reste possible sur l'état de l'éditeur, qui garde sa puce v
   const editor = splitLine(cv(["A", "B"]), BULLET(0), "A", "", "x").data;
   assert.deepEqual(editor.experiences[0].bullets, ["A", "", "B"]);
   assert.deepEqual(withoutEmptyLines(editor).experiences[0].bullets, ["A", "B"]);
+});
+
+test("un intitulé seul est reconnu comme groupe, sans liste", () => {
+  assert.deepEqual(splitSkillGroup("Hard skills :"), { label: "Hard skills :", items: "" });
+  assert.deepEqual(splitSkillGroup("Hard skills : "), { label: "Hard skills :", items: " " });
+  assert.equal(splitSkillGroup("Hard skills : Excel, SQL").items, " Excel, SQL");
+  assert.equal(splitSkillGroup("Excel"), null);
+  assert.equal(splitSkillGroup("https://exemple.fr"), null, "une URL n'est pas un intitulé");
+  assert.equal(splitSkillGroup("Un intitule beaucoup trop long pour etre un groupe :"), null);
+});
+
+test("Entrée devant la liste d'un groupe : l'intitulé reste seul, sans perte de texte", () => {
+  const data = cv(undefined, [{ id: "h", name: "Hard skills : Analyse, Excel" }, { id: "s", name: "Soft skills : Rigueur" }]);
+  const split = splitLine(data, "skills.h.name", "Hard skills :", "Analyse, Excel", "x");
+  assert.deepEqual(split.data.skills.map((s) => s.name), ["Hard skills :", "Analyse, Excel", "Soft skills : Rigueur"]);
+  assert.equal(split.nextPath, "skills.x.name");
+});
+
+test("Entrée sur une virgule : elle ne reste sur aucune des deux lignes", () => {
+  const names = (before, after) => splitLine(cv(undefined, [{ id: "h", name: `${before}${after}` }]), "skills.h.name", before, after, "x").data.skills.map((s) => s.name);
+  assert.deepEqual(names("Hard skills : A,", " B"), ["Hard skills : A", "B"]);
+  assert.deepEqual(names("Hard skills : A", ", B"), ["Hard skills : A", "B"]);
+});
+
+test("une virgule dans une puce n'est pas retirée par la coupe", () => {
+  const split = splitLine(cv(["Avec, puis, fin"]), BULLET(0), "Avec,", "puis, fin", "x");
+  assert.deepEqual(split.data.experiences[0].bullets, ["Avec,", "puis, fin"]);
 });
 
 const SKILLS = [{ id: "a", name: "Excel", level: "avance" }, { id: "v", name: "" }, { id: "b", name: "SQL" }, { id: "s", name: "   " }, { id: "g", name: "Hard skills : Python, Java" }];

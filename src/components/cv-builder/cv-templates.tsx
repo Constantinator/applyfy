@@ -43,7 +43,22 @@ const levelLabel = (level: string) => SKILL_LEVELS.find((l) => l.value === level
 function skillGroupDisplay(name: string, ownLine = false) {
   const group = splitSkillGroup(name);
   if (!group || /[*_]/.test(group.label)) return undefined;
+  if (!group.items.trim()) return `**${group.label.trim()}**`;
   return ownLine ? `**${group.label.trim()}**\n${group.items.trim()}` : `**${group.label}**${group.items}`;
+}
+
+/**
+ * Compétences dans l'ordre, avec leur place : `group` (« Intitulé : a, b »), `heading` (intitulé seul,
+ * sur sa propre ligne) et `afterGroup` (compétence simple placée après un groupe, qu'elle suit à l'écran).
+ */
+function skillRows(skills: CvData["skills"]) {
+  let seenGroup = false;
+  return skills.map((skill) => {
+    const parts = splitSkillGroup(skill.name);
+    const row = { skill, group: parts !== null, heading: parts !== null && !parts.items.trim(), afterGroup: parts === null && seenGroup };
+    seenGroup ||= parts !== null;
+    return row;
+  });
 }
 
 type ContactItem = { field: "email" | "phone" | "city" | "linkedin" | "website" | "github"; label: string; href?: string };
@@ -146,13 +161,21 @@ function useSections(data: CvData) {
   };
 }
 
-/** Liste à puces : un élément par ligne, rendu par `render`. */
-function ItemList<T extends { id: string }>({ items, render }: { items: T[]; render: (item: T) => ReactNode }) {
+/** Liste à puces : un élément par ligne, rendu par `render`. `isHeading` : ligne d'intitulé, sans puce. */
+function ItemList<T extends { id: string }>({
+  items,
+  render,
+  isHeading,
+}: {
+  items: T[];
+  render: (item: T) => ReactNode;
+  isHeading?: (item: T) => boolean;
+}) {
   return (
     <View>
       {items.map((item) => (
         <View key={item.id} style={{ flexDirection: "row", marginTop: 1.5 }} wrap={false}>
-          <Text style={{ width: 10 }}>•</Text>
+          {isHeading?.(item) ? null : <Text style={{ width: 10 }}>•</Text>}
           <Text style={{ flex: 1 }}>{render(item)}</Text>
         </View>
       ))}
@@ -317,33 +340,31 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
           <Heading>Compétences</Heading>
           {variant === "tech" ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-              {s.skills.map((k) => {
-                const badge = (
+              {skillRows(s.skills).map(({ skill: k, group, heading }) => (
+                // Compétence groupée : un badge par ligne, même court. Intitulé seul : texte sans badge,
+                // sur sa ligne, les badges suivants dessous. Même structure partout : pas de perte du
+                // curseur quand une compétence devient un groupe pendant la frappe.
+                <View key={k.id} style={group ? { width: "100%", alignItems: "flex-start" } : {}}>
                   <Text
-                    key={k.id}
-                    style={{ backgroundColor: custom ? "#F3F4F6" : "#ECFDF5", color: custom || "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }}
+                    style={
+                      heading
+                        ? { color: custom || "#065F46", marginTop: 6, fontSize: 9 }
+                        : { backgroundColor: custom ? "#F3F4F6" : "#ECFDF5", color: custom || "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }
+                    }
                   >
                     <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
                       {k.name}
                     </Text>
                     {k.level ? ` · ${levelLabel(k.level)}` : ""}
                   </Text>
-                );
-                // Compétence groupée : un badge par ligne, même court.
-                return splitSkillGroup(k.name) ? (
-                  <View key={k.id} style={{ width: "100%", alignItems: "flex-start" }}>
-                    {badge}
-                  </View>
-                ) : (
-                  badge
-                );
-              })}
+                </View>
+              ))}
             </View>
           ) : variant === "moderne" ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-              {s.skills.map((k) => (
-                // Compétence groupée : pleine largeur, un groupe par ligne.
-                <View key={k.id} style={splitSkillGroup(k.name) ? { width: "100%", marginTop: 4 } : { width: "50%", paddingRight: 12, marginTop: 4 }}>
+              {skillRows(s.skills).map(({ skill: k, group, afterGroup }) => (
+                // Compétence groupée, ou placée après un groupe : pleine largeur, une ligne chacune.
+                <View key={k.id} style={group || afterGroup ? { width: "100%", marginTop: 4 } : { width: "50%", paddingRight: 12, marginTop: 4 }}>
                   <View style={row}>
                     <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
                       {k.name}
@@ -361,6 +382,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
           ) : (
             <ItemList
               items={s.skills}
+              isHeading={(k) => splitSkillGroup(k.name)?.items.trim() === ""}
               render={(k) => (
                 <>
                   <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
@@ -753,39 +775,55 @@ function FinanceLine({ label, children }: { label: string; children: ReactNode }
   );
 }
 
-/** Éléments séparés par des virgules, chacun modifiable. */
-/** Compétences simples sur la ligne « Compétences : … », puis une ligne par compétence groupée. */
+/**
+ * Compétences dans leur ordre : d'abord les simples sur la ligne « Compétences : … », puis une ligne
+ * par groupe ou intitulé seul ; les compétences simples placées après sont réunies sur la ligne dessous.
+ */
 function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
-  const simple = skills.filter((k) => !splitSkillGroup(k.name));
+  const rows = skillRows(skills);
   const level = (k: CvData["skills"][number]) => (k.level ? ` (${levelLabel(k.level).toLowerCase()})` : "");
+  const simpleItems = (items: CvData["skills"]) =>
+    joined(items, (k) => (
+      <>
+        <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence">
+          {k.name}
+        </Text>
+        {level(k)}
+      </>
+    ));
+  const first = rows.filter((r) => !r.group && !r.afterGroup).map((r) => r.skill);
+  // Blocs après la ligne « Compétences » : un groupe, ou une suite de compétences simples.
+  const blocks: CvData["skills"][] = [];
+  for (const row of rows) {
+    if (row.group) blocks.push([row.skill]);
+    else if (row.afterGroup) {
+      const last = blocks.at(-1);
+      if (last && !splitSkillGroup(last[0].name)) last.push(row.skill);
+      else blocks.push([row.skill]);
+    }
+  }
   return (
     <>
-      {simple.length ? (
-        <FinanceLine label="Compétences">
-          {joined(simple, (k) => (
+      {first.length ? <FinanceLine label="Compétences">{simpleItems(first)}</FinanceLine> : null}
+      {blocks.map((block) => (
+        <Text key={block[0].id} style={{ marginTop: 1 }}>
+          {splitSkillGroup(block[0].name) ? (
             <>
-              <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence">
-                {k.name}
+              <Text edit={`skills.${block[0].id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(block[0].name)}>
+                {block[0].name}
               </Text>
-              {level(k)}
+              {level(block[0])}
             </>
-          ))}
-        </FinanceLine>
-      ) : null}
-      {skills
-        .filter((k) => splitSkillGroup(k.name))
-        .map((k) => (
-          <Text key={k.id} style={{ marginTop: 1 }}>
-            <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
-              {k.name}
-            </Text>
-            {level(k)}
-          </Text>
-        ))}
+          ) : (
+            simpleItems(block)
+          )}
+        </Text>
+      ))}
     </>
   );
 }
 
+/** Éléments séparés par des virgules, chacun modifiable. */
 function joined<T>(items: T[], render: (item: T) => ReactNode) {
   return items.map((item, i) => (
     <Text key={i}>
