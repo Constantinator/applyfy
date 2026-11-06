@@ -18,8 +18,8 @@ function ConfirmButton() {
   );
 }
 
-/** « Supprimer » un CV du CV Builder, avec confirmation. */
-export function DeleteBuilderCvButton({ id, title }: { id: string; title: string }) {
+/** « Supprimer » un CV du CV Builder, avec confirmation. `applicationId` : page de la candidature à retrouver ensuite. */
+export function DeleteBuilderCvButton({ id, title, applicationId }: { id: string; title: string; applicationId?: string }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -38,6 +38,7 @@ export function DeleteBuilderCvButton({ id, title }: { id: string; title: string
         className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-xl backdrop:bg-slate-900/50 dark:bg-slate-900"
       >
         <form action={deleteBuilderCvAction.bind(null, id)} className="space-y-4 p-6">
+          {applicationId && <input type="hidden" name="applicationId" value={applicationId} />}
           <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-white">
             Supprimer « {title} » ?
           </h2>

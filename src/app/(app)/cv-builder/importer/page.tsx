@@ -8,7 +8,10 @@ import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { getBuilderCvByApplication } from "@/lib/cv-builder";
 
-export const metadata: Metadata = { title: "Créer un CV à partir d'un CV existant — Applyfy" };
+export async function generateMetadata({ searchParams }: PageProps<"/cv-builder/importer">): Promise<Metadata> {
+  const { applicationId } = await searchParams;
+  return { title: `${typeof applicationId === "string" ? "Importer un CV" : "Créer un CV à partir d'un CV existant"} — Applyfy` };
+}
 
 // Lecture et analyse du CV par Claude (Server Action de cette page) : jusqu'à une minute.
 export const maxDuration = 120;

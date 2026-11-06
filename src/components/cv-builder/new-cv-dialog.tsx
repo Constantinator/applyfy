@@ -81,7 +81,7 @@ function SubmitButton({ children, className }: { children: string; className: st
 }
 
 /**
- * Fenêtre « Choisis un modèle » : miniatures des 5 modèles, sélection, puis les boutons
+ * Fenêtre « Choisis un modèle » : miniatures des modèles, sélection, puis les boutons
  * de `footer` (qui reçoit le modèle sélectionné). Ouverte avec `dialogRef.current.showModal()`.
  */
 export function TemplateChoiceDialog({

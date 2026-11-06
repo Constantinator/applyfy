@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { CopyCvForOfferButton } from "@/components/cv-builder/copy-cv-button";
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
 import { NewCvDialog } from "@/components/cv-builder/new-cv-dialog";
 import { IconDocument } from "@/components/icons";
@@ -31,8 +32,11 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Europe/Paris",
 });
 
-/** Contenu d'une carte de CV : nom, modèle, date et actions. */
-function CvCardContent({ cv }: { cv: BuilderCvSummary }) {
+/** Page d'une candidature : `replacedTitle` est le CV lié, `canCopy` faux à la limite du nombre de CV. */
+type Offer = { applicationId: string; replacedTitle: string | null; canCopy: boolean };
+
+/** Contenu d'une carte de CV : nom, modèle, date et actions. `copyFor` : action « Utiliser pour cette offre ». */
+function CvCardContent({ cv, offer, copyFor }: { cv: BuilderCvSummary; offer: Offer | null; copyFor: Offer | null }) {
   return (
     <>
       <div className="min-w-0">
@@ -49,23 +53,26 @@ function CvCardContent({ cv }: { cv: BuilderCvSummary }) {
           Modifié le {dateFormatter.format(new Date(cv.updatedAt))}
         </p>
       </div>
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2">
         <Link href={`/cv-builder/${cv.id}`} className="btn-secondary px-4 py-2 text-sm">
           Modifier
         </Link>
-        <DeleteBuilderCvButton id={cv.id} title={cv.title} />
+        {copyFor?.canCopy && (
+          <CopyCvForOfferButton cvId={cv.id} applicationId={copyFor.applicationId} replacedTitle={copyFor.replacedTitle} />
+        )}
+        <DeleteBuilderCvButton id={cv.id} title={cv.title} applicationId={offer?.applicationId} />
       </div>
     </>
   );
 }
 
 /** Liste de CV, chacun dans sa carte. */
-function CvList({ cvs }: { cvs: BuilderCvSummary[] }) {
+function CvList({ cvs, offer, copyable }: { cvs: BuilderCvSummary[]; offer: Offer | null; copyable: boolean }) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2">
       {cvs.map((cv) => (
         <li key={cv.id} className="card flex flex-col gap-4 p-5">
-          <CvCardContent cv={cv} />
+          <CvCardContent cv={cv} offer={offer} copyFor={copyable ? offer : null} />
         </li>
       ))}
     </ul>
@@ -73,13 +80,13 @@ function CvList({ cvs }: { cvs: BuilderCvSummary[] }) {
 }
 
 /** Section de la page d'une candidature : les CV sous leur titre. */
-function CvSection({ id, title, cvs }: { id: string; title: string; cvs: BuilderCvSummary[] }) {
+function CvSection({ id, title, ...list }: { id: string; title: string } & Parameters<typeof CvList>[0]) {
   return (
     <section aria-labelledby={id} className="space-y-3">
       <h2 id={id} className="font-semibold text-slate-900 dark:text-white">
         {title}
       </h2>
-      <CvList cvs={cvs} />
+      <CvList {...list} />
     </section>
   );
 }
@@ -105,8 +112,10 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
   const currentCv = linked ? (cvs?.find((cv) => cv.id === linked.id) ?? null) : null;
   const otherCvs = cvs?.filter((cv) => cv.id !== currentCv?.id) ?? [];
   const full = cvs !== null && cvs.length >= CV_BUILDER_MAX;
-  // Page d'une candidature : limite signalée d'office, ses boutons de création étant retirés.
-  const error = detail && full ? ERRORS.limite : typeof erreur === "string" ? (ERRORS[erreur] ?? null) : null;
+  // Erreur de la dernière action ; sinon, page d'une candidature : limite signalée d'office, ses
+  // actions de création étant retirées.
+  const error = (typeof erreur === "string" && ERRORS[erreur]) || (detail && full ? ERRORS.limite : null);
+  const offer: Offer | null = detail && { applicationId: detail.application.id, replacedTitle: currentCv?.title ?? null, canCopy: !full };
   const importLink = (
     <Link
       href={detail ? `/cv-builder/importer?applicationId=${detail.application.id}` : "/cv-builder/importer"}
@@ -139,7 +148,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
             </Link>
           )}
           <p className="mt-1.5 text-slate-500 dark:text-slate-400">
-            Choisis un modèle parmi 5, améliore ton CV avec l&apos;assistant IA et télécharge-le en PDF.
+            Choisis un modèle parmi {CV_TEMPLATES.length}, améliore ton CV avec l&apos;assistant IA et télécharge-le en PDF.
           </p>
         </div>
         {cvs && cvs.length < CV_BUILDER_MAX && (
@@ -186,11 +195,11 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
         </div>
       ) : currentCv ? (
         <>
-          <CvSection id="cv-lie" title="CV lié à l'offre" cvs={[currentCv]} />
-          {otherCvs.length > 0 && <CvSection id="cv-autres" title="Autres CV" cvs={otherCvs} />}
+          <CvSection id="cv-lie" title="CV lié à l'offre" cvs={[currentCv]} offer={offer} copyable={false} />
+          {otherCvs.length > 0 && <CvSection id="cv-autres" title="Autres CV" cvs={otherCvs} offer={offer} copyable />}
         </>
       ) : (
-        <CvList cvs={otherCvs} />
+        <CvList cvs={otherCvs} offer={offer} copyable />
       )}
     </main>
   );

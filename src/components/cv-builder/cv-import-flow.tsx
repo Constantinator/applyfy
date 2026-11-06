@@ -70,7 +70,7 @@ export function CvImportFlow({
           {application ? "Retour à la candidature" : "Mes CV"}
         </Link>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-          Créer un CV à partir d&apos;un CV existant
+          {application ? "Importer un CV" : "Créer un CV à partir d'un CV existant"}
         </h1>
         {replacedTitle && step === 0 && <CvReplacementNotice title={replacedTitle} />}
         <Stepper current={step} />

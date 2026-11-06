@@ -74,6 +74,15 @@ import type { DocumentChatResult } from "@/lib/refine";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { recordUserJobOffer } from "@/lib/user-job-offers";
 
+/** Page du CV Builder où revenir : celle de la candidature si l'action en vient, avec son erreur éventuelle. */
+function cvBuilderUrl(applicationId: string, erreur?: string) {
+  const params = new URLSearchParams();
+  if (applicationId) params.set("applicationId", applicationId);
+  if (erreur) params.set("erreur", erreur);
+  const query = params.toString();
+  return query ? `/cv-builder?${query}` : "/cv-builder";
+}
+
 /**
  * « Créer un CV depuis zéro » : CV pré-rempli avec le nom et l'email du compte, dans le modèle
  * choisi (à lier au formulaire : `createBuilderCvAction.bind(null, templateId)`), avec le poste
@@ -110,12 +119,43 @@ export async function createBuilderCvAction(templateId: CvTemplateId, formData?:
     if (detail) await linkOrDiscard(id, applicationId);
   } catch (error) {
     unstable_rethrow(error);
-    if (error instanceof CvBuilderError) redirect("/cv-builder?erreur=limite");
+    if (error instanceof CvBuilderError) redirect(cvBuilderUrl(applicationId, "limite"));
     console.error("[cv-builder] création", error);
-    redirect("/cv-builder?erreur=creation");
+    redirect(cvBuilderUrl(applicationId, "creation"));
   }
   revalidatePath("/cv-builder");
   if (applicationId) revalidatePath(`/candidatures/${applicationId}`);
+  redirect(`/cv-builder/${id}`);
+}
+
+/**
+ * « Utiliser pour cette offre » : copie d'un CV de l'utilisateur, dans son modèle, liée à la candidature,
+ * avec son poste pour poste visé et le nom du CV d'une candidature, puis l'éditeur. L'original n'est ni
+ * modifié ni lié ; le CV déjà lié à la candidature est seulement détaché. Sans décompte : aucune IA sur le CV.
+ */
+export async function copyCvForOfferAction(formData: FormData) {
+  const cvId = String(formData.get("cvId") ?? "");
+  const applicationId = String(formData.get("applicationId") ?? "");
+  let id: string;
+  try {
+    // Vérifient la connexion ET que la candidature et le CV appartiennent bien à l'utilisateur.
+    const detail = applicationId ? await getApplicationDetail(applicationId) : null;
+    if (!detail) redirect(cvBuilderUrl("", "creation"));
+    const source = await getBuilderCv(cvId);
+    if (!source) redirect(cvBuilderUrl(applicationId, "creation"));
+    // Double envoi ou page périmée : ce CV est déjà celui de la candidature.
+    if (source.applicationId === applicationId) redirect(cvBuilderUrl(applicationId));
+    await ensureOfferKeywords(detail);
+    // Sans le premier message du coach : il sera écrit pour ce CV et cette offre.
+    id = await createApplicationCv({ ...source.data, coach: null }, detail, source.templateId);
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof CvBuilderError) redirect(cvBuilderUrl(applicationId, "limite"));
+    console.error("[cv-builder] copie pour une offre", error);
+    redirect(cvBuilderUrl(applicationId, "creation"));
+  }
+  revalidatePath("/cv-builder");
+  revalidatePath(`/candidatures/${applicationId}`);
   redirect(`/cv-builder/${id}`);
 }
 
@@ -190,16 +230,19 @@ export async function saveBuilderCvAction(
   }
 }
 
-export async function deleteBuilderCvAction(id: string) {
+/** Suppression d'un CV, puis retour à la page d'où elle vient (champ « applicationId » : celle de la candidature). */
+export async function deleteBuilderCvAction(id: string, formData?: FormData) {
+  const applicationId = String(formData?.get("applicationId") ?? "");
   try {
     await deleteBuilderCv(String(id));
   } catch (error) {
     unstable_rethrow(error);
     console.error("[cv-builder] suppression", error);
-    redirect("/cv-builder?erreur=suppression");
+    redirect(cvBuilderUrl(applicationId, "suppression"));
   }
   revalidatePath("/cv-builder");
-  redirect("/cv-builder");
+  if (applicationId) revalidatePath(`/candidatures/${applicationId}`);
+  redirect(cvBuilderUrl(applicationId));
 }
 
 // ---------------------------------------------------------------------------
@@ -435,15 +478,16 @@ export async function checkCvImportAction(formData: FormData): Promise<ImportSte
 
 /**
  * Crée le CV d'une candidature à partir d'un CV extrait par l'IA, avec le poste de la candidature
- * pour poste visé, et le lie à cette candidature.
+ * pour poste visé (à défaut, celui du CV), et le lie à cette candidature.
  */
-async function createApplicationCv(data: CvData, detail: ApplicationDetailResult): Promise<string> {
+async function createApplicationCv(data: CvData, detail: ApplicationDetailResult, templateId?: CvTemplateId): Promise<string> {
   const { id: applicationId, company, position } = detail.application;
-  const targetJob = position.trim().slice(0, 120);
+  const targetJob = position.trim().slice(0, 120) || data.targetJob;
   const jobTitle = data.personal.jobTitle.trim() || targetJob;
   const id = await createBuilderCv(
     { ...data, targetJob, personal: { ...data.personal, jobTitle } },
     applicationCvTitle(await getAccountName().catch(() => null), company),
+    templateId,
   );
   await linkOrDiscard(id, applicationId);
   return id;
@@ -469,9 +513,10 @@ export async function extractCvImportAction(formData: FormData): Promise<ImportS
     const [extracted] = await Promise.all([extractCvContent(source), detail ? ensureOfferKeywords(detail) : null]);
     if (!extracted) return { ok: false, error: "Ce CV n'a pas pu être lu. Vérifie le fichier, ou crée ton CV à la main." };
     const data = importedToCvData(extracted);
-    await recordAiUsage("cvb_import");
     const name = fullName(data);
     const id = detail ? await createApplicationCv(data, detail) : await createBuilderCv(data, name ? `CV ${name}` : "CV importé");
+    // Décompté une fois le CV créé : un import refusé (limite de CV) ne coûte pas l'essai du mois.
+    await recordAiUsage("cvb_import");
     // Le fichier ne sert qu'à l'extraction : supprimé dès qu'elle a réussi.
     const path = isSupabaseConfigured() ? importPath(formData, user?.id ?? null) : null;
     if (path) await removeImport(path);
