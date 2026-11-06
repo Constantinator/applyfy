@@ -46,7 +46,7 @@ import {
   CV_IMPORT_FOLDER,
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
-  withoutEmptyBullets,
+  withoutEmptyLines,
   chatContent,
   cvDataToText,
   CvAnalysisSchema,
@@ -752,8 +752,8 @@ async function readShownCv(id: string, json: string): Promise<{ data: CvData; ap
     const parsed = CvDataSchema.safeParse(JSON.parse(json));
     if (!parsed.success) return "Le CV contient des informations invalides.";
     // Le coach désigne les puces par leur position dans le contenu qu'il a reçu (chatContent) :
-    // ses modifications s'appliquent sur le même contenu, sans puces vides.
-    shown = withoutEmptyBullets(parsed.data);
+    // ses modifications s'appliquent sur le même contenu, sans lignes vides.
+    shown = withoutEmptyLines(parsed.data);
   } catch {
     return "Requête invalide.";
   }

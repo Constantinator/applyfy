@@ -403,19 +403,21 @@ export function splitLine(data: CvData, path: string, textBefore: string, textAf
 }
 
 /**
- * CV sans ses puces vides (ou faites d'espaces). Elles ne servent qu'à l'éditeur, le temps d'une saisie :
- * ni la base ni le coach ne les voient, et la puce en cours de saisie reste dans l'état de l'éditeur.
+ * CV sans ses lignes de liste vides ou faites d'espaces (puces, compétences). Elles ne servent qu'à
+ * l'éditeur, le temps d'une saisie : ni la base ni le coach ne les voient, et la ligne en cours de
+ * saisie reste dans l'état de l'éditeur.
  */
-export function withoutEmptyBullets<T extends Pick<CvData, "experiences">>(data: T): T {
+export function withoutEmptyLines<T extends Pick<CvData, "experiences" | "skills">>(data: T): T {
   return {
     ...data,
     experiences: data.experiences.map((e) => (e.bullets.every((b) => b.trim()) ? e : { ...e, bullets: e.bullets.filter((b) => b.trim()) })),
+    skills: data.skills.filter((s) => s.name.trim()),
   };
 }
 
-/** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo, les réglages de mise en page ni les puces vides. */
+/** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo, les réglages de mise en page ni les lignes vides. */
 export function chatContent(data: CvData) {
-  const { personal, summary, experiences, education, skills, languages, certifications, projects, interests } = withoutEmptyBullets(data);
+  const { personal, summary, experiences, education, skills, languages, certifications, projects, interests } = withoutEmptyLines(data);
   // photo: undefined → absente du JSON.
   return { personal: { ...personal, photo: undefined }, summary, experiences, education, skills, languages, certifications, projects, interests };
 }
