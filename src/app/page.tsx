@@ -149,13 +149,13 @@ const COACH_POINTS = [
 
 /**
  * « Pourquoi Applyfy ? » : yes = oui, no = non, partial = limité ou absent en gratuit, complet en
- * payant, unknown = non précisé. Comparatif nominatif : n'afficher que ce qui est vérifiable.
+ * payant, unknown = non précisé, manual = possible à la main dans un tableur. Comparatif nominatif : n'afficher que ce qui est vérifiable.
  * Lu sur huntr.co/pricing le 6 novembre 2026 : les prix (mensuel 40, semestriel 26,66), le suivi,
  * le CV adapté et la lettre. Cette page ne parle ni de la langue de l'interface, ni d'une recherche
  * d'offres, ni de rappels de relance : ces cases restent « Non précisé ». Elle affiche « $ » sans
  * code de devise : on affiche « $ » sans préciser « dollars US », non confirmé.
  */
-type Support = "yes" | "no" | "partial" | "unknown";
+type Support = "yes" | "no" | "partial" | "unknown" | "manual";
 
 const HUNTR_PRO_PRICE_FROM = "26,66";
 const HUNTR_PRO_PRICE_MONTHLY = "40";
@@ -172,11 +172,11 @@ const COMPARISON_TOOLS = [
 
 const COMPARISON: { feature: string; values: [Support, Support, Support] }[] = [
   { feature: "Interface en français", values: ["yes", "unknown", "yes"] },
-  { feature: "Suivi des candidatures", values: ["yes", "yes", "no"] },
+  { feature: "Suivi des candidatures", values: ["yes", "yes", "manual"] },
   { feature: "Recherche d'offres intégrée", values: ["yes", "unknown", "no"] },
   { feature: "CV adapté à l'offre (IA)", values: ["yes", "partial", "no"] },
   { feature: "Lettre de motivation IA", values: ["yes", "partial", "no"] },
-  { feature: "Rappels de relance", values: ["yes", "unknown", "no"] },
+  { feature: "Rappels de relance", values: ["yes", "unknown", "manual"] },
 ];
 
 const SUPPORT_DISPLAY: Record<
@@ -200,6 +200,12 @@ const SUPPORT_DISPLAY: Record<
     label: "Limité ou absent en gratuit, complet en payant",
     className: "text-muted",
     size: "text-lg font-semibold",
+  },
+  manual: {
+    symbol: "À la main",
+    label: "À la main",
+    className: "text-muted",
+    size: "text-xs font-normal",
   },
   unknown: {
     symbol: "Non précisé",
@@ -647,7 +653,7 @@ export default function LandingPage() {
             </div>
             <p className="mt-3 text-center text-xs text-muted sm:hidden">Fais glisser le tableau pour voir les autres outils.</p>
             <p className="mt-4 text-center text-xs text-muted max-sm:mt-1">
-              ~ = limité ou absent sur le plan gratuit, complet sur le plan payant. Non précisé = pas indiqué sur la page de tarifs de Huntr.
+              ~ = limité ou absent sur le plan gratuit, complet sur le plan payant. Non précisé = pas indiqué sur la page de tarifs de Huntr. À la main = possible dans un tableur, sans automatisation.
             </p>
           </Reveal>
         </section>

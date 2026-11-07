@@ -88,6 +88,15 @@ test("comparatif Huntr : prix de départ et mensuel, rien d'affirmé sans source
   assert.doesNotMatch(page, /très cher/);
 });
 
+test("comparatif Excel / Word : à la main pour le suivi et les relances, ✕ pour l'IA et la recherche", () => {
+  assert.match(page, /"Suivi des candidatures", values: \["yes", "yes", "manual"\]/);
+  assert.match(page, /"Rappels de relance", values: \["yes", "unknown", "manual"\]/);
+  assert.match(page, /"Recherche d'offres intégrée", values: \["yes", "unknown", "no"\]/);
+  assert.match(page, /"CV adapté à l'offre \(IA\)", values: \["yes", "partial", "no"\]/);
+  assert.match(page, /"Lettre de motivation IA", values: \["yes", "partial", "no"\]/);
+  assert.match(page, /À la main = possible dans un tableur, sans automatisation\./);
+});
+
 test("favicon SVG : sans fond, chevron selon le thème, même tracé que le logo", () => {
   const svg = read("app/icon.svg");
   assert.doesNotMatch(svg, /<rect/);
