@@ -6,18 +6,18 @@ export function FormattedText({ text, className = "" }: { text: string; classNam
   const blocks = parseFormattedText(formatOfferDescription(text));
 
   return (
-    <div className={`space-y-3 text-sm leading-relaxed text-slate-700 ${className}`}>
+    <div className={`space-y-3 text-sm leading-relaxed text-prose ${className}`}>
       {blocks.map((block, i) => {
         if (block.type === "heading") {
           return (
-            <h3 key={i} className="pt-1 font-semibold text-slate-900">
+            <h3 key={i} className="pt-1 font-semibold text-ink">
               {block.text}
             </h3>
           );
         }
         if (block.type === "list") {
           return (
-            <ul key={i} className="list-disc space-y-1 pl-5 marker:text-slate-400">
+            <ul key={i} className="list-disc space-y-1 pl-5 marker:text-muted">
               {block.items.map((item, j) => (
                 <li key={j}>{item}</li>
               ))}

@@ -58,20 +58,20 @@ export function DailyChart({
         {/* Grille et axe des valeurs, en retrait. */}
         {yTicks.map((t) => (
           <g key={t}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="stroke-slate-100" />
-            <text x={PAD.left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="fill-slate-400 text-[10px]">
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="stroke-line-soft" />
+            <text x={PAD.left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="fill-muted text-[10px]">
               {t}
             </text>
           </g>
         ))}
-        <line x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} className="stroke-slate-300" />
+        <line x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} className="stroke-line-strong" />
         {[0, Math.floor(points.length / 2), points.length - 1].map((i) => (
           <text
             key={i}
             x={x(i) + slot / 2}
             y={H - 6}
             textAnchor={i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}
-            className="fill-slate-400 text-[10px]"
+            className="fill-muted text-[10px]"
           >
             {formatDay(points[i].day)}
           </text>
@@ -102,7 +102,7 @@ export function DailyChart({
             x2={x(hovered) + slot / 2}
             y1={PAD.top}
             y2={y(0)}
-            className="stroke-slate-300"
+            className="stroke-line-strong"
             strokeDasharray="3 3"
           />
         )}
@@ -134,10 +134,10 @@ export function DailyChart({
       {active && hovered !== null && (
         <div
           role="status"
-          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-block bg-slate-900 px-2.5 py-1.5 text-xs whitespace-nowrap text-white"
+          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-block bg-ink px-2.5 py-1.5 text-xs whitespace-nowrap text-white"
           style={{ left: `${((x(hovered) + slot / 2) / W) * 100}%` }}
         >
-          <span className="text-slate-300">{formatDay(active.day)}</span> ·{" "}
+          <span className="text-white/70">{formatDay(active.day)}</span> ·{" "}
           <strong className="font-semibold">
             {active.value} {unit}
           </strong>

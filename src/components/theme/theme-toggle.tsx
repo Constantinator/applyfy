@@ -30,9 +30,9 @@ export function ThemeToggle({
       type="button"
       onClick={toggle}
       title="Changer de thème"
-      className={`flex items-center gap-3 rounded-xl text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white ${className}`}
+      className={`flex items-center gap-3 rounded-xl text-sm text-muted hover:bg-surface hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white ${className}`}
     >
-      <IconMoon className="h-5 w-5 text-blue-600 theme-dark:hidden" />
+      <IconMoon className="h-5 w-5 text-ink theme-dark:hidden" />
       <IconSun className="hidden h-5 w-5 text-amber-400 theme-dark:block" />
       <span className={compact ? "sr-only" : ""}>
         <span className="theme-dark:hidden">Mode sombre</span>

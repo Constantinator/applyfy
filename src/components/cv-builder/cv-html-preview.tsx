@@ -485,7 +485,7 @@ export function CvHtmlPreview({
         <div
           ref={pageRef}
           style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_WIDTH_PX }}
-          className="absolute top-0 left-0 shadow-sm ring-1 ring-slate-200"
+          className="absolute top-0 left-0 ring-1 ring-line"
           onFocusCapture={(e) => {
             setActiveLine((e.target as HTMLElement).dataset.editPath ?? null);
           }}

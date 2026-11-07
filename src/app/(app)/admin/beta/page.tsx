@@ -171,7 +171,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
                     <th className={th}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line-soft">
                   {testers.map((t) => (
                     <tr key={t.userId}>
                       <td className={`${td} break-all`}>

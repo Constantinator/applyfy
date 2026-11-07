@@ -119,7 +119,7 @@ export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null
               <th className={`${th} text-right`}>Recommandent</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line-soft">
             {feedback.trend.map((row) => (
               <tr key={row.month}>
                 <td className={`${td} capitalize`}>{monthName.format(new Date(`${row.month}-01T00:00:00Z`))}</td>
@@ -150,7 +150,7 @@ export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null
               <th className={th}>À améliorer</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line-soft">
             {feedback.entries.map((entry) => (
               <tr key={`${entry.email}-${entry.updatedAt}`}>
                 <td className={`${td} whitespace-nowrap text-muted`}>{date.format(new Date(entry.updatedAt))}</td>

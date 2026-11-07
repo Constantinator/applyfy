@@ -216,7 +216,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                         <th className={`${th} ${num}`}>Visiteurs</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-line-soft">
                       {traffic.data.topPages.length === 0 ? (
                         <tr>
                           <td colSpan={3} className={`${td} text-muted`}>
@@ -374,7 +374,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     <th className={`${th} ${num}`}>Coût</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line-soft">
                   {m.costs.byKind.map((row) => (
                     <tr key={row.kind}>
                       <td className={td}>
@@ -412,7 +412,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     <th className={`${th} ${num}`}>Coût</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line-soft">
                   {m.costs.topUsers.length === 0 ? (
                     <tr>
                       <td colSpan={3} className={`${td} text-muted`}>
@@ -444,7 +444,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               <caption className="px-3 pt-3 text-left text-sm font-medium text-ink">
                 Compte de résultat {ofMonth}
               </caption>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line-soft">
                 <tr>
                   <th scope="row" className={`${td} text-left font-medium text-ink`}>
                     Revenus bruts (MRR)
@@ -537,7 +537,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   <th className={`${th} ${num}`}>Bénéfice net</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line-soft">
                 {m.profitability.projection.map((row) => (
                   <tr key={row.month}>
                     <td className={td}>M+{row.month}</td>
@@ -583,7 +583,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   <th className={`${th} ${num}`}>Actions IA en {month}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line-soft">
                 {m.latestSignups.map((u) => (
                   <tr key={`${u.email}-${u.createdAt}`}>
                     <td className={`${td} break-all`}>{u.email}</td>

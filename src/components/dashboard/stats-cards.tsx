@@ -10,7 +10,7 @@ const TONES: Record<StatTone, { icon: typeof IconBriefcase; badge: string }> = {
   blue: { icon: IconBriefcase, badge: NEUTRAL },
   waiting: { icon: IconClock, badge: NEUTRAL },
   violet: { icon: IconChat, badge: NEUTRAL },
-  amber: { icon: IconBell, badge: "bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+  amber: { icon: IconBell, badge: "bg-pill dark:bg-amber-500/15 text-late dark:text-amber-400" },
 };
 
 export function StatsCards({ stats }: { stats: Stat[] }) {
@@ -21,7 +21,7 @@ export function StatsCards({ stats }: { stats: Stat[] }) {
         return (
           <div
             key={stat.label}
-            className={`ui-card p-5 ${stat.highlight ? "ring-2 ring-amber-200 dark:ring-amber-400/30" : ""}`}
+            className={`ui-card p-5 ${stat.highlight ? "ring-2 ring-late/25 dark:ring-amber-400/30" : ""}`}
           >
             <div className="flex items-start justify-between gap-3">
               <dt className="text-sm font-medium text-muted dark:text-slate-400">{stat.label}</dt>

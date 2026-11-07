@@ -85,20 +85,20 @@ export function BetaJoinDialog({
         onClose={() => {
           if (autoOpen) router.replace("/dashboard", { scroll: false });
         }}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card bg-white p-0 text-left backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card border border-line bg-white p-0 text-left backdrop:bg-[rgba(10,10,10,0.45)]"
       >
-        <div className="bg-ink px-6 pt-6 pb-5 text-white sm:px-8">
-          <p className="text-sm font-medium text-white/80">Programme beta · {BETA_MAX_TESTERS} places</p>
-          <h2 id="beta-title" className="mt-1 text-2xl font-bold tracking-title">
+        <div className="px-5 pt-7 sm:px-7">
+          <p className="text-sm font-medium text-muted">Programme beta · {BETA_MAX_TESTERS} places</p>
+          <h2 id="beta-title" className="mt-1 text-[22px] font-bold tracking-[-0.03em] text-ink">
             Deviens beta testeur
           </h2>
-          <p className="mt-2 text-sm text-white/90">
+          <p className="mt-2 text-[15px] text-muted">
             Aide-nous à construire Applyfy et profite du Premium gratuitement.
           </p>
         </div>
 
         {joined ? (
-          <div className="space-y-4 px-6 py-8 text-center sm:px-8">
+          <div className="space-y-4 px-5 py-8 text-center sm:px-7">
             <p className="text-3xl" aria-hidden="true">
               🎉
             </p>
@@ -118,7 +118,7 @@ export function BetaJoinDialog({
             </div>
           </div>
         ) : (
-          <div className="space-y-5 px-6 py-6 sm:px-8">
+          <div className="space-y-5 px-5 pt-5 pb-7 sm:px-7">
             <ul className="space-y-3">
               {CONDITIONS.map((condition) => (
                 <li key={condition.title} className="flex gap-3 text-sm">

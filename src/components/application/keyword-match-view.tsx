@@ -6,7 +6,7 @@ import { KEYWORD_GROUPS } from "@/lib/cv-types";
 /** Taux de correspondance des mots-clés. */
 export function KeywordRate({ rate }: { rate: number | null }) {
   if (rate === null) return null;
-  return <p className="text-sm text-slate-500 dark:text-slate-400">{rate} % de correspondance avec l&apos;offre</p>;
+  return <p className="text-sm text-muted dark:text-slate-400">{rate} % de correspondance avec l&apos;offre</p>;
 }
 
 const TAG = "rounded-full bg-red-50 px-3 py-1 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300";
@@ -20,7 +20,7 @@ export function KeywordMatchView({ match, onPick }: { match: KeywordMatch; onPic
     <div className="space-y-4">
       {groups.map((g) => (
         <section key={g.id} aria-label={g.label}>
-          <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">{g.label}</h3>
+          <h3 className="text-xs font-semibold tracking-wide text-muted uppercase dark:text-slate-400">{g.label}</h3>
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {g.rows.map((row) => (
               <li key={row.keyword}>

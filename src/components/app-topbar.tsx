@@ -146,7 +146,7 @@ function UnreadBadge({ count, className = "" }: { count: number; className?: str
 
 function DemoBadge() {
   return (
-    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-400/30">
+    <span className="rounded-full bg-pill px-2.5 py-1 text-xs font-medium text-ink ring-1 ring-line dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-400/30">
       Mode démo
     </span>
   );

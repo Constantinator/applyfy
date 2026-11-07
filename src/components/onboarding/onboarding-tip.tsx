@@ -38,11 +38,11 @@ export function OnboardingTip({
         <button
           type="button"
           onClick={() => markTipSeen(id)}
-          className={`animate-tip-in absolute top-full z-30 mt-3 w-max max-w-[16rem] rounded-xl bg-slate-900 px-3.5 py-2.5 text-left text-sm font-medium text-white shadow-lg shadow-slate-900/20 ${position}`}
+          className={`animate-tip-in absolute top-full z-30 mt-3 w-max max-w-[16rem] rounded-block bg-ink px-3.5 py-2.5 text-left text-sm font-medium text-white ${position}`}
         >
-          <span aria-hidden="true" className={`absolute -top-1.5 h-3 w-3 rotate-45 bg-slate-900 ${arrow}`} />
+          <span aria-hidden="true" className={`absolute -top-1.5 h-3 w-3 rotate-45 bg-ink ${arrow}`} />
           <span className="relative">{text}</span>
-          <span className="relative mt-1 block text-xs font-normal text-slate-300">Compris, merci</span>
+          <span className="relative mt-1 block text-xs font-normal text-white/70">Compris, merci</span>
         </button>
       )}
     </span>
