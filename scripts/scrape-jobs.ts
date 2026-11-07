@@ -3,7 +3,8 @@
 // - API officielles France Travail et Adzuna, via les clients de l'application
 //   (src/lib/france-travail.ts, src/lib/adzuna.ts) et leurs identifiants habituels ;
 // - API publiques des logiciels de recrutement (Greenhouse, Lever, Ashby, SmartRecruiters)
-//   pour les entreprises de scripts/ats-companies.json (source « ats ») ;
+//   pour les entreprises de src/lib/ats-companies.json (source « ats »), seule source du cron
+//   hebdomadaire (app/api/cron/collecte) ;
 // - pages publiques de WTTJ, Indeed, APEC, Cadremploi et JobTeaser.
 // Les offres collées par les utilisateurs arrivent par l'application (src/lib/user-job-offers.ts).
 //

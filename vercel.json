@@ -12,6 +12,46 @@
     {
       "path": "/api/cron/activation",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/collecte/finance",
+      "schedule": "0 1 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/conseil",
+      "schedule": "0 2 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/tech",
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/marketing",
+      "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/creatif",
+      "schedule": "0 5 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/commercial",
+      "schedule": "0 6 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/rh",
+      "schedule": "0 9 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/sante",
+      "schedule": "0 10 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/etudiant",
+      "schedule": "0 11 * * 0"
+    },
+    {
+      "path": "/api/cron/collecte/luxe",
+      "schedule": "0 12 * * 0"
     }
   ]
 }

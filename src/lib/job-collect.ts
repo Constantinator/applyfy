@@ -449,6 +449,131 @@ export async function saveOffers(supabase: SupabaseClient, offers: OfferToSave[]
   return result;
 }
 
+// --- Passage du cron ---------------------------------------------------------------------------
+
+/** Temps de lecture d'un passage : marge sous les 300 s d'une fonction Vercel (plan Hobby). */
+export const COLLECT_BUDGET_MS = 240_000;
+const COLLECT_SOURCE = "ats";
+const SAMPLE_SIZE = 5;
+
+export type CollectRun = {
+  sector: Sector;
+  source: string;
+  dryRun: boolean;
+  startedAt: string;
+  durationMs: number;
+  companiesRead: number;
+  companiesTotal: number;
+  companiesFailed: string[];
+  offersRead: number;
+  offersCreated: number;
+  offersSeen: number;
+  partial: boolean;
+  error: string | null;
+  /** Essai à blanc : quelques offres lues, pour contrôler le résultat. */
+  sample?: { title: string; company: string | null; location: string | null }[];
+};
+
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : String(error);
+
+/**
+ * Un passage sur un secteur : offres enregistrées entreprise par entreprise, pour qu'un arrêt ou une
+ * erreur garde le travail déjà fait, puis classement et journal. `supabase` null : essai à blanc,
+ * aucune lecture ni écriture en base.
+ */
+export async function runSectorCollection({
+  sector,
+  companies,
+  supabase,
+  get,
+  matchKeywords,
+  budgetMs = COLLECT_BUDGET_MS,
+  now = Date.now,
+}: {
+  sector: Sector;
+  companies: AtsCompany[];
+  supabase: SupabaseClient | null;
+  get: GetJson;
+  matchKeywords: (text: string, sector: Sector, excluded: (string | null | undefined)[]) => string[];
+  budgetMs?: number;
+  now?: () => number;
+}): Promise<CollectRun> {
+  const started = now();
+  const counters = { companiesRead: 0, offersRead: 0, offersCreated: 0, offersSeen: 0 };
+  const sample: NonNullable<CollectRun["sample"]> = [];
+  let collection: SectorCollection | null = null;
+  let error: string | null = null;
+
+  try {
+    collection = await collectSector({
+      sector,
+      companies,
+      get,
+      shouldStop: () => now() - started >= budgetMs,
+      onCompany: async (_company, offers) => {
+        counters.companiesRead++;
+        counters.offersRead += offers.length;
+        if (!supabase) {
+          for (const { title, company, location } of offers) if (sample.length < SAMPLE_SIZE) sample.push({ title, company, location });
+          return;
+        }
+        const saved = await saveOffers(
+          supabase,
+          offers.map((offer) => ({
+            ...offer,
+            source: COLLECT_SOURCE,
+            sector,
+            keywords: matchKeywords(`${offer.title} ${offer.description}`, sector, [offer.company, ...(offer.products ?? [])]),
+          })),
+        );
+        counters.offersCreated += saved.created;
+        counters.offersSeen += saved.seen;
+      },
+    });
+    if (supabase) await refreshTrends(supabase, sector);
+  } catch (caught) {
+    error = errorMessage(caught);
+  }
+
+  const run: CollectRun = {
+    sector,
+    source: COLLECT_SOURCE,
+    dryRun: !supabase,
+    startedAt: new Date(started).toISOString(),
+    durationMs: now() - started,
+    companiesRead: counters.companiesRead,
+    companiesTotal: companies.length,
+    companiesFailed: collection?.companiesFailed ?? [],
+    offersRead: counters.offersRead,
+    offersCreated: counters.offersCreated,
+    offersSeen: counters.offersSeen,
+    partial: collection ? collection.partial : true,
+    error,
+    ...(supabase ? {} : { sample }),
+  };
+
+  if (supabase) {
+    // Sans échec : le journal ne doit pas faire échouer un passage déjà enregistré.
+    const { error: logError } = await supabase.from("job_collect_runs").insert({
+      sector: run.sector,
+      source: run.source,
+      started_at: run.startedAt,
+      duration_ms: run.durationMs,
+      companies_read: run.companiesRead,
+      companies_total: run.companiesTotal,
+      companies_failed: run.companiesFailed,
+      offers_read: run.offersRead,
+      offers_created: run.offersCreated,
+      offers_seen: run.offersSeen,
+      partial: run.partial,
+      error: run.error,
+    });
+    if (logError) console.error("[collecte] journal", logError.message);
+  }
+  return run;
+}
+
 /** Recalcule le classement des mots-clés d'un secteur. */
 export async function refreshTrends(supabase: SupabaseClient, sector: Sector) {
   const { data, error } = await supabase

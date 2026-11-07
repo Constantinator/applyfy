@@ -10,9 +10,16 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { ATS_OFFERS_PER_COMPANY, collectSector, createAtsClient, planOfferSave, readCompanyOffers, saveOffers } = await import(
-  "./job-collect.ts"
-);
+const {
+  ATS_OFFERS_PER_COMPANY,
+  COLLECT_BUDGET_MS,
+  collectSector,
+  createAtsClient,
+  planOfferSave,
+  readCompanyOffers,
+  runSectorCollection,
+  saveOffers,
+} = await import("./job-collect.ts");
 
 /** Base simulée : lignes de job_offers_raw, appels à increment_job_keywords. */
 function fakeDb(rows = [], { failOn, conflict = [] } = {}) {
@@ -325,6 +332,112 @@ test("plan : offres revues regroupées par lieu, doublons d'un même passage ign
     { location: "Paris", ids: ["1", "2"] },
     { location: "Lyon", ids: ["3"] },
   ]);
+});
+
+/** Base simulée pour un passage complet : journal et classement inclus, toute requête comptée. */
+function fakeRunDb({ failSave = false, failLog = false } = {}) {
+  const db = { rows: [], logs: [], trends: 0, touched: 0 };
+  const result = (data) => ({ data, error: null });
+  db.from = (table) => {
+    db.touched++;
+    if (table === "job_collect_runs") {
+      return { insert: async (row) => (failLog ? { error: new Error("journal") } : (db.logs.push(row), { error: null })) };
+    }
+    if (table === "job_keywords") {
+      const chain = { select: () => chain, eq: () => chain, order: () => chain, limit: async () => result([]) };
+      return chain;
+    }
+    if (table === "sector_trends") return { upsert: async () => ((db.trends += 1), { error: null }) };
+    const lookup = { eq: () => lookup, in: async () => (failSave ? { data: null, error: new Error("base") } : result([])) };
+    return {
+      select: () => lookup,
+      upsert: (row) => ({ select: async () => (db.rows.push(row), result([{ id: row.external_id }])) }),
+    };
+  };
+  db.rpc = async () => ({ error: null });
+  return db;
+}
+const runCompanies = ["a", "b", "c"].map((slug) => ({ name: slug.toUpperCase(), platform: "ashby", slug }));
+const runGet = (name = "a") =>
+  fakeGet({
+    [`job-board/${name}`]: { jobs: [{ id: "1", title: "Analyste", jobUrl: "https://s.fr/1", location: "Paris", descriptionPlain: "SQL" }] },
+    "job-board/": { jobs: [] },
+  });
+const match = (text) => (text.includes("SQL") ? ["SQL"] : []);
+
+test("budget du passage : 240 s, sous la limite de 300 s de la fonction", () => {
+  assert.equal(COLLECT_BUDGET_MS, 240_000);
+  assert.match(readFileSync(new URL("../app/api/cron/collecte/[secteur]/route.ts", import.meta.url), "utf8"), /maxDuration = 300/);
+});
+
+test("passage : offres enregistrées, classement recalculé, journal écrit", async () => {
+  const db = fakeRunDb();
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: runGet(), matchKeywords: match });
+  assert.deepEqual([run.companiesRead, run.companiesTotal, run.offersRead, run.offersCreated, run.partial, run.error], [3, 3, 1, 1, false, null]);
+  assert.equal(db.rows[0].source, "ats");
+  assert.equal(db.trends, 1);
+  assert.equal(db.logs.length, 1);
+  assert.equal(db.logs[0].offers_created, 1);
+  assert.equal(run.sample, undefined);
+});
+
+test("essai à blanc : aucun accès à la base, échantillon renvoyé", async () => {
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: null, get: runGet(), matchKeywords: match });
+  assert.equal(run.dryRun, true);
+  assert.deepEqual([run.offersRead, run.offersCreated, run.offersSeen], [1, 0, 0]);
+  assert.deepEqual(run.sample, [{ title: "Analyste", company: "A", location: "Paris" }]);
+});
+
+test("temps écoulé : arrêt propre, travail gardé, passage marqué partiel dans le journal", async () => {
+  const db = fakeRunDb();
+  let clock = 0;
+  const get = async (url) => {
+    clock += 130_000;
+    return runGet()(url);
+  };
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get, matchKeywords: match, now: () => clock });
+  assert.deepEqual([run.companiesRead, run.companiesTotal, run.partial, run.error], [2, 3, true, null]);
+  assert.equal(db.rows.length, 1);
+  assert.equal(db.logs[0].partial, true);
+  assert.equal(db.trends, 1);
+});
+
+test("erreur de base : remontée et journalisée, passage marqué partiel, sans exception", async () => {
+  const db = fakeRunDb({ failSave: true });
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: runGet(), matchKeywords: match });
+  assert.equal(run.error, "base");
+  assert.equal(run.partial, true);
+  assert.equal(db.logs[0].error, "base");
+  assert.equal(db.trends, 0);
+});
+
+test("journal en panne : le passage reste réussi", async () => {
+  const original = console.error;
+  console.error = () => {};
+  try {
+    const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: fakeRunDb({ failLog: true }), get: runGet(), matchKeywords: match });
+    assert.equal(run.error, null);
+  } finally {
+    console.error = original;
+  }
+});
+
+test("cron : une entrée hebdomadaire par secteur, à des heures différentes", () => {
+  const { crons } = JSON.parse(readFileSync(new URL("../../vercel.json", import.meta.url), "utf8"));
+  const companies = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const collect = crons.filter((cron) => cron.path.startsWith("/api/cron/collecte/"));
+  assert.deepEqual(collect.map((cron) => cron.path.split("/").pop()).sort(), Object.keys(companies).sort());
+  for (const cron of collect) assert.match(cron.schedule, /^0 \d+ \* \* 0$/);
+  assert.equal(new Set(collect.map((cron) => cron.schedule)).size, collect.length);
+});
+
+test("cron : pages carrières seulement, route fermée sans secret", () => {
+  const source = readFileSync(new URL("../app/api/cron/collecte/[secteur]/route.ts", import.meta.url), "utf8");
+  const imports = source.split("\n").filter((line) => line.startsWith("import")).join("\n");
+  assert.doesNotMatch(imports, /france-travail|adzuna/);
+  assert.match(source, /if \(!secret\) return false/);
+  assert.match(source, /timingSafeEqual/);
+  assert.ok(source.indexOf("isAuthorized(request)") < source.indexOf("context.params"));
 });
 
 test("client : délai entre deux requêtes, robot identifié, erreurs sans exception", async () => {
