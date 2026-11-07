@@ -47,13 +47,13 @@ export function ArticleBody({ content }: { content: string }) {
   const blocks = content.trim().split(/\n\s*\n/);
 
   return (
-    <div className="space-y-5 text-base leading-relaxed text-muted sm:text-lg">
+    <div className="space-y-4 text-[16.5px] leading-[1.75] text-prose">
       {blocks.map((block, index) => {
         const lines = block.split("\n").map((line) => line.trim());
 
         if (lines.length === 1 && lines[0].startsWith("## ")) {
           return (
-            <h2 key={index} className="pt-6 text-2xl font-bold tracking-title text-ink">
+            <h2 key={index} className="pt-5 text-[24px] leading-tight font-bold tracking-[-0.03em] text-ink">
               {inline(lines[0].slice(3))}
             </h2>
           );
@@ -61,7 +61,7 @@ export function ArticleBody({ content }: { content: string }) {
 
         if (lines.length === 1 && lines[0].startsWith("### ")) {
           return (
-            <h3 key={index} className="pt-3 text-xl font-semibold tracking-title text-ink">
+            <h3 key={index} className="pt-2 text-xl font-semibold tracking-[-0.025em] text-ink">
               {inline(lines[0].slice(4))}
             </h3>
           );

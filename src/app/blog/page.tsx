@@ -15,21 +15,21 @@ export const metadata: Metadata = pageMetadata({
 export default function BlogPage() {
   return (
     <div className="ui-page">
-      <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-center text-ink">
+      <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink">
         Blog <span className="text-accent">Applyfy</span>
       </h1>
-      <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted">
+      <p className="mt-2.5 max-w-[640px] text-[17px] text-muted">
         Conseils et astuces pour réussir ta recherche d&apos;emploi
       </p>
 
-      <ul className="mt-14 grid gap-6 md:grid-cols-3">
+      <ul className="mt-9 grid gap-5 md:grid-cols-3">
         {BLOG_POSTS.map((post, index) => {
           // Le dernier article publié (en tête du tableau) occupe toute la largeur.
           const featured = index === 0;
           return (
             <li key={post.slug} className={featured ? "flex md:col-span-3" : "flex"}>
               <article
-                className={`ui-card flex w-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-0.5 ${featured ? "md:flex-row" : ""}`}
+                className={`ui-card relative flex w-full flex-col overflow-hidden ${featured ? "md:flex-row" : ""}`}
               >
                 {/* Couverture : 16:9, ou 4:3 sur la moitié gauche pour l'article mis en avant
                     (fond gris clair pour un article sans image). */}
@@ -57,24 +57,24 @@ export default function BlogPage() {
                   )}
                 </div>
                 <div
-                  className={`flex flex-1 flex-col p-5 sm:p-7 ${featured ? "md:justify-center" : ""}`}
+                  className={`flex flex-1 flex-col p-6 ${featured ? "md:justify-center" : ""}`}
                 >
-                  <time dateTime={post.date} className="text-xs font-medium text-muted">
+                  <time dateTime={post.date} className="text-[13px] text-muted">
                     {formatBlogDate(post.date)}
                   </time>
                   <h2
-                    className={`mt-2 leading-snug font-semibold tracking-title text-ink ${featured ? "text-2xl" : "text-lg"}`}
+                    className={`mt-2 leading-[1.25] font-bold tracking-[-0.025em] text-ink ${featured ? "text-2xl" : "text-[20px]"}`}
                   >
                     {post.title}
                   </h2>
                   <p
-                    className={`mt-2 leading-relaxed text-muted ${featured ? "text-base" : "flex-1 text-sm"}`}
+                    className={`mt-2 text-muted ${featured ? "text-[15px]" : "flex-1 text-[14.5px]"}`}
                   >
                     {post.description}
                   </p>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="ui-focus ui-hit relative mt-6 self-start text-sm font-semibold text-accent underline-offset-4 hover:underline"
+                    className="ui-focus mt-5 self-start text-sm font-semibold text-accent underline-offset-4 after:absolute after:inset-0 hover:underline"
                     aria-label={`Lire l'article : ${post.title}`}
                   >
                     Lire l&apos;article

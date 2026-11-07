@@ -30,12 +30,19 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   if (!post) notFound();
 
   return (
-    <article className="ui-page-narrow">
+    <article className="ui-page">
+      <div className="mx-auto max-w-[680px]">
       <Link href="/blog" className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white">
         Tous les articles
       </Link>
+            <h1 className="mt-1 text-[32px] leading-[1.08] font-bold tracking-[-0.035em] text-balance text-ink sm:text-[42px]">
+        {post.title}
+      </h1>
+      <time dateTime={post.date} className="mt-3.5 block text-sm text-muted">
+        {formatBlogDate(post.date)}
+      </time>
       {post.cover && (
-        <div className="relative mt-8 aspect-video overflow-hidden rounded-card bg-pill">
+        <div className="relative mt-7 aspect-video overflow-hidden rounded-card bg-pill">
           <Image
             src={post.cover.src}
             alt={post.cover.alt}
@@ -46,21 +53,16 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
           />
         </div>
       )}
-      <time dateTime={post.date} className="mt-8 block text-sm font-medium text-muted">
-        {formatBlogDate(post.date)}
-      </time>
-      <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] mt-2 text-balance text-ink">
-        {post.title}
-      </h1>
       {post.content ? (
-        <div className="mt-10">
+        <div className="mt-7">
           <ArticleBody content={post.content} />
         </div>
       ) : (
-        <div className="mt-10 rounded-block border border-line bg-surface px-6 py-10 text-center text-muted">
+        <div className="mt-7 rounded-block border border-line bg-surface px-6 py-10 text-center text-muted">
           Article à venir
         </div>
       )}
+      </div>
     </article>
   );
 }
