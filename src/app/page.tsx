@@ -255,7 +255,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
         nécessaires au service (hébergement, IA, paiement), listés dans notre{" "}
         <Link
           href="/politique-confidentialite"
-          className="ui-link underline"
+          className="ui-link py-3 underline"
         >
           politique de confidentialité
         </Link>
