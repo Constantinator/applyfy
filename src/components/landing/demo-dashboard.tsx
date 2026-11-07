@@ -15,7 +15,7 @@ import {
   IconUser,
 } from "@/components/icons";
 import { BrandLogo } from "@/components/logo";
-import { StatusBadge } from "@/components/status-badge";
+import { STATUS_STYLES, StatusBadge } from "@/components/status-badge";
 import { READY_SCORE, SCORE_CATEGORIES } from "@/lib/cv-score";
 import { todoCountLabel } from "@/lib/dashboard-todo";
 import {
@@ -194,12 +194,13 @@ const APPLICATIONS: DemoApplication[] = [
   },
 ];
 
+// Mêmes pastilles que les statuts de l'application.
 const EVENT_DOTS: Record<DemoEvent["tone"], string> = {
   slate: "bg-line-strong",
-  blue: "bg-blue-500",
-  amber: "bg-amber-500",
-  violet: "bg-violet-500",
-  red: "bg-red-500",
+  blue: STATUS_STYLES.envoyee.dot,
+  amber: STATUS_STYLES.relancee.dot,
+  violet: STATUS_STYLES.entretien.dot,
+  red: STATUS_STYLES.refusee.dot,
 };
 
 /** Carte de la fiche candidature. */

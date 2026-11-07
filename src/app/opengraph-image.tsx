@@ -1,17 +1,11 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
 import { ImageResponse } from "next/og";
 
-// Image de partage par défaut (LinkedIn, Facebook, X) : logo Applyfy et accroche.
+// Image de partage par défaut (LinkedIn, Facebook, X) : logo Applyfy et accroche, en noir et bleu.
 export const alt = "Applyfy — Gère tes candidatures et décroche ton job";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default async function OpengraphImage() {
-  const logo = await readFile(join(process.cwd(), "public/images/applyfy-logo.png"));
-  const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
-
+export default function OpengraphImage() {
   return new ImageResponse(
     <div
       style={{
@@ -22,22 +16,27 @@ export default async function OpengraphImage() {
         alignItems: "center",
         justifyContent: "center",
         background: "white",
-        borderBottom: "16px solid #1E40AF",
+        borderBottom: "16px solid #2563EB",
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- rendu en image, pas de next/image ici */}
-      <img src={logoSrc} width={675} height={240} alt="" />
-      <div
-        style={{
-          marginTop: 32,
-          fontSize: 44,
-          fontWeight: 700,
-          color: "#0F172A",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+        <svg width="150" height="150" viewBox="0 0 48 48">
+          <path
+            d="M9 38 L24 8 L39 38"
+            fill="none"
+            stroke="#0A0A0A"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="24" cy="30" r="4.2" fill="#2563EB" />
+        </svg>
+        <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: "-0.03em", color: "#0A0A0A" }}>Applyfy</div>
+      </div>
+      <div style={{ marginTop: 32, fontSize: 44, fontWeight: 700, color: "#0A0A0A" }}>
         Gère tes candidatures et décroche ton job
       </div>
-      <div style={{ marginTop: 16, fontSize: 28, color: "#64748B" }}>
+      <div style={{ marginTop: 16, fontSize: 28, color: "#6B6B6B" }}>
         Suivi, CV et lettre adaptés, rappels de relance
       </div>
     </div>,
