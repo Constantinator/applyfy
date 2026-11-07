@@ -18,13 +18,13 @@ import {
 } from "@/components/landing/feature-previews";
 import { CountUp } from "@/components/landing/count-up";
 import { DemoDashboard } from "@/components/landing/demo-dashboard";
-import { HeroVisual } from "@/components/landing/hero-visual";
+import { HERO_EXAMPLE_SCORE, HeroVisual } from "@/components/landing/hero-visual";
 import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
 import { BETA_MAX_TESTERS, BETA_PREMIUM_UNTIL_LABEL, isBetaOfferOpen } from "@/lib/beta-rules";
 import { CV_TEMPLATES } from "@/lib/cv-builder-types";
-import { SCORE_TOTAL } from "@/lib/cv-score";
+import { SCORE_CATEGORIES, SCORE_TOTAL } from "@/lib/cv-score";
 import { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } from "@/lib/plan-features";
 import { FREE_PLAN_PRICE, PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
 import { pageMetadata } from "@/lib/seo";
@@ -43,6 +43,10 @@ export const revalidate = 86400;
 const WRAP = "mx-auto w-full max-w-[1180px] px-5 sm:px-8";
 const HERO_BUTTON = "min-h-[52px]! px-[30px]! text-base! max-sm:w-full";
 
+const SCORE_CATEGORY_NAMES = SCORE_CATEGORIES.map((category, index) =>
+  index === 0 ? category.label : category.label.toLowerCase(),
+).join(", ");
+
 const FACTS = [
   { value: String(CV_TEMPLATES.length), label: "modèles de CV" },
   { value: String(SCORE_TOTAL), label: "points : un score que tu comprends" },
@@ -55,9 +59,18 @@ const H1 = "font-semibold tracking-[-0.03em]";
 const H2 = "font-semibold tracking-[-0.02em]";
 const H3 = "font-semibold";
 
-// Sur-titre bleu au-dessus des H2.
-const EYEBROW =
-  "text-center text-sm font-medium tracking-wide text-blue-600 uppercase";
+// Sur-titre bleu et titre de section de la maquette.
+const EYEBROW = "mb-2.5 text-[13px] font-semibold tracking-[.02em] text-accent md:mb-3";
+const TITLE = "text-[31px] leading-[1.1] font-bold tracking-[-0.035em] md:text-[44px] md:leading-[1.08]";
+const SECTION = "py-16 md:py-24";
+const SCROLL_MARGIN = "scroll-mt-[60px] lg:scroll-mt-[68px]";
+// Carte douce de la maquette : 24 px sur mobile, 28 px au-delà.
+const SOFT_CARD = "ui-card-soft p-[22px] md:rounded-[28px] md:p-7";
+const CARD_H3 = "text-[21px] leading-tight font-semibold tracking-[-0.025em] md:text-[22px]";
+const CARD_TEXT = "text-[15px] text-muted";
+const CHECK = "flex items-start gap-2.5 text-[15px] md:text-[14.5px]";
+const CHECK_ICON =
+  "mt-[3px] flex h-[18px] w-[18px] flex-none items-center justify-center rounded-md bg-ink text-[11px] text-white md:mt-0.5";
 
 // Boutons compacts (8px 14px, rayon 8px, 14px, graisse 500) : le « ! » l'emporte sur btn-*.
 const BUTTON = "rounded-[8px]! px-[14px]! py-2! text-sm! font-medium!";
@@ -140,6 +153,12 @@ const FEATURES = [
       "CV, lettres, offres et échanges : chaque candidature garde son historique complet.",
     icon: IconFolder,
   },
+];
+
+/** Ce que fait le coach (src/lib/claude.ts) : il applique lui-même, il ne demande pas de validation. */
+const COACH_POINTS = [
+  "Une seule question précise à la fois",
+  "Chaque modification est annoncée et surlignée dans l'aperçu",
 ];
 
 /**
@@ -335,139 +354,180 @@ export default function LandingPage() {
           </ul>
         </section>
 
-        {/*
-          Preuve sociale fondateur : en attendant de vrais témoignages, un visage et une histoire
-          réels. Fond blanc pour se détacher du dégradé du hero, 48px de part et d'autre.
-        */}
-        <section
-          aria-label="Le mot du fondateur"
-          className="relative isolate bg-white"
-        >
-          <figure
-            className={`mx-auto flex max-w-3xl flex-col items-center gap-8 px-4 py-12 text-center sm:flex-row sm:px-6 sm:text-left ${CONTENT}`}
-          >
+        {/* Preuve sociale fondateur : en attendant de vrais témoignages, un visage et une histoire réels. */}
+        <section aria-label="Le mot du fondateur" className="pt-12 md:pt-20">
+          <figure className="mx-auto flex max-w-3xl flex-col items-center gap-8 px-5 text-center sm:flex-row sm:px-8 sm:text-left">
             <Image
               src="/images/founder.jpg"
               alt="Constantin, fondateur d'Applyfy"
               width={200}
               height={200}
-              className="h-[200px] w-[200px] shrink-0 rounded-2xl object-cover grayscale"
+              className="h-[200px] w-[200px] shrink-0 rounded-card object-cover grayscale"
             />
             <div>
-              <blockquote className="text-lg leading-relaxed text-pretty text-slate-700 italic">
+              <blockquote className="text-lg leading-relaxed text-pretty text-prose italic">
                 « J&apos;ai créé Applyfy après avoir postulé à de nombreuses
                 offres. Je me perdais vite et cela me frustrait. Je voulais un
                 outil simple qui m&apos;aide à candidater, je l&apos;ai donc
                 créé. »
               </blockquote>
-              <figcaption className="mt-4 text-sm text-slate-500">
+              <figcaption className="mt-4 text-sm text-muted">
                 — Constantin, fondateur d&apos;Applyfy
               </figcaption>
-              <Link
-                href="/about"
-                className="mt-2 inline-block text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
-              >
+              <Link href="/about" className="ui-link mt-1 inline-flex min-h-11 items-center text-sm">
                 Notre histoire
               </Link>
             </div>
           </figure>
         </section>
 
-        {/* Les chiffres qui font mal (gris) : 80px de part et d'autre, chiffres agrandis. */}
-        <section aria-labelledby="stats-title" className={BG_GRAY}>
-          <Reveal className={`mx-auto max-w-6xl px-4 py-20 sm:px-6 ${CONTENT}`}>
-            <p className={EYEBROW}>La réalité du marché</p>
-            <h2
-              id="stats-title"
-              className={`mt-3 text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
-            >
-              Les chiffres qui font mal
-            </h2>
-            <ul className="mt-16 grid gap-14 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-[#e5e7eb]">
-              {PAIN_STATS.map((stat) => (
-                <li
-                  key={stat.key}
-                  className="flex flex-col items-center px-6 text-center"
-                >
-                  {/* Hauteur commune : chiffres et formulation qualitative alignés sur la même ligne. */}
-                  <div className="flex min-h-20 items-end justify-center lg:min-h-24">
-                    {stat.value ? (
-                      <div className="flex items-baseline gap-2">
-                        <CountUp
-                          value={stat.value}
-                          className={`text-brand text-7xl whitespace-nowrap sm:text-6xl lg:text-8xl ${H1}`}
-                        />
-                        <span
-                          className={`text-brand text-2xl lg:text-3xl ${H2}`}
-                        >
-                          {stat.unit}
-                        </span>
-                      </div>
-                    ) : (
-                      <p
-                        className={`text-brand text-5xl sm:text-4xl lg:text-5xl ${H1}`}
-                      >
-                        {stat.text}
-                      </p>
-                    )}
-                  </div>
-                  <p className="mt-4 max-w-[16rem] text-base leading-relaxed text-slate-600">
-                    {stat.label}
-                  </p>
+        {/* Problème : uniquement les chiffres sourcés, dans la mise en page de la maquette. */}
+        <section aria-labelledby="stats-title" className={SECTION}>
+          <div className={WRAP}>
+            <Reveal className="max-w-[720px]">
+              <p className={EYEBROW}>La réalité du marché</p>
+              <h2 id="stats-title" className={TITLE}>
+                Les chiffres qui font mal
+              </h2>
+            </Reveal>
+            <ul className="mt-7 grid gap-3.5 md:mt-11 md:grid-cols-3 md:gap-5">
+              {PAIN_STATS.map((stat, index) => (
+                <li key={stat.key}>
+                  <Reveal delay={index * 80} className={`h-full ${SOFT_CARD}`}>
+                    {/* Hauteur commune : chiffres et formulation qualitative alignés. */}
+                    <div className="flex min-h-14 items-end md:min-h-16">
+                      {stat.value ? (
+                        <div className="flex items-baseline gap-2">
+                          <CountUp
+                            value={stat.value}
+                            className="text-[44px] leading-none font-extrabold tracking-[-0.04em] whitespace-nowrap md:text-[52px]"
+                          />
+                          <span className="text-xl font-semibold tracking-[-0.025em]">{stat.unit}</span>
+                        </div>
+                      ) : (
+                        <p className="text-[32px] leading-tight font-extrabold tracking-[-0.035em] md:text-[36px]">{stat.text}</p>
+                      )}
+                    </div>
+                    <p className={`mt-3 ${CARD_TEXT}`}>{stat.label}</p>
+                  </Reveal>
                 </li>
               ))}
             </ul>
-            <p className="mt-14 text-center text-xs text-slate-500">
-              {PAIN_STATS_SOURCES}
-            </p>
-          </Reveal>
+            <p className="mt-6 text-xs text-muted">{PAIN_STATS_SOURCES}</p>
+          </div>
         </section>
 
-        {/* Fonctionnalités (blanc) : blocs pleine largeur, texte et aperçu en alternance. */}
-        <section id="fonctionnalites" aria-labelledby="features-title" className={`scroll-mt-[60px] lg:scroll-mt-[68px] ${BG_WHITE}`}>
-          <div
-            className={`mx-auto max-w-6xl px-4 sm:px-6 ${SECTION_Y} ${CONTENT}`}
-          >
-            <Reveal>
+        {/* Comment ça marche */}
+        <section
+          id="comment-ca-marche"
+          aria-labelledby="steps-title"
+          className={`border-y border-line bg-surface ${SECTION} ${SCROLL_MARGIN}`}
+        >
+          <div className={WRAP}>
+            <Reveal className="mx-auto max-w-[680px] md:text-center">
+              <p className={EYEBROW}>Comment ça marche</p>
+              <h2 id="steps-title" className={TITLE}>
+                {STEPS.length} étapes, et ta recherche devient organisée
+              </h2>
+            </Reveal>
+            <ol className="mt-7 grid gap-3.5 sm:grid-cols-2 md:mt-[52px] md:gap-5 lg:grid-cols-4">
+              {STEPS.map((step, index) => (
+                <li key={step.title}>
+                  <Reveal delay={index * 80} className="ui-card h-full p-[22px] md:p-7">
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-9 w-9 items-center justify-center rounded-[11px] font-bold text-white md:h-10 md:w-10 md:rounded-xl ${
+                        index === STEPS.length - 1 ? "bg-accent" : "bg-ink"
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    <h3 className={`mt-4 mb-1.5 md:mt-5 md:mb-2 ${CARD_H3}`}>{step.title}</h3>
+                    <p className={CARD_TEXT}>{step.description}</p>
+                  </Reveal>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* Fonctionnalités : les 4 vrais blocs et leurs aperçus, puis 4 cartes vérifiées dans le code. */}
+        <section id="fonctionnalites" aria-labelledby="features-title" className={`${SECTION} ${SCROLL_MARGIN}`}>
+          <div className={WRAP}>
+            <Reveal className="max-w-[720px]">
               <p className={EYEBROW}>Fonctionnalités</p>
-              <h2
-                id="features-title"
-                className={`mt-3 text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
-              >
+              <h2 id="features-title" className={TITLE}>
                 Tout ce qu&apos;il te faut pour décrocher ton job
               </h2>
             </Reveal>
-            {/*
-              4 blocs empilés, en alternance : texte à gauche pour le 1er et le 3e, aperçu à
-              gauche pour le 2e et le 4e (le texte reste en premier dans le DOM pour la lecture).
-              Sur mobile, texte puis aperçu l'un sous l'autre.
-            */}
-            <div className="mt-8">
-              {FEATURES.map((feature, index) => (
-                <Reveal
-                  key={feature.title}
-                  className={`flex flex-col gap-10 border-b border-gray-100 py-16 last:border-b-0 md:items-center md:gap-16 ${
-                    index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
-                  }`}
-                >
-                  <div className="md:w-1/2">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-blue-600/10 text-blue-600 ring-1 ring-blue-600/20">
+            <div className="mt-7 grid grid-cols-6 gap-3.5 md:mt-12 md:gap-5">
+              {FEATURES.map((feature) => (
+                <Reveal key={feature.title} className={`col-span-6 flex flex-col gap-5 md:col-span-3 ${SOFT_CARD}`}>
+                  <div>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-box text-ink">
                       <feature.icon className="h-5 w-5" />
                     </span>
-                    <h3 className={`mt-5 text-2xl text-slate-900 ${H3}`}>
-                      {feature.title}
-                    </h3>
-                    <p className="mt-3 max-w-md text-base leading-relaxed text-slate-500">
-                      {feature.description}
-                    </p>
+                    <h3 className={`mt-4 mb-2 ${CARD_H3}`}>{feature.title}</h3>
+                    <p className={CARD_TEXT}>{feature.description}</p>
                   </div>
-                  <div className="md:w-1/2">
-                    <div className="rounded-xl border border-gray-200 bg-white p-6 transition-shadow duration-200 hover:shadow-md">
-                      <feature.preview />
-                    </div>
+                  <div className="mt-auto">
+                    <feature.preview />
                   </div>
                 </Reveal>
               ))}
+
+              <Reveal className={`col-span-6 flex flex-col gap-5 md:flex-row md:items-center md:gap-7 lg:col-span-4 ${SOFT_CARD}`}>
+                <div className="flex-1">
+                  <h3 className="mb-2 text-[23px] leading-tight font-semibold tracking-[-0.03em] md:mb-2.5 md:text-[26px]">
+                    Un coach qui n&apos;invente rien
+                  </h3>
+                  <p className="mb-3.5 text-[15.5px] text-muted md:mb-4 md:text-base">
+                    Il te demande combien, de combien, en combien de temps. Tes réalisations sont écrites avec tes vrais chiffres.
+                  </p>
+                  <ul className="space-y-2.5">
+                    {COACH_POINTS.map((point) => (
+                      <li key={point} className={CHECK}>
+                        <span aria-hidden="true" className={CHECK_ICON}>
+                          ✓
+                        </span>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div aria-hidden="true" className="ui-card flex flex-col gap-2 p-3 text-[13px] md:flex-[.9] md:p-4">
+                  <p className="rounded-[14px] bg-box px-3 py-2.5">En combien de temps as-tu livré ce projet ?</p>
+                  <p className="self-end rounded-[14px] bg-ink px-3 py-2.5 text-white">En 4 mois, pour 3 clients.</p>
+                </div>
+              </Reveal>
+
+              <Reveal className={`col-span-6 lg:col-span-2 ${SOFT_CARD}`}>
+                <p className="text-[40px] font-extrabold tracking-[-0.04em] text-green-600 md:text-[44px]">
+                  {HERO_EXAMPLE_SCORE}
+                  <span className="text-[17px] font-medium tracking-normal text-muted md:text-lg"> / {SCORE_TOTAL}</span>
+                </p>
+                <h3 className={`mt-1.5 mb-1.5 md:mt-2 md:mb-2 ${CARD_H3}`}>Un score clair</h3>
+                <p className={CARD_TEXT}>{SCORE_CATEGORY_NAMES}. Chaque point perdu a une raison.</p>
+              </Reveal>
+
+              <Reveal className={`col-span-6 lg:col-span-2 ${SOFT_CARD}`}>
+                <div aria-hidden="true" className="mb-4 flex gap-2">
+                  <span className="h-[46px] w-[34px] rounded-md border border-line-strong bg-white" />
+                  <span className="h-[46px] w-[34px] rounded-md border border-l-[12px] border-line-strong border-l-ink bg-white" />
+                  <span className="h-[46px] w-[34px] rounded-md border border-t-[8px] border-line-strong border-t-accent bg-white" />
+                </div>
+                <h3 className={`mb-1.5 md:mb-2 ${CARD_H3}`}>{CV_TEMPLATES.length} modèles de CV</h3>
+                <p className={CARD_TEXT}>Export PDF au texte sélectionnable, lisible par les ATS, avec ses polices intégrées.</p>
+              </Reveal>
+
+              <Reveal className={`col-span-6 lg:col-span-4 ${SOFT_CARD}`}>
+                <h3 className={`mb-1.5 md:mb-2 ${CARD_H3}`}>Import d&apos;offres et lettres de motivation</h3>
+                <p className={CARD_TEXT}>
+                  Colle le lien d&apos;une offre : Applyfy tente de récupérer l&apos;entreprise, le poste et la description.
+                  L&apos;extension Chrome le fait depuis la page de l&apos;offre. Génère ensuite une première version de ta lettre
+                  à partir de ton CV et de l&apos;offre, puis affine-la avec le chat.
+                </p>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -482,42 +542,6 @@ export default function LandingPage() {
               <strong className="font-semibold text-ink">Exemple fictif.</strong> Le dashboard Applyfy — toutes tes candidatures au même endroit
             </figcaption>
           </figure>
-        </section>
-
-        {/* Comment ça marche (gris) */}
-        <section
-          id="comment-ca-marche"
-          aria-labelledby="steps-title"
-          className={`scroll-mt-[60px] lg:scroll-mt-[68px] ${BG_GRAY}`}
-        >
-          <Reveal
-            className={`mx-auto max-w-6xl px-4 sm:px-6 ${SECTION_Y} ${CONTENT}`}
-          >
-            <p className={EYEBROW}>Comment ça marche</p>
-            <h2
-              id="steps-title"
-              className={`mt-3 text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
-            >
-              4 étapes, et ta recherche devient organisée
-            </h2>
-            <ol className="relative mt-16 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-              <span
-                aria-hidden="true"
-                className="absolute top-4 right-[12%] left-[12%] hidden h-px bg-blue-200 lg:block"
-              />
-              {STEPS.map((step, index) => (
-                <li key={step.title} className="relative text-center">
-                  <span className="relative mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white ring-4 ring-[#f9fafb]">
-                    {index + 1}
-                  </span>
-                  <h3 className={`mt-5 text-slate-900 ${H3}`}>{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                    {step.description}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </Reveal>
         </section>
 
         {/* Pourquoi Applyfy ? (blanc) */}

@@ -9,7 +9,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div
       aria-hidden="true"
-      className="@container h-[200px] overflow-hidden rounded-block border border-line bg-surface p-3 select-none"
+      className="@container h-[200px] overflow-hidden rounded-block border border-line bg-white p-3 select-none"
     >
       {children}
     </div>
