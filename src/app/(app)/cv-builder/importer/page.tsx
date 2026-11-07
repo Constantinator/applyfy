@@ -29,14 +29,16 @@ export default async function CvImportPage({ searchParams }: PageProps<"/cv-buil
   const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <CvImportFlow
-        resetLabel={formatResetDate(usage.resetsOn)}
-        aiEnabled={isClaudeConfigured()}
-        application={
-          detail && { id: detail.application.id, position: detail.application.position, linkedCvTitle: linked?.title ?? null }
-        }
-      />
-    </main>
+    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+      <main className="ui-page flex-1 space-y-8">
+        <CvImportFlow
+          resetLabel={formatResetDate(usage.resetsOn)}
+          aiEnabled={isClaudeConfigured()}
+          application={
+            detail && { id: detail.application.id, position: detail.application.position, linkedCvTitle: linked?.title ?? null }
+          }
+        />
+      </main>
+    </div>
   );
 }

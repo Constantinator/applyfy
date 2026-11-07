@@ -75,7 +75,7 @@ function fileForm(file: File, path: string | undefined, applicationId?: string) 
 function StepIcon({ state }: { state: "done" | "current" | "error" | "todo" }) {
   if (state === "done") {
     return (
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink text-white dark:bg-white dark:text-slate-900">
         <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
           <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -86,7 +86,7 @@ function StepIcon({ state }: { state: "done" | "current" | "error" | "todo" }) {
     return (
       <span
         aria-hidden="true"
-        className="h-6 w-6 shrink-0 animate-spin rounded-full border-[3px] border-blue-100 border-t-blue-600 motion-reduce:animate-none dark:border-blue-500/20 dark:border-t-blue-400"
+        className="h-6 w-6 shrink-0 animate-spin rounded-full border-[3px] border-line border-t-accent motion-reduce:animate-none dark:border-blue-500/20 dark:border-t-blue-400"
       />
     );
   }
@@ -97,7 +97,7 @@ function StepIcon({ state }: { state: "done" | "current" | "error" | "todo" }) {
       </span>
     );
   }
-  return <span aria-hidden="true" className="h-6 w-6 shrink-0 rounded-full border-2 border-slate-200 dark:border-slate-700" />;
+  return <span aria-hidden="true" className="h-6 w-6 shrink-0 rounded-full border-2 border-line dark:border-slate-700" />;
 }
 
 /**
@@ -206,10 +206,10 @@ export function CvImportProgress({
   }, []);
 
   return (
-    <div className="card mx-auto max-w-xl space-y-5 p-6 sm:p-8">
+    <div className="ui-card mx-auto max-w-xl space-y-5 p-5 sm:p-7">
       <div>
-        <h2 className="font-semibold text-slate-900 dark:text-white">Analyse de ton CV</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{file.name}</p>
+        <h2 className="ui-title-sm">Analyse de ton CV</h2>
+        <p className="mt-1 text-sm text-muted dark:text-slate-400">{file.name}</p>
       </div>
       <ol className="space-y-3" aria-label="Étapes de l'analyse">
         {STEPS.map((label, step) => {
@@ -221,12 +221,12 @@ export function CvImportProgress({
                 <p
                   className={`text-sm ${
                     state === "todo"
-                      ? "text-slate-400 dark:text-slate-500"
+                      ? "text-muted dark:text-slate-500"
                       : state === "error"
                         ? "font-medium text-red-700 dark:text-red-300"
                         : state === "current"
-                          ? "font-medium text-slate-900 dark:text-white"
-                          : "text-slate-700 dark:text-slate-200"
+                          ? "font-medium text-ink dark:text-white"
+                          : "text-ink dark:text-slate-200"
                   }`}
                 >
                   {label}
@@ -240,17 +240,17 @@ export function CvImportProgress({
                       {error.message}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => void runFrom(error.step)} className="btn-primary px-4 py-1.5 text-sm">
+                      <button type="button" onClick={() => void runFrom(error.step)} className="ui-btn-primary">
                         Réessayer
                       </button>
                       {/* Le coach se prépare aussi à l'ouverture de l'éditeur : l'import peut continuer sans lui. */}
                       {error.step === COACH_STEP ? (
-                        <button type="button" onClick={finish} className="btn-secondary px-4 py-1.5 text-sm">
+                        <button type="button" onClick={finish} className="ui-btn-secondary">
                           Continuer sans
                         </button>
                       ) : (
                         error.step <= 1 && (
-                          <button type="button" onClick={onCancel} className="btn-secondary px-4 py-1.5 text-sm">
+                          <button type="button" onClick={onCancel} className="ui-btn-secondary">
                             Choisir un autre fichier
                           </button>
                         )
