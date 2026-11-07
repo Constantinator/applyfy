@@ -55,7 +55,7 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Passe au Premium</h1>
         <p className="mt-1.5 text-slate-500">
-          Lève les quotas mensuels et la limite du coach, {PREMIUM_PRICE_FROM_LABEL}.
+          Lève les quotas mensuels et la limite du Chat IA, {PREMIUM_PRICE_FROM_LABEL}.
         </p>
       </div>
 

@@ -1,6 +1,7 @@
-// Ce que promettent les plans : uniquement ce que le code fait aujourd'hui. Les nombres viennent
-// des constantes des quotas (voir plan-features.test.mjs), jamais écrits ici. Premium : mêmes
-// droits pour les deux offres, seule la facturation change.
+// Ce que promettent les plans, pour /premium et la landing : uniquement ce que le code fait
+// aujourd'hui, avec le nom que l'utilisateur voit dans l'app (« Chat IA » pour le coach). Les
+// nombres viennent des constantes des quotas (voir plan-features.test.mjs), jamais écrits ici.
+// Premium : mêmes droits pour les deux offres, seule la facturation change.
 import {
   AI_DAILY_LIMIT,
   AI_MONTHLY_LIMITS as L,
@@ -12,53 +13,26 @@ import { CV_BUILDER_MAX } from "./cv-builder-types";
 /** « 1 résumé », « 2 résumés ». */
 export const countLabel = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 
-const ADAPTATIONS = `${countLabel(L.cvb_chat, "adaptation de CV", "adaptations de CV")} par mois`;
-const COACH = `${countLabel(CVB_COACH_DAILY_LIMIT, "question au coach", "questions au coach")} par jour`;
-const IMPORTS = `${countLabel(L.cvb_import, "import de CV", "imports de CV")} par mois`;
-const COACH_LIFTED = `Plus de limite de ${countLabel(CVB_COACH_DAILY_LIMIT, "question", "questions")} par jour au coach`;
+const COACH_QUESTIONS = countLabel(CVB_COACH_DAILY_LIMIT, "question", "questions");
 
-/** Plan gratuit, page Premium. */
 export const FREE_FEATURES = [
-  ADAPTATIONS,
-  COACH,
-  IMPORTS,
-  `${countLabel(L.resume_offre, "résumé d'offre", "résumés d'offre")} par mois à l'ajout d'une candidature`,
-  `${countLabel(L.resume_recherche, "résumé d'offre", "résumés d'offre")} par mois dans « Trouver une offre »`,
-  `${countLabel(L.lettre, "lettre", "lettres")} de motivation par mois (génération ou import)`,
-  `${countLabel(L.affinage_lettre, "message", "messages")} par mois au chat d'affinage de la lettre`,
-  "Suivi de toutes tes candidatures, tableau de bord, rappels de relance",
+  `Chat IA (coach) : ${COACH_QUESTIONS} par jour`,
+  `Adaptation de CV : ${L.cvb_chat} par mois`,
+  `Import de CV : ${L.cvb_import} par mois`,
+  // Quatre compteurs de même valeur (vérifié par le test) : d'où « par outil ».
+  `Lettres de motivation et résumés d'offre : ${L.lettre} par mois par outil (lettre, affinage de la lettre, résumé à l'ajout, résumé dans « Trouver une offre »)`,
+  "Suivi des candidatures, tableau de bord et rappels de relance",
 ];
 
-/** Offres Premium, page Premium. */
 export const PREMIUM_FEATURES = [
-  "Adaptations de CV sans quota mensuel",
-  COACH_LIFTED,
-  "Imports de CV sans quota mensuel",
-  "Résumés d'offre sans quota mensuel",
-  "Lettres de motivation et chat d'affinage sans quota mensuel",
+  `Chat IA : plus de limite de ${COACH_QUESTIONS} par jour`,
+  "Adaptation et import de CV : sans quota mensuel",
+  "Lettres et résumés d'offre : sans quota mensuel",
 ];
+
+/** Réponse de la FAQ « Qu'est-ce qui est gratuit ? » de la landing. */
+export const LANDING_FREE_ANSWER = `Le plan gratuit inclut le suivi de tes candidatures, le tableau de bord, les rappels de relance, ${COACH_QUESTIONS} par jour au Chat IA (coach), ${countLabel(L.cvb_chat, "adaptation", "adaptations")} et ${countLabel(L.cvb_import, "import", "imports")} de CV par mois, et ${L.lettre} usage par mois de chaque outil de lettre et de résumé d'offre. Aucune carte bancaire requise.`;
 
 export const PLAN_LIMITS_NOTE = `Pour tous les plans : ${AI_DAILY_LIMIT} actions IA par jour, ${AI_RATE_LIMIT_PER_MINUTE} requêtes par minute et ${CV_BUILDER_MAX} CV au maximum.`;
 
-/** Tarifs de la landing : gratuit, puis les deux offres Premium. */
-export const LANDING_FREE_FEATURES = [
-  "Suivi de toutes tes candidatures",
-  "Tableau de bord",
-  "Rappels de relance par e-mail",
-  ADAPTATIONS,
-  COACH,
-  IMPORTS,
-  `${countLabel(L.resume_offre, "résumé d'offre", "résumés d'offre")} et ${countLabel(L.lettre, "lettre", "lettres")} par mois`,
-];
-
-export const LANDING_PREMIUM_FEATURES = [
-  "Tout le plan gratuit",
-  "Plus de quota mensuel : adaptations, imports, résumés, lettres",
-  COACH_LIFTED,
-  `Pour tous : ${AI_DAILY_LIMIT} actions IA par jour maximum`,
-];
-
-/** Réponse de la FAQ « Qu'est-ce qui est gratuit ? ». */
-export const LANDING_FREE_ANSWER = `Le plan gratuit inclut le suivi de toutes tes candidatures, le tableau de bord, les rappels de relance, ${ADAPTATIONS}, ${COACH}, ${IMPORTS}, ${countLabel(L.resume_offre, "résumé d'offre", "résumés d'offre")} et ${countLabel(L.lettre, "lettre", "lettres")} par mois. Aucune carte bancaire requise.`;
-
-export const RESET_NOTE ="Le coach repart à zéro chaque jour à minuit. Les autres compteurs, le 1er de chaque mois.";
+export const RESET_NOTE = "Le Chat IA (coach) repart à zéro chaque jour à minuit. Les autres compteurs, le 1er de chaque mois.";

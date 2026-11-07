@@ -96,7 +96,7 @@ export function WelcomePremiumModal() {
           Bienvenue sur Applyfy
         </h2>
         <p id="welcome-premium-description" className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-          Passe au Premium pour lever les quotas mensuels et la limite du coach.
+          Passe au Premium pour lever les quotas mensuels et la limite du Chat IA.
         </p>
 
         <p className="mt-6 text-3xl font-bold text-green-600 dark:text-green-400">

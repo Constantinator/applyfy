@@ -21,7 +21,7 @@ import { DemoDashboard } from "@/components/landing/demo-dashboard";
 import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
-import { LANDING_FREE_ANSWER, LANDING_FREE_FEATURES, LANDING_PREMIUM_FEATURES } from "@/lib/plan-features";
+import { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } from "@/lib/plan-features";
 import { PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
 import { pageMetadata } from "@/lib/seo";
 
@@ -700,7 +700,7 @@ export default function LandingPage() {
                 <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Gratuit</h3>
                 <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
                 <div className="mt-6 mb-8">
-                  <PlanFeatures items={LANDING_FREE_FEATURES} />
+                  <PlanFeatures items={FREE_FEATURES} />
                 </div>
                 <Link
                   href="/signup"
@@ -727,7 +727,7 @@ export default function LandingPage() {
                   Résiliable à tout moment.
                 </p>
                 <div className="mt-6 mb-8">
-                  <PlanFeatures items={LANDING_PREMIUM_FEATURES} />
+                  <PlanFeatures items={PREMIUM_FEATURES} />
                 </div>
                 <Link
                   href="/signup"
@@ -754,7 +754,7 @@ export default function LandingPage() {
                   Facturé {PREMIUM_QUARTERLY_PLAN.billedAmount} € tous les {PREMIUM_QUARTERLY_PLAN.intervalMonths} mois, renouvelable.
                 </p>
                 <div className="mt-6 mb-8">
-                  <PlanFeatures items={LANDING_PREMIUM_FEATURES} />
+                  <PlanFeatures items={PREMIUM_FEATURES} />
                 </div>
                 <Link
                   href="/signup"
@@ -764,6 +764,9 @@ export default function LandingPage() {
                 </Link>
               </article>
             </div>
+            <p className="mt-6 text-center text-sm text-slate-500">
+              {PLAN_LIMITS_NOTE} {RESET_NOTE}
+            </p>
           </div>
         </section>
 

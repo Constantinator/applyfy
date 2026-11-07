@@ -10,8 +10,7 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { FREE_FEATURES, LANDING_FREE_ANSWER, LANDING_FREE_FEATURES, LANDING_PREMIUM_FEATURES, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } =
-  await import("./plan-features.ts");
+const { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } = await import("./plan-features.ts");
 const {
   AI_DAILY_LIMIT,
   AI_MONTHLY_LIMITS,
@@ -61,12 +60,26 @@ test("les listes ne contiennent aucun nombre écrit en dur", () => {
   assert.doesNotMatch(withoutComments(read("lib/plan-features.ts")).replace(/1er|n > 1/g, ""), /\d/);
 });
 
+test("listes courtes, groupées par fonctionnalité : 5 lignes gratuites, 3 lignes Premium", () => {
+  assert.equal(FREE_FEATURES.length, 5);
+  assert.equal(PREMIUM_FEATURES.length, 3);
+});
+
 test("les quotas gratuits viennent de la source des quotas", () => {
-  const free = FREE_FEATURES.join("\n");
-  assert.ok(free.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations de CV par mois`));
-  assert.ok(free.includes(`${CVB_COACH_DAILY_LIMIT} questions au coach par jour`));
-  assert.ok(free.includes(`${AI_MONTHLY_LIMITS.cvb_import} import de CV par mois`));
-  assert.ok(free.includes(`${AI_MONTHLY_LIMITS.lettre} lettre de motivation par mois`));
+  assert.deepEqual(FREE_FEATURES.slice(0, 3), [
+    `Chat IA (coach) : ${CVB_COACH_DAILY_LIMIT} questions par jour`,
+    `Adaptation de CV : ${AI_MONTHLY_LIMITS.cvb_chat} par mois`,
+    `Import de CV : ${AI_MONTHLY_LIMITS.cvb_import} par mois`,
+  ]);
+});
+
+test("« par outil » reste vrai : les quatre compteurs de lettre et de résumé ont la même valeur", () => {
+  const { lettre, affinage_lettre, resume_offre, resume_recherche } = AI_MONTHLY_LIMITS;
+  assert.equal(new Set([lettre, affinage_lettre, resume_offre, resume_recherche]).size, 1);
+  assert.ok(FREE_FEATURES[3].includes(`${lettre} par mois par outil`));
+  for (const tool of ["lettre", "affinage de la lettre", "résumé à l'ajout", "Trouver une offre"]) {
+    assert.ok(FREE_FEATURES[3].includes(tool));
+  }
 });
 
 test("limites communes : 50 actions, 10 requêtes, 20 CV, lues aux constantes", () => {
@@ -80,21 +93,23 @@ test("plus de limite inventée ni de fonctionnalité sans interface", () => {
   assert.doesNotMatch(all, /CV ouvert|analyses? de CV|éditeur/i);
 });
 
-test("Premium annonce la levée de la limite du coach", () => {
-  assert.ok(PREMIUM_FEATURES.join("\n").includes(`Plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour au coach`));
+test("Premium annonce la levée de la limite du Chat IA", () => {
+  assert.equal(PREMIUM_FEATURES[0], `Chat IA : plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour`);
 });
 
-test("landing : mêmes quotas gratuits, dans les tarifs et la FAQ", () => {
-  for (const text of [LANDING_FREE_FEATURES.join("\n"), LANDING_FREE_ANSWER]) {
-    assert.ok(text.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations de CV par mois`));
-    assert.ok(text.includes(`${CVB_COACH_DAILY_LIMIT} questions au coach par jour`));
-    assert.ok(text.includes(`${AI_MONTHLY_LIMITS.cvb_import} import de CV par mois`));
-    assert.doesNotMatch(text, /analyses? de CV|action IA par type/i);
+test("source unique : /premium et la landing affichent les mêmes listes et les mêmes notes", () => {
+  for (const path of ["app/(app)/premium/page.tsx", "app/page.tsx"]) {
+    const source = read(path);
+    for (const name of ["FREE_FEATURES", "PREMIUM_FEATURES", "PLAN_LIMITS_NOTE", "RESET_NOTE"]) {
+      assert.match(source, new RegExp(`\\{${name}\\}`), `${name} absent de ${path}`);
+    }
   }
 });
 
-test("landing : Premium dit ce qui reste limité pour tous", () => {
-  assert.ok(LANDING_PREMIUM_FEATURES.join("\n").includes(`${AI_DAILY_LIMIT} actions IA par jour`));
+test("FAQ de la landing : mêmes quotas, sans fonctionnalité disparue", () => {
+  assert.ok(LANDING_FREE_ANSWER.includes(`${CVB_COACH_DAILY_LIMIT} questions par jour au Chat IA`));
+  assert.ok(LANDING_FREE_ANSWER.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations et ${AI_MONTHLY_LIMITS.cvb_import} import de CV par mois`));
+  assert.doesNotMatch(LANDING_FREE_ANSWER, /analyses? de CV|action IA par type/i);
 });
 
 test("messages de limite : nombres lus aux constantes, limite commune rappelée", () => {
@@ -108,7 +123,7 @@ test("messages de limite : nombres lus aux constantes, limite commune rappelée"
   assert.doesNotMatch(LIMIT_REACHED_LABEL, /essai/i);
 });
 
-test("remises à zéro : le coach par jour, le reste par mois", () => {
-  assert.match(RESET_NOTE, /coach.*chaque jour.*minuit/);
+test("remises à zéro : le Chat IA par jour, le reste par mois", () => {
+  assert.match(RESET_NOTE, /Chat IA.*chaque jour.*minuit/);
   assert.match(RESET_NOTE, /1er de chaque mois/);
 });
