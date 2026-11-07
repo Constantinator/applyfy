@@ -30,48 +30,41 @@ export default async function ExtensionPage() {
 
   return (
     <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
-      <main className="ui-page-narrow flex-1 space-y-8">
-        <div className="flex items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-box text-ink dark:bg-slate-800 dark:text-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:bg-slate-800 dark:text-slate-200">
-            <IconPuzzle className="h-6 w-6" />
-          </span>
-          <div>
-            <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink dark:text-white">
-              Extension Chrome
-            </h1>
-            <p className="mt-1.5 text-muted dark:text-slate-400">
-              Ajoute une offre à Applyfy en collant simplement son lien, sans rien recopier.
-            </p>
-          </div>
-        </div>
-
-        <ol className="grid gap-4 sm:grid-cols-3">
-          {STEPS.map((step, i) => (
-            <li
-              key={step.title}
-              className="ui-card space-y-3 p-5 sm:p-7"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white">
-                {i + 1}
-              </span>
-              <h2 className="ui-title-sm">{step.title}</h2>
-              <p className="text-sm text-muted dark:text-slate-300">{step.text}</p>
-            </li>
-          ))}
-        </ol>
-
-        <div className="ui-card flex flex-col items-center gap-3 p-5 sm:p-7 text-center">
-          <a
-            href={CHROME_WEB_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ui-btn-primary inline-flex text-base"
-          >
-            Installer l&apos;extension
-          </a>
-          <p className="text-sm text-muted dark:text-slate-400">
-            Gratuite, depuis le Chrome Web Store.
+      <main className="ui-page flex-1">
+        <div className="max-w-[820px]">
+          <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink dark:text-white">
+            Extension Chrome
+          </h1>
+          <p className="mt-2.5 text-base text-muted dark:text-slate-400">
+            Ajoute une offre à Applyfy en collant simplement son lien, sans rien recopier.
           </p>
+
+          <div className="ui-card mt-7 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-[18px] sm:p-7">
+            <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-box text-ink dark:bg-slate-800 dark:text-slate-200">
+              <IconPuzzle className="h-6 w-6" />
+            </span>
+            <p className="flex-1 text-sm text-muted dark:text-slate-400">Gratuite, depuis le Chrome Web Store.</p>
+            <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noopener noreferrer" className="ui-btn-primary">
+              Installer l&apos;extension
+            </a>
+          </div>
+
+          <ol className="ui-card mt-5 px-5 py-2 sm:px-7">
+            {STEPS.map((step, i) => (
+              <li
+                key={step.title}
+                className="flex items-center gap-3.5 border-t border-line-soft py-4 first:border-t-0 dark:border-slate-800"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-box font-bold text-ink dark:bg-slate-800 dark:text-slate-200">
+                  {i + 1}
+                </span>
+                <div>
+                  <h2 className="text-[15px] font-semibold text-ink dark:text-white">{step.title}</h2>
+                  <p className="mt-0.5 text-sm text-muted dark:text-slate-300">{step.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </main>
     </div>
