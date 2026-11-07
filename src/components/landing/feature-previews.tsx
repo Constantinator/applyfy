@@ -1,3 +1,7 @@
+import { StatusBadge } from "@/components/status-badge";
+import { FOLLOW_UP_AFTER_DAYS } from "@/lib/follow-up";
+import type { ApplicationStatus } from "@/lib/types";
+
 // Aperçus décoratifs des fonctionnalités (landing page) : versions miniatures de
 // l'interface réelle, en HTML/CSS. Purement illustratifs : masqués des lecteurs d'écran.
 
@@ -5,85 +9,48 @@ function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div
       aria-hidden="true"
-      className="@container h-[200px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3 select-none"
+      className="@container h-[200px] overflow-hidden rounded-block border border-line bg-surface p-3 select-none"
     >
       {children}
     </div>
   );
 }
 
-const STATUS = {
-  envoyee: "bg-blue-50 text-blue-700 ring-blue-200",
-  relancer: "bg-amber-50 text-amber-700 ring-amber-200",
-  entretien: "bg-violet-50 text-violet-700 ring-violet-200",
-} as const;
-
-function Pill({
-  tone,
-  children,
-}: {
-  tone: keyof typeof STATUS;
-  children: React.ReactNode;
-}) {
-  return (
-    <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${STATUS[tone]}`}
-    >
-      {children}
-    </span>
-  );
-}
-
 /** « Suivi en temps réel » : mini dashboard, 3 candidatures et leur statut. */
 export function TrackingPreview() {
   const rows = [
-    {
-      company: "Spotify",
-      role: "Data Analyst",
-      status: "Envoyée",
-      tone: "envoyee" as const,
-    },
-    {
-      company: "BlaBlaCar",
-      role: "Product Marketing",
-      status: "À relancer",
-      tone: "relancer" as const,
-    },
-    {
-      company: "Doctolib",
-      role: "Product Manager",
-      status: "Entretien",
-      tone: "entretien" as const,
-    },
+    { company: "Spotify", role: "Data Analyst", status: "envoyee" as ApplicationStatus },
+    { company: "BlaBlaCar", role: "Product Marketing", status: "relancee" as ApplicationStatus },
+    { company: "Doctolib", role: "Product Manager", status: "entretien" as ApplicationStatus },
   ];
   return (
     <Frame>
       <div className="flex items-center justify-between px-1 pb-2">
-        <span className="text-xs font-semibold text-slate-900">
+        <span className="text-xs font-semibold text-ink">
           Mes candidatures
         </span>
-        <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />À jour
+        <span className="inline-flex items-center gap-1 text-[10px] text-muted">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent" />À jour
         </span>
       </div>
       <ul className="space-y-1.5">
         {rows.map((row) => (
           <li
             key={row.company}
-            className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm"
+            className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-2.5 py-2"
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] font-bold text-blue-700 ring-1 ring-blue-100">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-box text-[11px] font-bold text-ink">
               {row.company.charAt(0)}
             </span>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-xs font-semibold text-slate-900">
+              <span className="block truncate text-xs font-semibold text-ink">
                 {row.company}
               </span>
-              <span className="block truncate text-[10px] text-slate-500">
+              <span className="block truncate text-[10px] text-muted">
                 {row.role}
               </span>
             </span>
-            <Pill tone={row.tone}>{row.status}</Pill>
+            <StatusBadge status={row.status} />
           </li>
         ))}
       </ul>
@@ -99,12 +66,12 @@ export function CvPreview() {
   ];
   return (
     <Frame>
-      <p className="px-1 text-xs font-semibold text-slate-900">Mots-clés</p>
-      <p className="px-1 pt-1 text-[11px] text-slate-500">62 % de correspondance avec l&apos;offre</p>
+      <p className="px-1 text-xs font-semibold text-ink">Mots-clés</p>
+      <p className="px-1 pt-1 text-[11px] text-muted">62 % de correspondance avec l&apos;offre</p>
       <div className="space-y-2.5 px-1 pt-2.5">
         {groups.map((group) => (
           <div key={group.label}>
-            <p className="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">{group.label}</p>
+            <p className="text-[10px] font-semibold text-muted">{group.label}</p>
             <ul className="mt-1 flex flex-wrap gap-1">
               {group.keywords.map((keyword) => (
                 <li key={keyword} className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
@@ -123,22 +90,22 @@ export function CvPreview() {
 export function FollowUpPreview() {
   return (
     <Frame>
-      <div className="rounded-lg border border-amber-300 bg-white p-2.5 shadow-sm ring-1 ring-amber-200">
-        <p className="text-xs font-semibold text-slate-900">Relancer</p>
-        <p className="truncate text-[10px] text-slate-500">
-          Sans réponse depuis 8 jours : c&apos;est le moment.
+      <div className="rounded-xl border border-line bg-white p-2.5">
+        <p className="text-xs font-semibold text-ink">Relancer</p>
+        <p className="truncate text-[10px] text-muted">
+          Sans réponse depuis {FOLLOW_UP_AFTER_DAYS} jours : c&apos;est le moment.
         </p>
-        <div className="mt-2 line-clamp-3 rounded-md border border-slate-200 px-2 py-1.5 text-[10px] leading-relaxed text-slate-600">
+        <div className="mt-2 line-clamp-3 rounded-lg border border-line px-2 py-1.5 text-[10px] leading-relaxed text-prose">
           Bonjour Mme Martin,
           <br />
           Je me permets de revenir vers vous au sujet de ma candidature au poste
           de Product Marketing chez BlaBlaCar…
         </div>
         <div className="mt-2 flex items-center gap-1.5">
-          <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium whitespace-nowrap text-slate-700">
+          <span className="rounded-full border border-line-strong bg-white px-2.5 py-1 text-[10px] font-medium whitespace-nowrap text-ink">
             Copier le message
           </span>
-          <span className="ml-auto rounded-md bg-[#1E40AF] px-2 py-1 text-[10px] font-semibold whitespace-nowrap text-white">
+          <span className="ml-auto rounded-full bg-ink px-2.5 py-1 text-[10px] font-semibold whitespace-nowrap text-white">
             Marquer comme relancée
           </span>
         </div>
@@ -165,33 +132,33 @@ export function DocumentsPreview() {
     <Frame>
       <div className="flex items-center justify-between gap-2 px-1 pb-2">
         <span className="min-w-0 truncate text-xs">
-          <span className="font-semibold text-slate-900">Doctolib</span>
-          <span className="text-slate-500"> · Product Manager</span>
+          <span className="font-semibold text-ink">Doctolib</span>
+          <span className="text-muted"> · Product Manager</span>
         </span>
-        <Pill tone="entretien">Entretien</Pill>
+        <StatusBadge status="entretien" />
       </div>
       <div className="space-y-2.5">
         {docs.map((doc) => (
           <div
             key={doc.title}
-            className="flex items-center gap-2 rounded-lg border border-blue-200 bg-white p-2.5 shadow-sm"
+            className="flex items-center gap-2 rounded-xl border border-line bg-white p-2.5"
           >
-            <span className="flex h-9 w-7 shrink-0 flex-col justify-center gap-1 rounded-sm border border-slate-200 bg-slate-50 px-1">
-              <span className="h-0.5 rounded bg-slate-300" />
-              <span className="h-0.5 rounded bg-slate-300" />
-              <span className="h-0.5 rounded bg-slate-300" />
-              <span className="h-0.5 w-2/3 rounded bg-slate-300" />
+            <span className="flex h-9 w-7 shrink-0 flex-col justify-center gap-1 rounded-sm border border-line bg-surface px-1">
+              <span className="h-0.5 rounded bg-line-strong" />
+              <span className="h-0.5 rounded bg-line-strong" />
+              <span className="h-0.5 rounded bg-line-strong" />
+              <span className="h-0.5 w-2/3 rounded bg-line-strong" />
             </span>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-[11px] font-semibold text-slate-900">
+              <span className="block truncate text-[11px] font-semibold text-ink">
                 {doc.title}
               </span>
-              <span className="block truncate text-[10px] text-slate-500">
+              <span className="block truncate text-[10px] text-muted">
                 {doc.detail}
               </span>
             </span>
             {/* Libellé complet si l'aperçu est assez large, sinon « Ouvrir → ». */}
-            <span className="shrink-0 rounded-md bg-[#1E40AF] px-2 py-1 text-[10px] font-semibold text-white">
+            <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[10px] font-semibold text-white">
               <span className="hidden @sm:inline">{doc.action}</span>
               <span className="@sm:hidden">Ouvrir</span>
             </span>

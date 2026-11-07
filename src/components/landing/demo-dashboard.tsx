@@ -1,22 +1,23 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { HERO_EXAMPLE_SCORE } from "@/components/landing/hero-visual";
+import { ScoreGauge } from "@/components/cv-builder/cv-score-card";
 import {
   IconBell,
   IconBriefcase,
-  IconChat,
   IconClock,
-  IconGrid,
   IconMapPin,
-  IconPlus,
   IconSearch,
   IconSparkles,
   IconUser,
 } from "@/components/icons";
+import { BrandLogo } from "@/components/logo";
 import { StatusBadge } from "@/components/status-badge";
+import { READY_SCORE, SCORE_CATEGORIES } from "@/lib/cv-score";
+import { todoCountLabel } from "@/lib/dashboard-todo";
 import {
   APPLICATION_STATUSES,
   RESPONSE_STATUSES,
@@ -24,11 +25,9 @@ import {
   type ApplicationStatus,
 } from "@/lib/types";
 
-// Dashboard Applyfy simulé (données fictives), en thème clair comme l'app, affiché sur la
-// landing. Reprend la structure du vrai dashboard (sidebar, cartes de
-// statistiques, liste des candidatures) et, dans le panneau de détail, celle de la fiche
-// candidature (en-tête et statuts, résumé de l'offre, Adapter mon CV, Lettre de motivation,
-// Relancer, Historique, Notes), avec les vrais statuts de l'app.
+// Applyfy simulé (données fictives) sur la landing : barre du haut de l'application, écrans Tableau
+// de bord, Candidatures et Trouver une offre, et fiche candidature en panneau latéral, avec les
+// vrais statuts. Aucun titre (h1-h6) à l'intérieur : la démo ne compte pas dans le plan de la page.
 
 type DemoEvent = {
   label: string;
@@ -43,6 +42,8 @@ type DemoApplication = {
   location: string;
   status: ApplicationStatus;
   sentAt: string;
+  /** Jours depuis l'envoi, à la date fictive de la démo (12 oct.). */
+  sentDaysAgo: number;
   lastContact: string;
   contact: string;
   summary: string[];
@@ -62,6 +63,7 @@ const APPLICATIONS: DemoApplication[] = [
     location: "Paris",
     status: "en_attente",
     sentAt: "8 oct. 2026",
+    sentDaysAgo: 4,
     lastContact: "Il y a 4 jours",
     contact: "Équipe recrutement",
     summary: [
@@ -88,6 +90,7 @@ const APPLICATIONS: DemoApplication[] = [
     location: "Paris · Hybride",
     status: "entretien",
     sentAt: "2 oct. 2026",
+    sentDaysAgo: 10,
     lastContact: "Hier",
     contact: "Camille, hiring manager",
     summary: [
@@ -115,6 +118,7 @@ const APPLICATIONS: DemoApplication[] = [
     location: "Paris",
     status: "relancee",
     sentAt: "26 sept. 2026",
+    sentDaysAgo: 16,
     lastContact: "Il y a 2 jours",
     contact: "Thomas, Design Lead",
     summary: [
@@ -141,6 +145,7 @@ const APPLICATIONS: DemoApplication[] = [
     location: "Levallois-Perret",
     status: "refusee",
     sentAt: "19 sept. 2026",
+    sentDaysAgo: 23,
     lastContact: "Il y a 9 jours",
     contact: "Équipe Data",
     summary: [
@@ -167,6 +172,7 @@ const APPLICATIONS: DemoApplication[] = [
     location: "Paris · Télétravail",
     status: "envoyee",
     sentAt: "12 oct. 2026",
+    sentDaysAgo: 0,
     lastContact: "Aujourd'hui",
     contact: "Équipe recrutement",
     summary: [
@@ -189,14 +195,14 @@ const APPLICATIONS: DemoApplication[] = [
 ];
 
 const EVENT_DOTS: Record<DemoEvent["tone"], string> = {
-  slate: "bg-slate-400",
+  slate: "bg-line-strong",
   blue: "bg-blue-500",
   amber: "bg-amber-500",
   violet: "bg-violet-500",
   red: "bg-red-500",
 };
 
-/** Carte de la fiche candidature (classe « card » de l'app). */
+/** Carte de la fiche candidature. */
 function PanelCard({
   title,
   children,
@@ -207,35 +213,36 @@ function PanelCard({
   className?: string;
 }) {
   return (
-    <section className={`card p-4 ${className}`}>
-      <h3 className="mb-3 font-semibold text-slate-900">{title}</h3>
+    <section className={`ui-card p-4 ${className}`}>
+      <p className="mb-3 font-semibold text-ink">{title}</p>
       {children}
     </section>
   );
 }
 
-// Boutons de la fiche : mêmes classes que dans l'app.
-const PRIMARY_BUTTON = "btn-primary px-4 py-2 text-sm";
-const SECONDARY_BUTTON = "btn-secondary px-4 py-2 text-sm";
-
 const TOAST_CREATE = "Inscris-toi pour créer ta première candidature";
 const TOAST_FEATURE = "Inscris-toi pour accéder à cette fonctionnalité";
 
-type Screen = "dashboard" | "offres";
+type Screen = "dashboard" | "candidatures" | "offres";
 
-// Navigation de la démo : « Tableau de bord » et « Trouver une offre » changent d'écran,
-// les autres liens affichent le message d'inscription.
-const NAV: { label: string; icon: typeof IconGrid; screen: Screen | null }[] = [
-  { label: "Tableau de bord", icon: IconGrid, screen: "dashboard" },
-  { label: "Trouver une offre", icon: IconSearch, screen: "offres" },
-  { label: "Nouvelle candidature", icon: IconPlus, screen: null },
-  { label: "Mon profil", icon: IconUser, screen: null },
+// Barre du haut : mêmes liens que l'application. Sans écran : le message d'inscription.
+const NAV: { label: string; screen: Screen | null }[] = [
+  { label: "Tableau de bord", screen: "dashboard" },
+  { label: "Candidatures", screen: "candidatures" },
+  { label: "Trouver une offre", screen: "offres" },
+  { label: "CV Builder", screen: null },
 ];
 
 const SCREEN_URLS: Record<Screen, string> = {
   dashboard: "applyfy.fr/dashboard",
+  candidatures: "applyfy.fr/candidatures",
   offres: "applyfy.fr/offres",
 };
+
+const FIRST_NAME = "Camille";
+
+const PAGE_TITLE = "text-[28px] leading-[1.1] font-bold tracking-[-0.035em] text-ink sm:text-[40px]";
+const CARD_TITLE = "ui-title";
 
 type DemoOffer = {
   id: string;
@@ -286,7 +293,7 @@ const OFFERS: DemoOffer[] = [
   },
 ];
 
-/** Faux champ de la recherche d'offres (style « input ») : un clic affiche le message. */
+/** Faux champ de la recherche d'offres : un clic affiche le message. */
 function FakeField({
   label,
   value,
@@ -300,15 +307,11 @@ function FakeField({
 }) {
   return (
     <div className="space-y-1.5">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
-      <button
-        type="button"
-        onClick={onClick}
-        className="input flex items-center gap-2 py-2.5 text-left text-slate-500"
-      >
-        {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
+      <span className="text-sm font-medium text-ink">{label}</span>
+      <button type="button" onClick={onClick} className="ui-input flex items-center gap-2 text-left text-muted">
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-muted" />}
         <span className="truncate">{value}</span>
-        {!Icon && <span className="ml-auto text-slate-400">▾</span>}
+        {!Icon && <span className="ml-auto text-muted">▾</span>}
       </button>
     </div>
   );
@@ -317,10 +320,10 @@ function FakeField({
 /** Écran « Trouver une offre » de la démo (calqué sur /offres). */
 function DemoOffers({ onFeature }: { onFeature: () => void }) {
   return (
-    <div className="min-w-0 flex-1 space-y-6 p-5 sm:p-7">
+    <div className="min-w-0 flex-1 space-y-6 p-5 sm:p-8">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Trouver une offre</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className={PAGE_TITLE}>Trouver une offre</p>
+        <p className="mt-2 text-sm text-muted">
           Trouve ton prochain job et ajoute-le en un clic à tes candidatures.
         </p>
       </div>
@@ -328,33 +331,23 @@ function DemoOffers({ onFeature }: { onFeature: () => void }) {
       <button
         type="button"
         onClick={onFeature}
-        className="inline-flex items-center gap-3 text-sm font-medium text-slate-700"
+        className="ui-focus inline-flex min-h-11 items-center gap-3 text-sm font-medium text-ink"
       >
-        <span className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-slate-200">
-          <span className="h-5 w-5 translate-x-0.5 rounded-full bg-white shadow-sm" />
+        <span className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-track">
+          <span className="h-5 w-5 translate-x-0.5 rounded-full bg-white" />
         </span>
         Recommandations personnalisées
       </button>
 
-      <div role="search" className="card animate-demo-in space-y-4 p-5">
+      <div role="search" className="ui-card animate-demo-in space-y-4 p-5">
         <div className="grid gap-4 sm:grid-cols-2">
-          <FakeField
-            label="Mot-clé"
-            value="Product, data, business…"
-            icon={IconSearch}
-            onClick={onFeature}
-          />
-          <FakeField
-            label="Localisation"
-            value="Paris, Lille, Montpellier"
-            icon={IconMapPin}
-            onClick={onFeature}
-          />
+          <FakeField label="Mot-clé" value="Product, data, business…" icon={IconSearch} onClick={onFeature} />
+          <FakeField label="Localisation" value="Paris, Lille, Montpellier" icon={IconMapPin} onClick={onFeature} />
         </div>
         <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <FakeField label="Type de contrat" value="Tous les contrats" onClick={onFeature} />
           <FakeField label="Trier par" value="Le plus récent" onClick={onFeature} />
-          <button type="button" onClick={onFeature} className="btn-primary px-6 py-2.5 text-sm">
+          <button type="button" onClick={onFeature} className="ui-btn-primary">
             <IconSearch className="h-4 w-4" />
             Rechercher
           </button>
@@ -362,43 +355,35 @@ function DemoOffers({ onFeature }: { onFeature: () => void }) {
       </div>
 
       <section className="space-y-3">
-        <p className="text-sm text-slate-600">
-          <strong className="font-semibold text-slate-900">{OFFERS.length} offres</strong>
+        <p className="text-sm text-muted">
+          <strong className="font-semibold text-ink">{OFFERS.length} offres</strong>
         </p>
         <ul className="grid gap-3 sm:grid-cols-2">
           {OFFERS.map((offer, index) => (
-            <li
-              key={offer.id}
-              style={{ animationDelay: `${150 + index * 110}ms` }}
-              className="animate-demo-in"
-            >
+            <li key={offer.id} style={{ animationDelay: `${150 + index * 110}ms` }} className="animate-demo-in">
               <button
                 type="button"
                 onClick={onFeature}
-                className="card block h-full w-full p-5 text-left transition hover:ring-1 hover:ring-blue-300"
+                className="ui-card ui-focus block h-full w-full p-5 text-left transition-colors hover:border-line-strong"
               >
-                <span className="block text-base leading-snug font-bold text-slate-900">
-                  {offer.title}
-                </span>
-                <span className="mt-1 block text-sm font-medium text-slate-700">
-                  {offer.company}
-                </span>
+                <span className="block text-base leading-snug font-bold text-ink">{offer.title}</span>
+                <span className="mt-1 block text-sm font-medium text-prose">{offer.company}</span>
                 <span className="mt-3 flex items-end justify-between gap-3">
-                  <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                     <span className="inline-flex items-center gap-1">
-                      <IconMapPin className="h-3.5 w-3.5 text-slate-300" />
+                      <IconMapPin className="h-3.5 w-3.5" />
                       {offer.location}
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <IconClock className="h-3.5 w-3.5 text-slate-300" />
+                      <IconClock className="h-3.5 w-3.5" />
                       {offer.published}
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <IconBriefcase className="h-3.5 w-3.5 text-slate-300" />
+                      <IconBriefcase className="h-3.5 w-3.5" />
                       {offer.contract}
                     </span>
                   </span>
-                  <span className="shrink-0 rounded-full bg-[#F9FAFB] px-2 py-0.5 text-[11px] text-[#6B7280] ring-1 ring-slate-200">
+                  <span className="shrink-0 rounded-full bg-pill px-2 py-0.5 text-[11px] text-muted">
                     {offer.source}
                   </span>
                 </span>
@@ -407,6 +392,188 @@ function DemoOffers({ onFeature }: { onFeature: () => void }) {
           ))}
         </ul>
       </section>
+    </div>
+  );
+}
+
+/** Écran « Tableau de bord » de la démo (calqué sur /dashboard). */
+function DemoHome({
+  onFeature,
+  onOpen,
+}: {
+  onFeature: () => void;
+  onOpen: (id: string) => void;
+}) {
+  const todo = APPLICATIONS.filter((app) => app.followUp);
+  const sentThisWeek = APPLICATIONS.filter((app) => app.sentDaysAgo < 7).length;
+  const weakPoint = SCORE_CATEGORIES.find((category) => category.id === "keywords")?.label;
+  const tiles = [
+    ["Envoyées", APPLICATIONS.length],
+    ["Réponses", APPLICATIONS.filter((app) => RESPONSE_STATUSES.includes(app.status)).length],
+    ["Entretiens", APPLICATIONS.filter((app) => app.status === "entretien").length],
+  ] as const;
+
+  return (
+    <div className="min-w-0 flex-1 space-y-6 p-5 sm:p-8">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm text-muted">Lundi 12 octobre</p>
+          <p className={`mt-1 ${PAGE_TITLE}`}>Bonjour {FIRST_NAME}</p>
+          <p className="mt-2 text-[15px] text-muted sm:text-[17px]">
+            Tu as <strong className="font-semibold text-ink">{todoCountLabel(todo.length)}</strong> pour faire avancer tes candidatures.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onFeature}
+          className="ui-focus flex w-full items-center rounded-full border border-line-strong bg-white py-1.5 pr-1.5 pl-5 text-left lg:max-w-[420px]"
+        >
+          <span className="min-w-0 flex-1 truncate text-sm text-muted">Colle le lien d&apos;une offre</span>
+          <span className="ui-btn-primary ml-2 shrink-0">Importer l&apos;offre</span>
+        </button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-6">
+          <section style={{ animationDelay: "80ms" }} className="ui-card animate-demo-in p-5 sm:p-7">
+            <p className={CARD_TITLE}>À faire aujourd&apos;hui</p>
+            <ul className="mt-2">
+              {todo.map((app) => (
+                <li key={app.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-line-soft py-4 first:border-t-0">
+                  <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-box text-ink">
+                    <IconBell className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1 basis-48">
+                    <p className="text-[15px] font-semibold text-ink">Relancer {app.company}</p>
+                    <p className="text-[13px] text-muted">
+                      {app.position} · Envoyée il y a {app.sentDaysAgo} jours
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => onOpen(app.id)} className="ui-btn-secondary w-full sm:w-auto">
+                    Écrire la relance
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section style={{ animationDelay: "240ms" }} className="ui-card animate-demo-in p-5 sm:p-7">
+            <p className={CARD_TITLE}>Ma semaine</p>
+            <p className="mt-5 text-[44px] leading-none font-bold tracking-[-0.04em] text-ink">
+              {sentThisWeek}
+              <span className="ml-2 text-[15px] font-normal tracking-normal text-muted">
+                envoyée{sentThisWeek > 1 ? "s" : ""} cette semaine
+              </span>
+            </p>
+            <dl className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+              {tiles.map(([label, value]) => (
+                <div key={label} className="min-w-0 rounded-block bg-[#F8F8F8] px-3 py-3.5 sm:px-4">
+                  <dt className="text-xs text-muted">{label}</dt>
+                  <dd className="mt-0.5 text-2xl font-bold text-ink">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+
+        <section style={{ animationDelay: "160ms" }} className="ui-card animate-demo-in flex h-fit min-w-0 flex-col gap-4 p-5 sm:p-7">
+          <p className={CARD_TITLE}>Ton CV</p>
+          <div className="flex items-center gap-4">
+            <div className="shrink-0">
+              <ScoreGauge score={HERO_EXAMPLE_SCORE} size="card" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold text-ink">CV Product Manager</p>
+              <p className="mt-1 text-[13px] text-muted">
+                {HERO_EXAMPLE_SCORE >= READY_SCORE ? "Ton CV est prêt à postuler" : `Encore ${READY_SCORE - HERO_EXAMPLE_SCORE} points pour être prêt à postuler`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] bg-[#F6F6F6] px-3.5 py-3">
+            <p className="min-w-0 text-[13px] text-ink">
+              Point faible : <strong className="font-semibold">{weakPoint}</strong>
+            </p>
+            <button type="button" onClick={onFeature} className="ui-btn-secondary">
+              Améliorer
+            </button>
+          </div>
+          <button type="button" onClick={onFeature} className="ui-btn-primary w-full">
+            Continuer avec le coach
+          </button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+/** Écran « Candidatures » de la démo : la liste, un clic ouvre la fiche. */
+function DemoApplications({
+  openId,
+  onOpen,
+  onCreate,
+}: {
+  openId: string | null;
+  onOpen: (id: string) => void;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="min-w-0 flex-1 space-y-6 p-5 sm:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className={PAGE_TITLE}>Candidatures</p>
+          <p className="mt-2 text-sm text-muted">
+            Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
+          </p>
+        </div>
+        <button type="button" onClick={onCreate} className="ui-btn-primary">
+          Nouvelle candidature
+        </button>
+      </div>
+
+      <div className="ui-card overflow-hidden">
+        <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] gap-4 border-b border-line bg-surface px-4 py-2.5 text-xs font-semibold text-muted sm:grid">
+          <span>Entreprise / poste</span>
+          <span>Statut</span>
+          <span>Envoi</span>
+          <span>Dernier contact</span>
+        </div>
+        <ul>
+          {APPLICATIONS.map((app, index) => (
+            <li
+              key={app.id}
+              // Les lignes arrivent une à une.
+              style={{ animationDelay: `${index * 110}ms` }}
+              className="animate-demo-in border-b border-line-soft last:border-b-0"
+            >
+              <button
+                type="button"
+                onClick={() => onOpen(app.id)}
+                className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface focus-visible:bg-surface focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] ${
+                  openId === app.id ? "bg-pill" : ""
+                }`}
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-box text-sm font-bold text-ink">
+                    {app.company[0]}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-ink">{app.company}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {app.position} · {app.location}
+                    </span>
+                  </span>
+                </span>
+                <span>
+                  <StatusBadge status={app.status} />
+                </span>
+                <span className="hidden text-sm text-prose sm:block">{app.sentAt.replace(/ \d{4}$/, "")}</span>
+                <span className="hidden text-sm text-muted sm:block">{app.lastContact}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="text-xs text-muted">Clique sur une candidature pour voir sa fiche.</p>
     </div>
   );
 }
@@ -463,230 +630,106 @@ export function DemoDashboard() {
     return () => window.clearTimeout(timer);
   }, [toast.id, toast.visible]);
 
-  const stats = [
-    {
-      label: "Candidatures",
-      value: APPLICATIONS.length,
-      icon: IconBriefcase,
-      tone: "bg-slate-100 text-slate-600",
-    },
-    {
-      label: "Entretiens",
-      value: APPLICATIONS.filter((a) => a.status === "entretien").length,
-      icon: IconChat,
-      tone: "bg-violet-50 text-violet-600",
-    },
-    {
-      label: "Relances",
-      value: APPLICATIONS.filter((a) => a.status === "relancee").length,
-      icon: IconBell,
-      tone: "bg-amber-50 text-amber-600",
-    },
-  ];
+  const navButton = (active: boolean) =>
+    `ui-focus flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors lg:min-h-0 lg:py-2 ${
+      active ? "bg-pill text-ink" : "text-nav hover:text-ink"
+    }`;
+
+  const navLinks = NAV.map((item) => (
+    <button
+      key={item.label}
+      type="button"
+      onClick={() => navigate(item.screen)}
+      aria-current={item.screen === screen ? "page" : undefined}
+      className={navButton(item.screen === screen)}
+    >
+      {item.label}
+    </button>
+  ));
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-slate-50 text-left text-slate-900">
-      {/* Barre de fenêtre du navigateur */}
-      <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-100 px-4 py-2.5">
-        <div aria-hidden="true" className="flex gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-red-400" />
-          <span className="h-3 w-3 rounded-full bg-amber-400" />
-          <span className="h-3 w-3 rounded-full bg-emerald-400" />
+    <div className="bg-white text-left text-ink">
+      {/* Barre de fenêtre du navigateur, avec la mention « Exemple fictif » toujours visible. */}
+      <div className="flex items-center gap-3 border-b border-line bg-box px-4 py-2.5">
+        <div aria-hidden="true" className="hidden gap-1.5 sm:flex">
+          <span className="h-3 w-3 rounded-full bg-line-strong" />
+          <span className="h-3 w-3 rounded-full bg-line-strong" />
+          <span className="h-3 w-3 rounded-full bg-line-strong" />
         </div>
-        <div className="mx-auto w-full max-w-xs rounded-md bg-white px-3 py-1 text-center text-xs text-slate-500 ring-1 ring-slate-200">
+        <div className="min-w-0 flex-1 truncate rounded-full border border-line bg-white px-3 py-1 text-center text-xs text-muted sm:mx-auto sm:max-w-xs">
           {SCREEN_URLS[screen]}
         </div>
-        <span aria-hidden="true" className="w-[52px]" />
+        <span className="shrink-0 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">Exemple fictif</span>
       </div>
 
-      <div className="relative flex min-h-[560px]">
-        {/* Sidebar */}
-        <aside className="hidden w-56 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-3 md:flex">
-          <div className="mb-4 flex items-center gap-2 px-2 pt-1">
-            <Image
-              src="/images/applyfy-icon.png"
-              alt=""
-              width={512}
-              height={512}
-              className="h-7 w-7"
-            />
-            <span className="font-bold tracking-tight text-slate-900">Applyfy</span>
-          </div>
-          {NAV.map((item) => {
-            const active = item.screen === screen;
-            return (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => navigate(item.screen)}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm whitespace-nowrap transition ${
-                  active
-                    ? "bg-slate-100 font-medium text-slate-900"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <item.icon className={`h-4 w-4 ${active ? "text-slate-900" : "text-slate-400"}`} />
-                {item.label}
-              </button>
-            );
-          })}
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Navigation compacte sur mobile (la sidebar est masquée) */}
-          <nav
-            aria-label="Navigation de la démo"
-            className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 md:hidden"
-          >
-            {NAV.map((item) => {
-              const active = item.screen === screen;
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => navigate(item.screen)}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                    active ? "bg-slate-100 text-slate-900" : "text-slate-600"
-                  }`}
-                >
-                  <item.icon className="h-4 w-4 text-slate-400" />
-                  {item.label}
-                </button>
-              );
-            })}
+      {/* Barre du haut de l'application. */}
+      <div className="border-b border-line">
+        <div className="flex h-[68px] items-center gap-3 px-4 sm:px-8">
+          <BrandLogo />
+          <nav aria-label="Navigation de la démo" className="ml-5 hidden items-center gap-0.5 lg:flex">
+            {navLinks}
           </nav>
-          {screen === "offres" ? (
-            <DemoOffers key="offres" onFeature={() => showToast(TOAST_FEATURE)} />
-          ) : (
-            <div key="dashboard" className="min-w-0 flex-1 space-y-6 p-5 sm:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                    Mes candidatures
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => showToast(TOAST_CREATE)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700"
-                >
-                  <IconPlus className="h-4 w-4" />
-                  Nouvelle candidature
-                </button>
-              </div>
-
-              <dl className="grid grid-cols-3 gap-3 sm:gap-4">
-                {stats.map((stat, index) => (
-                  <div
-                    key={stat.label}
-                    style={{ animationDelay: `${index * 80}ms` }}
-                    className="animate-demo-in card p-4"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <dt className="text-xs font-medium text-slate-500 sm:text-sm">
-                        {stat.label}
-                      </dt>
-                      <span
-                        className={`hidden h-8 w-8 items-center justify-center rounded-lg sm:flex ${stat.tone}`}
-                      >
-                        <stat.icon className="h-4 w-4" />
-                      </span>
-                    </div>
-                    <dd className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                      {stat.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-
-              <div className="card overflow-hidden">
-                <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-500 uppercase sm:grid">
-                  <span>Entreprise / poste</span>
-                  <span>Statut</span>
-                  <span>Envoi</span>
-                  <span>Dernier contact</span>
-                </div>
-                <ul>
-                  {APPLICATIONS.map((app, index) => (
-                    <li
-                      key={app.id}
-                      // Les lignes arrivent une à une après les statistiques.
-                      style={{ animationDelay: `${300 + index * 110}ms` }}
-                      className="animate-demo-in border-b border-slate-100 last:border-b-0"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => openApplication(app.id)}
-                        className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_8rem_7rem_7rem] ${
-                          openId === app.id ? "bg-slate-100" : ""
-                        }`}
-                      >
-                        <span className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-700">
-                            {app.company[0]}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-semibold text-slate-900">
-                              {app.company}
-                            </span>
-                            <span className="block truncate text-xs text-slate-500">
-                              {app.position} · {app.location}
-                            </span>
-                          </span>
-                        </span>
-                        <span>
-                          <StatusBadge status={app.status} />
-                        </span>
-                        <span className="hidden text-sm text-slate-700 sm:block">
-                          {app.sentAt.replace(/ \d{4}$/, "")}
-                        </span>
-                        <span className="hidden text-sm text-slate-600 sm:block">
-                          {app.lastContact}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <p className="text-xs text-slate-500">
-                Clique sur une candidature pour voir sa fiche.
-              </p>
-            </div>
-          )}
+          <div className="ml-auto flex items-center gap-3">
+            <button type="button" onClick={() => showToast(TOAST_CREATE)} className="ui-btn-primary hidden lg:inline-flex">
+              Nouvelle candidature
+            </button>
+            <button
+              type="button"
+              onClick={() => showToast(TOAST_FEATURE)}
+              aria-label="Menu du compte"
+              className="ui-focus flex h-11 w-11 items-center justify-center rounded-full bg-ink text-white lg:h-[38px] lg:w-[38px]"
+            >
+              <IconUser className="h-5 w-5" />
+            </button>
+          </div>
         </div>
+        {/* Sur mobile : les mêmes liens, dans une ligne qui défile. */}
+        <nav aria-label="Navigation de la démo, mobile" className="flex gap-1 overflow-x-auto px-3 pb-2 lg:hidden">
+          {navLinks}
+        </nav>
+      </div>
+
+      <div className="relative flex min-h-[560px] overflow-hidden">
+        {screen === "offres" ? (
+          <DemoOffers key="offres" onFeature={() => showToast(TOAST_FEATURE)} />
+        ) : screen === "candidatures" ? (
+          <DemoApplications
+            key="candidatures"
+            openId={openId}
+            onOpen={openApplication}
+            onCreate={() => showToast(TOAST_CREATE)}
+          />
+        ) : (
+          <DemoHome key="dashboard" onFeature={() => showToast(TOAST_FEATURE)} onOpen={openApplication} />
+        )}
 
         {/* Fiche candidature (panneau latéral) */}
         <div
           aria-hidden="true"
           onClick={() => setOpenId(null)}
-          className={`absolute inset-0 bg-slate-900/20 transition-opacity duration-300 ${
+          className={`absolute inset-0 bg-ink/20 transition-opacity duration-300 ${
             open ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
         />
         <aside
           role="dialog"
-          aria-label={shown ? `${shown.company} — ${shown.position}` : undefined}
+          aria-label={shown ? `${shown.company} : ${shown.position}` : undefined}
           aria-hidden={!open}
           inert={!open}
-          className={`absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l border-slate-200 bg-slate-50 shadow-2xl transition-transform duration-300 ease-out ${
+          className={`absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l border-line bg-surface transition-transform duration-300 ease-out ${
             open ? "translate-x-0" : "translate-x-full"
           }`}
         >
           {shown && (
             <>
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
-                <span className="text-sm text-slate-500">Retour au dashboard</span>
+              <div className="flex items-center justify-between gap-3 border-b border-line bg-white px-5 py-2">
+                <span className="text-sm text-muted">Retour à la page</span>
                 <button
                   ref={closeRef}
                   type="button"
                   onClick={() => setOpenId(null)}
                   aria-label="Fermer"
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+                  className="ui-focus flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-pill hover:text-ink"
                 >
                   ✕
                 </button>
@@ -694,55 +737,50 @@ export function DemoDashboard() {
 
               <div className="flex-1 space-y-4 overflow-y-auto p-5 text-sm">
                 {/* En-tête : entreprise, statut, informations, changement de statut */}
-                <section className="card p-4">
-                  {/* Empilé, comme la fiche sous la largeur lg (le panneau est plus étroit). */}
+                <section className="ui-card p-4">
                   <div className="flex flex-col gap-5">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2.5">
-                        <p className="text-xl font-bold tracking-tight text-slate-900">
-                          {shown.company}
-                        </p>
+                        <p className="text-xl font-bold tracking-tight text-ink">{shown.company}</p>
                         <StatusBadge status={shown.status} />
                       </div>
-                      <p className="mt-1 text-slate-600">
+                      <p className="mt-1 text-prose">
                         {shown.position}
-                        <span className="text-slate-400"> · {shown.location}</span>
+                        <span className="text-muted"> · {shown.location}</span>
                       </p>
                       <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                         <div>
-                          <dt className="text-slate-500">Date d&apos;envoi</dt>
-                          <dd className="mt-0.5 font-medium text-slate-900">{shown.sentAt}</dd>
+                          <dt className="text-muted">Date d&apos;envoi</dt>
+                          <dd className="mt-0.5 font-medium text-ink">{shown.sentAt}</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-500">Contact</dt>
-                          <dd className="mt-0.5 font-medium text-slate-900">{shown.contact}</dd>
+                          <dt className="text-muted">Contact</dt>
+                          <dd className="mt-0.5 font-medium text-ink">{shown.contact}</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-500">Annonce</dt>
-                          <dd className="mt-0.5 font-medium text-blue-600">Voir l&apos;offre</dd>
+                          <dt className="text-muted">Annonce</dt>
+                          <dd className="mt-0.5 font-medium text-accent">Voir l&apos;offre</dd>
                         </div>
                       </dl>
                     </div>
                     {/* Comme StatusChanger : menu déroulant + « Changer le statut ». */}
                     <div className="flex flex-col gap-2">
-                      <label htmlFor="demo-status" className="text-sm font-medium text-slate-700">
+                      <label htmlFor="demo-status" className="text-sm font-medium text-ink">
                         Statut de la candidature
                       </label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <select
                           id="demo-status"
                           // Reste sur le statut actuel : la démo ne modifie rien.
                           value={shown.status}
                           onChange={() => showToast(TOAST_FEATURE)}
-                          className="input min-w-0 flex-1 py-2"
+                          className="ui-input min-w-40 flex-1"
                         >
-                          {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map(
-                            (status) => (
-                              <option key={status} value={status}>
-                                {STATUS_LABELS[status]}
-                              </option>
-                            ),
-                          )}
+                          {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map((status) => (
+                            <option key={status} value={status}>
+                              {STATUS_LABELS[status]}
+                            </option>
+                          ))}
                           <optgroup label="Réponse reçue">
                             {RESPONSE_STATUSES.map((status) => (
                               <option key={status} value={status}>
@@ -751,11 +789,7 @@ export function DemoDashboard() {
                             ))}
                           </optgroup>
                         </select>
-                        <button
-                          type="button"
-                          onClick={() => showToast(TOAST_FEATURE)}
-                          className={PRIMARY_BUTTON}
-                        >
+                        <button type="button" onClick={() => showToast(TOAST_FEATURE)} className="ui-btn-primary">
                           Changer le statut
                         </button>
                       </div>
@@ -764,16 +798,16 @@ export function DemoDashboard() {
                 </section>
 
                 <div className="grid gap-4 lg:grid-cols-3">
-                  <div className="space-y-4 lg:col-span-2">
+                  <div className="min-w-0 space-y-4 lg:col-span-2">
                     <PanelCard
                       title={
                         <span className="flex items-center gap-2">
-                          <IconSparkles className="h-4 w-4 text-slate-500" />
+                          <IconSparkles className="h-4 w-4 text-muted" />
                           Résumé de l&apos;offre
                         </span>
                       }
                     >
-                      <ul className="list-disc space-y-1 pl-5 text-slate-700 marker:text-slate-400">
+                      <ul className="list-disc space-y-1 pl-5 text-prose marker:text-muted">
                         {shown.summary.map((line) => (
                           <li key={line}>{line}</li>
                         ))}
@@ -781,11 +815,11 @@ export function DemoDashboard() {
                     </PanelCard>
 
                     <PanelCard title="CV">
-                      <p className="text-sm text-slate-500">{shown.keywordRate} % de correspondance avec l&apos;offre</p>
+                      <p className="text-sm text-muted">{shown.keywordRate} % de correspondance avec l&apos;offre</p>
                       <div className="mt-3 space-y-3">
                         {shown.missingKeywords.map((category) => (
                           <div key={category.group}>
-                            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{category.group}</p>
+                            <p className="text-xs font-semibold text-muted">{category.group}</p>
                             <ul className="mt-1.5 flex flex-wrap gap-1.5">
                               {category.items.map((keyword) => (
                                 <li key={keyword} className="rounded-full bg-red-50 px-3 py-1 text-sm text-red-700">
@@ -797,11 +831,7 @@ export function DemoDashboard() {
                         ))}
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => showToast(TOAST_FEATURE)}
-                          className={PRIMARY_BUTTON}
-                        >
+                        <button type="button" onClick={() => showToast(TOAST_FEATURE)} className="ui-btn-primary">
                           Adapter mon CV à l&apos;offre
                         </button>
                       </div>
@@ -810,39 +840,24 @@ export function DemoDashboard() {
                     {/* Comme dans l'app : la lettre s'ouvre depuis l'éditeur, pas affichée ici. */}
                     <PanelCard title="Lettre de motivation">
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => showToast(TOAST_FEATURE)}
-                          className={PRIMARY_BUTTON}
-                        >
+                        <button type="button" onClick={() => showToast(TOAST_FEATURE)} className="ui-btn-primary">
                           Ouvrir l&apos;éditeur de lettre
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => showToast(TOAST_FEATURE)}
-                          className={SECONDARY_BUTTON}
-                        >
+                        <button type="button" onClick={() => showToast(TOAST_FEATURE)} className="ui-btn-secondary">
                           Générer ma lettre de motivation
                         </button>
                       </div>
                     </PanelCard>
 
                     {/* Toutes les candidatures ; mise en avant quand une relance est due. */}
-                    <PanelCard
-                      title="Relancer"
-                      className={shown.followUp ? "border-amber-300 ring-1 ring-amber-200" : ""}
-                    >
-                      <p className="text-slate-500">
+                    <PanelCard title="Relancer" className={shown.followUp ? "border-ink" : ""}>
+                      <p className="text-muted">
                         {shown.followUp
                           ? "Pas de nouvelles depuis un moment : c'est le bon moment pour relancer."
                           : "Personnalise le message avant de l'envoyer."}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => showToast(TOAST_FEATURE)}
-                          className={PRIMARY_BUTTON}
-                        >
+                        <button type="button" onClick={() => showToast(TOAST_FEATURE)} className="ui-btn-primary">
                           Envoyer une relance
                         </button>
                       </div>
@@ -858,8 +873,8 @@ export function DemoDashboard() {
                             className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${EVENT_DOTS[event.tone]}`}
                           />
                           <span>
-                            <span className="block text-slate-800">{event.label}</span>
-                            <span className="block text-xs text-slate-500">{event.date}</span>
+                            <span className="block text-ink">{event.label}</span>
+                            <span className="block text-xs text-muted">{event.date}</span>
                           </span>
                         </li>
                       ))}
@@ -867,9 +882,9 @@ export function DemoDashboard() {
                   </PanelCard>
                 </div>
 
-                <section className="rounded-2xl border border-amber-200/70 bg-amber-50/50 p-4 shadow-sm">
-                  <h3 className="mb-2 font-semibold text-slate-900">Notes</h3>
-                  <p className="leading-relaxed text-slate-700">{shown.note}</p>
+                <section className="ui-card-soft p-4">
+                  <p className="mb-2 font-semibold text-ink">Notes</p>
+                  <p className="leading-relaxed text-prose">{shown.note}</p>
                 </section>
               </div>
             </>
@@ -877,34 +892,27 @@ export function DemoDashboard() {
         </aside>
       </div>
 
-      {/* Message au clic sur « Nouvelle candidature » et sur les boutons de la fiche */}
+      {/* Message au clic sur les boutons sans écran et sur ceux de la fiche */}
       <div
         role="status"
         aria-live="polite"
         inert={!toast.visible}
-        className={`fixed inset-x-4 bottom-6 z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-xl shadow-slate-900/10 transition duration-300 ${
-          toast.visible
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none translate-y-4 opacity-0"
+        className={`fixed inset-x-4 bottom-6 z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-block border border-line-strong bg-white py-1.5 pr-1.5 pl-4 text-sm text-ink transition duration-300 ${
+          toast.visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
         }`}
       >
         {/* Contenu toujours présent : il reste visible pendant que le message s'efface. */}
-        <>
-          <Link
-            href="/login"
-            className="font-semibold text-blue-600 underline-offset-4 hover:underline"
-          >
-            {toast.text}
-          </Link>
-          <button
-            type="button"
-            onClick={hideToast}
-            aria-label="Fermer le message"
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
-          >
-            ✕
-          </button>
-        </>
+        <Link href="/signup" className="ui-link inline-flex min-h-11 items-center underline-offset-4 hover:underline">
+          {toast.text}
+        </Link>
+        <button
+          type="button"
+          onClick={hideToast}
+          aria-label="Fermer le message"
+          className="ui-focus flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-pill hover:text-ink"
+        >
+          ✕
+        </button>
       </div>
     </div>
   );

@@ -475,11 +475,11 @@ export default function LandingPage() {
         {/* Démonstration du tableau de bord, hors de Reveal : son message est en position fixe. */}
         <section aria-label="Démonstration du tableau de bord" className="pb-16 md:pb-24">
           <figure className={WRAP}>
-            <div className="overflow-hidden rounded-[16px] border border-line">
+            <div className="overflow-hidden rounded-card border border-line">
               <DemoDashboard />
             </div>
             <figcaption className="mt-4 text-center text-sm text-muted">
-              Le dashboard Applyfy — toutes tes candidatures au même endroit
+              <strong className="font-semibold text-ink">Exemple fictif.</strong> Le dashboard Applyfy — toutes tes candidatures au même endroit
             </figcaption>
           </figure>
         </section>

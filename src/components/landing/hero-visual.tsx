@@ -4,7 +4,7 @@ import { SCORE_CATEGORIES, scoreLabel, SCORE_TOTAL } from "@/lib/cv-score";
 // premier écran de la landing. Le CV et le dialogue sont fictifs, et l'affichent.
 
 /** Score du CV d'exemple ; son appréciation vient de la règle de l'app. */
-const EXAMPLE_SCORE = 82;
+export const HERO_EXAMPLE_SCORE = 82;
 
 const RADIUS = 42;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -34,11 +34,11 @@ function ScoreRing() {
           strokeWidth="9"
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={CIRCUMFERENCE * (1 - EXAMPLE_SCORE / SCORE_TOTAL)}
+          strokeDashoffset={CIRCUMFERENCE * (1 - HERO_EXAMPLE_SCORE / SCORE_TOTAL)}
         />
       </svg>
       <p className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <b className="text-xl tracking-[-0.03em] md:text-[26px]">{EXAMPLE_SCORE}</b>
+        <b className="text-xl tracking-[-0.03em] md:text-[26px]">{HERO_EXAMPLE_SCORE}</b>
         <span className="text-[9px] text-muted md:text-[10px]">/ {SCORE_TOTAL}</span>
       </p>
     </div>
@@ -87,7 +87,7 @@ export function HeroVisual() {
           <div className="ui-card flex items-center gap-3.5 px-4 py-3.5 md:gap-[18px] md:p-5">
             <ScoreRing />
             <div>
-              <p className="text-[14.5px] font-semibold md:text-[15px]">{scoreLabel(EXAMPLE_SCORE)}</p>
+              <p className="text-[14.5px] font-semibold md:text-[15px]">{scoreLabel(HERO_EXAMPLE_SCORE)}</p>
               <p className="mt-0.5 text-xs text-muted md:mt-[3px] md:text-[12.5px]">
                 {CATEGORIES_LABEL} sont notés par des règles claires.
               </p>
