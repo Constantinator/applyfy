@@ -14,6 +14,7 @@ import {
   type AiUsageKind,
 } from "./ai-usage-limits";
 import { demoStore } from "./demo-data";
+import { countFreePlanUsage, type FreePlanCounts } from "./free-plan";
 import { isPremium } from "./subscription";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
@@ -114,6 +115,33 @@ export async function readAiUsage(): Promise<AiUsage> {
   } catch (error) {
     console.error("[aiUsage] lecture", error);
     return toUsage(zeroCounts(), currentPeriod().resetsOn, await isPremium());
+  }
+}
+
+/**
+ * Compteurs de la carte « Ton plan gratuit ». Contrairement à readAiUsage, un échec de lecture
+ * donne null et jamais 0 : la carte est masquée plutôt que d'afficher de faux chiffres.
+ */
+export async function getFreePlanCounts(): Promise<FreePlanCounts | null> {
+  const { period } = currentPeriod();
+  if (!isSupabaseConfigured()) {
+    const counts = demoCounts(period);
+    return { adaptations: counts.cvb_chat, coachToday: counts.cvb_coach, imports: counts.cvb_import };
+  }
+
+  const user = await requireUser();
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("usage")
+      .select("kind, created_at")
+      .eq("user_id", user.id)
+      .eq("period", period);
+    if (error) throw new Error(error.message);
+    return countFreePlanUsage(data as { kind: string; created_at: string }[], new Date());
+  } catch (error) {
+    console.error("[aiUsage] lecture du plan gratuit", error);
+    return null;
   }
 }
 

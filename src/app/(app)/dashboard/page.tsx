@@ -7,16 +7,18 @@ import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { CvCard, type LatestCv } from "@/components/dashboard/cv-card";
 import { GettingStarted } from "@/components/dashboard/getting-started";
 import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversion";
-import { IconSparkles } from "@/components/icons";
+import { FreePlanCard } from "@/components/dashboard/free-plan-card";
 import { MyWeekCard } from "@/components/dashboard/my-week-card";
 import { OfferLinkForm } from "@/components/dashboard/offer-link-form";
 import { OffersForYou } from "@/components/dashboard/offers-for-you";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { TodoCard } from "@/components/dashboard/todo-card";
 import { getAccountCreatedAt, getAccountName } from "@/lib/account";
+import { isAdminEmail } from "@/lib/admin-metrics";
+import { getFreePlanCounts } from "@/lib/ai-usage";
 import { getApplications, getResponseEvents } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
-import { getBetaSpotsLeft, getMyBeta, hasBetaPremium } from "@/lib/beta";
+import { getBetaSpotsLeft, getMyBeta } from "@/lib/beta";
 import { pendingBetaReport } from "@/lib/beta-rules";
 import { getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
@@ -26,6 +28,7 @@ import { buildStartSteps, isNewAccount } from "@/lib/dashboard-start";
 import { buildTodo, todayLabel, todoCountLabel } from "@/lib/dashboard-todo";
 import { buildPeriodStats } from "@/lib/dashboard-week";
 import { FOLLOW_UP_AFTER_DAYS, needsFollowUp } from "@/lib/follow-up";
+import { isFreeAccount } from "@/lib/free-plan";
 import { getWeeklyGoal } from "@/lib/profile";
 import { isStripeConfigured, syncCheckoutSession } from "@/lib/stripe";
 import { getSubscription } from "@/lib/subscription";
@@ -107,11 +110,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }),
     getWeeklyGoal(),
   ]);
-  const premium = (subscription?.premium ?? false) || hasBetaPremium(beta);
   // Programme beta : proposé à ceux qui n'y participent pas encore.
   const canJoinBeta = source !== "demo" && !beta;
   const betaSpotsLeft = canJoinBeta ? await getBetaSpotsLeft() : 0;
-  const canGoPremium = source !== "demo" && !premium;
+  const freeAccount = isFreeAccount({
+    premium: subscription?.premium ?? false,
+    betaActive: beta?.status === "active",
+    admin: isAdminEmail((await getCurrentUser())?.email),
+  });
+  const freePlanCounts = freeAccount ? await getFreePlanCounts() : null;
   const now = new Date();
   // « Tes chiffres » : jamais la candidature exemple.
   const realApplications = applications.filter((app) => !app.is_example);
@@ -232,23 +239,24 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </section>
         )}
 
-        {(canJoinBeta || canGoPremium) && (
-          <div className="ui-card flex flex-wrap items-center gap-2 p-5 sm:p-7">
-            {canJoinBeta && (
-              <BetaJoinDialog
-                mode="join"
-                spotsLeft={betaSpotsLeft}
-                autoOpen={betaParam === "rejoindre"}
-                triggerClassName="ui-btn-secondary"
-              />
-            )}
-            {canGoPremium && (
-              <Link href="/premium" className="ui-btn-secondary">
-                <IconSparkles className="h-4 w-4" />
-                Passer au Premium
-              </Link>
-            )}
-          </div>
+        {/* Masquée si la lecture des compteurs échoue : pas de faux chiffres. */}
+        {freePlanCounts && <FreePlanCard counts={freePlanCounts} />}
+
+        {canJoinBeta && (
+          <section aria-labelledby="beta-invite-title" className="ui-card p-5 sm:p-7">
+            <h2 id="beta-invite-title" className="ui-title">
+              Deviens beta testeur
+            </h2>
+            <p className="mt-2 mb-5 text-sm text-muted dark:text-slate-300">
+              Aide-nous à construire Applyfy et profite du Premium gratuitement.
+            </p>
+            <BetaJoinDialog
+              mode="join"
+              spotsLeft={betaSpotsLeft}
+              autoOpen={betaParam === "rejoindre"}
+              triggerClassName="ui-btn-secondary"
+            />
+          </section>
         )}
       </main>
     </div>
