@@ -28,9 +28,9 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 import type { Sector } from "../src/lib/cv-sector-context";
+import type { AtsCompany, RawOffer } from "../src/lib/job-collect";
 import type { OfferListing } from "../src/lib/offer-types";
 
-const USER_AGENT = `ApplyfyBot/0.1 (+${process.env.APP_URL || "https://applyfy.fr"})`;
 const MIN_DELAY_MS = 3_000;
 const TIMEOUT_MS = 20_000;
 const TOP_TRENDS = 30;
@@ -68,6 +68,8 @@ type Hooks = {
 });
 
 const { SECTORS, matchSectorKeywords } = await import("../src/lib/cv-sector-context");
+const { collectSector, collectUserAgent, createAtsClient, decodeEntities, decodeHtml } = await import("../src/lib/job-collect");
+const USER_AGENT = collectUserAgent();
 
 /** Recherche lancée sur chaque source pour un secteur. */
 const QUERIES: Record<Sector, string> = {
@@ -81,19 +83,6 @@ const QUERIES: Record<Sector, string> = {
   sante: "infirmier",
   etudiant: "stage",
   luxe: "luxe",
-};
-
-/**
- * Offre lue sur une source, avant extraction des mots-clés. `products` : produits de
- * l'entreprise, exclus des mots-clés comme son nom.
- */
-type RawOffer = {
-  externalId: string;
-  title: string;
-  company: string | null;
-  products?: string[];
-  description: string;
-  url: string;
 };
 
 /** Une source : ses offres pour un secteur (au plus `limit`). */
@@ -135,6 +124,8 @@ const toRaw = (offer: OfferListing, externalId = offer.id): RawOffer => ({
   company: offer.company,
   description: offer.description,
   url: offer.url,
+  location: offer.location,
+  publishedAt: offer.publishedAt,
 });
 
 const franceTravail: Collector = {
@@ -161,189 +152,29 @@ const adzuna: Collector = {
 
 // --- Logiciels de recrutement (ATS) ----------------------------------------------------------
 
-// API publiques, sans clé, des pages carrières d'entreprises listées par secteur dans
-// scripts/ats-companies.json. Seules les offres situées en France sont gardées. Pour cette
-// source, --limit compte les offres par entreprise.
-//
-// Dans ats-companies.json, `products` liste les produits de l'entreprise, exclus des mots-clés
-// comme son nom ; `filterTitles` ne garde que les offres du métier du secteur (marque grand
-// public classée en marketing : postes marketing seulement).
+// Logique partagée avec le cron (src/lib/job-collect.ts). Pour cette source, --limit compte les
+// offres par entreprise.
 
-type AtsPlatform = "greenhouse" | "lever" | "lever-eu" | "ashby" | "smartrecruiters";
-type AtsCompany = { name: string; platform: AtsPlatform; slug: string; products?: string[]; filterTitles?: boolean };
-
-const ATS_COMPANIES = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8")) as Record<
+const ATS_COMPANIES = JSON.parse(readFileSync(new URL("../src/lib/ats-companies.json", import.meta.url), "utf8")) as Record<
   Sector,
   AtsCompany[]
 >;
-const ATS_DELAY_MS = 1_000;
-
-const FRANCE =
-  /\bfrance\b|\bparis\b|\blyon\b|marseille|\blille\b|bordeaux|toulouse|nantes|\bnice\b|rennes|strasbourg|montpellier|grenoble|sophia|[iî]le[- ]de[- ]france|la d[ée]fense|boulogne|neuilly|levallois|issy/i;
-/**
- * Intitulés du métier de chaque secteur filtré. Toujours appliqué aux secteurs transverses, lus
- * chez des employeurs de tous domaines (stages et alternances ; postes RH) ; ailleurs, seulement
- * pour les entreprises marquées `filterTitles`.
- */
-const TITLE_FILTERS: Partial<Record<Sector, RegExp>> = {
-  etudiant: /stag|intern|alternan|apprenti|graduate|\bv\.?i\.?e\b|work[- ]study/i,
-  rh: /\b(rh|hr|drh|rrh|hrbp)\b|ressources humaines|human resources|people|talent|recrut|recruit|paie|payroll|compensation|formation/i,
-  marketing:
-    /marketing|brand|marque|communication|growth|\bseo\b|\bsea\b|acquisition|\bcrm\b|content|contenu|social media|community|m[ée]dia|digital|e-?commerce|chef de produit|relations presse|\bpr\b|influence|[ée]v[ée]nementiel|event/i,
-  creatif:
-    /design|graphi|artist|art director|directeur artistique|direction artistique|motion|vid[ée]o|\b3d\b|animat|illustr|\bux\b|\bui\b|creative|cr[ée]atif|cr[ée]ative|photo|monteu|sound|game designer|level designer|concept|r[ée]alisat|post-production|dubbing|doublage|subtitl|sous-titr|maquett|stylis|mod[ée]lis/i,
-};
-const ALWAYS_FILTERED = new Set<Sector>(["etudiant", "rh"]);
-
-let atsNextAt = 0;
-
-/** GET JSON avec 1 s au moins entre deux requêtes ; null si la réponse n'est pas exploitable. */
-async function atsGet<T>(url: string): Promise<T | null> {
-  const wait = atsNextAt - Date.now();
-  if (wait > 0) await sleep(wait);
-  atsNextAt = Date.now() + ATS_DELAY_MS;
-  try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      console.warn(`  ats : ${url} → HTTP ${response.status}`);
-      return null;
-    }
-    return (await response.json()) as T;
-  } catch (error) {
-    console.warn(`  ats : ${url} → ${error instanceof Error ? error.message : error}`);
-    return null;
-  }
-}
-
-type GreenhouseJob = {
-  id: number;
-  title: string;
-  absolute_url: string;
-  content?: string;
-  location?: { name?: string };
-  offices?: { name?: string; location?: string | null }[];
-};
-type LeverPosting = {
-  id: string;
-  text: string;
-  hostedUrl: string;
-  country?: string;
-  categories?: { location?: string; allLocations?: string[] };
-  descriptionPlain?: string;
-  lists?: { text?: string; content?: string }[];
-  additionalPlain?: string;
-};
-type AshbyJob = {
-  id: string;
-  title: string;
-  jobUrl: string;
-  isListed?: boolean;
-  location?: string;
-  secondaryLocations?: { location?: string }[];
-  address?: { postalAddress?: { addressCountry?: string } };
-  descriptionPlain?: string;
-};
-type SmartRecruitersPosting = { id: string; name: string; location?: { country?: string } };
-type SmartRecruitersDetail = {
-  postingUrl?: string;
-  jobAd?: { sections?: Record<string, { text?: string } | undefined> };
-};
-
-/** Offres en France d'une entreprise (au plus `limit`), avec leur description. */
-async function atsOffers(company: AtsCompany, limit: number, keep: (title: string) => boolean): Promise<RawOffer[]> {
-  const { platform, slug, name } = company;
-  const offer = (externalId: string, title: string, url: string, description: string): RawOffer => ({
-    externalId: `${platform}-${slug}-${externalId}`,
-    title: decodeHtml(title),
-    company: name,
-    description,
-    url,
-  });
-
-  if (platform === "greenhouse") {
-    const data = await atsGet<{ jobs?: GreenhouseJob[] }>(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`);
-    return (data?.jobs ?? [])
-      .filter(
-        (j) => FRANCE.test(j.location?.name ?? "") || (j.offices ?? []).some((o) => FRANCE.test(`${o.name} ${o.location ?? ""}`)),
-      )
-      .filter((j) => keep(j.title))
-      .slice(0, limit)
-      // Greenhouse renvoie le HTML de l'offre échappé (&lt;p&gt;…) : deux passes.
-      .map((j) => offer(String(j.id), j.title, j.absolute_url, decodeHtml(decodeHtml(j.content ?? ""))));
-  }
-
-  if (platform === "lever" || platform === "lever-eu") {
-    const host = platform === "lever-eu" ? "api.eu.lever.co" : "api.lever.co";
-    const data = await atsGet<LeverPosting[]>(`https://${host}/v0/postings/${slug}?mode=json`);
-    return (Array.isArray(data) ? data : [])
-      .filter((p) => p.country === "FR" || FRANCE.test([p.categories?.location, ...(p.categories?.allLocations ?? [])].join(" ")))
-      .filter((p) => keep(p.text))
-      .slice(0, limit)
-      .map((p) => {
-        const lists = (p.lists ?? []).map((l) => `${l.text ?? ""} ${decodeHtml(l.content ?? "")}`);
-        return offer(p.id, p.text, p.hostedUrl, [p.descriptionPlain ?? "", ...lists, p.additionalPlain ?? ""].join("\n").trim());
-      });
-  }
-
-  if (platform === "ashby") {
-    const data = await atsGet<{ jobs?: AshbyJob[] }>(`https://api.ashbyhq.com/posting-api/job-board/${slug}`);
-    return (data?.jobs ?? [])
-      .filter((j) => j.isListed !== false)
-      .filter(
-        (j) =>
-          /france/i.test(j.address?.postalAddress?.addressCountry ?? "") ||
-          FRANCE.test([j.location, ...(j.secondaryLocations ?? []).map((l) => l.location)].join(" ")),
-      )
-      .filter((j) => keep(j.title))
-      .slice(0, limit)
-      .map((j) => offer(j.id, j.title, j.jobUrl, j.descriptionPlain ?? ""));
-  }
-
-  // SmartRecruiters : 100 offres par page (5 pages au plus, pour trouver les postes filtrés chez
-  // les grands employeurs) ; la liste ne contient pas la description, lue offre par offre.
-  const postings: SmartRecruitersPosting[] = [];
-  for (let offset = 0; offset < 500 && postings.length < limit; offset += 100) {
-    const page = await atsGet<{ content?: SmartRecruitersPosting[] }>(
-      `https://api.smartrecruiters.com/v1/companies/${slug}/postings?country=fr&limit=100&offset=${offset}`,
-    );
-    const content = page?.content ?? [];
-    postings.push(...content.filter((p) => p.location?.country === "fr" && keep(p.name)));
-    if (content.length < 100) break;
-  }
-  postings.splice(limit);
-  const offers: RawOffer[] = [];
-  for (const posting of postings) {
-    const detail = await atsGet<SmartRecruitersDetail>(`https://api.smartrecruiters.com/v1/companies/${slug}/postings/${posting.id}`);
-    if (!detail) continue;
-    const sections = Object.values(detail.jobAd?.sections ?? {}).map((s) => decodeHtml(s?.text ?? ""));
-    offers.push(
-      offer(
-        posting.id,
-        posting.name,
-        detail.postingUrl ?? `https://jobs.smartrecruiters.com/${slug}/${posting.id}`,
-        sections.join("\n").trim(),
-      ),
-    );
-  }
-  return offers;
-}
+const atsGet = createAtsClient({ log: (message) => console.warn(`  ${message}`) });
 
 const ats: Collector = {
   id: "ats",
   async collect(sector, limit) {
     const offers: RawOffer[] = [];
-    for (const company of ATS_COMPANIES[sector] ?? []) {
-      const filter = company.filterTitles || ALWAYS_FILTERED.has(sector) ? TITLE_FILTERS[sector] : undefined;
-      const found = (await atsOffers(company, limit, (title) => !filter || filter.test(title))).map((offer) => ({
-        ...offer,
-        products: company.products,
-      }));
-      console.log(`  ${company.name} (${company.platform}/${company.slug}) : ${found.length} offre(s) en France`);
-      offers.push(...found);
-    }
+    await collectSector({
+      sector,
+      companies: ATS_COMPANIES[sector] ?? [],
+      limit,
+      get: atsGet,
+      onCompany(company, found) {
+        console.log(`  ${company.name} (${company.platform}/${company.slug}) : ${found.length} offre(s) en France`);
+        offers.push(...found);
+      },
+    });
     return offers;
   },
 };
@@ -494,24 +325,6 @@ function createFetcher(site: Site) {
   };
 }
 
-function decodeEntities(text: string) {
-  return text
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)));
-}
-
-function decodeHtml(text: string) {
-  return decodeEntities(text.replace(/<[^>]+>/g, " "))
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function* walk(node: unknown): Generator<Record<string, unknown>> {
   if (Array.isArray(node)) for (const item of node) yield* walk(item);
   else if (node && typeof node === "object") {
@@ -563,7 +376,7 @@ function siteCollector(site: Site): Collector {
       for (const [externalId, path] of links) {
         const page = await get(path);
         const job = page && findJobPosting(page);
-        if (job) offers.push({ ...job, externalId, url: site.origin + path });
+        if (job) offers.push({ ...job, externalId, url: site.origin + path, location: null, publishedAt: null });
       }
       return offers;
     },
