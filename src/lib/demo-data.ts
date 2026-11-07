@@ -283,6 +283,8 @@ type DemoStore = {
   profileCvs: { id: string; name: string; fileName: string; data: Buffer; uploadedAt: string }[];
   /** Réglages des rappels de relance (mode démo). */
   reminderSettings?: ReminderSettings;
+  /** Objectif de candidatures par semaine (mode démo). */
+  weeklyGoal?: number | null;
   /** Prénom et nom du compte (mode démo). */
   accountName?: AccountName;
   /** Écran de bienvenue vu (mode démo). */

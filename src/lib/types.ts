@@ -91,6 +91,17 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   refusee: "Refusée",
 };
 
+/** Texte de l'événement écrit à un changement de statut : « Envoyée → Entretien ». */
+export const statusChangeContent = (from: ApplicationStatus, to: ApplicationStatus) =>
+  `${STATUS_LABELS[from]} → ${STATUS_LABELS[to]}`;
+
+/**
+ * Fin du texte d'un passage en entretien, seul repère de sa date (pas de colonne dédiée). Dérivée
+ * du même libellé que statusChangeContent : renommer le statut change les deux, mais les événements
+ * déjà écrits gardent l'ancien libellé et ne seraient plus reconnus.
+ */
+export const INTERVIEW_EVENT_SUFFIX = ` → ${STATUS_LABELS.entretien}`;
+
 export const EVENT_LABELS: Record<ApplicationEventType, string> = {
   creation: "Candidature créée",
   envoi: "Candidature envoyée",

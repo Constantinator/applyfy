@@ -8,11 +8,12 @@ import { CvCard, type LatestCv } from "@/components/dashboard/cv-card";
 import { GettingStarted } from "@/components/dashboard/getting-started";
 import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversion";
 import { IconSparkles } from "@/components/icons";
+import { MyWeekCard } from "@/components/dashboard/my-week-card";
 import { OfferLinkForm } from "@/components/dashboard/offer-link-form";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { TodoCard } from "@/components/dashboard/todo-card";
 import { getAccountCreatedAt, getAccountName } from "@/lib/account";
-import { getApplications } from "@/lib/applications";
+import { getApplications, getResponseEvents } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
 import { getBetaSpotsLeft, getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { pendingBetaReport } from "@/lib/beta-rules";
@@ -21,7 +22,9 @@ import { scoreCv, weakestCategory } from "@/lib/cv-score";
 import { loadScoringContext } from "@/lib/cv-score-context";
 import { buildStartSteps, isNewAccount } from "@/lib/dashboard-start";
 import { buildTodo, todayLabel, todoCountLabel } from "@/lib/dashboard-todo";
+import { buildPeriodStats } from "@/lib/dashboard-week";
 import { FOLLOW_UP_AFTER_DAYS, needsFollowUp } from "@/lib/follow-up";
+import { getWeeklyGoal } from "@/lib/profile";
 import { isStripeConfigured, syncCheckoutSession } from "@/lib/stripe";
 import { getSubscription } from "@/lib/subscription";
 
@@ -67,7 +70,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }
   }
 
-  const [{ applications, source }, subscription, beta, accountName, accountCreatedAt, latestCv] = await Promise.all([
+  const [
+    { applications, source },
+    subscription,
+    beta,
+    accountName,
+    accountCreatedAt,
+    latestCv,
+    responseEvents,
+    weeklyGoal,
+  ] = await Promise.all([
     getApplications(),
     getSubscription(),
     getMyBeta(),
@@ -76,6 +88,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     // Non bloquant : sans date, pas de bloc « Pour bien démarrer ».
     getAccountCreatedAt().catch(() => null),
     loadLatestCv(),
+    getResponseEvents().catch((error) => {
+      console.error("[dashboard] lecture des réponses", error);
+      return null;
+    }),
+    getWeeklyGoal(),
   ]);
   const premium = (subscription?.premium ?? false) || hasBetaPremium(beta);
   // Programme beta : proposé à ceux qui n'y participent pas encore.
@@ -83,16 +100,20 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const betaSpotsLeft = canJoinBeta ? await getBetaSpotsLeft() : 0;
   const canGoPremium = source !== "demo" && !premium;
   const now = new Date();
-  const toFollowUp = applications.filter((app) => needsFollowUp(app, now));
+  // « Tes chiffres » : jamais la candidature exemple.
+  const realApplications = applications.filter((app) => !app.is_example);
+  const toFollowUp = realApplications.filter((app) => needsFollowUp(app, now));
   const todo = buildTodo(applications, now);
-  const hasRealApplication = applications.some((app) => !app.is_example);
+  const hasRealApplication = realApplications.length > 0;
+  // Lecture des réponses en échec : pas de carte, plutôt que des chiffres faux.
+  const periodStats = responseEvents && buildPeriodStats(applications, responseEvents, now);
   const betaReport = pendingBetaReport(beta, now);
   // Lecture du CV en échec : étapes inconnues, pas de bloc.
   const startSteps =
     latestCv !== undefined && isNewAccount(accountCreatedAt, now) ? buildStartSteps(latestCv, applications) : null;
 
   const countByStatus = (status: string) =>
-    applications.filter((app) => app.status === status).length;
+    realApplications.filter((app) => app.status === status).length;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -181,19 +202,21 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         {latestCv !== undefined && <CvCard cv={latestCv} />}
       </div>
 
-      {applications.length > 0 && (
+      {periodStats && <MyWeekCard stats={periodStats} goal={weeklyGoal.goal} goalEditable={weeklyGoal.available} />}
+
+      {hasRealApplication && (
         <section aria-labelledby="stats-title" className="space-y-3">
           <h2 id="stats-title" className="text-lg font-semibold text-slate-900 dark:text-white">
             Tes chiffres
           </h2>
           <StatsCards
             stats={[
-              { label: "Candidatures", value: applications.length, tone: "blue" },
+              { label: "Candidatures", value: realApplications.length, tone: "blue" },
               {
                 label: "En attente de réponse",
                 value:
                   countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
-                tone: "indigo",
+                tone: "waiting",
               },
               { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
               {

@@ -4,9 +4,10 @@ import { requireUser } from "./auth";
 import type { CvStyle } from "./cv-style";
 import type { CvSuggestions } from "./cv-types";
 import { demoStore } from "./demo-data";
+import type { ResponseEvent } from "./dashboard-week";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 import {
-  STATUS_LABELS,
+  statusChangeContent,
   type Application,
   type ApplicationDetail,
   type ApplicationDocument,
@@ -62,6 +63,21 @@ export async function getApplications(): Promise<ApplicationsResult> {
   if (error) throw new Error(`Chargement des candidatures impossible : ${error.message}`);
 
   return { applications: data as Application[], source: "supabase" };
+}
+
+/** Réponses reçues (toutes candidatures de l'utilisateur) : carte « Ma semaine » du tableau de bord. */
+export async function getResponseEvents(): Promise<ResponseEvent[]> {
+  if (!isSupabaseConfigured()) return demoStore.events.filter((event) => event.type === "reponse");
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("application_events")
+    .select("application_id, content, created_at")
+    .eq("user_id", user.id)
+    .eq("type", "reponse");
+  if (error) throw new Error(`Chargement des réponses impossible : ${error.message}`);
+  return data as ResponseEvent[];
 }
 
 export async function getApplicationDetail(id: string): Promise<ApplicationDetailResult | null> {
@@ -249,8 +265,7 @@ export async function changeApplicationStatus(id: string, status: ApplicationSta
     eventType = "reponse";
   }
 
-  const content = `${STATUS_LABELS[current.status]} → ${STATUS_LABELS[status]}`;
-  await applyUpdate(id, patch, eventType, content);
+  await applyUpdate(id, patch, eventType, statusChangeContent(current.status, status));
   return { ok: true as const };
 }
 

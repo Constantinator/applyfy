@@ -240,6 +240,43 @@ export async function deleteProfileCv(id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Objectif de la semaine (carte « Ma semaine », migration 0035)
+// ---------------------------------------------------------------------------
+
+/** Colonne weekly_goal absente de la base : migration 0035 pas encore appliquée. */
+export class WeeklyGoalUnavailableError extends Error {}
+
+/**
+ * Objectif de l'utilisateur. Sans échec : `available` est faux si la colonne n'existe pas encore
+ * ou si la lecture échoue ; la carte reste affichée, sans l'édition de l'objectif.
+ */
+export async function getWeeklyGoal(): Promise<{ goal: number | null; available: boolean }> {
+  if (!isSupabaseConfigured()) return { goal: demoStore.weeklyGoal ?? null, available: true };
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("profiles").select("weekly_goal").eq("id", user.id).maybeSingle();
+  if (error) {
+    console.error("[profile] lecture de l'objectif (migration 0035 ?)", error.message);
+    return { goal: null, available: false };
+  }
+  return { goal: (data?.weekly_goal as number | null | undefined) ?? null, available: true };
+}
+
+export async function saveWeeklyGoal(goal: number | null) {
+  if (!isSupabaseConfigured()) {
+    demoStore.weeklyGoal = goal;
+    return;
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").upsert({ id: user.id, weekly_goal: goal });
+  if (error?.code === "PGRST204" || error?.code === "42703") throw new WeeklyGoalUnavailableError();
+  if (error) throw new Error(`Enregistrement de l'objectif impossible : ${error.message}`);
+}
+
+// ---------------------------------------------------------------------------
 // Rappels de relance
 // ---------------------------------------------------------------------------
 
