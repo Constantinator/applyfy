@@ -148,25 +148,35 @@ const COACH_POINTS = [
 ];
 
 /**
- * « Pourquoi Applyfy ? » : yes = oui, no = non, partial = partiel ou plan payant uniquement.
- * Comparatif nominatif : chaque case doit rester exacte et vérifiable (Huntr : huntr.co/pricing,
- * vérifié le 6 novembre 2026). À revoir si Huntr ou Applyfy changent leurs offres.
+ * « Pourquoi Applyfy ? » : yes = oui, no = non, partial = limité ou absent en gratuit, complet en
+ * payant, unknown = non précisé. Comparatif nominatif : n'afficher que ce qui est vérifiable.
+ * Lu sur huntr.co/pricing le 6 novembre 2026 : les prix (mensuel 40, semestriel 26,66), le suivi,
+ * le CV adapté et la lettre. Cette page ne parle ni de la langue de l'interface, ni d'une recherche
+ * d'offres, ni de rappels de relance : ces cases restent « Non précisé ». Elle affiche « $ » sans
+ * code de devise : « dollars US » n'y est pas écrit.
  */
-type Support = "yes" | "no" | "partial";
+type Support = "yes" | "no" | "partial" | "unknown";
+
+const HUNTR_PRO_PRICE_FROM = "26,66";
+const HUNTR_PRO_PRICE_MONTHLY = "40";
 
 const COMPARISON_TOOLS = [
-  { name: "Applyfy", price: `Gratuit · Premium ${PREMIUM_PRICE_FROM_LABEL}` },
-  { name: "Huntr", price: "Pro : 40 $/mois" },
-  { name: "Excel / Word", price: null },
+  { name: "Applyfy", price: `Gratuit · Premium ${PREMIUM_PRICE_FROM_LABEL}`, note: null },
+  {
+    name: "Huntr",
+    price: `Pro : dès ${HUNTR_PRO_PRICE_FROM} $/mois`,
+    note: `${HUNTR_PRO_PRICE_MONTHLY} $/mois en mensuel · dollars US`,
+  },
+  { name: "Excel / Word", price: null, note: null },
 ] as const;
 
 const COMPARISON: { feature: string; values: [Support, Support, Support] }[] = [
-  { feature: "Interface en français", values: ["yes", "no", "yes"] },
+  { feature: "Interface en français", values: ["yes", "unknown", "yes"] },
   { feature: "Suivi des candidatures", values: ["yes", "yes", "no"] },
-  { feature: "Recherche d'offres intégrée", values: ["yes", "no", "no"] },
+  { feature: "Recherche d'offres intégrée", values: ["yes", "unknown", "no"] },
   { feature: "CV adapté à l'offre (IA)", values: ["yes", "partial", "no"] },
   { feature: "Lettre de motivation IA", values: ["yes", "partial", "no"] },
-  { feature: "Rappels de relance", values: ["yes", "partial", "no"] },
+  { feature: "Rappels de relance", values: ["yes", "unknown", "no"] },
 ];
 
 const SUPPORT_DISPLAY: Record<
@@ -187,9 +197,15 @@ const SUPPORT_DISPLAY: Record<
   },
   partial: {
     symbol: "~",
-    label: "Partiel",
+    label: "Limité ou absent en gratuit, complet en payant",
     className: "text-muted",
     size: "text-lg font-semibold",
+  },
+  unknown: {
+    symbol: "Non précisé",
+    label: "Non précisé",
+    className: "text-muted",
+    size: "text-xs font-normal",
   },
 };
 
@@ -571,7 +587,7 @@ export default function LandingPage() {
               Pourquoi Applyfy ?
             </h2>
             <p className="mt-3.5 text-base text-muted md:mt-4 md:text-center md:text-lg">
-              Ce que les autres outils ne font pas (ou font payer très cher).
+              Ce que les autres outils ne font pas, ou font payer plus cher.
             </p>
             {/* Zone qui défile : atteignable au clavier. */}
             <div
@@ -601,6 +617,7 @@ export default function LandingPage() {
                             {tool.price}
                           </span>
                         )}
+                        {tool.note && <span className="mt-0.5 block text-[11px] font-normal text-muted">{tool.note}</span>}
                       </th>
                     ))}
                   </tr>
@@ -630,8 +647,7 @@ export default function LandingPage() {
             </div>
             <p className="mt-3 text-center text-xs text-muted sm:hidden">Fais glisser le tableau pour voir les autres outils.</p>
             <p className="mt-4 text-center text-xs text-muted max-sm:mt-1">
-              ~ = fonctionnalité partielle ou disponible uniquement sur plan
-              payant
+              ~ = limité ou absent sur le plan gratuit, complet sur le plan payant. Non précisé = pas indiqué sur la page de tarifs de Huntr.
             </p>
           </Reveal>
         </section>

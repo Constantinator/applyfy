@@ -78,6 +78,15 @@ test("offre bêta conditionnée à sa date de fin, page régénérée chaque jou
   assert.match(page, /export const revalidate = /);
 });
 
+test("comparatif Huntr : prix de départ et mensuel, rien d'affirmé sans source", () => {
+  assert.match(page, /Pro : dès /);
+  assert.match(page, /en mensuel · dollars US/);
+  assert.match(page, /"Interface en français", values: \["yes", "unknown"/);
+  assert.match(page, /"Recherche d'offres intégrée", values: \["yes", "unknown"/);
+  assert.match(page, /"Rappels de relance", values: \["yes", "unknown"/);
+  assert.doesNotMatch(page, /très cher/);
+});
+
 test("ancres de l'en-tête présentes sur la landing", () => {
   const header = code("components/site/site-header.tsx");
   for (const id of ["fonctionnalites", "comment-ca-marche", "tarifs"]) {
