@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Logo } from "@/components/logo";
+import { BrandLogo } from "@/components/logo";
 
 export const metadata: Metadata = { title: "Désinscription — Applyfy", robots: { index: false } };
 
@@ -11,20 +11,20 @@ export default async function UnsubscribeSuccessPage({ searchParams }: PageProps
   const failed = Boolean(erreur);
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
-      <Link href="/" aria-label="Applyfy, accueil" className="mb-8">
-        <Logo />
+    <main className="flex flex-1 flex-col items-center justify-center bg-white px-4 py-16 dark:bg-slate-950">
+      <Link href="/" aria-label="Applyfy, accueil" className="ui-focus mb-8 inline-flex min-h-11 items-center rounded-block">
+        <BrandLogo />
       </Link>
-      <div className="card w-full max-w-md p-8 text-center">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+      <div className="ui-card w-full max-w-md p-5 sm:p-7 text-center">
+        <h1 className="text-[28px] leading-[1.15] font-bold tracking-[-0.03em] text-ink dark:text-slate-100">
           {failed ? "Lien de désinscription invalide" : "Désinscription confirmée"}
         </h1>
-        <p className="mt-3 text-slate-600 dark:text-slate-400">
+        <p className="mt-3 text-muted dark:text-slate-400">
           {failed
             ? "Ce lien est invalide ou a expiré. Utilise le lien d'un email plus récent, ou contacte-nous."
             : "Tu ne recevras plus d'emails de notre part."}
         </p>
-        <Link href="/dashboard" className="btn-primary mt-6 inline-flex px-5 py-2.5 text-sm">
+        <Link href="/dashboard" className="ui-btn-primary mt-6">
           Retour au tableau de bord
         </Link>
       </div>
