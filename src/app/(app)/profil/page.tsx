@@ -47,7 +47,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
   const periodEnd = subscription?.currentPeriodEnd
     ? longDate.format(new Date(subscription.currentPeriodEnd))
     : null;
-  let planDescription = `Limites mensuelles par fonctionnalité IA. Premium ${PREMIUM_PRICE_FROM_LABEL} : accès illimité.`;
+  let planDescription = `Quotas IA par mois, et par jour pour le coach. Premium ${PREMIUM_PRICE_FROM_LABEL} : plus de quotas mensuels.`;
   if (betaPremium && !stripePremium && beta) {
     planDescription = `Premium offert en tant que beta testeur, jusqu'au ${longDate.format(new Date(`${beta.premiumUntil}T12:00:00Z`))}.`;
   } else if (premium) {
@@ -56,7 +56,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
         ? `Résiliation programmée : ton Premium reste actif jusqu'au ${periodEnd}.`
         : subscription?.status === "past_due"
           ? "Le dernier paiement a échoué : mets à jour ton moyen de paiement pour garder le Premium."
-          : `Fonctionnalités IA illimitées${periodEnd ? `, renouvellement le ${periodEnd}` : ""}.`;
+          : `Plus de quotas mensuels${periodEnd ? `, renouvellement le ${periodEnd}` : ""}.`;
   }
 
   return (

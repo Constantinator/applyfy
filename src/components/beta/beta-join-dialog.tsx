@@ -8,7 +8,7 @@ import { joinBetaAction } from "@/app/actions/beta";
 import { BETA_MAX_TESTERS, BETA_PREMIUM_UNTIL_LABEL } from "@/lib/beta-rules";
 
 const CONDITIONS = [
-  { title: "Premium gratuit", detail: `Toutes les fonctionnalités IA en illimité jusqu'au ${BETA_PREMIUM_UNTIL_LABEL}.` },
+  { title: "Premium gratuit", detail: `Tous les avantages du Premium, offerts jusqu'au ${BETA_PREMIUM_UNTIL_LABEL}.` },
   { title: "Badge « Beta testeur »", detail: "Visible sur ton profil." },
   {
     title: "Engagement : 3 rapports à envoyer",

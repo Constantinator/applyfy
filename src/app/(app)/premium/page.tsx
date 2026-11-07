@@ -4,10 +4,11 @@ import { connection } from "next/server";
 
 import { openBillingPortalAction, startCheckoutAction } from "@/app/actions/premium";
 import { IconSparkles } from "@/components/icons";
-import { AI_MONTHLY_LIMITS, PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
+import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
 import { isStripeConfigured } from "@/lib/stripe";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
+import { FREE_FEATURES, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } from "@/lib/plan-features";
 import { PREMIUM_PLANS, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
 import { BETA_PREMIUM_UNTIL_LABEL } from "@/lib/beta-rules";
 import { getSubscription } from "@/lib/subscription";
@@ -19,26 +20,6 @@ const ERRORS: Record<string, string> = {
   config: "Le paiement n'est pas encore configuré sur ce site.",
   paiement: "La page de paiement n'a pas pu s'ouvrir. Réessaie dans un instant.",
 };
-
-const L = AI_MONTHLY_LIMITS;
-/** « 1 résumé », « 2 résumés ». */
-const count = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
-
-const FREE_FEATURES = [
-  `${count(L.resume_offre, "résumé", "résumés")} d'offre par mois`,
-  `${count(L.adaptation_cv, "analyse", "analyses")} de CV par mois`,
-  `${count(L.cv_ameliore, "CV ouvert", "CV ouverts")} dans l'éditeur par mois`,
-  `${count(L.lettre, "lettre", "lettres")} de motivation par mois`,
-  `${count(L.affinage_cv, "message", "messages")} par mois au chat « Affiner avec l'IA » (CV et lettre)`,
-];
-
-const PREMIUM_FEATURES = [
-  "Résumés d'offre illimités",
-  "Analyses de CV illimitées",
-  "Éditeur de CV illimité",
-  "Lettres de motivation illimitées",
-  "Chat « Affiner avec l'IA » illimité",
-];
 
 function FeatureList({ items, tone }: { items: string[]; tone: "slate" | "blue" }) {
   return (
@@ -74,7 +55,7 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Passe au Premium</h1>
         <p className="mt-1.5 text-slate-500">
-          Utilise toutes les fonctionnalités IA d&apos;Applyfy sans limite, {PREMIUM_PRICE_FROM_LABEL}.
+          Lève les quotas mensuels et la limite du coach, {PREMIUM_PRICE_FROM_LABEL}.
         </p>
       </div>
 
@@ -136,6 +117,8 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
         })}
       </div>
 
+      <p className="text-sm text-slate-500">{PLAN_LIMITS_NOTE}</p>
+
       {stripePremium ? (
         <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
           <p className="text-sm font-medium text-emerald-700">✓ Tu es Premium</p>
@@ -161,7 +144,7 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
           <p className="text-sm font-medium text-slate-500">{premium ? "Ton ancien plan" : "Ton plan actuel"}</p>
         </div>
         <FeatureList items={FREE_FEATURES} tone="slate" />
-        <p className="text-sm text-slate-500">Compteurs remis à zéro le 1er de chaque mois.</p>
+        <p className="text-sm text-slate-500">{RESET_NOTE}</p>
       </section>
     </main>
   );

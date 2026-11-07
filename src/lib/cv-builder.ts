@@ -2,6 +2,7 @@ import "server-only";
 
 import { requireUser } from "./auth";
 import {
+  CV_BUILDER_MAX,
   CvDataSchema,
   isTemplateId,
   readCvData,
@@ -16,8 +17,7 @@ import { createClient, isSupabaseConfigured } from "./supabase/server";
 // CV du CV Builder (table cv_builder, migration 0025) de l'utilisateur connecté. Lecture et
 // écriture avec la session de l'utilisateur (RLS). Mode démo : en mémoire.
 
-/** Nombre maximum de CV par utilisateur. */
-export const CV_BUILDER_MAX = 20;
+export { CV_BUILDER_MAX };
 
 export class CvBuilderError extends Error {}
 

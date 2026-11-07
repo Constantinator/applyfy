@@ -157,7 +157,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             role="status"
             className="ui-notice px-4 py-2 text-sm font-medium"
           >
-            🎉 Bienvenue en Premium ! Toutes les fonctionnalités IA sont maintenant illimitées.
+            🎉 Bienvenue en Premium ! Tes quotas mensuels et la limite du coach sont levés.
           </p>
         )}
 

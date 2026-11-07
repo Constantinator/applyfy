@@ -89,6 +89,9 @@ export const CV_IMPORT_MAX_LABEL = "5 Mo";
 /** Dossier du bucket « documents » où le navigateur dépose le fichier importé. */
 export const CV_IMPORT_FOLDER = "cv-builder-import";
 
+/** Nombre maximum de CV par utilisateur. */
+export const CV_BUILDER_MAX = 20;
+
 export const CV_LIMITS = {
   title: 120,
   /** Intitulés (poste, diplôme, école…) : un intitulé long ne doit jamais être coupé. */
