@@ -85,18 +85,18 @@ export function AdTrackers() {
         <div
           role="dialog"
           aria-labelledby="consent-title"
-          className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-900/10 print:hidden"
+          className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-card border border-line bg-white p-5 print:hidden"
         >
-          <p id="consent-title" className="text-sm font-semibold text-slate-900">
+          <p id="consent-title" className="text-sm font-semibold text-ink">
             Cookies publicitaires
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="mt-1 text-sm leading-relaxed text-muted">
             Avec ton accord, Applyfy utilise le pixel de Meta (Facebook, Instagram) et la balise
             Google Ads pour mesurer l&apos;efficacité de ses publicités. Tu peux changer d&apos;avis
             à tout moment depuis le pied de page.{" "}
             <Link
               href="/politique-confidentialite"
-              className="font-medium text-blue-600 underline-offset-4 hover:underline"
+              className="font-medium text-accent underline-offset-4 hover:underline"
             >
               En savoir plus
             </Link>
@@ -105,14 +105,14 @@ export function AdTrackers() {
             <button
               type="button"
               onClick={() => choose("denied")}
-              className="btn-secondary px-4 py-2 text-sm"
+              className="ui-btn-secondary"
             >
               Refuser
             </button>
             <button
               type="button"
               onClick={() => choose("granted")}
-              className="btn-primary px-4 py-2 text-sm"
+              className="ui-btn-primary"
             >
               Accepter
             </button>

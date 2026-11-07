@@ -231,6 +231,19 @@ body {
   }
 }
 
+/* Comme ui-page, avec une colonne étroite pour la lecture et les formulaires. */
+@utility ui-page-narrow {
+  width: 100%;
+  max-width: 832px;
+  margin-inline: auto;
+  padding: 44px 16px 72px;
+  letter-spacing: -0.01em;
+
+  @media (min-width: 640px) {
+    padding-inline: 32px;
+  }
+}
+
 /* Titre de bloc. */
 @utility ui-title {
   color: var(--color-ink);
@@ -387,6 +400,93 @@ body {
   @variant dark {
     border-color: var(--color-slate-800);
     background-color: var(--color-slate-900);
+  }
+}
+
+/* Carte douce : fond très clair, pour les blocs mis à part. */
+@utility ui-card-soft {
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-line);
+  background-color: var(--color-surface);
+
+  @variant dark {
+    border-color: var(--color-slate-800);
+    background-color: var(--color-slate-900);
+  }
+}
+
+/* Bouton principal sur fond noir : pilule blanche. */
+@utility ui-btn-inverse {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background-color: white;
+  padding: 12px 20px;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: background-color 150ms;
+
+  &:hover {
+    background-color: var(--color-line);
+  }
+  &:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+  }
+  &:disabled,
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+/* Action destructrice : pilule blanche, texte rouge. */
+@utility ui-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-line-strong);
+  background-color: white;
+  padding: 10px 18px;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: background-color 150ms;
+
+  @media (max-width: 1023px) {
+    min-height: 2.75rem;
+  }
+
+  &:hover {
+    background-color: #fef2f2;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  @variant dark {
+    border-color: var(--color-slate-700);
+    background-color: var(--color-slate-900);
+    color: var(--color-red-300);
+
+    &:hover {
+      background-color: var(--color-slate-800);
+    }
   }
 }
 
