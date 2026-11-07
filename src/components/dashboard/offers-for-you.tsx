@@ -18,25 +18,34 @@ export async function OffersForYou({
   if (offers.length === 0) return null;
 
   return (
-    <section aria-labelledby="offers-title" className="ui-card p-5 sm:p-6">
-      <h2 id="offers-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
-        Offres pour toi
-      </h2>
-      <ul className="mt-1">
+    <section aria-labelledby="offers-title">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="offers-title" className="ui-title">
+          Offres pour toi
+        </h2>
+        <Link href="/offres" className="ui-link inline-flex min-h-11 items-center text-sm">
+          Voir plus d&apos;offres →
+        </Link>
+      </div>
+      <ul className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
         {offers.map((offer) => (
           <li
             key={offer.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-soft py-3.5 first:border-t-0 dark:border-slate-800"
+            className="flex min-w-0 flex-col items-start rounded-card border border-line bg-surface p-5 dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className="min-w-0 flex-1 basis-48">
-              <p className="font-semibold break-words text-ink dark:text-white">{offer.title}</p>
-              <p className="text-sm break-words text-muted dark:text-slate-300">{offer.company}</p>
-            </div>
+            <span
+              aria-hidden="true"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E4E4E7] bg-white text-lg font-bold text-ink dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            >
+              {offer.company.charAt(0).toUpperCase()}
+            </span>
+            <p className="mt-3 text-base font-semibold break-words text-ink dark:text-white">{offer.title}</p>
+            <p className="mt-0.5 text-[13px] break-words text-muted dark:text-slate-300">{offer.company}</p>
             <Link
               href={offerImportHref(offer.url)}
               prefetch={false}
               aria-label={`Importer l'offre ${offer.title} chez ${offer.company}`}
-              className="ui-btn-secondary w-full px-4 sm:w-auto"
+              className="ui-btn-secondary mt-4"
             >
               Importer l&apos;offre
             </Link>

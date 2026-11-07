@@ -35,6 +35,9 @@ export const metadata: Metadata = { title: "Tableau de bord — Applyfy" };
 /** Paramètres de l'ancienne liste, qui était sur /dashboard : favoris et e-mails déjà envoyés. */
 const LIST_PARAMS = ["filtre", "tri", "ajout", "suppression"];
 
+/** Section « Tes chiffres » : masquée (doublon de « Ma semaine » et « À faire »), prête à revenir. */
+const SHOW_STATS: boolean = false;
+
 /** Dernier CV et son score, le même que dans l'éditeur ; undefined si la lecture échoue. */
 async function loadLatestCv(): Promise<LatestCv | null | undefined> {
   try {
@@ -127,9 +130,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   return (
     <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
-      <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+      <main className="ui-page flex-1 space-y-8">
         {source === "demo" && (
-          <p className="rounded-block bg-amber-100 px-4 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
+          <p className="ui-notice px-4 py-2 text-sm">
             Mode démo : configure Supabase dans <code>.env.local</code> pour utiliser tes vraies
             données.
           </p>
@@ -145,19 +148,19 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         {welcomePremium && (
           <p
             role="status"
-            className="rounded-block bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
+            className="ui-notice px-4 py-2 text-sm font-medium"
           >
             🎉 Bienvenue en Premium ! Toutes les fonctionnalités IA sont maintenant illimitées.
           </p>
         )}
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <p className="text-sm text-muted dark:text-slate-400">{todayLabel(now)}</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-title break-words text-ink sm:text-4xl dark:text-white">
+            <h1 className="mt-1 text-[40px] leading-[1.1] font-bold tracking-[-0.035em] break-words text-ink dark:text-white">
               Bonjour{accountName ? ` ${accountName.firstName}` : ""}
             </h1>
-            <p className="mt-2 text-lg text-muted dark:text-slate-300">
+            <p className="mt-2 text-[17px] text-muted dark:text-slate-300">
               {!hasRealApplication ? (
                 "Commence par ajouter ta première candidature."
               ) : todo.length > 0 ? (
@@ -171,30 +174,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               )}
             </p>
           </div>
-          {(canJoinBeta || canGoPremium) && (
-            <div className="flex flex-wrap items-center gap-2 self-start">
-              {canJoinBeta && (
-                <BetaJoinDialog
-                  mode="join"
-                  spotsLeft={betaSpotsLeft}
-                  autoOpen={betaParam === "rejoindre"}
-                  triggerClassName="ui-btn-secondary px-4"
-                />
-              )}
-              {canGoPremium && (
-                <Link href="/premium" className="ui-btn-secondary px-4">
-                  <IconSparkles className="h-4 w-4" />
-                  Passer au Premium
-                </Link>
-              )}
-            </div>
-          )}
+          <OfferLinkForm />
         </div>
 
-        <OfferLinkForm />
-
         {betaReport && (
-          <p className="ui-block flex flex-wrap items-center gap-x-2 px-4 py-2 text-sm text-ink dark:text-slate-200">
+          <p className="ui-notice flex flex-wrap items-center gap-x-2 px-4 py-2 text-sm">
             <span>Rapport à rendre avant le {betaReport.dueLabel}</span>
             <Link
               href="/beta"
@@ -205,13 +189,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </p>
         )}
 
-        {startSteps && <GettingStarted steps={startSteps} />}
-
-        <div className={`grid items-start gap-6 ${latestCv === undefined ? "" : "lg:grid-cols-[minmax(0,1fr)_22rem]"}`}>
+        <div className={`grid gap-8 ${latestCv === undefined ? "" : "lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]"}`}>
           <TodoCard items={todo} hasRealApplication={hasRealApplication} />
           {/* Lecture du CV en échec : pas de carte, plutôt qu'un « Crée ton CV » trompeur. */}
           {latestCv !== undefined && <CvCard cv={latestCv} />}
         </div>
+
+        {startSteps && <GettingStarted steps={startSteps} />}
 
         {periodStats && <MyWeekCard stats={periodStats} goal={weeklyGoal.goal} goalEditable={weeklyGoal.available} />}
 
@@ -221,7 +205,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </Suspense>
         )}
 
-        {hasRealApplication && (
+        {SHOW_STATS && hasRealApplication && (
           <section aria-labelledby="stats-title" className="space-y-3">
             <h2 id="stats-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
               Tes chiffres
@@ -246,6 +230,25 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               ]}
             />
           </section>
+        )}
+
+        {(canJoinBeta || canGoPremium) && (
+          <div className="ui-card flex flex-wrap items-center gap-2 p-5 sm:p-7">
+            {canJoinBeta && (
+              <BetaJoinDialog
+                mode="join"
+                spotsLeft={betaSpotsLeft}
+                autoOpen={betaParam === "rejoindre"}
+                triggerClassName="ui-btn-secondary"
+              />
+            )}
+            {canGoPremium && (
+              <Link href="/premium" className="ui-btn-secondary">
+                <IconSparkles className="h-4 w-4" />
+                Passer au Premium
+              </Link>
+            )}
+          </div>
         )}
       </main>
     </div>

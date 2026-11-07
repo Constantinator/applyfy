@@ -18,8 +18,35 @@ export function scoreLabel(score: number) {
 }
 
 /** Jauge circulaire du score sur 100. */
-export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" | "lg" }) {
+export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" | "lg" | "card" }) {
   const t = SCORE_TONES[scoreTone(score)];
+  // Carte « Ton CV » du tableau de bord : 104 px, trait de 9 px, score en noir.
+  if (size === "card") {
+    const r = 47.5;
+    const length = 2 * Math.PI * r;
+    return (
+      <span className="relative block h-[104px] w-[104px] shrink-0">
+        <svg viewBox="0 0 104 104" className="h-full w-full -rotate-90" aria-hidden="true">
+          <circle cx="52" cy="52" r={r} fill="none" strokeWidth="9" className="stroke-track dark:stroke-slate-800" />
+          <circle
+            cx="52"
+            cy="52"
+            r={r}
+            fill="none"
+            strokeWidth="9"
+            strokeLinecap="round"
+            stroke={t.stroke}
+            strokeDasharray={length}
+            strokeDashoffset={length * (1 - score / 100)}
+          />
+        </svg>
+        <span className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[28px] leading-none font-bold text-ink dark:text-white">{score}</span>
+          <span className="mt-1 text-xs leading-none text-muted dark:text-slate-400">/ 100</span>
+        </span>
+      </span>
+    );
+  }
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   return (

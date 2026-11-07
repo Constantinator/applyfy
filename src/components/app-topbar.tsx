@@ -197,9 +197,9 @@ export function AppTopbar({
     return () => desktop.removeEventListener("change", onChange);
   }, [panelOpen]);
 
-  const logo = (size: "sm" | "md") => (
+  const logo = (
     <Link href="/dashboard" aria-label="Applyfy, tableau de bord" className={`inline-flex min-h-11 shrink-0 items-center rounded-lg ${FOCUS}`}>
-      <BrandLogo size={size} />
+      <BrandLogo />
     </Link>
   );
 
@@ -208,13 +208,13 @@ export function AppTopbar({
   // Contenu du panneau : mobile, et « Menu » de l'éditeur en plein écran.
   const panelContent = (
     <>
-      <div className="px-5 pt-5 pb-4">{logo("md")}</div>
+      <div className="px-5 pt-5 pb-4">{logo}</div>
 
       <div className="px-3 pb-3">
         <Link
           href={NEW_APPLICATION.href}
           aria-current={NEW_APPLICATION.isActive(pathname) ? "page" : undefined}
-          className="ui-btn-primary w-full px-4 py-2"
+          className="ui-btn-primary w-full"
         >
           <IconPlus className="h-4 w-4" />
           {NEW_APPLICATION.label}
@@ -304,20 +304,20 @@ export function AppTopbar({
   const accountItems = [PROFILE, EXTENSION, PREMIUM];
   const accountActive = accountItems.some((item) => item.isActive(pathname));
   const barLink = (active: boolean) =>
-    `flex items-center gap-1 rounded-full px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${FOCUS} ${
+    `flex items-center gap-1 rounded-full px-2.5 py-2 text-sm leading-5 font-medium whitespace-nowrap transition-colors xl:px-3.5 ${FOCUS} ${
       active
         ? "bg-pill text-ink dark:bg-slate-800 dark:text-white"
-        : "text-muted hover:text-ink dark:text-slate-300 dark:hover:text-white"
+        : "text-nav hover:text-ink dark:text-slate-300 dark:hover:text-white"
     }`;
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-line bg-white print:hidden dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:h-16">
-          {logo("sm")}
+      <header className="sticky top-0 z-30 border-b border-line bg-white tracking-[-0.01em] print:hidden dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto flex h-[68px] max-w-[1180px] items-center gap-3 px-4 sm:px-8">
+          {logo}
 
           {/* Grand écran : liens dans la barre. */}
-          <nav aria-label="Navigation principale" className="hidden items-center gap-0.5 lg:flex">
+          <nav aria-label="Navigation principale" className="hidden items-center gap-0.5 lg:ml-2 lg:flex xl:ml-5">
             {barLinks.map((item) => {
               const active = item.isActive(pathname);
               return (
@@ -373,7 +373,7 @@ export function AppTopbar({
               href={NEW_APPLICATION.href}
               aria-current={NEW_APPLICATION.isActive(pathname) ? "page" : undefined}
               aria-label={compactNewApplication ? NEW_APPLICATION.label : undefined}
-              className="ui-btn-primary px-4 py-2"
+              className="ui-btn-primary"
             >
               <IconPlus className="h-4 w-4" />
               {compactNewApplication ? (
@@ -387,7 +387,7 @@ export function AppTopbar({
 
             <NavDropdown
               label="Menu du compte"
-              triggerClassName={`flex h-10 w-10 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white hover:bg-ink-hover dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 ${FOCUS} ${
+              triggerClassName={`flex h-[38px] w-[38px] items-center justify-center rounded-full bg-ink text-sm font-semibold text-white hover:bg-ink-hover dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 ${FOCUS} ${
                 accountActive ? "ring-2 ring-ink ring-offset-2 dark:ring-white dark:ring-offset-slate-900" : ""
               }`}
               trigger={initials ? <span aria-hidden="true">{initials}</span> : <IconUser className="h-5 w-5" />}
@@ -552,7 +552,7 @@ function NavDropdown({
           button.current?.focus();
           setOpen(false);
         }}
-        className={`absolute top-full z-40 mt-2 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-block border border-line bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 ${panelClassName}`}
+        className={`absolute top-full z-40 mt-2 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-block border border-line bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900 ${panelClassName}`}
       >
         {children}
       </div>
@@ -607,7 +607,7 @@ function MenuDrawer({
       onSubmitCapture={(e) => {
         if (!canLeave()) e.preventDefault();
       }}
-      className={`m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-white p-0 text-left shadow-xl backdrop:bg-slate-900/40 dark:bg-slate-900 print:hidden ${
+      className={`m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-white p-0 text-left backdrop:bg-slate-900/40 dark:bg-slate-900 print:hidden ${
         side === "right" ? "ml-auto" : ""
       }`}
     >

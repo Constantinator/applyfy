@@ -5,12 +5,10 @@ import Image from "next/image";
 //   - applyfy-logo.png : la coche et le nom (900 × 320).
 
 /** Nouveau logo : « A » en chevron et point bleu, puis le nom. Barre du haut de l'application. */
-export function BrandLogo({ size = "sm" }: { size?: "sm" | "md" }) {
-  const icon = { sm: "h-7 w-7", md: "h-8 w-8" }[size];
-  const text = { sm: "text-[17px]", md: "text-lg" }[size];
+export function BrandLogo() {
   return (
     <span className="inline-flex items-center gap-2 text-ink dark:text-white">
-      <svg viewBox="0 0 48 48" aria-hidden="true" className={`${icon} shrink-0`}>
+      <svg viewBox="0 0 48 48" aria-hidden="true" className="h-8 w-8 shrink-0">
         {/* currentColor : #0A0A0A en clair (text-ink), blanc en mode sombre. */}
         <path
           d="M9 38 L24 8 L39 38"
@@ -22,7 +20,7 @@ export function BrandLogo({ size = "sm" }: { size?: "sm" | "md" }) {
         />
         <circle cx="24" cy="30" r="4.2" fill="#2563EB" />
       </svg>
-      <span className={`${text} font-bold tracking-[-0.03em]`}>Applyfy</span>
+      <span className="text-[22px] font-bold tracking-[-0.03em]">Applyfy</span>
     </span>
   );
 }

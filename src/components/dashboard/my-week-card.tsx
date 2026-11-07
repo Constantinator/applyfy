@@ -55,10 +55,10 @@ function GoalForm({ goal, onClose }: { goal: number | null; onClose: () => void 
           aria-describedby={error ? "weekly-goal-error" : undefined}
           className="ui-input min-h-11 w-24"
         />
-        <button type="submit" disabled={pending} className="ui-btn-primary px-4">
+        <button type="submit" disabled={pending} className="ui-btn-primary">
           {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
-        <button type="button" onClick={onClose} disabled={pending} className="ui-btn-secondary px-4">
+        <button type="button" onClick={onClose} disabled={pending} className="ui-btn-secondary">
           Annuler
         </button>
         {goal !== null && (
@@ -68,7 +68,7 @@ function GoalForm({ goal, onClose }: { goal: number | null; onClose: () => void 
         )}
       </div>
       {error && (
-        <p id="weekly-goal-error" role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+        <p id="weekly-goal-error" role="alert" className="ui-notice-error mt-2 px-3 py-2 text-sm">
           {error}
         </p>
       )}
@@ -95,15 +95,34 @@ export function MyWeekCard({
   const shown = stats[period];
 
   return (
-    <section aria-labelledby="week-title" className="ui-card p-5 sm:p-6">
-      <h2 id="week-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
-        Ma semaine
-      </h2>
+    <section aria-labelledby="week-title" className="ui-card p-5 sm:p-7">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="week-title" className="ui-title">
+          Ma semaine
+        </h2>
+        <div role="group" aria-label="Période" className="flex rounded-full bg-pill p-1 dark:bg-slate-800">
+          {PERIODS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={period === id}
+              onClick={() => setPeriod(id)}
+              className={`ui-focus ui-hit relative rounded-full px-3.5 py-1.5 text-[13px] leading-[18px] font-semibold whitespace-nowrap transition max-[359px]:px-2 ${
+                period === id
+                  ? "bg-ink text-white dark:bg-white dark:text-slate-900"
+                  : "text-muted hover:text-ink dark:text-slate-300 dark:hover:text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <p className="mt-2 text-3xl font-semibold tracking-title text-ink dark:text-white">
+      <p className="mt-5 text-[44px] leading-none font-bold tracking-[-0.04em] text-ink dark:text-white">
         {sentThisWeek}
-        {goal !== null && <span className="text-lg font-semibold text-muted dark:text-slate-400"> / {goal}</span>}
-        <span className="ml-2 text-sm font-normal tracking-normal text-muted dark:text-slate-300">
+        {goal !== null && <span className="text-[22px] font-semibold tracking-normal text-muted dark:text-slate-400"> / {goal}</span>}
+        <span className="ml-2 text-[15px] font-normal tracking-normal text-muted dark:text-slate-300">
           envoyée{sentThisWeek > 1 ? "s" : ""} cette semaine
         </span>
       </p>
@@ -115,7 +134,7 @@ export function MyWeekCard({
           aria-valuemin={0}
           aria-valuemax={goal}
           aria-valuenow={Math.min(sentThisWeek, goal)}
-          className="mt-3 h-2 overflow-hidden rounded-full bg-line-soft dark:bg-slate-800"
+          className="mt-4 h-2.5 overflow-hidden rounded-full bg-track dark:bg-slate-800"
         >
           <div
             className="h-full rounded-full bg-accent transition-[width] dark:bg-blue-500"
@@ -124,58 +143,40 @@ export function MyWeekCard({
         </div>
       )}
 
-      <p className="mt-2 text-sm text-muted dark:text-slate-300">{weekMessage(sentThisWeek, goal)}</p>
-
-      {goalEditable &&
-        (editing ? (
-          <GoalForm goal={goal} onClose={() => setEditing(false)} />
-        ) : (
+      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-sm text-muted dark:text-slate-300">
+        <p>{weekMessage(sentThisWeek, goal)}</p>
+        {goalEditable && !editing && (
           <button type="button" onClick={() => setEditing(true)} className={LINK_CLASS}>
             {goal === null ? "Fixer un objectif" : "Modifier l'objectif"}
           </button>
-        ))}
-
-      <div className="mt-4 border-t border-line-soft pt-4 dark:border-slate-800">
-        <div role="group" aria-label="Période" className="flex rounded-full bg-pill p-1 dark:bg-slate-800">
-          {PERIODS.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={period === id}
-              onClick={() => setPeriod(id)}
-              className={`ui-focus min-h-11 flex-auto rounded-full px-1 text-sm font-medium whitespace-nowrap transition sm:flex-1 sm:px-2 ${
-                period === id
-                  ? "bg-white text-ink shadow-sm dark:bg-slate-900 dark:text-white"
-                  : "text-muted hover:text-ink dark:text-slate-300 dark:hover:text-white"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <dl className="mt-4 grid grid-cols-3 gap-3 text-center">
-          {(
-            [
-              ["Envoyées", shown.sent],
-              ["Réponses", shown.responses],
-              ["Entretiens", shown.interviews],
-            ] as const
-          ).map(([label, value]) => (
-            <div key={label} className="flex flex-col-reverse">
-              <dt className="text-sm text-muted dark:text-slate-300">{label}</dt>
-              <dd className="text-2xl font-semibold tracking-title text-ink dark:text-white">{value}</dd>
-            </div>
-          ))}
-        </dl>
-
-        {shown.responseRate !== null && (
-          <p className="mt-3 text-center text-sm text-muted dark:text-slate-300">
-            Taux de réponse :{" "}
-            <strong className="font-semibold text-ink dark:text-white">{shown.responseRate} %</strong>
-          </p>
         )}
       </div>
+      {goalEditable && editing && <GoalForm goal={goal} onClose={() => setEditing(false)} />}
+
+      <dl className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+        {(
+          [
+            ["Envoyées", shown.sent],
+            ["Réponses", shown.responses],
+            ["Entretiens", shown.interviews],
+          ] as const
+        ).map(([label, value]) => (
+          <div
+            key={label}
+            className="min-w-0 rounded-block bg-[#F8F8F8] px-3 py-3.5 max-[359px]:px-2 sm:px-4 dark:bg-slate-800/50"
+          >
+            <dt className="text-xs text-muted dark:text-slate-300">{label}</dt>
+            <dd className="mt-0.5 text-2xl font-bold text-ink dark:text-white">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {shown.responseRate !== null && (
+        <p className="mt-3 text-sm text-muted dark:text-slate-300">
+          Taux de réponse :{" "}
+          <strong className="font-semibold text-ink dark:text-white">{shown.responseRate} %</strong>
+        </p>
+      )}
     </section>
   );
 }

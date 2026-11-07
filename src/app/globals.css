@@ -51,6 +51,10 @@
   --color-line: #ececec;
   --color-line-soft: #f0f0f0;
   --color-line-strong: #dadada;
+  --color-box: #f4f4f5;
+  --color-track: #eeeeee;
+  --color-nav: #52525b;
+  --color-late: #c2410c;
 
   --radius-card: 24px;
   --radius-block: 16px;
@@ -214,7 +218,82 @@ body {
   }
 }
 
-/* Bouton principal : pilule noire, 44 px de haut (la largeur vient du px-* de l'appelant). */
+/* Contenu d'une page : 1180 px au plus, marges réduites sur mobile. */
+@utility ui-page {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding: 44px 16px 72px;
+  letter-spacing: -0.01em;
+
+  @media (min-width: 640px) {
+    padding-inline: 32px;
+  }
+}
+
+/* Titre de bloc. */
+@utility ui-title {
+  color: var(--color-ink);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+
+  @variant dark {
+    color: white;
+  }
+}
+
+/*
+ * Zone tactile de 44 px sur mobile pour un petit contrôle (l'élément doit être en position
+ * relative) : l'apparence ne change pas.
+ */
+@utility ui-hit {
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+
+  @media (min-width: 1024px) {
+    &::after {
+      content: none;
+    }
+  }
+}
+
+/* Bandeau d'information, de succès ou de démonstration : neutre. */
+@utility ui-notice {
+  border-radius: var(--radius-block);
+  border: 1px solid var(--color-line);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+
+  @variant dark {
+    border-color: var(--color-slate-700);
+    background-color: rgb(30 41 59 / 0.5);
+    color: var(--color-slate-200);
+  }
+}
+
+/* Message d'erreur : reste en rouge, pour rester visible. */
+@utility ui-notice-error {
+  border-radius: var(--radius-block);
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  color: #b91c1c;
+
+  @variant dark {
+    border-color: rgb(248 113 113 / 0.3);
+    background-color: rgb(239 68 68 / 0.15);
+    color: var(--color-red-300);
+  }
+}
+
+/* Bouton principal : pilule noire, 44 px de haut. */
 @utility ui-btn-primary {
   display: inline-flex;
   min-height: 2.75rem;
@@ -223,9 +302,11 @@ body {
   gap: 0.5rem;
   border-radius: 9999px;
   background-color: var(--color-ink);
+  padding: 12px 20px;
   color: white;
   font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
   white-space: nowrap;
   transition: background-color 150ms;
 
@@ -255,18 +336,24 @@ body {
 /* Bouton secondaire : pilule blanche, bordure grise, texte noir. */
 @utility ui-btn-secondary {
   display: inline-flex;
-  min-height: 2.75rem;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   border-radius: 9999px;
   border: 1px solid var(--color-line-strong);
   background-color: white;
+  padding: 10px 18px;
   color: var(--color-ink);
   font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
   white-space: nowrap;
   transition: background-color 150ms;
+
+  /* 42 px d'après ses marges : 44 px sur mobile. */
+  @media (max-width: 1023px) {
+    min-height: 2.75rem;
+  }
 
   &:hover {
     background-color: var(--color-pill);
@@ -300,18 +387,6 @@ body {
   @variant dark {
     border-color: var(--color-slate-800);
     background-color: var(--color-slate-900);
-  }
-}
-
-/* Petit bloc dans ou entre les cartes. */
-@utility ui-block {
-  border-radius: var(--radius-block);
-  border: 1px solid var(--color-line);
-  background-color: var(--color-surface);
-
-  @variant dark {
-    border-color: var(--color-slate-700);
-    background-color: rgb(30 41 59 / 0.5);
   }
 }
 

@@ -81,6 +81,13 @@ export const IconBell = (p: IconProps) => (
   </Icon>
 );
 
+export const IconPencil = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 20l1-4L16 5l3 3L8 19z" />
+    <path d="M14 7l3 3" />
+  </Icon>
+);
+
 export const IconActivity = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3 13h4l3-8 4 14 3-6h4" />
