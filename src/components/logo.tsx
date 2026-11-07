@@ -25,6 +25,23 @@ export function BrandLogo() {
   );
 }
 
+/** Le « A » seul, sans le nom : en tête des cartes de connexion et de désinscription. */
+export function BrandMark({ className = "h-7 w-7" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true" className={`${className} shrink-0 text-ink dark:text-white`}>
+      <path
+        d="M9 38 L24 8 L39 38"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="24" cy="30" r="4.2" fill="#2563EB" />
+    </svg>
+  );
+}
+
 /** Icône Applyfy + nom en texte, en bleu de marque (blue-600 = #1E40AF) : pages légales, désabonnement. */
 export function Logo({ size = "md", withName = true }: { size?: "sm" | "md" | "lg"; withName?: boolean }) {
   const icon = { sm: "h-8 w-8", md: "h-9 w-9", lg: "h-11 w-11" }[size];
