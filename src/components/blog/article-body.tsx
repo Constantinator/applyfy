@@ -8,7 +8,7 @@ function linkify(text: string, key: number) {
       <Link
         key={`${key}-${index}`}
         href="/signup"
-        className="font-semibold text-blue-600 underline-offset-4 hover:underline"
+        className="font-semibold text-accent underline-offset-4 hover:underline"
       >
         {part}
       </Link>
@@ -22,7 +22,7 @@ function linkify(text: string, key: number) {
 function inline(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/).map((part, index) =>
     part.startsWith("**") && part.endsWith("**") ? (
-      <strong key={index} className="font-semibold text-slate-900">
+      <strong key={index} className="font-semibold text-ink">
         {linkify(part.slice(2, -2), index)}
       </strong>
     ) : (
@@ -47,13 +47,13 @@ export function ArticleBody({ content }: { content: string }) {
   const blocks = content.trim().split(/\n\s*\n/);
 
   return (
-    <div className="space-y-5 text-base leading-relaxed text-slate-600 sm:text-lg">
+    <div className="space-y-5 text-base leading-relaxed text-muted sm:text-lg">
       {blocks.map((block, index) => {
         const lines = block.split("\n").map((line) => line.trim());
 
         if (lines.length === 1 && lines[0].startsWith("## ")) {
           return (
-            <h2 key={index} className="pt-6 text-2xl font-bold tracking-tight text-slate-900">
+            <h2 key={index} className="pt-6 text-2xl font-bold tracking-title text-ink">
               {inline(lines[0].slice(3))}
             </h2>
           );
@@ -61,7 +61,7 @@ export function ArticleBody({ content }: { content: string }) {
 
         if (lines.length === 1 && lines[0].startsWith("### ")) {
           return (
-            <h3 key={index} className="pt-3 text-xl font-semibold tracking-tight text-slate-900">
+            <h3 key={index} className="pt-3 text-xl font-semibold tracking-title text-ink">
               {inline(lines[0].slice(4))}
             </h3>
           );
@@ -77,7 +77,7 @@ export function ArticleBody({ content }: { content: string }) {
           return (
             <Fragment key={index}>
               {listStart > 0 && <p>{inline(lines.slice(0, listStart).join(" "))}</p>}
-              <List className={`${list.className} space-y-2 pl-6 marker:text-blue-600`}>
+              <List className={`${list.className} space-y-2 pl-6 marker:text-accent`}>
                 {lines.slice(listStart).map((line, item) => (
                   <li key={item}>{inline(line.replace(list.item, ""))}</li>
                 ))}

@@ -14,11 +14,11 @@ export const metadata: Metadata = pageMetadata({
 
 export default function BlogPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
-      <h1 className="text-center text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-        Blog <span className="text-blue-600">Applyfy</span>
+    <div className="ui-page">
+      <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-center text-ink">
+        Blog <span className="text-accent">Applyfy</span>
       </h1>
-      <p className="mx-auto mt-4 max-w-2xl text-center text-lg tracking-tight text-slate-500">
+      <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted">
         Conseils et astuces pour réussir ta recherche d&apos;emploi
       </p>
 
@@ -29,12 +29,12 @@ export default function BlogPage() {
           return (
             <li key={post.slug} className={featured ? "flex md:col-span-3" : "flex"}>
               <article
-                className={`card flex w-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-0.5 ${featured ? "md:flex-row" : ""}`}
+                className={`ui-card flex w-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-0.5 ${featured ? "md:flex-row" : ""}`}
               >
                 {/* Couverture : 16:9, ou 4:3 sur la moitié gauche pour l'article mis en avant
                     (fond gris clair pour un article sans image). */}
                 <div
-                  className={`relative bg-slate-100 ${featured ? "aspect-[4/3] md:w-1/2 md:shrink-0" : "aspect-video"}`}
+                  className={`relative bg-pill ${featured ? "aspect-[4/3] md:w-1/2 md:shrink-0" : "aspect-video"}`}
                 >
                   {post.cover && (
                     <Image
@@ -51,30 +51,30 @@ export default function BlogPage() {
                     />
                   )}
                   {featured && (
-                    <span className="absolute top-3 left-3 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white">
+                    <span className="absolute top-3 left-3 rounded-full bg-ink px-2.5 py-1 text-xs font-medium text-white">
                       Nouvel article
                     </span>
                   )}
                 </div>
                 <div
-                  className={`flex flex-1 flex-col ${featured ? "p-6 sm:p-8 md:justify-center" : "p-6"}`}
+                  className={`flex flex-1 flex-col p-5 sm:p-7 ${featured ? "md:justify-center" : ""}`}
                 >
-                  <time dateTime={post.date} className="text-xs font-medium text-slate-500">
+                  <time dateTime={post.date} className="text-xs font-medium text-muted">
                     {formatBlogDate(post.date)}
                   </time>
                   <h2
-                    className={`mt-2 leading-snug font-semibold tracking-tight text-slate-900 ${featured ? "text-2xl" : "text-lg"}`}
+                    className={`mt-2 leading-snug font-semibold tracking-title text-ink ${featured ? "text-2xl" : "text-lg"}`}
                   >
                     {post.title}
                   </h2>
                   <p
-                    className={`mt-2 leading-relaxed text-slate-500 ${featured ? "text-base" : "flex-1 text-sm"}`}
+                    className={`mt-2 leading-relaxed text-muted ${featured ? "text-base" : "flex-1 text-sm"}`}
                   >
                     {post.description}
                   </p>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="mt-6 text-sm font-semibold text-blue-600 underline-offset-4 hover:underline"
+                    className="ui-focus ui-hit relative mt-6 self-start text-sm font-semibold text-accent underline-offset-4 hover:underline"
                     aria-label={`Lire l'article : ${post.title}`}
                   >
                     Lire l&apos;article

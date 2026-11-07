@@ -30,12 +30,12 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   if (!post) notFound();
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20">
-      <Link href="/blog" className="text-sm text-slate-500 hover:text-slate-900">
+    <article className="ui-page-narrow">
+      <Link href="/blog" className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white">
         Tous les articles
       </Link>
       {post.cover && (
-        <div className="relative mt-8 aspect-video overflow-hidden rounded-2xl bg-slate-100">
+        <div className="relative mt-8 aspect-video overflow-hidden rounded-card bg-pill">
           <Image
             src={post.cover.src}
             alt={post.cover.alt}
@@ -46,10 +46,10 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
           />
         </div>
       )}
-      <time dateTime={post.date} className="mt-8 block text-sm font-medium text-slate-500">
+      <time dateTime={post.date} className="mt-8 block text-sm font-medium text-muted">
         {formatBlogDate(post.date)}
       </time>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-balance text-slate-900 sm:text-4xl">
+      <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] mt-2 text-balance text-ink">
         {post.title}
       </h1>
       {post.content ? (
@@ -57,7 +57,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
           <ArticleBody content={post.content} />
         </div>
       ) : (
-        <div className="mt-10 rounded-xl border border-slate-200 bg-slate-50 px-6 py-10 text-center text-slate-500">
+        <div className="mt-10 rounded-block border border-line bg-surface px-6 py-10 text-center text-muted">
           Article à venir
         </div>
       )}
