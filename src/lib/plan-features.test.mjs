@@ -23,6 +23,7 @@ const {
   PREMIUM_PRICE_FROM_LABEL,
 } = await import("./ai-usage-limits.ts");
 const { CV_BUILDER_MAX } = await import("./cv-builder-types.ts");
+const { buildFreePlanLines } = await import("./free-plan.ts");
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 /** Source sans commentaires (les « // » des URL sont gardés). */
@@ -60,9 +61,10 @@ test("les listes ne contiennent aucun nombre écrit en dur", () => {
   assert.doesNotMatch(withoutComments(read("lib/plan-features.ts")).replace(/1er|n > 1/g, ""), /\d/);
 });
 
-test("listes courtes, groupées par fonctionnalité : 5 lignes gratuites, 3 lignes Premium", () => {
+test("listes courtes, groupées par fonctionnalité : 5 lignes gratuites ; Premium : le gratuit, puis 3 lignes", () => {
   assert.equal(FREE_FEATURES.length, 5);
-  assert.equal(PREMIUM_FEATURES.length, 3);
+  assert.equal(PREMIUM_FEATURES.length, 4);
+  assert.equal(PREMIUM_FEATURES[0], "Tout le plan gratuit");
 });
 
 test("les quotas gratuits viennent de la source des quotas", () => {
@@ -76,10 +78,7 @@ test("les quotas gratuits viennent de la source des quotas", () => {
 test("« par outil » reste vrai : les quatre compteurs de lettre et de résumé ont la même valeur", () => {
   const { lettre, affinage_lettre, resume_offre, resume_recherche } = AI_MONTHLY_LIMITS;
   assert.equal(new Set([lettre, affinage_lettre, resume_offre, resume_recherche]).size, 1);
-  assert.ok(FREE_FEATURES[3].includes(`${lettre} par mois par outil`));
-  for (const tool of ["lettre", "affinage de la lettre", "résumé à l'ajout", "Trouver une offre"]) {
-    assert.ok(FREE_FEATURES[3].includes(tool));
-  }
+  assert.equal(FREE_FEATURES[3], `Lettres de motivation et résumés d'offre : ${lettre} par mois par outil`);
 });
 
 test("limites communes : 50 actions, 10 requêtes, 20 CV, lues aux constantes", () => {
@@ -94,7 +93,15 @@ test("plus de limite inventée ni de fonctionnalité sans interface", () => {
 });
 
 test("Premium annonce la levée de la limite du Chat IA", () => {
-  assert.equal(PREMIUM_FEATURES[0], `Chat IA : plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour`);
+  assert.equal(PREMIUM_FEATURES[1], `Chat IA : plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour`);
+});
+
+test("vocabulaire : « Chat IA » dans la carte du plan, le message du jour et la bienvenue Premium", () => {
+  const labels = buildFreePlanLines({ adaptations: 0, coachToday: 0, imports: 0 }).map((line) => line.label);
+  assert.ok(labels.includes("Questions au Chat IA aujourd'hui"));
+  assert.ok(CVB_COACH_DAILY_MESSAGE.includes(`tes ${CVB_COACH_DAILY_LIMIT} questions au Chat IA`));
+  assert.match(read("app/(app)/dashboard/page.tsx"), /la limite du Chat IA sont levés/);
+  assert.doesNotMatch(labels.join("\n") + CVB_COACH_DAILY_MESSAGE, /coach/);
 });
 
 test("source unique : /premium et la landing affichent les mêmes listes et les mêmes notes", () => {
@@ -117,7 +124,6 @@ test("messages de limite : nombres lus aux constantes, limite commune rappelée"
     assert.ok(message.includes(`${AI_DAILY_LIMIT} actions IA par jour`));
     assert.ok(message.includes(PREMIUM_PRICE_FROM_LABEL));
   }
-  assert.ok(CVB_COACH_DAILY_MESSAGE.includes(`${CVB_COACH_DAILY_LIMIT} questions au coach`));
   assert.match(CVB_COACH_DAILY_MESSAGE, /minuit/);
   assert.ok(CVB_CHAT_LIMIT_MESSAGE.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations de CV`));
   assert.doesNotMatch(LIMIT_REACHED_LABEL, /essai/i);

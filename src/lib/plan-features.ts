@@ -20,11 +20,12 @@ export const FREE_FEATURES = [
   `Adaptation de CV : ${L.cvb_chat} par mois`,
   `Import de CV : ${L.cvb_import} par mois`,
   // Quatre compteurs de même valeur (vérifié par le test) : d'où « par outil ».
-  `Lettres de motivation et résumés d'offre : ${L.lettre} par mois par outil (lettre, affinage de la lettre, résumé à l'ajout, résumé dans « Trouver une offre »)`,
+  `Lettres de motivation et résumés d'offre : ${L.lettre} par mois par outil`,
   "Suivi des candidatures, tableau de bord et rappels de relance",
 ];
 
 export const PREMIUM_FEATURES = [
+  "Tout le plan gratuit",
   `Chat IA : plus de limite de ${COACH_QUESTIONS} par jour`,
   "Adaptation et import de CV : sans quota mensuel",
   "Lettres et résumés d'offre : sans quota mensuel",
