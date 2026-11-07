@@ -58,7 +58,7 @@ export const AI_USAGE_LABELS: Record<AiUsageKind, { title: string; unit: string;
   cvb_coach: { title: "CV Builder — chat : échanges sans modification", unit: "messages", feminine: false },
 };
 
-/** Utilisation d'un type d'action pour le mois en cours ; `limit` null : illimité (Premium). */
+/** Utilisation d'un type d'action pour le mois en cours ; `limit` null : pas de quota mensuel (Premium). */
 export type AiUsageCount = { used: number; limit: number | null };
 
 export type AiUsage = {
@@ -78,10 +78,21 @@ export const PREMIUM_PRICE_MONTHLY_EQUIVALENT_QUARTERLY = PREMIUM_PRICE_QUARTERL
 /** Prix d'appel du Premium : l'offre 3 mois, ramenée au mois. */
 export const PREMIUM_PRICE_FROM_LABEL = `à partir de ${PREMIUM_PRICE_MONTHLY_EQUIVALENT_QUARTERLY} €/mois`;
 
-export const LIMIT_REACHED_LABEL = "Essai gratuit utilisé";
+/**
+ * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,
+ * heure de Paris) et requêtes à Claude par minute (migration 0020).
+ */
+export const AI_DAILY_LIMIT = 50;
+export const AI_RATE_LIMIT_PER_MINUTE = 10;
 
-/** Message commun à toutes les actions IA quand l'essai gratuit du mois est utilisé. */
-export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton essai gratuit. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour un accès illimité.`;
+/** Ce que le Premium lève, et ce qu'il laisse : la limite commune à tous les plans. */
+const PREMIUM_LIFTS = (what: string) =>
+  `Le Premium, ${PREMIUM_PRICE_FROM_LABEL}, lève ${what} (${AI_DAILY_LIMIT} actions IA par jour maximum).`;
+
+export const LIMIT_REACHED_LABEL = "Quota du mois atteint";
+
+/** Message commun aux actions IA quand le quota gratuit du mois est utilisé. */
+export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton quota gratuit du mois. ${PREMIUM_LIFTS("ce quota")}`;
 
 /**
  * Chat du CV Builder : seules les réponses qui modifient le CV comptent comme adaptations
@@ -89,20 +100,13 @@ export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton essai gratuit. Passe au
  * limités par jour avec le plan gratuit.
  */
 export const CVB_COACH_DAILY_LIMIT = 5;
-export const CVB_COACH_DAILY_MESSAGE = `Tu as atteint la limite de ${CVB_COACH_DAILY_LIMIT} échanges par jour avec le coach. Elle se remet à zéro à minuit, ou passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour échanger sans limite.`;
+export const CVB_COACH_DAILY_MESSAGE = `Tu as posé tes ${CVB_COACH_DAILY_LIMIT} questions au coach aujourd'hui. Le compteur repart à zéro à minuit. ${PREMIUM_LIFTS("cette limite")}`;
 
 /** Chat du CV Builder : plusieurs adaptations gratuites par mois. */
-export const CVB_CHAT_LIMIT_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations IA gratuites ce mois-ci. Passe au Premium ${PREMIUM_PRICE_FROM_LABEL} pour modifier ton CV avec l'IA sans limite.`;
+export const CVB_CHAT_LIMIT_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations de CV gratuites du mois. ${PREMIUM_LIFTS("ce quota")}`;
 
 /** Coach : modification du CV non appliquée, adaptations du mois épuisées (le coach continue). */
 export const CVB_CHAT_UPDATE_BLOCKED_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations gratuites du mois. Passe en Premium pour que j'intègre ça dans ton CV.`;
-
-/**
- * Anti-abus, tous plans : actions IA par jour (tous types confondus, remise à zéro à minuit,
- * heure de Paris) et requêtes à Claude par minute (migration 0020).
- */
-export const AI_DAILY_LIMIT = 50;
-export const AI_RATE_LIMIT_PER_MINUTE = 10;
 
 export const DAILY_LIMIT_MESSAGE =
   "Tu as atteint ta limite quotidienne d'actions IA. Elle se remet à zéro à minuit.";
@@ -113,7 +117,7 @@ export function isLimitReached({ used, limit }: AiUsageCount) {
   return limit !== null && used >= limit;
 }
 
-/** Ex. « 2/3 messages utilisés », ou « 5 messages utilisés » en illimité. */
+/** Ex. « 2/3 messages utilisés », ou « 5 messages utilisés » sans quota mensuel. */
 export function usageLabel(kind: AiUsageKind, { used, limit }: AiUsageCount) {
   const { unit, feminine } = AI_USAGE_LABELS[kind];
   const count = limit === null ? `${used}` : `${Math.min(used, limit)}/${limit}`;

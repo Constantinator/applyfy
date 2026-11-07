@@ -13,7 +13,7 @@ export function PremiumButton() {
 }
 
 /**
- * Bandeau affiché quand l'essai gratuit du mois d'une action IA est utilisé : fond blanc,
+ * Bandeau affiché quand le quota gratuit du mois d'une action IA est utilisé : fond blanc,
  * bordure fine et texte dans le bleu de marque. `resetLabel` : date de remise à zéro
  * (omise là où elle est déjà affichée). `premiumBadge` : pastille « Premium » au-dessus du message.
  */

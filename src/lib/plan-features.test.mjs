@@ -12,7 +12,17 @@ registerHooks({
 });
 const { FREE_FEATURES, LANDING_FREE_ANSWER, LANDING_FREE_FEATURES, LANDING_PREMIUM_FEATURES, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } =
   await import("./plan-features.ts");
-const { AI_DAILY_LIMIT, AI_MONTHLY_LIMITS, AI_RATE_LIMIT_PER_MINUTE, CVB_COACH_DAILY_LIMIT } = await import("./ai-usage-limits.ts");
+const {
+  AI_DAILY_LIMIT,
+  AI_MONTHLY_LIMITS,
+  AI_RATE_LIMIT_PER_MINUTE,
+  CVB_CHAT_LIMIT_MESSAGE,
+  CVB_COACH_DAILY_LIMIT,
+  CVB_COACH_DAILY_MESSAGE,
+  LIMIT_REACHED_LABEL,
+  LIMIT_REACHED_MESSAGE,
+  PREMIUM_PRICE_FROM_LABEL,
+} = await import("./ai-usage-limits.ts");
 const { CV_BUILDER_MAX } = await import("./cv-builder-types.ts");
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -29,6 +39,10 @@ const PROMISE_FILES = [
   "components/onboarding/welcome-premium-modal.tsx",
   "components/beta/beta-join-dialog.tsx",
   "app/page.tsx",
+  "lib/ai-usage-limits.ts",
+  "components/application/refine-chat.tsx",
+  "components/usage/usage-limit-banner.tsx",
+  "components/cv-builder/cv-import-flow.tsx",
 ];
 
 test("aucune promesse « illimité » ou « sans limite » hors commentaires", () => {
@@ -81,6 +95,17 @@ test("landing : mêmes quotas gratuits, dans les tarifs et la FAQ", () => {
 
 test("landing : Premium dit ce qui reste limité pour tous", () => {
   assert.ok(LANDING_PREMIUM_FEATURES.join("\n").includes(`${AI_DAILY_LIMIT} actions IA par jour`));
+});
+
+test("messages de limite : nombres lus aux constantes, limite commune rappelée", () => {
+  for (const message of [LIMIT_REACHED_MESSAGE, CVB_COACH_DAILY_MESSAGE, CVB_CHAT_LIMIT_MESSAGE]) {
+    assert.ok(message.includes(`${AI_DAILY_LIMIT} actions IA par jour`));
+    assert.ok(message.includes(PREMIUM_PRICE_FROM_LABEL));
+  }
+  assert.ok(CVB_COACH_DAILY_MESSAGE.includes(`${CVB_COACH_DAILY_LIMIT} questions au coach`));
+  assert.match(CVB_COACH_DAILY_MESSAGE, /minuit/);
+  assert.ok(CVB_CHAT_LIMIT_MESSAGE.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations de CV`));
+  assert.doesNotMatch(LIMIT_REACHED_LABEL, /essai/i);
 });
 
 test("remises à zéro : le coach par jour, le reste par mois", () => {

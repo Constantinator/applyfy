@@ -261,7 +261,7 @@ export async function deleteBuilderCvAction(id: string, formData?: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// IA : un essai gratuit par mois et par fonctionnalité, illimité en Premium
+// IA : un essai gratuit par mois et par fonctionnalité, sans quota mensuel en Premium
 // ---------------------------------------------------------------------------
 
 export type AiResult<T> = { ok: true; value: T } | { ok: false; error: string; limitReached?: boolean };

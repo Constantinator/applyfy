@@ -279,7 +279,7 @@ export function RefineChat({
           {aiEnabled && (
             <p className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
               {usage.limit === null
-                ? `${used} ${used > 1 ? units.many : units.one} ce mois-ci · illimité`
+                ? `${used} ${used > 1 ? units.many : units.one} ce mois-ci · sans quota mensuel`
                 : `${Math.min(used, usage.limit)}/${usage.limit} ${units.many} ${units.used} ce mois-ci`}
             </p>
           )}

@@ -65,7 +65,7 @@ export type JobOfferSummaryResult =
   | { ok: false; error: string; limitReached?: boolean };
 
 /**
- * Résumé IA d'une offre de la recherche (un essai gratuit par mois, illimité en Premium) :
+ * Résumé IA d'une offre de la recherche (un essai gratuit par mois, sans quota mensuel en Premium) :
  * poste, entreprise, contrat, localisation, puis points clés et compétences requises.
  * L'offre est relue côté serveur.
  */

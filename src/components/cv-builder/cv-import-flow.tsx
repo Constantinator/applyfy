@@ -6,6 +6,7 @@ import { useId, useRef, useState } from "react";
 
 import { completeCvImportAction } from "@/app/actions/cv-builder";
 import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
+import { AI_MONTHLY_LIMITS } from "@/lib/ai-usage-limits";
 import {
   CV_IMPORT_MAX_BYTES,
   CV_IMPORT_MAX_LABEL,
@@ -13,6 +14,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
+import { countLabel } from "@/lib/plan-features";
 
 import { CvImportProgress, type ImportedCv } from "./cv-import-progress";
 import { CvReplacementNotice, TemplateChoiceDialog } from "./new-cv-dialog";
@@ -235,8 +237,8 @@ function UploadStep({
         <div>
           <h2 className="font-semibold text-slate-900 dark:text-white">Importe ton CV actuel</h2>
           <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">
-            Applyfy reprend son contenu dans un nouveau CV, lui donne une note sur 100 et te dit quoi améliorer. L&apos;analyse
-            est gratuite.
+            Applyfy reprend son contenu dans un nouveau CV, lui donne une note sur 100 et te dit quoi améliorer. Avec le plan
+            gratuit : {countLabel(AI_MONTHLY_LIMITS.cvb_import, "import", "imports")} de CV par mois.
           </p>
         </div>
         <button
