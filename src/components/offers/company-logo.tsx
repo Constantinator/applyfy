@@ -36,14 +36,14 @@ export function CompanyLogo({
         height={36}
         unoptimized
         onError={() => setFailed((urls) => [...urls, current])}
-        className="h-9 w-9 shrink-0 rounded-xl bg-white object-contain ring-1 ring-slate-200 dark:ring-slate-700"
+        className="h-9 w-9 shrink-0 rounded-xl bg-white object-contain ring-1 ring-line dark:ring-slate-700"
       />
     );
   }
   return (
     <span
       aria-hidden="true"
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/15 text-sm font-bold text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-500/20"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-box dark:bg-slate-800 dark:text-slate-200 text-sm font-bold text-ink dark:bg-slate-800 dark:text-slate-200 dark:bg-slate-800 dark:text-slate-200"
     >
       {initials(name)}
     </span>

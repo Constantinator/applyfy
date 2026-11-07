@@ -7,7 +7,7 @@ function PendingBar() {
   const { pending } = useLinkStatus();
   if (!pending) return null;
   return (
-    <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 animate-pulse rounded-t-2xl bg-blue-500" />
+    <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 animate-pulse bg-accent" />
   );
 }
 

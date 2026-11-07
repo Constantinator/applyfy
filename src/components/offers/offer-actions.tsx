@@ -45,19 +45,19 @@ export function OfferActions({
   }
 
   return (
-    <footer className="space-y-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:px-6">
+    <footer className="space-y-3 border-t border-line dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:px-7">
       <div className="flex flex-wrap items-start gap-2">
         <AddOfferButton offerId={offerId} search={search} title={title} className="items-start" />
         <button
           type="button"
           onClick={summarize}
           disabled={pending}
-          className="btn-secondary px-4 py-2 text-sm whitespace-nowrap"
+          className="ui-btn-secondary whitespace-nowrap"
         >
           <IconSparkles className="h-4 w-4" />
           {pending ? "Résumé en cours…" : state.status === "done" ? "Regénérer le résumé" : "Générer un résumé"}
         </button>
-        <a href={url} target="_blank" rel="noopener noreferrer" className="btn-secondary px-4 py-2 text-sm">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="ui-btn-secondary">
           Voir l&apos;offre
         </a>
       </div>
@@ -74,10 +74,10 @@ export function OfferActions({
       {state.status === "done" && (
         <section
           aria-label="Résumé de l'offre"
-          className={`max-h-[40vh] overflow-y-auto rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-800/50 dark:ring-slate-700 ${pending ? "opacity-60" : ""}`}
+          className={`max-h-[40vh] overflow-y-auto rounded-block border border-line bg-surface p-4 dark:border-slate-700 dark:bg-slate-800/50 ${pending ? "opacity-60" : ""}`}
         >
-          <h3 className="mb-2 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 dark:text-white">
-            <IconSparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <h3 className="mb-2 inline-flex items-center gap-1.5 text-sm font-semibold text-ink dark:text-white">
+            <IconSparkles className="h-4 w-4" />
             Résumé de l&apos;offre
           </h3>
           <FormattedText text={state.summary} className="dark:text-slate-200" />

@@ -77,16 +77,16 @@ export function RecommendationsToggle({
       role="switch"
       aria-checked={enabled}
       onClick={toggle}
-      className="group inline-flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-200"
+      className="group inline-flex items-center gap-3 text-sm font-medium text-ink dark:text-slate-200"
     >
       <span
         aria-hidden="true"
         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-          enabled ? "bg-blue-600" : "bg-slate-300 group-hover:bg-slate-400"
+          enabled ? "bg-accent" : "bg-line-strong group-hover:bg-[#A1A1AA]"
         }`}
       >
         <span
-          className={`h-5 w-5 rounded-full bg-white dark:bg-slate-900 shadow-sm transition-transform ${
+          className={`h-5 w-5 rounded-full bg-white dark:bg-slate-900 transition-transform ${
             enabled ? "translate-x-5.5" : "translate-x-0.5"
           }`}
         />

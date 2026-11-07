@@ -31,7 +31,7 @@ export function AddOfferButton({
         type="submit"
         disabled={pending}
         aria-label={`Ajouter « ${title} » à mes candidatures`}
-        className="btn-primary px-4 py-2 text-sm whitespace-nowrap"
+        className="ui-btn-primary whitespace-nowrap"
       >
         <IconPlus className="h-4 w-4" />
         {pending ? "Ajout…" : "Ajouter à mes candidatures"}
