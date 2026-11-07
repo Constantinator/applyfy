@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ScoreGauge } from "@/components/cv-builder/cv-score-card";
 import { IconDocument } from "@/components/icons";
 import { READY_SCORE } from "@/lib/cv-score";
+import type { Sector } from "@/lib/cv-sector-context";
 
 export type LatestCv = {
   id: string;
@@ -10,6 +11,9 @@ export type LatestCv = {
   score: number;
   /** Catégorie du score à travailler d'abord (null : CV prêt ou détail indisponible). */
   weakPoint: string | null;
+  /** Secteur détecté et poste visé (« Offres pour toi »). */
+  sector: Sector;
+  targetJob: string;
 };
 
 /** Carte « Ton CV » : score du dernier CV modifié (mêmes jauge et couleurs que l'éditeur). */

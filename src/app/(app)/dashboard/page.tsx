@@ -10,6 +10,7 @@ import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversio
 import { IconSparkles } from "@/components/icons";
 import { MyWeekCard } from "@/components/dashboard/my-week-card";
 import { OfferLinkForm } from "@/components/dashboard/offer-link-form";
+import { OffersForYou } from "@/components/dashboard/offers-for-you";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { TodoCard } from "@/components/dashboard/todo-card";
 import { getAccountCreatedAt, getAccountName } from "@/lib/account";
@@ -18,6 +19,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBetaSpotsLeft, getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { pendingBetaReport } from "@/lib/beta-rules";
 import { getLatestBuilderCv } from "@/lib/cv-builder";
+import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
 import { loadScoringContext } from "@/lib/cv-score-context";
 import { buildStartSteps, isNewAccount } from "@/lib/dashboard-start";
@@ -38,8 +40,16 @@ async function loadLatestCv(): Promise<LatestCv | null | undefined> {
   try {
     const cv = await getLatestBuilderCv();
     if (!cv) return null;
-    const score = scoreCv(cv.data, await loadScoringContext(cv.data));
-    return { id: cv.id, title: cv.title, score: score.score, weakPoint: weakestCategory(score)?.label ?? null };
+    const context = await loadScoringContext(cv.data);
+    const score = scoreCv(cv.data, context);
+    return {
+      id: cv.id,
+      title: cv.title,
+      score: score.score,
+      weakPoint: weakestCategory(score)?.label ?? null,
+      sector: context.sector,
+      targetJob: targetJobOf(cv.data) || cv.data.personal.jobTitle,
+    };
   } catch (error) {
     console.error("[dashboard] lecture du dernier CV", error);
     return undefined;
@@ -203,6 +213,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {periodStats && <MyWeekCard stats={periodStats} goal={weeklyGoal.goal} goalEditable={weeklyGoal.available} />}
+
+      {latestCv && (
+        <Suspense fallback={null}>
+          <OffersForYou sector={latestCv.sector} targetJob={latestCv.targetJob} applied={realApplications} />
+        </Suspense>
+      )}
 
       {hasRealApplication && (
         <section aria-labelledby="stats-title" className="space-y-3">
