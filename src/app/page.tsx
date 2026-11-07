@@ -153,7 +153,7 @@ const COACH_POINTS = [
  * Lu sur huntr.co/pricing le 6 novembre 2026 : les prix (mensuel 40, semestriel 26,66), le suivi,
  * le CV adapté et la lettre. Cette page ne parle ni de la langue de l'interface, ni d'une recherche
  * d'offres, ni de rappels de relance : ces cases restent « Non précisé ». Elle affiche « $ » sans
- * code de devise : « dollars US » n'y est pas écrit.
+ * code de devise : on affiche « $ » sans préciser « dollars US », non confirmé.
  */
 type Support = "yes" | "no" | "partial" | "unknown";
 
@@ -164,8 +164,8 @@ const COMPARISON_TOOLS = [
   { name: "Applyfy", price: `Gratuit · Premium ${PREMIUM_PRICE_FROM_LABEL}`, note: null },
   {
     name: "Huntr",
-    price: `Pro : dès ${HUNTR_PRO_PRICE_FROM} $/mois`,
-    note: `${HUNTR_PRO_PRICE_MONTHLY} $/mois en mensuel · dollars US`,
+    price: `Gratuit · Pro dès ${HUNTR_PRO_PRICE_FROM} $/mois`,
+    note: `${HUNTR_PRO_PRICE_MONTHLY} $/mois en mensuel`,
   },
   { name: "Excel / Word", price: null, note: null },
 ] as const;
