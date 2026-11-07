@@ -25,7 +25,7 @@ import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
 import { BETA_MAX_TESTERS, BETA_PREMIUM_UNTIL_LABEL, isBetaOfferOpen } from "@/lib/beta-rules";
 import { CV_TEMPLATES } from "@/lib/cv-builder-types";
 import { SCORE_CATEGORIES, SCORE_TOTAL } from "@/lib/cv-score";
-import { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } from "@/lib/plan-features";
+import { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, QUARTERLY_FEATURES, RESET_NOTE } from "@/lib/plan-features";
 import { FREE_PLAN_PRICE, PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
 import { pageMetadata } from "@/lib/seo";
 
@@ -55,9 +55,7 @@ const FACTS = [
 ];
 
 // Typographie : graisse 600 sur tous les titres, letter-spacing négatif sur H1 et H2.
-const H1 = "font-semibold tracking-[-0.03em]";
 const H2 = "font-semibold tracking-[-0.02em]";
-const H3 = "font-semibold";
 
 // Sur-titre bleu et titre de section de la maquette.
 const EYEBROW = "mb-2.5 text-[13px] font-semibold tracking-[.02em] text-accent md:mb-3";
@@ -68,6 +66,10 @@ const SCROLL_MARGIN = "scroll-mt-[60px] lg:scroll-mt-[68px]";
 const SOFT_CARD = "ui-card-soft p-[22px] md:rounded-[28px] md:p-7";
 const CARD_H3 = "text-[21px] leading-tight font-semibold tracking-[-0.025em] md:text-[22px]";
 const CARD_TEXT = "text-[15px] text-muted";
+const PLAN_CARD = "flex flex-col p-[26px] md:p-8";
+const PLAN_PRICE = "mt-1.5 mb-0.5 text-[42px] leading-tight font-extrabold tracking-[-0.04em] md:mt-2 md:mb-1 md:text-5xl";
+const PLAN_NOTE = "mb-[18px] text-[13.5px] md:mb-[22px] md:text-sm";
+const PLAN_BUTTON = "mt-auto w-full";
 const CHECK = "flex items-start gap-2.5 text-[15px] md:text-[14.5px]";
 const CHECK_ICON =
   "mt-[3px] flex h-[18px] w-[18px] flex-none items-center justify-center rounded-md bg-ink text-[11px] text-white md:mt-0.5";
@@ -75,13 +77,11 @@ const CHECK_ICON =
 // Boutons compacts (8px 14px, rayon 8px, 14px, graisse 500) : le « ! » l'emporte sur btn-*.
 const BUTTON = "rounded-[8px]! px-[14px]! py-2! text-sm! font-medium!";
 const BTN_PRIMARY = `btn-primary ${BUTTON}`;
-const BTN_SECONDARY = `btn-secondary ${BUTTON}`;
 
 // Rythme : sections alternées blanc / gris clair, 96px de part et d'autre.
 // Transparent / voile gris léger : le dégradé de la page reste visible sous chaque section.
 // relative isolate : le z-10 du contenu reste dans la section (sous l'en-tête collant, z-10 aussi)
 // et la section passe au-dessus des rubans SVG du wrapper.
-const BG_WHITE = "relative isolate bg-transparent";
 const BG_GRAY = "relative isolate bg-slate-500/[0.04]";
 // Contenu de chaque section, au-dessus des rubans.
 const CONTENT = "relative z-10";
@@ -164,7 +164,7 @@ const COACH_POINTS = [
 /**
  * « Pourquoi Applyfy ? » : yes = oui, no = non, partial = partiel ou plan payant uniquement.
  * Comparatif nominatif : chaque case doit rester exacte et vérifiable (Huntr : huntr.co/pricing,
- * vérifié le 12 octobre 2026). À revoir si Huntr ou Applyfy changent leurs offres.
+ * vérifié le 6 novembre 2026). À revoir si Huntr ou Applyfy changent leurs offres.
  */
 type Support = "yes" | "no" | "partial";
 
@@ -190,20 +190,20 @@ const SUPPORT_DISPLAY: Record<
   yes: {
     symbol: "✓",
     label: "Oui",
-    className: "text-emerald-600",
+    className: "text-green-600",
     size: "text-lg font-bold",
   },
   no: {
     symbol: "✕",
     label: "Non",
-    className: "text-red-500",
-    size: "text-xl font-black",
+    className: "text-muted",
+    size: "text-lg font-semibold",
   },
   partial: {
     symbol: "~",
     label: "Partiel",
-    className: "text-amber-500",
-    size: "text-xl font-semibold",
+    className: "text-muted",
+    size: "text-lg font-semibold",
   },
 };
 
@@ -273,12 +273,12 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
   },
 ];
 
-function PlanFeatures({ items }: { items: string[] }) {
+function PlanFeatures({ items, inverse = false }: { items: string[]; inverse?: boolean }) {
   return (
-    <ul className="space-y-3 text-sm text-slate-700">
+    <ul className="mb-[22px] space-y-2.5">
       {items.map((item) => (
-        <li key={item} className="flex gap-2.5">
-          <span aria-hidden="true" className="font-bold text-blue-600">
+        <li key={item} className={CHECK}>
+          <span aria-hidden="true" className={`${CHECK_ICON} ${inverse ? "bg-accent!" : ""}`}>
             ✓
           </span>
           {item}
@@ -544,50 +544,68 @@ export default function LandingPage() {
           </figure>
         </section>
 
-        {/* Pourquoi Applyfy ? (blanc) */}
-        <section aria-labelledby="why-title" className={BG_WHITE}>
-          <Reveal
-            className={`mx-auto max-w-4xl px-4 sm:px-6 ${SECTION_Y} ${CONTENT}`}
-          >
-            <h2
-              id="why-title"
-              className={`text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
-            >
+        {/* Le coach, sur fond noir. Dialogue fictif, conforme au vrai coach : il applique et annonce. */}
+        <section aria-labelledby="coach-title" className="bg-ink py-16 text-white md:py-24">
+          <div className={`${WRAP} grid gap-x-16 gap-y-6 md:grid-cols-2 md:grid-rows-[auto_auto] md:items-center`}>
+            <div className="md:self-end">
+              <p className={`${EYEBROW} text-blue-400!`}>Le coach</p>
+              <h2 id="coach-title" className={TITLE}>
+                Ton CV s&apos;améliore à chaque réponse.
+              </h2>
+              <p className="mt-4 text-base text-[#A1A1AA] md:mt-5 md:text-lg">
+                Le coach part de ton CV et de son score, repère ce qui manque (et les mots-clés de l&apos;offre si ton CV y est lié), puis te pose une question précise.
+              </p>
+            </div>
+            <figure className="md:col-start-2 md:row-span-2 md:row-start-1">
+              <div className="flex flex-col gap-2.5 rounded-card border border-[#262626] bg-[#171717] p-4 text-sm md:gap-3 md:rounded-[28px] md:p-6 md:text-[14.5px]">
+                <p className="max-w-[92%] rounded-2xl bg-[#262626] px-3.5 py-3 md:max-w-[88%] md:rounded-[18px] md:px-4 md:py-[13px]">
+                  Chez Atelier Lumen, tu as « géré des projets ». Combien en parallèle, et pour quel type de clients ?
+                </p>
+                <p className="max-w-[84%] self-end rounded-2xl bg-white px-3.5 py-3 text-ink md:max-w-[80%] md:rounded-[18px] md:px-4 md:py-[13px]">
+                  Environ 5 à la fois, surtout des grands comptes.
+                </p>
+                <p className="max-w-[92%] rounded-2xl bg-[#262626] px-3.5 py-3 md:max-w-[88%] md:rounded-[18px] md:px-4 md:py-[13px]">
+                  C&apos;est fait : j&apos;ai ajouté « Piloté jusqu&apos;à 5 projets simultanés pour des clients grands comptes » à ton CV.
+                </p>
+              </div>
+              <figcaption className="mt-3 text-center text-[13px] text-[#A1A1AA]">Exemple fictif</figcaption>
+            </figure>
+            <div className="md:self-start">
+              <Link href="/signup" className="ui-btn-inverse text-base! max-md:w-full md:px-[26px]!">
+                Essayer gratuitement
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Pourquoi Applyfy ? */}
+        <section aria-labelledby="why-title" className={SECTION}>
+          <Reveal className={`${WRAP} max-w-4xl!`}>
+            <h2 id="why-title" className={`md:text-center ${TITLE}`}>
               Pourquoi Applyfy ?
             </h2>
-            <p className="mt-4 text-center text-lg text-slate-500">
+            <p className="mt-3.5 text-base text-muted md:mt-4 md:text-center md:text-lg">
               Ce que les autres outils ne font pas (ou font payer très cher).
             </p>
-            <div className="relative mt-12 overflow-x-auto rounded-[16px] border border-[#e5e7eb] bg-white">
+            <div className="relative mt-7 overflow-x-auto rounded-card border border-line md:mt-12">
               <table className="w-full min-w-[34rem] border-collapse text-sm">
                 <caption className="sr-only">
                   Comparatif d&apos;Applyfy avec Huntr et Excel / Word
                 </caption>
                 <thead>
                   <tr>
-                    <th
-                      scope="col"
-                      className="px-4 py-4 text-left font-medium text-slate-500"
-                    >
+                    <th scope="col" className="px-4 py-4 text-left font-medium text-muted">
                       <span className="sr-only">Fonctionnalité</span>
                     </th>
                     {COMPARISON_TOOLS.map((tool, index) => (
                       <th
                         key={tool.name}
                         scope="col"
-                        className={`px-4 py-4 text-center font-semibold ${
-                          index === 0
-                            ? "bg-[#1E40AF] text-white"
-                            : "text-slate-700"
-                        }`}
+                        className={`px-4 py-4 text-center font-semibold ${index === 0 ? "bg-ink text-white" : "text-ink"}`}
                       >
                         {tool.name}
                         {tool.price && (
-                          <span
-                            className={`mt-0.5 block text-xs font-normal ${
-                              index === 0 ? "text-white/75" : "text-slate-500"
-                            }`}
-                          >
+                          <span className={`mt-0.5 block text-xs font-normal ${index === 0 ? "text-white/75" : "text-muted"}`}>
                             {tool.price}
                           </span>
                         )}
@@ -597,11 +615,8 @@ export default function LandingPage() {
                 </thead>
                 <tbody>
                   {COMPARISON.map((row) => (
-                    <tr key={row.feature} className="border-t border-[#e5e7eb]">
-                      <th
-                        scope="row"
-                        className="px-4 py-3.5 text-left font-medium text-slate-700"
-                      >
+                    <tr key={row.feature} className="border-t border-line">
+                      <th scope="row" className="px-4 py-3.5 text-left font-medium text-ink">
                         {row.feature}
                       </th>
                       {row.values.map((value, index) => {
@@ -609,11 +624,7 @@ export default function LandingPage() {
                         return (
                           <td
                             key={COMPARISON_TOOLS[index].name}
-                            className={`px-4 py-3.5 text-center ${display.className} ${
-                              index === 0
-                                ? "bg-green-50 text-2xl font-black"
-                                : display.size
-                            }`}
+                            className={`px-4 py-3.5 text-center ${display.className} ${display.size} ${index === 0 ? "bg-surface" : ""}`}
                           >
                             <span aria-hidden="true">{display.symbol}</span>
                             <span className="sr-only">{display.label}</span>
@@ -625,101 +636,71 @@ export default function LandingPage() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-4 text-center text-xs text-slate-500">
+            <p className="mt-4 text-center text-xs text-muted">
               ~ = fonctionnalité partielle ou disponible uniquement sur plan
               payant
             </p>
           </Reveal>
         </section>
 
-        {/* Nos tarifs (blanc) : Gratuit, Premium Mensuel et Premium 3 mois (mis en avant). */}
+        {/* Tarifs : ordre de la maquette sur mobile (3 mois, mensuel, gratuit), via order. */}
         <section
           id="tarifs"
           aria-labelledby="pricing-title"
-          className="relative isolate scroll-mt-[60px] bg-white lg:scroll-mt-[68px]"
+          className={`pb-16 md:pb-24 ${SCROLL_MARGIN}`}
         >
-          <div className={`mx-auto max-w-5xl px-4 py-20 sm:px-6 ${CONTENT}`}>
-            <h2
-              id="pricing-title"
-              className={`text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
-            >
-              Nos tarifs
-            </h2>
+          <div className={WRAP}>
+            <div className="mx-auto max-w-[900px] md:text-center">
+              <p className={EYEBROW}>Tarifs</p>
+              <h2 id="pricing-title" className={TITLE}>
+                Nos tarifs
+              </h2>
+            </div>
 
-            <div className="mt-12 grid gap-6 md:grid-cols-3">
-              <article className="flex h-full flex-col justify-between rounded-[12px] border border-[#e5e7eb] bg-white p-8">
-                <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  Sans carte bancaire
-                </span>
-                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Gratuit</h3>
-                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>{FREE_PLAN_PRICE} €</p>
-                <div className="mt-6 mb-8">
-                  <PlanFeatures items={FREE_FEATURES} />
-                </div>
-                <Link
-                  href="/signup"
-                  className={`mt-auto w-full ${BTN_SECONDARY}`}
-                >
+            <div className="mt-7 grid gap-4 md:mt-[52px] md:grid-cols-3 md:gap-5">
+              <article className={`order-3 md:order-1 ${PLAN_CARD} ui-card`}>
+                <h3 className="font-semibold">Gratuit</h3>
+                <p className={PLAN_PRICE}>{FREE_PLAN_PRICE} €</p>
+                <p className={`text-muted ${PLAN_NOTE}`}>Sans carte bancaire</p>
+                <PlanFeatures items={FREE_FEATURES} />
+                <Link href="/signup" className={`ui-btn-secondary ${PLAN_BUTTON}`}>
                   Commencer gratuitement
                 </Link>
               </article>
 
-              {/* Premium Mensuel : sans engagement. */}
-              <article className="flex h-full flex-col justify-between rounded-[12px] border border-[#e5e7eb] bg-white p-8">
-                <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  Sans engagement
-                </span>
-                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Premium {PREMIUM_MONTHLY_PLAN.name}</h3>
-                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>
+              <article className={`order-2 ${PLAN_CARD} ui-card`}>
+                <h3 className="font-semibold">Premium {PREMIUM_MONTHLY_PLAN.name.toLowerCase()}</h3>
+                <p className={PLAN_PRICE}>
                   {PREMIUM_MONTHLY_PLAN.monthlyPrice} €
-                  <span className="text-base font-medium tracking-normal text-slate-500">
-                    {" "}
-                    / mois
-                  </span>
+                  <span className="text-[15px] font-medium tracking-normal text-muted md:text-base"> / mois</span>
                 </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Résiliable à tout moment.
-                </p>
-                <div className="mt-6 mb-8">
-                  <PlanFeatures items={PREMIUM_FEATURES} />
-                </div>
-                <Link
-                  href="/signup"
-                  className={`mt-auto w-full ${BTN_SECONDARY}`}
-                >
+                <p className={`text-muted ${PLAN_NOTE}`}>Sans engagement, résiliable à tout moment.</p>
+                <PlanFeatures items={PREMIUM_FEATURES} />
+                <Link href="/signup" className={`ui-btn-secondary ${PLAN_BUTTON}`}>
                   Obtenir le Premium
                 </Link>
               </article>
 
-              {/* Premium 3 mois : bordure bleue de 2 px, fond bleuté et ombre (même hauteur que les autres : boutons alignés). */}
-              <article className="flex h-full flex-col justify-between rounded-[12px] border-2 border-blue-500 bg-blue-50/50 p-8 shadow-lg shadow-blue-600/10">
-                <span className="self-start rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white">
+              <article className={`relative order-1 rounded-card bg-ink text-white md:order-3 ${PLAN_CARD}`}>
+                <span className="absolute -top-[11px] right-5 rounded-full bg-accent px-3 py-[5px] text-xs font-bold text-white md:-top-3 md:right-6">
                   Meilleure offre · −{QUARTERLY_SAVING_PERCENT} %
                 </span>
-                <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Premium {PREMIUM_QUARTERLY_PLAN.name}</h3>
-                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>
+                <h3 className="font-semibold">Premium {PREMIUM_QUARTERLY_PLAN.name}</h3>
+                <p className={PLAN_PRICE}>
                   {PREMIUM_QUARTERLY_PLAN.monthlyPrice} €
-                  <span className="text-base font-medium tracking-normal text-slate-500">
-                    {" "}
-                    / mois
-                  </span>
+                  <span className="text-[15px] font-medium tracking-normal text-[#A1A1AA] md:text-base"> / mois</span>
                 </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Facturé {PREMIUM_QUARTERLY_PLAN.billedAmount} € tous les {PREMIUM_QUARTERLY_PLAN.intervalMonths} mois, renouvelable.
+                <p className={`text-[#A1A1AA] ${PLAN_NOTE}`}>
+                  Facturé {PREMIUM_QUARTERLY_PLAN.billedAmount} € tous les {PREMIUM_QUARTERLY_PLAN.intervalMonths} mois, renouvelable. Résiliable à tout moment pour la période suivante.
                 </p>
-                <div className="mt-6 mb-8">
-                  <PlanFeatures items={PREMIUM_FEATURES} />
-                </div>
-                <Link
-                  href="/signup"
-                  className={`mt-auto w-full ${BTN_PRIMARY}`}
-                >
+                <PlanFeatures items={QUARTERLY_FEATURES} inverse />
+                <Link href="/signup" className={`ui-btn-inverse ${PLAN_BUTTON}`}>
                   Obtenir le Premium
                 </Link>
               </article>
             </div>
-            <p className="mt-6 text-center text-sm text-slate-500">
-              {PLAN_LIMITS_NOTE} {RESET_NOTE}
+            <p className="mt-5 text-center text-[12.5px] text-muted md:mt-[22px] md:text-[13px]">
+              {PLAN_LIMITS_NOTE} {RESET_NOTE} Paiement sécurisé par Stripe.
             </p>
           </div>
         </section>

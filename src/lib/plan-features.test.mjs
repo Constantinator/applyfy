@@ -10,7 +10,7 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } = await import("./plan-features.ts");
+const { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, QUARTERLY_FEATURES, RESET_NOTE } = await import("./plan-features.ts");
 const {
   AI_DAILY_LIMIT,
   AI_MONTHLY_LIMITS,
@@ -66,6 +66,11 @@ test("listes courtes, groupées par fonctionnalité : 5 lignes gratuites ; Premi
   assert.equal(FREE_FEATURES.length, 5);
   assert.equal(PREMIUM_FEATURES.length, 4);
   assert.equal(PREMIUM_FEATURES[0], "Tout le plan gratuit");
+});
+
+test("carte 3 mois : la landing lit sa liste dans la source unique", () => {
+  assert.match(read("app/page.tsx"), /\{QUARTERLY_FEATURES\}/);
+  assert.ok(QUARTERLY_FEATURES.length > 0);
 });
 
 test("les quotas gratuits viennent de la source des quotas", () => {

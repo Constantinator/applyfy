@@ -31,6 +31,13 @@ export const PREMIUM_FEATURES = [
   "Lettres et résumés d'offre : sans quota mensuel",
 ];
 
+/** Carte « 3 mois » : mêmes droits que le mensuel (voir l'en-tête), seule la facturation change. */
+export const QUARTERLY_FEATURES = [
+  "Tout Premium mensuel",
+  "Le meilleur prix par mois",
+  "Mêmes droits, seule la facturation change",
+];
+
 /** Réponse de la FAQ « Qu'est-ce qui est gratuit ? » de la landing. */
 export const LANDING_FREE_ANSWER = `Le plan gratuit inclut le suivi de tes candidatures, le tableau de bord, les rappels de relance, ${COACH_QUESTIONS} par jour au Chat IA (coach), ${countLabel(L.cvb_chat, "adaptation", "adaptations")} et ${countLabel(L.cvb_import, "import", "imports")} de CV par mois, et ${L.lettre} usage par mois de chaque outil de lettre et de résumé d'offre. Aucune carte bancaire requise.`;
 
