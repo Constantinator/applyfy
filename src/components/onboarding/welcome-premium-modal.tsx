@@ -39,7 +39,7 @@ function CheckoutButton({ label, primary }: { label: string; primary?: boolean }
       type="submit"
       autoFocus={primary}
       disabled={pending}
-      className={`${primary ? "btn-primary" : "btn-secondary"} w-full px-4 py-2.5 text-sm`}
+      className={`${primary ? "ui-btn-primary" : "ui-btn-secondary"} w-full px-4 py-2.5 text-sm`}
     >
       {pending ? "Redirection vers le paiement…" : label}
     </button>
@@ -89,20 +89,20 @@ export function WelcomePremiumModal() {
       onClick={(e) => {
         if (e.target === e.currentTarget) close();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl bg-white p-0 shadow-xl backdrop:bg-black/60 dark:bg-slate-900"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card bg-white p-0 backdrop:bg-black/60 dark:bg-slate-900"
     >
       <div className="p-6 text-center sm:p-8">
-        <h2 id="welcome-premium-title" className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+        <h2 id="welcome-premium-title" className="text-2xl font-bold tracking-title text-ink dark:text-white">
           Bienvenue sur Applyfy
         </h2>
-        <p id="welcome-premium-description" className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+        <p id="welcome-premium-description" className="mt-3 text-sm text-muted dark:text-slate-300">
           Passe au Premium pour lever les quotas mensuels et la limite du Chat IA.
         </p>
 
-        <p className="mt-6 text-3xl font-bold text-green-600 dark:text-green-400">
+        <p className="mt-6 text-3xl font-bold text-ink dark:text-slate-200">
           {PREMIUM_PRICE_FROM_LABEL.charAt(0).toUpperCase() + PREMIUM_PRICE_FROM_LABEL.slice(1)}
         </p>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-xs text-muted dark:text-slate-400">
           {PREMIUM_QUARTERLY_PLAN.monthlyPrice} €/mois avec l&apos;offre {PREMIUM_QUARTERLY_PLAN.name} (facturé{" "}
           {PREMIUM_QUARTERLY_PLAN.billedAmount} € tous les {PREMIUM_QUARTERLY_PLAN.intervalMonths} mois), ou{" "}
           {PREMIUM_MONTHLY_PLAN.monthlyPrice} €/mois sans engagement.
@@ -122,7 +122,7 @@ export function WelcomePremiumModal() {
         <button
           type="button"
           onClick={close}
-          className="mt-3 text-sm text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white"
+          className="ui-focus ui-hit relative mt-3 text-sm text-muted underline-offset-4 hover:text-ink hover:underline dark:text-slate-400 dark:hover:text-white"
         >
           Non merci, continuer gratuitement
         </button>

@@ -6,7 +6,7 @@ import { LIMIT_REACHED_MESSAGE } from "@/lib/ai-usage-limits";
 /** Bouton « Passer au Premium » : page de présentation et de paiement du Premium. */
 export function PremiumButton() {
   return (
-    <Link href="/premium" className="btn-primary inline-flex px-4 py-2 text-sm">
+    <Link href="/premium" className="ui-btn-primary inline-flex">
       Passer au Premium
     </Link>
   );
@@ -27,16 +27,16 @@ export function UsageLimitBanner({
   premiumBadge?: boolean;
 }) {
   return (
-    <div role="alert" className="space-y-3 rounded-xl border border-[#1E40AF] bg-white p-4 text-sm">
+    <div role="alert" className="space-y-3 rounded-block border border-line bg-white p-4 text-sm">
       <div>
         {premiumBadge && (
-          <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#1E40AF] ring-1 ring-blue-200">
+          <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-pill px-2.5 py-1 text-xs font-semibold text-ink ring-1 ring-line">
             <IconSparkles className="h-3.5 w-3.5" />
             Premium
           </p>
         )}
-        <p className="font-medium text-[#1E40AF]">{message}</p>
-        {resetLabel && <p className="mt-1 text-slate-500">Ton compteur repart à zéro le {resetLabel}.</p>}
+        <p className="font-semibold text-ink">{message}</p>
+        {resetLabel && <p className="mt-1 text-muted">Ton compteur repart à zéro le {resetLabel}.</p>}
       </div>
       <PremiumButton />
     </div>

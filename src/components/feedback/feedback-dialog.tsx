@@ -27,7 +27,7 @@ const STAR_LABELS = ["Très décevant", "Décevant", "Correct", "Bien", "Excelle
 
 function Star({ filled }: { filled: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={`h-8 w-8 ${filled ? "text-amber-400" : "text-slate-300"}`}>
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={`h-8 w-8 ${filled ? "text-ink" : "text-line-strong"}`}>
       <path
         fill="currentColor"
         d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"
@@ -36,10 +36,10 @@ function Star({ filled }: { filled: boolean }) {
   );
 }
 
-const legend = "text-sm font-semibold text-slate-900 dark:text-white";
+const legend = "text-sm font-semibold text-ink dark:text-white";
 const choice = (selected: boolean) =>
-  `cursor-pointer rounded-xl px-3 py-2 text-sm ring-1 transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 ${
-    selected ? "bg-blue-50 dark:bg-blue-500/15 font-medium text-blue-700 dark:text-blue-300 ring-blue-300" : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 ring-slate-200 dark:ring-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+  `inline-flex min-h-11 cursor-pointer items-center rounded-full px-3.5 py-1.5 text-sm ring-1 transition lg:min-h-0 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
+    selected ? "bg-ink dark:bg-blue-500/15 font-medium text-white dark:text-blue-300 ring-ink" : "bg-white dark:bg-slate-900 text-ink dark:text-slate-200 ring-line dark:ring-slate-700 hover:bg-surface dark:hover:bg-slate-800"
   }`;
 
 /**
@@ -110,14 +110,14 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
       <dialog
         ref={dialogRef}
         aria-labelledby="feedback-title"
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 p-0 shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card bg-white dark:bg-slate-900 p-0 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 px-6 py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-line dark:border-slate-800 px-6 py-5">
           <div>
-            <h2 id="feedback-title" className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            <h2 id="feedback-title" className="text-lg font-bold tracking-title text-ink dark:text-white">
               Donner mon avis
             </h2>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 text-sm text-muted dark:text-slate-400">
               {hasExisting ? "Tu peux modifier ton avis à tout moment." : "1 minute pour nous aider à améliorer Applyfy."}
             </p>
           </div>
@@ -125,7 +125,7 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
             type="button"
             onClick={close}
             aria-label="Fermer"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+            className="ui-focus -m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-pill dark:hover:bg-slate-800 hover:text-ink dark:hover:text-slate-200"
           >
             ✕
           </button>
@@ -136,27 +136,27 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
             <p className="text-3xl" aria-hidden="true">
               🙏
             </p>
-            <p role="status" className="font-semibold text-slate-900 dark:text-white">
+            <p role="status" className="font-semibold text-ink dark:text-white">
               Merci pour ton avis !
             </p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Il nous aide à choisir les prochaines améliorations.</p>
-            <button type="button" onClick={close} className="btn-primary px-5 py-2.5 text-sm">
+            <p className="text-sm text-muted dark:text-slate-400">Il nous aide à choisir les prochaines améliorations.</p>
+            <button type="button" onClick={close} className="ui-btn-primary">
               Fermer
             </button>
           </div>
         ) : loading ? (
-          <p role="status" className="px-6 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p role="status" className="px-6 py-10 text-center text-sm text-muted dark:text-slate-400">
             Chargement…
           </p>
         ) : (
           <form onSubmit={submit} className="space-y-6 px-6 py-6">
             <fieldset>
               <legend className={legend}>Ta note globale</legend>
-              <div className="mt-2 flex items-center gap-1">
+              <div className="mt-1 -ml-1.5 flex items-center">
                 {STAR_LABELS.map((label, index) => {
                   const value = index + 1;
                   return (
-                    <label key={value} className="cursor-pointer rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500">
+                    <label key={value} className="cursor-pointer rounded-md p-1.5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent">
                       <input
                         type="radio"
                         name="rating"
@@ -173,7 +173,7 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
                   );
                 })}
                 {draft.rating > 0 && (
-                  <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">{STAR_LABELS[draft.rating - 1]}</span>
+                  <span className="ml-2 text-sm text-muted dark:text-slate-400">{STAR_LABELS[draft.rating - 1]}</span>
                 )}
               </div>
             </fieldset>
@@ -199,7 +199,7 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
 
             <fieldset>
               <legend className={legend}>
-                Ce qui manque <span className="font-normal text-slate-500 dark:text-slate-400">(plusieurs choix possibles)</span>
+                Ce qui manque <span className="font-normal text-muted dark:text-slate-400">(plusieurs choix possibles)</span>
               </legend>
               <div className="mt-2 flex flex-wrap gap-2">
                 {Object.entries(MISSING_FEATURES).map(([value, label]) => {
@@ -222,7 +222,7 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
 
             <div>
               <label htmlFor="feedback-improvement" className={legend}>
-                Une chose à améliorer <span className="font-normal text-slate-500 dark:text-slate-400">(optionnel)</span>
+                Une chose à améliorer <span className="font-normal text-muted dark:text-slate-400">(optionnel)</span>
               </label>
               <textarea
                 id="feedback-improvement"
@@ -231,7 +231,7 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
                 maxLength={IMPROVEMENT_MAX_LENGTH}
                 rows={3}
                 placeholder="Ce qui te ferait gagner du temps, ce qui t'a gêné…"
-                className="input mt-2"
+                className="ui-input mt-2"
               />
             </div>
 
@@ -255,20 +255,20 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
             </fieldset>
 
             {error && (
-              <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
+              <p role="alert" className="ui-notice-error px-3 py-2 text-sm">
                 {error}
               </p>
             )}
 
             <div className="flex flex-wrap items-center gap-2">
-              <button type="submit" disabled={pending || !complete} className="btn-primary px-5 py-2.5 text-sm">
+              <button type="submit" disabled={pending || !complete} className="ui-btn-primary">
                 {pending ? "Envoi…" : hasExisting ? "Mettre à jour mon avis" : "Envoyer mon avis"}
               </button>
-              <button type="button" onClick={close} className="btn-secondary px-5 py-2.5 text-sm">
+              <button type="button" onClick={close} className="ui-btn-secondary">
                 Annuler
               </button>
               {!complete && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">Note, fonctionnalité préférée et recommandation requises.</p>
+                <p className="text-xs text-muted dark:text-slate-400">Note, fonctionnalité préférée et recommandation requises.</p>
               )}
             </div>
           </form>

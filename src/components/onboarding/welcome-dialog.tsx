@@ -47,11 +47,11 @@ export function WelcomeDialog({ firstName }: { firstName: string | null }) {
         e.preventDefault();
         finish();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-3xl bg-white p-0 shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-card bg-white p-0 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
     >
-      <div className="bg-brand px-6 pt-7 pb-6 text-white sm:px-8">
+      <div className="bg-ink px-6 pt-7 pb-6 text-white sm:px-8">
         <p className="text-sm font-medium text-white/80">Ton espace est prêt</p>
-        <h2 id="welcome-title" className="mt-1 text-2xl font-bold tracking-tight">
+        <h2 id="welcome-title" className="mt-1 text-2xl font-bold tracking-title">
           Bienvenue sur Applyfy{firstName ? `, ${firstName}` : ""} !
         </h2>
         <p className="mt-2 text-sm text-white/90">Trois étapes pour bien démarrer ta recherche :</p>
@@ -60,22 +60,22 @@ export function WelcomeDialog({ firstName }: { firstName: string | null }) {
       <ol className="space-y-4 px-6 py-6 sm:px-8">
         {STEPS.map((step, index) => (
           <li key={step.title} className="flex items-start gap-4">
-            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-box text-ink">
               <step.icon className="h-5 w-5" />
-              <span className="bg-brand absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-white">
+              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink text-[11px] font-bold text-white ring-2 ring-white">
                 {index + 1}
               </span>
             </span>
             <span>
-              <span className="block font-semibold text-slate-900">{step.title}</span>
-              <span className="mt-0.5 block text-sm text-slate-500">{step.detail}</span>
+              <span className="block font-semibold text-ink">{step.title}</span>
+              <span className="mt-0.5 block text-sm text-muted">{step.detail}</span>
             </span>
           </li>
         ))}
       </ol>
 
       <div className="px-6 pb-6 sm:px-8 sm:pb-8">
-        <button type="button" autoFocus onClick={finish} className="btn-primary w-full px-5 py-3 text-base">
+        <button type="button" autoFocus onClick={finish} className="ui-btn-primary w-full text-base">
           C&apos;est parti !
         </button>
       </div>
