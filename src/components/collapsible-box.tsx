@@ -64,7 +64,7 @@ export function CollapsibleBox({
             setAtBottom(box.scrollTop + box.clientHeight >= box.scrollHeight - 4);
           }}
           style={expanded ? undefined : { maxHeight }}
-          className={`scroll-mt-22 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:outline-none ${
+          className={`scroll-mt-22 rounded-block focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${
             expanded ? "" : "overflow-y-auto overscroll-contain pr-2"
           }`}
         >
@@ -84,7 +84,7 @@ export function CollapsibleBox({
           onClick={toggle}
           aria-expanded={expanded}
           aria-controls={id}
-          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-500"
+          className="ui-link mt-3 inline-flex min-h-11 items-center gap-1 text-sm"
         >
           {expanded ? "Voir moins" : "Voir plus"}
           <svg

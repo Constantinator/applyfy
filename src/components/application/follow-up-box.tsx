@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { followUpAction, type ActionState } from "@/app/actions/applications";
+import { IconBell } from "@/components/icons";
 
 const initialState: ActionState = { status: "idle" };
 
@@ -41,16 +42,19 @@ export function FollowUpBox({
     <section
       id="relance"
       aria-labelledby="relance-title"
-      className={`scroll-mt-22 rounded-2xl border bg-white dark:bg-slate-900 p-4 ${
-        highlight ? "border-amber-300 ring-1 ring-amber-200 dark:ring-amber-400/30" : "border-slate-200 dark:border-slate-800"
-      }`}
+      className={`scroll-mt-22 p-5 sm:p-7 ${highlight ? "ui-card-soft" : "ui-card"}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 id="relance-title" className="text-blue-600 dark:text-blue-400 font-semibold">
+        {highlight && (
+          <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-box text-ink dark:bg-slate-800 dark:text-slate-200">
+            <IconBell className="h-5 w-5" />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 id="relance-title" className="ui-title-sm">
             Relancer
           </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm text-muted dark:text-slate-400">
             {highlight
               ? "Pas de nouvelles depuis un moment : c'est le bon moment pour relancer."
               : "Personnalise le message avant de l'envoyer."}
@@ -60,7 +64,7 @@ export function FollowUpBox({
           <button
             type="button"
             onClick={() => setMessage(defaultMessage)}
-            className="text-sm whitespace-nowrap text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            className="ui-focus inline-flex min-h-11 items-center text-sm whitespace-nowrap text-muted hover:text-ink lg:min-h-0 dark:text-slate-400 dark:hover:text-white"
           >
             Réinitialiser
           </button>
@@ -78,21 +82,21 @@ export function FollowUpBox({
           rows={7}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="input leading-relaxed"
+          className="ui-input leading-relaxed"
         />
 
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={copy}
-            className="btn-secondary px-4 py-2 text-sm"
+            className="ui-btn-secondary"
           >
             {copied ? "Copié ✓" : "Copier le message"}
           </button>
           {mailto && (
             <a
               href={mailto}
-              className="btn-secondary px-4 py-2 text-sm"
+              className="ui-btn-secondary"
             >
               Ouvrir dans ma messagerie
             </a>
@@ -100,7 +104,7 @@ export function FollowUpBox({
           <button
             type="submit"
             disabled={pending}
-            className="btn-primary px-4 py-2 text-sm sm:ml-auto"
+            className="ui-btn-primary sm:ml-auto"
           >
             {pending ? "Enregistrement…" : "Marquer comme relancée"}
           </button>
@@ -109,7 +113,7 @@ export function FollowUpBox({
         {state.status !== "idle" && (
           <p
             role={state.status === "error" ? "alert" : "status"}
-            className={`mt-2 text-sm ${state.status === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-300"}`}
+            className={`mt-2 text-sm ${state.status === "error" ? "text-red-600 dark:text-red-400" : "text-ink dark:text-slate-200"}`}
           >
             {state.message}
           </p>

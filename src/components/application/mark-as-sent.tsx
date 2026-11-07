@@ -13,22 +13,22 @@ export function MarkAsSent({ applicationId, today }: { applicationId: string; to
   return (
     <section
       aria-labelledby="mark-sent-title"
-      className="rounded-2xl border border-blue-200 dark:border-blue-400/30 bg-blue-50 dark:bg-blue-500/15 p-5 sm:p-6"
+      className="ui-card-soft p-5 sm:p-7"
     >
       <form action={formAction} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <input type="hidden" name="id" value={applicationId} />
         <div>
-          <h2 id="mark-sent-title" className="font-semibold text-blue-950">
+          <h2 id="mark-sent-title" className="ui-title-sm">
             Cette candidature est un brouillon
           </h2>
-          <p className="mt-1 text-sm text-blue-900/80">
+          <p className="mt-1 text-sm text-muted dark:text-slate-300">
             Tu as envoyé ta candidature ? Marque-la comme envoyée pour lancer le suivi et les
             rappels de relance.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div>
-            <label htmlFor="sent_on" className="mb-1 block text-xs font-medium text-blue-900">
+            <label htmlFor="sent_on" className="mb-1 block text-[13px] font-semibold text-ink dark:text-slate-200">
               Envoyée le
             </label>
             <input
@@ -38,13 +38,13 @@ export function MarkAsSent({ applicationId, today }: { applicationId: string; to
               defaultValue={today}
               max={today}
               required
-              className="input py-2 sm:w-auto"
+              className="ui-input py-2 sm:w-auto"
             />
           </div>
           <button
             type="submit"
             disabled={pending}
-            className="btn-primary px-5 py-2.5 text-sm"
+            className="ui-btn-primary"
           >
             {pending ? "Enregistrement…" : "Marquer comme envoyée"}
           </button>

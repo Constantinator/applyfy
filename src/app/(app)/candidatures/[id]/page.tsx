@@ -54,8 +54,8 @@ function Card({
   className?: string;
 }) {
   return (
-    <section className={`card p-5 ${className}`}>
-      <h2 className="text-blue-600 dark:text-blue-400 mb-4 font-semibold">{title}</h2>
+    <section className={`ui-card p-5 sm:p-7 ${className}`}>
+      <h2 className="ui-title-sm mb-4">{title}</h2>
       {children}
     </section>
   );
@@ -94,161 +94,149 @@ export default async function ApplicationPage({
   // « S'aider du CV en cours » (lettre) : le chat reçoit le CV de la candidature, à défaut
   // le dernier CV du profil importé dans l'éditeur.
   const hasCvForLetter = Boolean(hasEditorCv || latestProfileCvText);
+  const toFollowUp = needsFollowUp(app);
+  const followUpBox = (
+    <FollowUpBox
+      applicationId={app.id}
+      defaultMessage={buildFollowUpMessage(app, accountName ? fullName(accountName) : null)}
+      contactEmail={app.contact_email}
+      subject={`Relance — candidature ${app.position}`}
+      highlight={toFollowUp}
+    />
+  );
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <Link href="/candidatures" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-        Retour aux candidatures
-      </Link>
+    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+      <main className="ui-page flex-1 space-y-5">
+        <Link href="/candidatures" className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white">
+          Retour aux candidatures
+        </Link>
 
-      {source === "demo" && (
-        <p className="rounded-lg bg-amber-100 px-4 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
-          Mode démo : tes modifications sont gardées en mémoire jusqu&apos;au redémarrage du
-          serveur.
-        </p>
-      )}
+        {source === "demo" && (
+          <p className="ui-notice px-4 py-2 text-sm">
+            Mode démo : tes modifications sont gardées en mémoire jusqu&apos;au redémarrage du
+            serveur.
+          </p>
+        )}
 
-      {creee === "1" && (
-        <p
-          role="status"
-          className="rounded-lg bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
-        >
-          ✓ Candidature créée en brouillon.
-        </p>
-      )}
+        {creee === "1" && (
+          <p
+            role="status"
+            className="ui-notice px-4 py-2 text-sm"
+          >
+            ✓ Candidature créée en brouillon.
+          </p>
+        )}
 
-      {/* En-tête */}
-      <section className="card p-5 sm:p-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        {/* En-tête */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{app.company}</h1>
-              <StatusBadge status={app.status} />
-            </div>
-            <p className="mt-1 text-slate-600 dark:text-slate-300">
+            <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] break-words text-ink dark:text-white">{app.company}</h1>
+            <p className="mt-1.5 text-muted dark:text-slate-300">
               {app.position}
-              {app.location && <span className="text-slate-400"> · {app.location}</span>}
-            </p>
-
-            <dl className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
-              <div>
-                <dt className="text-slate-500 dark:text-slate-400">Date d&apos;envoi</dt>
-                <dd className="mt-0.5 font-medium text-slate-900 dark:text-white">{formatDate(app.applied_at)}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500 dark:text-slate-400">Contact</dt>
-                <dd className="mt-0.5 min-w-0 font-medium text-slate-900 dark:text-white">
-                  <ContactEditor
-                    applicationId={app.id}
-                    initialName={app.contact_name}
-                    initialEmail={app.contact_email}
-                  />
-                </dd>
-              </div>
+              {app.location && <span> · {app.location}</span>}
               {app.offer_url && (
-                <div>
-                  <dt className="text-slate-500 dark:text-slate-400">Annonce</dt>
-                  <dd className="mt-0.5">
-                    <a
-                      href={app.offer_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500"
-                    >
-                      Voir l&apos;offre
-                    </a>
-                  </dd>
-                </div>
+                <>
+                  {" · "}
+                  <a href={app.offer_url} target="_blank" rel="noopener noreferrer" className="ui-link">
+                    Voir l&apos;offre
+                  </a>
+                </>
               )}
-            </dl>
+            </p>
           </div>
-
-          <div className="w-full lg:w-80 lg:shrink-0">
-            <StatusChanger applicationId={app.id} currentStatus={app.status} />
-          </div>
+          <StatusBadge status={app.status} />
         </div>
-      </section>
 
-      {app.status === "brouillon" && <MarkAsSent applicationId={app.id} today={today()} />}
+        {/* Sur mobile : statut et contact, puis le contenu, puis l'historique. */}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
+          <div className="order-2 min-w-0 space-y-5 lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            {app.status === "brouillon" && <MarkAsSent applicationId={app.id} today={today()} />}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {/* Résumé IA : la version lisible de l'offre, mise en avant au-dessus du texte brut. */}
-          {app.offer_summary && (
-            <section
-              aria-labelledby="summary-title"
-              className="bg-brand rounded-2xl p-[1.5px] shadow-md shadow-blue-500/10"
-            >
-              <div className="rounded-[calc(1rem-1.5px)] bg-white dark:bg-slate-900 p-5 sm:p-6">
+            {toFollowUp && followUpBox}
+
+            <CvAdapter applicationId={app.id} hasLinkedCv={Boolean(linkedCv)} />
+
+            {/* Résumé IA : la version lisible de l'offre, au-dessus du texte brut. */}
+            {app.offer_summary && (
+              <section aria-labelledby="summary-title" className="ui-card p-5 sm:p-7">
                 <div className="mb-4 flex flex-wrap items-center gap-3">
-                  <span className="bg-brand flex h-9 w-9 items-center justify-center rounded-xl text-white">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-box text-ink dark:bg-slate-800 dark:text-slate-200">
                     <IconSparkles className="h-5 w-5" />
                   </span>
-                  <h2 id="summary-title" className="text-blue-600 dark:text-blue-400 text-lg font-semibold">
+                  <h2 id="summary-title" className="ui-title-sm">
                     Résumé de l&apos;offre
                   </h2>
                 </div>
                 <FormattedText text={app.offer_summary} />
+              </section>
+            )}
+
+            <section aria-labelledby="description-title" className="ui-card p-5 sm:p-7">
+              <div className="mb-4">
+                <h2 id="description-title" className="ui-title-sm">
+                  {app.offer_summary ? "Description complète" : "Description de l'offre"}
+                </h2>
+                {app.offer_summary && (
+                  <p className="mt-0.5 text-[13px] text-muted dark:text-slate-400">Texte de l&apos;annonce, tel qu&apos;importé.</p>
+                )}
               </div>
-            </section>
-          )}
-
-          <section aria-labelledby="description-title" className="card p-5">
-            <div className="mb-4">
-              <h2 id="description-title" className="text-blue-600 dark:text-blue-400 font-semibold">
-                {app.offer_summary ? "Description complète" : "Description de l'offre"}
-              </h2>
-              {app.offer_summary && (
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Texte de l&apos;annonce, tel qu&apos;importé.</p>
+              {/* Extrait seulement (site d'origine bloqué) : l'utilisateur peut coller l'offre complète. */}
+              {app.offer_description_partial && (
+                <OfferDescriptionCompleter applicationId={app.id} offerUrl={app.offer_url} />
               )}
-            </div>
-            {/* Extrait seulement (site d'origine bloqué) : l'utilisateur peut coller l'offre complète. */}
-            {app.offer_description_partial && (
-              <OfferDescriptionCompleter applicationId={app.id} offerUrl={app.offer_url} />
-            )}
-            {app.offer_description ? (
-              <CollapsibleBox label="Description de l'offre">
-                <FormattedText text={app.offer_description} className="text-slate-600 dark:text-slate-300" />
-              </CollapsibleBox>
-            ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400">Aucune description enregistrée.</p>
-            )}
-          </section>
+              {app.offer_description ? (
+                <CollapsibleBox label="Description de l'offre">
+                  <FormattedText text={app.offer_description} className="text-muted dark:text-slate-300" />
+                </CollapsibleBox>
+              ) : (
+                <p className="text-sm text-muted dark:text-slate-400">Aucune description enregistrée.</p>
+              )}
+            </section>
 
-          <CvAdapter applicationId={app.id} hasLinkedCv={Boolean(linkedCv)} />
+            <CoverLetterGenerator
+              applicationId={app.id}
+              hasOfferDescription={Boolean(app.offer_description)}
+              aiEnabled={isClaudeConfigured()}
+              profileCvs={profileCvs}
+              hasLetter={Boolean(app.cover_letter_html)}
+              hasCv={hasCvForLetter}
+              letterSavedAt={app.cover_letter_at ?? null}
+              signerName={accountName ? fullName(accountName) : null}
+              usage={usage.counts.lettre}
+              resetLabel={formatResetDate(usage.resetsOn)}
+            />
 
-          <CoverLetterGenerator
-            applicationId={app.id}
-            hasOfferDescription={Boolean(app.offer_description)}
-            aiEnabled={isClaudeConfigured()}
-            profileCvs={profileCvs}
-            hasLetter={Boolean(app.cover_letter_html)}
-            hasCv={hasCvForLetter}
-            letterSavedAt={app.cover_letter_at ?? null}
-            signerName={accountName ? fullName(accountName) : null}
-            usage={usage.counts.lettre}
-            resetLabel={formatResetDate(usage.resetsOn)}
-          />
+            {!toFollowUp && followUpBox}
 
-          <FollowUpBox
-            applicationId={app.id}
-            defaultMessage={buildFollowUpMessage(app, accountName ? fullName(accountName) : null)}
-            contactEmail={app.contact_email}
-            subject={`Relance — candidature ${app.position}`}
-            highlight={needsFollowUp(app)}
-          />
+            <NotesPad applicationId={app.id} initialNotes={app.notes ?? ""} />
+          </div>
+
+          <div className="order-1 min-w-0 space-y-5 lg:order-none lg:col-start-2 lg:row-start-1">
+            <Card title="Statut">
+              <StatusChanger applicationId={app.id} currentStatus={app.status} />
+              <dl className="mt-3 text-[13px]">
+                <dt className="inline text-muted dark:text-slate-400">Date d&apos;envoi : </dt>
+                <dd className="inline font-medium text-ink dark:text-white">{formatDate(app.applied_at)}</dd>
+              </dl>
+            </Card>
+            <Card title="Contact">
+              <div className="min-w-0 text-sm font-medium text-ink dark:text-white">
+                <ContactEditor applicationId={app.id} initialName={app.contact_name} initialEmail={app.contact_email} />
+              </div>
+            </Card>
+          </div>
+
+          <div className="order-3 min-w-0 space-y-5 lg:order-none lg:col-start-2 lg:row-start-2">
+            <Card title="Historique">
+              <Timeline events={events} />
+            </Card>
+            <section aria-label="Supprimer la candidature">
+              <DeleteApplicationButton applicationId={app.id} company={app.company} />
+            </section>
+          </div>
         </div>
-
-        <Card title="Historique" className="h-fit lg:sticky lg:top-22">
-          <Timeline events={events} />
-        </Card>
-      </div>
-
-      <NotesPad applicationId={app.id} initialNotes={app.notes ?? ""} />
-
-      <section aria-label="Supprimer la candidature" className="flex justify-end border-t border-slate-200 dark:border-slate-800 pt-6">
-        <DeleteApplicationButton applicationId={app.id} company={app.company} />
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }

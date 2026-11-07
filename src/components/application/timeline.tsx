@@ -1,14 +1,4 @@
-import { EVENT_LABELS, type ApplicationEvent, type ApplicationEventType } from "@/lib/types";
-
-const DOT_STYLES: Record<ApplicationEventType, string> = {
-  creation: "bg-slate-400",
-  envoi: "bg-blue-500",
-  relance: "bg-amber-500",
-  reponse: "bg-violet-500",
-  changement_statut: "bg-slate-500",
-  note: "bg-slate-300",
-  rappel: "bg-sky-400",
-};
+import { EVENT_LABELS, type ApplicationEvent } from "@/lib/types";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -22,35 +12,35 @@ const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
 
 export function Timeline({ events }: { events: ApplicationEvent[] }) {
   if (events.length === 0) {
-    return <p className="text-sm text-slate-500 dark:text-slate-400">Aucune action pour l&apos;instant.</p>;
+    return <p className="text-sm text-muted dark:text-slate-400">Aucune action pour l&apos;instant.</p>;
   }
 
   return (
-    <ol className="relative space-y-5 border-l border-slate-200 dark:border-slate-800 pl-5">
+    <ol className="space-y-4">
       {events.map((event) => {
         const isLong = (event.content?.length ?? 0) > 120;
         return (
-          <li key={event.id} className="relative">
+          <li key={event.id} className="relative pl-[22px]">
             <span
               aria-hidden="true"
-              className={`absolute top-1.5 -left-[25px] h-2.5 w-2.5 rounded-full ring-4 ring-white ${DOT_STYLES[event.type]}`}
+              className="absolute top-1.5 left-0 h-2.5 w-2.5 rounded-full bg-ink dark:bg-white"
             />
-            <p className="text-sm font-medium text-slate-900 dark:text-white">{EVENT_LABELS[event.type]}</p>
-            <time dateTime={event.created_at} className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-sm font-semibold text-ink dark:text-white">{EVENT_LABELS[event.type]}</p>
+            <time dateTime={event.created_at} className="text-[13px] text-muted dark:text-slate-400">
               {dateTimeFormatter.format(new Date(event.created_at))}
             </time>
             {event.content &&
               (isLong ? (
-                <details className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                  <summary className="cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-500">
+                <details className="mt-1 text-sm text-muted dark:text-slate-300">
+                  <summary className="cursor-pointer text-accent dark:text-blue-400 hover:text-accent">
                     Voir le message
                   </summary>
-                  <p className="mt-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3 whitespace-pre-line">
+                  <p className="mt-2 rounded-block bg-surface dark:bg-slate-800/50 p-3 whitespace-pre-line">
                     {event.content}
                   </p>
                 </details>
               ) : (
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{event.content}</p>
+                <p className="mt-1 text-sm text-muted dark:text-slate-300">{event.content}</p>
               ))}
           </li>
         );

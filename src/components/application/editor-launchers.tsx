@@ -14,7 +14,7 @@ function Spinner() {
   return (
     <span
       aria-hidden="true"
-      className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 dark:border-slate-700 border-t-blue-600"
+      className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong dark:border-slate-700 border-t-blue-600"
     />
   );
 }
@@ -41,8 +41,8 @@ function Option({
 }) {
   return (
     <div
-      className={`rounded-xl p-3 ring-1 transition ${
-        selected ? "bg-blue-50/60 ring-2 ring-blue-500" : "bg-white dark:bg-slate-900 ring-slate-200 dark:ring-slate-700"
+      className={`rounded-block p-3 ring-1 transition ${
+        selected ? "bg-pill ring-2 ring-accent" : "bg-white dark:bg-slate-900 ring-line dark:ring-slate-700"
       } ${disabled ? "opacity-60" : ""}`}
     >
       <label className={`flex items-start gap-3 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
@@ -53,11 +53,11 @@ function Option({
           checked={selected}
           disabled={disabled}
           onChange={() => onSelect(value)}
-          className="mt-1 accent-blue-600"
+          className="mt-1 accent-accent"
         />
         <span>
-          <span className="block text-sm font-medium text-slate-900 dark:text-white">{title}</span>
-          <span className="block text-xs text-slate-500 dark:text-slate-400">{description}</span>
+          <span className="block text-sm font-medium text-ink dark:text-white">{title}</span>
+          <span className="block text-xs text-muted dark:text-slate-400">{description}</span>
         </span>
       </label>
       {selected && children && <div className="mt-3 pl-7">{children}</div>}
@@ -89,9 +89,9 @@ function FileField({
         type="file"
         accept={accept}
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-        className="block w-full text-sm text-slate-700 dark:text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
+        className="block w-full text-sm text-ink dark:text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-ink file:ring-1 file:ring-line-strong hover:file:bg-surface"
       />
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</p>
+      <p className="mt-1 text-xs text-muted dark:text-slate-400">{hint}</p>
       {error && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
@@ -116,17 +116,17 @@ function Dialog({
       ref={dialogRef}
       aria-labelledby={titleId}
       onClose={onClose}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 p-0 shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card bg-white dark:bg-slate-900 p-0 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
     >
-      <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 px-6 py-5">
-        <h2 id={titleId} className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+      <div className="flex items-start justify-between gap-4 border-b border-line dark:border-slate-800 px-6 py-5">
+        <h2 id={titleId} className="text-lg font-bold tracking-title text-ink dark:text-white">
           {title}
         </h2>
         <button
           type="button"
           onClick={() => dialogRef.current?.close()}
           aria-label="Fermer"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+          className="rounded-block p-1.5 text-muted hover:bg-pill dark:hover:bg-slate-800 hover:text-ink dark:hover:text-slate-200"
         >
           ✕
         </button>
@@ -208,7 +208,7 @@ export function LetterEditorLauncher({
         onClose={() => setNavigating(false)}
       >
         <fieldset className="space-y-2" disabled={busy}>
-          <legend className="mb-1 text-sm text-slate-600 dark:text-slate-300">Comment commencer ta lettre ?</legend>
+          <legend className="mb-1 text-sm text-muted dark:text-slate-300">Comment commencer ta lettre ?</legend>
           {hasLetter && (
             <Option
               name="letter-start"
@@ -264,26 +264,26 @@ export function LetterEditorLauncher({
         {limitHit && source === "import" && <UsageLimitBanner resetLabel={resetLabel} />}
 
         {pending && (
-          <p role="status" className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+          <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-400">
             <Spinner />
             Import de ta lettre… cela peut prendre jusqu&apos;à une minute.
           </p>
         )}
         {state.status === "error" && !state.limitReached && !pending && (
-          <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
+          <p role="alert" className="ui-notice-error px-3 py-2 text-sm">
             {state.message}
           </p>
         )}
 
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={submit} disabled={!ready || busy} className="btn-primary px-4 py-2 text-sm">
+          <button type="button" onClick={submit} disabled={!ready || busy} className="ui-btn-primary">
             {busy ? "Ouverture…" : "Ouvrir l'éditeur"}
           </button>
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
             disabled={pending}
-            className="btn-secondary px-4 py-2 text-sm"
+            className="ui-btn-secondary"
           >
             Annuler
           </button>

@@ -41,16 +41,16 @@ export function StatusChanger({
       className="flex flex-col gap-2"
     >
       <input type="hidden" name="id" value={applicationId} />
-      <label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+      <label htmlFor="status" className="text-sm font-medium text-ink dark:text-slate-200">
         Statut de la candidature
       </label>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         <select
           id="status"
           name="status"
           value={selected}
           onChange={(e) => setSelected(e.target.value as ApplicationStatus)}
-          className="input min-w-0 flex-1 py-2"
+          className="ui-input min-w-0"
         >
           {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map((status) => (
             <option key={status} value={status}>
@@ -68,7 +68,7 @@ export function StatusChanger({
         <button
           type="submit"
           disabled={pending}
-          className="btn-primary px-4 py-2 text-sm"
+          className="ui-btn-primary"
         >
           {pending ? "…" : "Changer le statut"}
         </button>
@@ -76,7 +76,7 @@ export function StatusChanger({
       {state.status !== "idle" && (
         <p
           role={state.status === "error" ? "alert" : "status"}
-          className={`text-sm ${state.status === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-300"}`}
+          className={`text-sm ${state.status === "error" ? "text-red-600 dark:text-red-400" : "text-ink dark:text-slate-200"}`}
         >
           {state.message}
         </p>

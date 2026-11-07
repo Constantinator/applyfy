@@ -33,12 +33,12 @@ export function OfferDescriptionCompleter({
   }
 
   return (
-    <div role="status" className="mb-4 space-y-3 rounded-xl border border-amber-400 bg-amber-100 p-4 text-sm">
+    <div role="status" className="ui-notice mb-4 space-y-3 p-4 text-sm">
       <div className="flex gap-3">
-        <span aria-hidden="true" className="text-base leading-5">
-          ⚠️
+        <span aria-hidden="true" className="text-base leading-5 text-ink">
+          ⚠︎
         </span>
-        <p className="text-amber-900">
+        <p className="font-semibold text-ink">
           La description de cette offre est incomplète. Pour une analyse CV et une lettre de motivation
           plus précises, colle la description complète ci-dessous.
           {offerUrl && (
@@ -48,7 +48,7 @@ export function OfferDescriptionCompleter({
                 href={offerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-amber-900 underline underline-offset-2 hover:text-amber-800"
+                className="ui-link underline"
               >
                 Voir l&apos;offre complète
               </a>
@@ -70,7 +70,7 @@ export function OfferDescriptionCompleter({
             maxLength={OFFER_DESCRIPTION_MAX_LENGTH}
             autoFocus
             placeholder="Colle ici la description complète copiée depuis le site de l'offre…"
-            className="input bg-white dark:bg-slate-900 leading-relaxed"
+            className="ui-input bg-white dark:bg-slate-900 leading-relaxed"
           />
           {error && (
             <p role="alert" className="text-sm text-red-700 dark:text-red-300">
@@ -82,7 +82,7 @@ export function OfferDescriptionCompleter({
               type="button"
               onClick={save}
               disabled={pending || !text.trim()}
-              className="btn-primary px-4 py-2 text-sm"
+              className="ui-btn-primary"
             >
               {pending ? "Enregistrement…" : "Enregistrer la description"}
             </button>
@@ -93,14 +93,14 @@ export function OfferDescriptionCompleter({
                 setError(null);
               }}
               disabled={pending}
-              className="btn-secondary px-4 py-2 text-sm"
+              className="ui-btn-secondary"
             >
               Annuler
             </button>
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setEditing(true)} className="btn-primary px-4 py-2 text-sm">
+        <button type="button" onClick={() => setEditing(true)} className="ui-btn-primary">
           Compléter la description
         </button>
       )}

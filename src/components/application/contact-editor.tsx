@@ -63,7 +63,7 @@ export function ContactEditor({
   }
 
   if (editing) {
-    const inputClass = "input py-1.5 text-sm font-normal";
+    const inputClass = "ui-input py-1.5 text-sm font-normal";
     return (
       <div
         ref={groupRef}
@@ -115,7 +115,7 @@ export function ContactEditor({
             {error}
           </p>
         )}
-        <p className="text-xs font-normal text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-normal text-muted dark:text-slate-400">
           {pending ? "Enregistrement…" : "Entrée pour enregistrer · Échap pour annuler"}
         </p>
       </div>
@@ -123,14 +123,14 @@ export function ContactEditor({
   }
 
   const editable =
-    "-mx-1.5 block max-w-full truncate rounded-md px-1.5 py-0.5 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:outline-none";
+    "-mx-1.5 block min-h-11 max-w-full truncate rounded-md px-1.5 py-2.5 text-left lg:min-h-0 lg:py-0.5 transition hover:bg-pill dark:hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none";
   return (
     <div className="space-y-0.5">
       <button
         type="button"
         onClick={() => startEditing("name")}
         title="Cliquer pour modifier"
-        className={`${editable} ${saved.name ? "text-slate-900 dark:text-white" : "font-normal text-slate-400"}`}
+        className={`${editable} ${saved.name ? "text-ink dark:text-white" : "font-normal text-muted"}`}
       >
         {saved.name || "Ajouter un nom"}
       </button>
@@ -138,14 +138,14 @@ export function ContactEditor({
         type="button"
         onClick={() => startEditing("email")}
         title="Cliquer pour modifier"
-        className={`${editable} font-normal ${saved.email ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`}
+        className={`${editable} font-normal ${saved.email ? "text-accent dark:text-blue-400" : "text-muted"}`}
       >
         {saved.email || "Ajouter un email"}
       </button>
       {saved.email && (
         <a
           href={`mailto:${saved.email}`}
-          className="inline-block text-xs font-normal text-slate-500 dark:text-slate-400 underline-offset-2 hover:text-slate-900 dark:hover:text-white hover:underline"
+          className="inline-flex min-h-11 items-center text-xs font-normal lg:min-h-0 text-muted dark:text-slate-400 underline-offset-2 hover:text-ink dark:hover:text-white hover:underline"
         >
           Écrire un email
         </a>
