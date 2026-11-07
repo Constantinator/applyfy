@@ -9,7 +9,7 @@ import { FormError } from "./form-field";
 /** « G » multicolore de Google (bouton de connexion, conforme à sa charte). */
 function GoogleLogo() {
   return (
-    <svg viewBox="0 0 48 48" aria-hidden="true" className="h-5 w-5">
+    <svg viewBox="0 0 48 48" aria-hidden="true" className="h-[18px] w-[18px]">
       <path
         fill="#FFC107"
         d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.5z"
@@ -61,7 +61,7 @@ export function GoogleButton({ next = "/dashboard" }: { next?: string }) {
         type="button"
         onClick={signIn}
         disabled={pending}
-        className="ui-btn-secondary w-full gap-3"
+        className="ui-btn-secondary w-full gap-2.5"
       >
         <GoogleLogo />
         {pending ? "Redirection vers Google…" : "Continuer avec Google"}
@@ -73,7 +73,7 @@ export function GoogleButton({ next = "/dashboard" }: { next?: string }) {
 /** Séparateur « ou » entre la connexion Google et le formulaire email / mot de passe. */
 export function AuthDivider() {
   return (
-    <div className="my-6 flex items-center gap-3 text-xs font-medium tracking-wide text-muted uppercase">
+    <div className="my-5 flex items-center gap-3 text-[13px] text-muted">
       <span className="h-px flex-1 bg-line" />
       ou
       <span className="h-px flex-1 bg-line" />

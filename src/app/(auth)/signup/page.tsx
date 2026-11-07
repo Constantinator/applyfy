@@ -14,8 +14,8 @@ export const metadata: Metadata = pageMetadata({
 export default function SignupPage() {
   return (
     <>
-      <h1 className="text-[28px] leading-[1.15] font-bold tracking-[-0.03em] text-ink">Créer ton compte</h1>
-      <p className="mt-1.5 mb-6 text-sm text-muted">
+      <h1 className="mt-2.5 text-center text-[28px] leading-[1.15] font-bold tracking-[-0.03em] text-ink">Créer ton compte</h1>
+      <p className="mt-1 mb-6 text-center text-[15px] text-muted">
         Centralise toutes tes candidatures en quelques minutes.
       </p>
       {isSupabaseConfigured() && (

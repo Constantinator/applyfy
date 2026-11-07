@@ -25,7 +25,7 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
       )}
 
       <div className="space-y-1.5">
-        <label htmlFor="email" className="text-sm font-medium text-ink">
+        <label htmlFor="email" className="text-[13px] font-semibold text-ink">
           Email
         </label>
         <input
@@ -41,7 +41,7 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="password" className="text-sm font-medium text-ink">
+        <label htmlFor="password" className="text-[13px] font-semibold text-ink">
           Mot de passe
         </label>
         <input

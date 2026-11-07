@@ -69,7 +69,7 @@ export function SignupForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <label htmlFor="firstName" className="text-sm font-medium text-ink">
+          <label htmlFor="firstName" className="text-[13px] font-semibold text-ink">
             Prénom
           </label>
           <input
@@ -85,7 +85,7 @@ export function SignupForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="lastName" className="text-sm font-medium text-ink">
+          <label htmlFor="lastName" className="text-[13px] font-semibold text-ink">
             Nom
           </label>
           <input
@@ -103,7 +103,7 @@ export function SignupForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="email" className="text-sm font-medium text-ink">
+        <label htmlFor="email" className="text-[13px] font-semibold text-ink">
           Email
         </label>
         <input
@@ -119,7 +119,7 @@ export function SignupForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="password" className="text-sm font-medium text-ink">
+        <label htmlFor="password" className="text-[13px] font-semibold text-ink">
           Mot de passe
         </label>
         {/* Bouton œil à la place d'un champ de confirmation : on vérifie ce qu'on a tapé. */}
