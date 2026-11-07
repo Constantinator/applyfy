@@ -15,13 +15,21 @@ import { createClient, isSupabaseConfigured } from "./supabase/server";
  * Métadonnées du compte connecté, lues une fois par rendu. getUser (et non les claims
  * du JWT) : reflète aussitôt une modification faite depuis l'application.
  */
-const getUserMetadata = cache(async (): Promise<Record<string, unknown>> => {
+const getAuthUser = cache(async () => {
   await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error) throw new Error(`Lecture du compte impossible : ${error.message}`);
-  return (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+  return data.user;
 });
+
+const getUserMetadata = async () => (((await getAuthUser())?.user_metadata ?? {}) as Record<string, unknown>);
+
+/** Date de création du compte (ISO), ou null. Mode démo : compte tout juste créé. */
+export async function getAccountCreatedAt(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return new Date().toISOString();
+  return (await getAuthUser())?.created_at ?? null;
+}
 
 /** Prénom et nom de l'utilisateur connecté, ou null s'ils ne sont pas encore renseignés. */
 export async function getAccountName(): Promise<AccountName | null> {

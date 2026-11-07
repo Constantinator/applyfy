@@ -4,7 +4,13 @@ import { ScoreGauge } from "@/components/cv-builder/cv-score-card";
 import { IconDocument } from "@/components/icons";
 import { READY_SCORE } from "@/lib/cv-score";
 
-export type LatestCv = { id: string; title: string; score: number };
+export type LatestCv = {
+  id: string;
+  title: string;
+  score: number;
+  /** Catégorie du score à travailler d'abord (null : CV prêt ou détail indisponible). */
+  weakPoint: string | null;
+};
 
 /** Carte « Ton CV » : score du dernier CV modifié (mêmes jauge et couleurs que l'éditeur). */
 export function CvCard({ cv }: { cv: LatestCv | null }) {
@@ -30,7 +36,21 @@ export function CvCard({ cv }: { cv: LatestCv | null }) {
               </p>
             </div>
           </div>
-          <Link href={`/cv-builder/${cv.id}`} className="btn-primary min-h-11 px-4 text-sm">
+          {cv.weakPoint && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200 dark:bg-slate-800/50 dark:ring-slate-700">
+              <p className="min-w-0 text-sm text-slate-700 dark:text-slate-200">
+                Point faible : <strong className="font-semibold">{cv.weakPoint}</strong>
+              </p>
+              <Link
+                href={`/cv-builder/${cv.id}?onglet=chat`}
+                aria-label={`Améliorer ${cv.weakPoint} avec le coach`}
+                className="btn-secondary min-h-11 px-3 text-sm"
+              >
+                Améliorer
+              </Link>
+            </div>
+          )}
+          <Link href={`/cv-builder/${cv.id}?onglet=chat`} className="btn-primary min-h-11 px-4 text-sm">
             Continuer avec le coach
           </Link>
           <Link

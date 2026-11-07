@@ -62,6 +62,20 @@ export function scoreTone(score: number): "red" | "orange" | "green" {
 }
 
 /**
+ * Point faible d'un CV pas encore prêt : la catégorie qui a perdu le plus de points (à égalité,
+ * la première dans SCORE_CATEGORIES). Null si le CV est prêt ou si rien n'a été perdu.
+ */
+export function weakestCategory({ score, categories }: Pick<CvScore, "score" | "categories">) {
+  if (score >= READY_SCORE) return null;
+  let weakest: CvScore["categories"][number] | null = null;
+  for (const category of categories) {
+    const lost = category.max - category.score;
+    if (lost > 0 && (!weakest || lost > weakest.max - weakest.score)) weakest = category;
+  }
+  return weakest;
+}
+
+/**
  * Jargon vague et formules génériques refusés dans le CV (aussi interdits au coach, dans son
  * prompt, et vérifiés dans ses propositions).
  */

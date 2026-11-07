@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
+import { useActionState, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import {
   createApplicationAction,
@@ -24,6 +25,7 @@ import {
   OFFER_PASTED_TEXT_MAX_LENGTH,
   OFFER_SUMMARY_MAX_LENGTH,
   SUMMARY_MIN_LENGTH,
+  isHttpUrl,
 } from "@/lib/offer-limits";
 
 const initialState: NewApplicationState = { status: "idle" };
@@ -46,15 +48,6 @@ type AsyncStatus =
   | { state: "loading" }
   | { state: "success"; message: string }
   | { state: "error"; message: string };
-
-function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 function StatusLine({ status, loadingText }: { status: AsyncStatus; loadingText: string }) {
   if (status.state === "idle") return null;
@@ -107,10 +100,16 @@ function Field({
 }
 
 export function NewApplicationForm({
+  initialOfferUrl = null,
+  invalidOfferLink = false,
   aiEnabled,
   summaryUsage,
   resetLabel,
 }: {
+  /** Lien reçu dans l'adresse (tableau de bord) : importé une fois, à l'arrivée sur la page. */
+  initialOfferUrl?: string | null;
+  /** Lien reçu dans l'adresse, mais invalide : formulaire normal, avec un message. */
+  invalidOfferLink?: boolean;
   aiEnabled: boolean;
   /** Résumés générés ce mois-ci. */
   summaryUsage: AiUsageCount;
@@ -123,7 +122,7 @@ export function NewApplicationForm({
   const [company, setCompany] = useState("");
   const [position, setPosition] = useState("");
   const [location, setLocation] = useState("");
-  const [offerUrl, setOfferUrl] = useState("");
+  const [offerUrl, setOfferUrl] = useState(initialOfferUrl ?? "");
   const [description, setDescription] = useState("");
   const [summary, setSummary] = useState("");
 
@@ -137,7 +136,7 @@ export function NewApplicationForm({
     kind: "not_found" | "failed" | "partial";
     missing: ImportedField[];
     message?: string;
-  } | null>(null);
+  } | null>(invalidOfferLink ? { kind: "not_found", missing: [], message: "Ce lien d'offre n'est pas valide." } : null);
   // Repli après un échec : texte de l'offre collé à la main, analysé par l'IA.
   const [pastedText, setPastedText] = useState("");
   const [textImportStatus, setTextImportStatus] = useState<AsyncStatus>({ state: "idle" });
@@ -165,13 +164,19 @@ export function NewApplicationForm({
     setImportAlert(null);
     setTextImportStatus({ state: "idle" });
 
-    // L'offre est ouverte dans un autre onglet et l'extension est installée : on lit
-    // l'onglet (contenu réellement affiché). Sinon, lecture de la page côté serveur.
-    const openTab = await readOpenTab(url);
-    if (openTab) {
-      applyImportResult(await importOfferFromPageAction(openTab), "Pré-rempli depuis l'onglet ouvert");
-    } else {
-      applyImportResult(await importOfferAction(url), "Pré-rempli depuis la page");
+    try {
+      // L'offre est ouverte dans un autre onglet et l'extension est installée : on lit
+      // l'onglet (contenu réellement affiché). Sinon, lecture de la page côté serveur.
+      const openTab = await readOpenTab(url);
+      if (openTab) {
+        applyImportResult(await importOfferFromPageAction(openTab), "Pré-rempli depuis l'onglet ouvert");
+      } else {
+        applyImportResult(await importOfferAction(url), "Pré-rempli depuis la page");
+      }
+    } catch (error) {
+      unstable_rethrow(error); // redirection vers /login si la session a expiré
+      console.error("[importFromUrl]", error);
+      applyImportResult({ ok: false, error: "Impossible de lire cette offre.", kind: "failed" }, "");
     }
   }
 
@@ -242,6 +247,15 @@ export function NewApplicationForm({
       );
     }
   }
+
+  // Lien venu du tableau de bord : même import que le collage, une seule fois (lastImportedUrl
+  // protège du double effet de React en développement, la page retire le lien de l'adresse).
+  const importInitialLink = useEffectEvent(() => {
+    if (initialOfferUrl) void importFromUrl(initialOfferUrl);
+  });
+  useEffect(() => {
+    importInitialLink();
+  }, []);
 
   async function generateSummary() {
     setSummaryStatus({ state: "loading" });

@@ -113,12 +113,15 @@ export function CvBuilderEditor({
   cv,
   usage,
   scoring,
+  openCoach = false,
   application = null,
 }: {
   cv: BuilderCv;
   usage: CvBuilderUsage;
   /** Données du secteur pour le score (détecté à l'ouverture). */
   scoring: ScoringContext;
+  /** Ouvre l'onglet du coach d'abord, même pour un CV créé depuis zéro (lien ?onglet=chat). */
+  openCoach?: boolean;
   /** Candidature liée : retour à sa fiche et mots-clés de son analyse (points d'une ancienne analyse). */
   application?: {
     id: string;
@@ -131,7 +134,7 @@ export function CvBuilderEditor({
   const [templateId, setTemplateId] = useState<CvTemplateId>(cv.templateId);
   // CV créé depuis zéro : onglet « Contenu » en plus, ouvert d'abord (le CV est vide).
   const baseTabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
-  const [chosenTab, setTab] = useState<TabId>(baseTabs[0][0]);
+  const [chosenTab, setTab] = useState<TabId>(openCoach ? "chat" : baseTabs[0][0]);
   const [data, setData] = useState<CvData>(cv.data);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);

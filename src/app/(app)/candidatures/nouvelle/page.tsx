@@ -3,17 +3,22 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { NewApplicationForm } from "@/components/application/new-application-form";
+import { ClearSearchParams } from "@/components/clear-search-params";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
+import { parseOfferLink } from "@/lib/offer-limits";
 
 export const metadata: Metadata = { title: "Nouvelle candidature — Applyfy" };
 
-export default async function NewApplicationPage() {
+export default async function NewApplicationPage({ searchParams }: PageProps<"/candidatures/nouvelle">) {
   await connection(); // rendu à chaque requête (page réservée aux utilisateurs connectés)
-  const usage = await readAiUsage();
+  const [usage, { lien }] = await Promise.all([readAiUsage(), searchParams]);
+  const offerLink = parseOfferLink(lien);
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+      {/* Retiré de l'adresse dès l'arrivée : recharger la page ne relance pas l'import. */}
+      {lien !== undefined && <ClearSearchParams />}
       <Link href="/candidatures" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
         Retour aux candidatures
       </Link>
@@ -22,6 +27,8 @@ export default async function NewApplicationPage() {
         Ajoute une candidature sur ton dashboard
       </p>
       <NewApplicationForm
+        initialOfferUrl={offerLink}
+        invalidOfferLink={lien !== undefined && !offerLink}
         aiEnabled={isClaudeConfigured()}
         summaryUsage={usage.counts.resume_offre}
         resetLabel={formatResetDate(usage.resetsOn)}

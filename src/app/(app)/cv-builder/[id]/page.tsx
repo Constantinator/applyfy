@@ -16,9 +16,9 @@ export const metadata: Metadata = { title: "CV Builder — Applyfy" };
 // Chat « Affiner avec l'IA » (Server Action de cette page) : jusqu'à une minute.
 export const maxDuration = 120;
 
-export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-builder/[id]">) {
+export default async function CvBuilderEditorPage({ params, searchParams }: PageProps<"/cv-builder/[id]">) {
   await connection(); // CV et compteurs IA lus à chaque visite
-  const { id } = await params;
+  const [{ id }, { onglet }] = await Promise.all([params, searchParams]);
   const [cv, usage] = await Promise.all([getBuilderCv(id), readAiUsage()]);
   if (!cv) notFound();
   const [scoring, detail] = await Promise.all([
@@ -34,6 +34,7 @@ export default async function CvBuilderEditorPage({ params }: PageProps<"/cv-bui
       <CvBuilderEditor
         cv={cv}
         scoring={scoring}
+        openCoach={onglet === "chat"}
         application={
           detail && {
             id: detail.application.id,

@@ -135,6 +135,23 @@ export function reportStatus(
   return "a_faire";
 }
 
+const dueDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
+
+/**
+ * Rapport à rendre maintenant par un beta testeur actif (tableau de bord), ou null. Un rapport
+ * en retard n'est pas attendu : submit_beta_report le refuse et l'accès est suspendu.
+ */
+export function pendingBetaReport(
+  beta: { status: BetaStatus; joinedAt: string; reports: { number: number }[] } | null,
+  now = new Date(),
+): { number: number; dueLabel: string } | null {
+  if (beta?.status !== "active") return null;
+  const report = BETA_REPORTS.find(
+    (def) => !beta.reports.some((r) => r.number === def.number) && reportStatus(beta.joinedAt, def.number, null, now) === "a_faire",
+  );
+  return report ? { number: report.number, dueLabel: dueDate.format(reportDeadline(beta.joinedAt, report.number)) } : null;
+}
+
 /** Réponses valides d'un rapport (reçues du navigateur), ou message d'erreur. */
 export function parseReportAnswers(number: number, input: unknown): BetaReportAnswers | string {
   const def = BETA_REPORTS[number - 1];
