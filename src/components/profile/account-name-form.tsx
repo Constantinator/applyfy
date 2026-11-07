@@ -30,13 +30,13 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
   return (
     <div className="space-y-4">
       {!initial && (
-        <p className="rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-400">
+        <p className="ui-notice px-3 py-2 text-xs">
           Renseigne ton prénom et ton nom : ils signent tes lettres de motivation.
         </p>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <label htmlFor="account-first-name" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+          <label htmlFor="account-first-name" className="text-sm font-medium text-ink dark:text-slate-200">
             Prénom
           </label>
           <input
@@ -45,11 +45,11 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
             onChange={(e) => setFirstName(e.target.value)}
             maxLength={PERSON_NAME_MAX_LENGTH}
             autoComplete="given-name"
-            className="input py-2"
+            className="ui-input py-2"
           />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="account-last-name" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+          <label htmlFor="account-last-name" className="text-sm font-medium text-ink dark:text-slate-200">
             Nom
           </label>
           <input
@@ -58,7 +58,7 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
             onChange={(e) => setLastName(e.target.value)}
             maxLength={PERSON_NAME_MAX_LENGTH}
             autoComplete="family-name"
-            className="input py-2"
+            className="ui-input py-2"
           />
         </div>
       </div>
@@ -67,14 +67,14 @@ export function AccountNameForm({ initial }: { initial: AccountName | null }) {
           type="button"
           onClick={save}
           disabled={pending || !dirty || !firstName.trim() || !lastName.trim()}
-          className="btn-primary px-4 py-2 text-sm"
+          className="ui-btn-primary"
         >
           {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
         {feedback && !pending && (
           <p
             role={feedback.ok ? "status" : "alert"}
-            className={`text-sm ${feedback.ok ? "text-emerald-700 dark:text-emerald-300" : "text-red-600 dark:text-red-400"}`}
+            className={`text-sm ${feedback.ok ? "text-ink dark:text-slate-200" : "text-red-600 dark:text-red-400"}`}
           >
             {feedback.text}
           </p>

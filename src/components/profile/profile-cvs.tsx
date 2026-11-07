@@ -25,9 +25,9 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 const inputClassName =
-  "input py-2";
+  "ui-input py-2";
 const smallButton =
-  "rounded-lg px-3 py-1.5 text-sm font-medium ring-1 disabled:cursor-not-allowed disabled:opacity-50";
+  "ui-focus inline-flex min-h-11 items-center justify-center rounded-full px-3.5 py-1.5 text-sm font-semibold ring-1 ring-line-strong lg:min-h-0 disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Nom proposé par défaut à partir du nom de fichier : "cv_data-2026.pdf" → "cv data 2026". */
 function nameFromFile(fileName: string) {
@@ -48,10 +48,10 @@ function CvRow({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <li className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+    <li className="rounded-block border border-line dark:border-slate-800 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 dark:bg-red-500/15 text-xs font-bold text-red-600 dark:text-red-400">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-box text-xs font-bold text-ink dark:bg-slate-800 dark:text-slate-200">
             PDF
           </span>
           {editing ? (
@@ -74,7 +74,7 @@ function CvRow({
                 autoFocus
                 className={inputClassName}
               />
-              <button type="submit" disabled={busy || !name.trim()} className={`${smallButton} bg-blue-600 text-white ring-blue-600`}>
+              <button type="submit" disabled={busy || !name.trim()} className={`${smallButton} bg-ink text-white ring-ink`}>
                 OK
               </button>
               <button
@@ -83,15 +83,15 @@ function CvRow({
                   setEditing(false);
                   setName(cv.name);
                 }}
-                className={`${smallButton} text-slate-700 dark:text-slate-200 ring-slate-300`}
+                className={`${smallButton} text-ink dark:text-slate-200 ring-line-strong`}
               >
                 Annuler
               </button>
             </form>
           ) : (
             <div className="min-w-0">
-              <p className="truncate font-medium text-slate-900 dark:text-white">{cv.name}</p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+              <p className="truncate font-medium text-ink dark:text-white">{cv.name}</p>
+              <p className="truncate text-xs text-muted dark:text-slate-400">
                 {cv.fileName} · ajouté le {dateFormatter.format(new Date(cv.uploadedAt))}
               </p>
             </div>
@@ -100,13 +100,13 @@ function CvRow({
 
         {!editing && (
           <div className="flex flex-wrap gap-2">
-            <a href={`/profil/cv/${cv.id}`} target="_blank" rel="noopener" className={`${smallButton} text-blue-600 dark:text-blue-400 ring-blue-200 dark:ring-blue-400/30 hover:bg-blue-50`}>
+            <a href={`/profil/cv/${cv.id}`} target="_blank" rel="noopener" className={`${smallButton} text-accent dark:text-blue-400 ring-line dark:ring-blue-400/30 hover:bg-pill`}>
               Voir
             </a>
-            <a href={`/profil/cv/${cv.id}?telecharger=1`} className={`${smallButton} text-slate-700 dark:text-slate-200 ring-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800`}>
+            <a href={`/profil/cv/${cv.id}?telecharger=1`} className={`${smallButton} text-ink dark:text-slate-200 ring-line-strong hover:bg-surface dark:hover:bg-slate-800`}>
               Télécharger
             </a>
-            <button type="button" disabled={busy} onClick={() => setEditing(true)} className={`${smallButton} text-slate-700 dark:text-slate-200 ring-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800`}>
+            <button type="button" disabled={busy} onClick={() => setEditing(true)} className={`${smallButton} text-ink dark:text-slate-200 ring-line-strong hover:bg-surface dark:hover:bg-slate-800`}>
               Renommer
             </button>
             {confirmDelete ? (
@@ -116,16 +116,16 @@ function CvRow({
                   type="button"
                   disabled={busy}
                   onClick={() => onAction(() => deleteProfileCvAction(cv.id))}
-                  className={`${smallButton} bg-red-600 text-white ring-red-600`}
+                  className={`${smallButton} bg-white text-[#B91C1C] ring-line-strong`}
                 >
                   Oui, supprimer
                 </button>
-                <button type="button" onClick={() => setConfirmDelete(false)} className={`${smallButton} text-slate-700 dark:text-slate-200 ring-slate-300`}>
+                <button type="button" onClick={() => setConfirmDelete(false)} className={`${smallButton} text-ink dark:text-slate-200 ring-line-strong`}>
                   Non
                 </button>
               </span>
             ) : (
-              <button type="button" disabled={busy} onClick={() => setConfirmDelete(true)} className={`${smallButton} text-red-700 dark:text-red-300 ring-red-200 dark:ring-red-400/30 hover:bg-red-50`}>
+              <button type="button" disabled={busy} onClick={() => setConfirmDelete(true)} className={`${smallButton} text-[#B91C1C] ring-line-strong`}>
                 Supprimer
               </button>
             )}
@@ -162,7 +162,7 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-muted dark:text-slate-400">
         {cvs.length} / {PROFILE_CV_LIMIT} CV enregistrés
       </p>
 
@@ -175,7 +175,7 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
       )}
 
       {limitReached ? (
-        <p className="rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700">
+        <p className="rounded-block bg-surface dark:bg-slate-800/50 px-3 py-2 text-sm text-muted dark:text-slate-300 ring-1 ring-line dark:ring-slate-700">
           Tu as atteint la limite de {PROFILE_CV_LIMIT} CV. Supprimes-en un pour en ajouter un autre.
         </p>
       ) : (
@@ -193,11 +193,11 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
               setFormKey((k) => k + 1);
             });
           }}
-          className="space-y-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-200 dark:ring-slate-700"
+          className="space-y-3 rounded-block bg-surface dark:bg-slate-800/50 p-4 ring-1 ring-line dark:ring-slate-700"
         >
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Ajouter un CV</p>
+          <p className="text-sm font-medium text-ink dark:text-slate-200">Ajouter un CV</p>
           <div>
-            <label htmlFor="new-cv-file" className="mb-1 block text-xs text-slate-500 dark:text-slate-400">
+            <label htmlFor="new-cv-file" className="mb-1 block text-xs text-muted dark:text-slate-400">
               Fichier PDF ({CV_MAX_LABEL} max)
             </label>
             <input
@@ -214,12 +214,12 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
                 else setFileError(null);
                 if (selected && !newName.trim()) setNewName(nameFromFile(selected.name));
               }}
-              className="block w-full text-sm text-slate-700 dark:text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 file:ring-1 file:ring-slate-300 hover:file:bg-slate-50"
+              className="block w-full text-sm text-ink dark:text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-ink file:ring-1 file:ring-line-strong hover:file:bg-surface"
             />
             {fileError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fileError}</p>}
           </div>
           <div>
-            <label htmlFor="new-cv-name" className="mb-1 block text-xs text-slate-500 dark:text-slate-400">
+            <label htmlFor="new-cv-name" className="mb-1 block text-xs text-muted dark:text-slate-400">
               Nom du CV
             </label>
             <input
@@ -234,7 +234,7 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
           <button
             type="submit"
             disabled={busy || !file || Boolean(fileError) || !newName.trim()}
-            className="btn-primary px-4 py-2 text-sm"
+            className="ui-btn-primary"
           >
             {busy ? "Enregistrement…" : "Ajouter ce CV"}
           </button>
@@ -242,7 +242,7 @@ export function ProfileCvs({ cvs }: { cvs: ProfileCv[] }) {
       )}
 
       {feedback && !busy && (
-        <p role={feedback.ok ? "status" : "alert"} className={`text-sm ${feedback.ok ? "text-emerald-700 dark:text-emerald-300" : "text-red-600 dark:text-red-400"}`}>
+        <p role={feedback.ok ? "status" : "alert"} className={`text-sm ${feedback.ok ? "text-ink dark:text-slate-200" : "text-red-600 dark:text-red-400"}`}>
           {feedback.text}
         </p>
       )}

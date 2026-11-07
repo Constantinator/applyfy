@@ -27,7 +27,7 @@ export function DeleteAccount() {
           setError(null);
           dialogRef.current?.showModal();
         }}
-        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:ring-4 focus-visible:ring-red-500/30 focus-visible:outline-none"
+        className="ui-btn-danger"
       >
         Supprimer mon compte
       </button>
@@ -40,17 +40,17 @@ export function DeleteAccount() {
         onCancel={(e) => {
           if (pending) e.preventDefault();
         }}
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-xl backdrop:bg-slate-900/50"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card p-0 backdrop:bg-slate-900/50"
       >
         <div className="space-y-4 p-6">
-          <h2 id="delete-account-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+          <h2 id="delete-account-title" className="ui-title-sm">
             Es-tu sûr ?
           </h2>
-          <p id="delete-account-description" className="text-sm text-slate-600 dark:text-slate-300">
+          <p id="delete-account-description" className="text-sm text-muted dark:text-slate-300">
             Cette action est irréversible et supprimera toutes tes candidatures, CV et données.
           </p>
           {error && (
-            <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-500/15 px-3 py-2 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
+            <p role="alert" className="ui-notice-error px-3 py-2 text-sm">
               {error}
             </p>
           )}
@@ -60,7 +60,7 @@ export function DeleteAccount() {
               autoFocus
               onClick={() => dialogRef.current?.close()}
               disabled={pending}
-              className="btn-secondary px-4 py-2 text-sm"
+              className="ui-btn-secondary"
             >
               Annuler
             </button>
@@ -68,7 +68,7 @@ export function DeleteAccount() {
               type="button"
               onClick={confirmDeletion}
               disabled={pending}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-60"
+              className="ui-btn-danger"
             >
               {pending ? "Suppression…" : "Oui, supprimer mon compte"}
             </button>

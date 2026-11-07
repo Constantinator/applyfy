@@ -60,122 +60,122 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <Link href="/dashboard" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-        Retour au tableau de bord
-      </Link>
+    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+      <main className="ui-page-narrow flex-1 space-y-5">
+        <Link href="/dashboard" className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white">
+          Retour au tableau de bord
+        </Link>
 
-      <div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Mon profil</h1>
-          {beta?.status === "active" && (
-            <span className="bg-brand rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm">
-              Beta testeur
-            </span>
-          )}
-        </div>
-        {user?.email && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{user.email}</p>}
-      </div>
-
-      <section aria-labelledby="abonnement-title" className="space-y-4 card p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 id="abonnement-title" className="font-semibold text-slate-900 dark:text-white">
-              Mon abonnement
-            </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{planDescription}</p>
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink dark:text-white">Mon profil</h1>
+            {beta?.status === "active" && (
+              <span className="bg-ink rounded-full px-3 py-1 text-xs font-semibold text-white">
+                Beta testeur
+              </span>
+            )}
           </div>
-          <span
-            className={`rounded-full px-3 py-1 text-sm font-semibold ring-1 ${
-              premium ? "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-blue-200 dark:ring-blue-400/30" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 ring-slate-200 dark:ring-slate-700"
-            }`}
-          >
-            {premium ? "Premium" : "Gratuit"}
-          </span>
+          {user?.email && <p className="mt-1 text-sm text-muted dark:text-slate-400">{user.email}</p>}
         </div>
-        {abonnement === "indisponible" && (
-          <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-500/15 px-4 py-3 text-sm text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-400/30">
-            La gestion de l&apos;abonnement n&apos;a pas pu s&apos;ouvrir. Réessaie dans un instant.
-          </p>
-        )}
-        {stripePremium ? (
-          <form action={openBillingPortalAction}>
-            <button type="submit" className="btn-secondary px-4 py-2 text-sm">
-              Gérer mon abonnement
-            </button>
-          </form>
-        ) : (
-          !premium && (
-            <Link href="/premium" className="btn-primary inline-flex px-4 py-2 text-sm">
-              Passer au Premium
-            </Link>
-          )
-        )}
-      </section>
 
-      <section aria-labelledby="identite-title" className="space-y-4 card p-5 sm:p-6">
-        <div>
-          <h2 id="identite-title" className="font-semibold text-slate-900 dark:text-white">
-            Prénom et nom
-          </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Utilisés pour signer tes lettres de motivation et remplir leur objet.
-          </p>
-        </div>
-        <AccountNameForm initial={accountName} />
-      </section>
+        <section aria-labelledby="identite-title" className="space-y-4 ui-card p-5 sm:p-7">
+          <div>
+            <h2 id="identite-title" className="ui-title-sm">
+              Prénom et nom
+            </h2>
+            <p className="mt-1 text-sm text-muted dark:text-slate-400">
+              Utilisés pour signer tes lettres de motivation et remplir leur objet.
+            </p>
+          </div>
+          <AccountNameForm initial={accountName} />
+        </section>
 
-      <section
-        aria-labelledby="profil-cv-title"
-        className="space-y-4 card p-5 sm:p-6"
-      >
-        <div>
-          <h2 id="profil-cv-title" className="font-semibold text-slate-900 dark:text-white">
-            Mes CV
-          </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Enregistre jusqu&apos;à {PROFILE_CV_LIMIT} CV (ex. « CV Data », « CV Marketing ») : tu
-            choisiras lequel utiliser dans « Adapter mon CV » sur chaque candidature.
-          </p>
-        </div>
-        <ProfileCvs cvs={cvs} />
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Tes CV sont stockés de façon privée : toi seul·e y as accès. Lors d&apos;une analyse, le CV
-          choisi est transmis à Claude (Anthropic).
-        </p>
-      </section>
+        <section
+          aria-labelledby="rappels-title"
+          className="space-y-4 ui-card p-5 sm:p-7"
+        >
+          <div>
+            <h2 id="rappels-title" className="ui-title-sm">
+              Rappels de relance
+            </h2>
+            <p className="mt-1 text-sm text-muted dark:text-slate-400">
+              Reçois un email quand il est temps de relancer une candidature restée sans réponse
+              {user?.email ? ` (envoyé à ${user.email})` : ""}.
+            </p>
+          </div>
+          <ReminderSettingsForm initial={reminderSettings} emailEnabled={isEmailConfigured()} />
+        </section>
 
-      <section
-        aria-labelledby="rappels-title"
-        className="space-y-4 card p-5 sm:p-6"
-      >
-        <div>
-          <h2 id="rappels-title" className="font-semibold text-slate-900 dark:text-white">
-            Rappels de relance
-          </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Reçois un email quand il est temps de relancer une candidature restée sans réponse
-            {user?.email ? ` (envoyé à ${user.email})` : ""}.
-          </p>
-        </div>
-        <ReminderSettingsForm initial={reminderSettings} emailEnabled={isEmailConfigured()} />
-      </section>
+        <section aria-labelledby="abonnement-title" className="space-y-4 ui-card p-5 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 id="abonnement-title" className="ui-title-sm">
+                Mon abonnement
+              </h2>
+              <p className="mt-1 text-sm text-muted dark:text-slate-400">{planDescription}</p>
+            </div>
+            <span
+              className="rounded-full bg-pill px-3 py-1 text-sm font-semibold text-ink dark:bg-slate-800 dark:text-slate-200"
+            >
+              {premium ? "Premium" : "Gratuit"}
+            </span>
+          </div>
+          {abonnement === "indisponible" && (
+            <p role="alert" className="ui-notice-error px-4 py-3 text-sm">
+              La gestion de l&apos;abonnement n&apos;a pas pu s&apos;ouvrir. Réessaie dans un instant.
+            </p>
+          )}
+          {stripePremium ? (
+            <form action={openBillingPortalAction}>
+              <button type="submit" className="ui-btn-secondary">
+                Gérer mon abonnement
+              </button>
+            </form>
+          ) : (
+            !premium && (
+              <Link href="/premium" className="ui-btn-primary inline-flex">
+                Passer au Premium
+              </Link>
+            )
+          )}
+        </section>
 
-      <section
-        aria-labelledby="danger-title"
-        className="space-y-4 rounded-2xl border border-red-200 dark:border-red-400/30 bg-red-50/40 p-5 sm:p-6"
-      >
-        <div>
-          <h2 id="danger-title" className="font-semibold text-red-700 dark:text-red-300">
-            Zone dangereuse
-          </h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            Supprime définitivement ton compte Applyfy et toutes tes données : candidatures,
-            historique, CV, lettres et préférences. Cette action est irréversible.
+        <section
+          aria-labelledby="profil-cv-title"
+          className="space-y-4 ui-card p-5 sm:p-7"
+        >
+          <div>
+            <h2 id="profil-cv-title" className="ui-title-sm">
+              Mes CV
+            </h2>
+            <p className="mt-1 text-sm text-muted dark:text-slate-400">
+              Enregistre jusqu&apos;à {PROFILE_CV_LIMIT} CV (ex. « CV Data », « CV Marketing ») : tu
+              choisiras lequel utiliser dans « Adapter mon CV » sur chaque candidature.
+            </p>
+          </div>
+          <ProfileCvs cvs={cvs} />
+          <p className="text-xs text-muted dark:text-slate-400">
+            Tes CV sont stockés de façon privée : toi seul·e y as accès. Lors d&apos;une analyse, le CV
+            choisi est transmis à Claude (Anthropic).
           </p>
-        </div>
-        <DeleteAccount />
-      </section>
-    </main>
+        </section>
+
+        <section
+          aria-labelledby="danger-title"
+          className="ui-card space-y-4 p-5 sm:p-7"
+        >
+          <div>
+            <h2 id="danger-title" className="ui-title-sm">
+              Zone dangereuse
+            </h2>
+            <p className="mt-1 text-sm text-muted dark:text-slate-300">
+              Supprime définitivement ton compte Applyfy et toutes tes données : candidatures,
+              historique, CV, lettres et préférences. Cette action est irréversible.
+            </p>
+          </div>
+          <DeleteAccount />
+        </section>
+      </main>
+    </div>
   );
 }
