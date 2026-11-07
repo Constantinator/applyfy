@@ -19,14 +19,14 @@ export function StatusFilter({
             type="button"
             onClick={() => onChange(option.value)}
             aria-pressed={isActive}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`ui-focus min-h-11 rounded-full px-3 py-1.5 text-sm font-medium transition-colors lg:min-h-0 ${
               isActive
-                ? "bg-brand text-white shadow-sm shadow-blue-600/20"
-                : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-ink text-white dark:bg-white dark:text-slate-900"
+                : "bg-white dark:bg-slate-900 text-muted dark:text-slate-300 ring-1 ring-line-strong dark:ring-slate-700 hover:bg-pill hover:text-ink dark:hover:bg-slate-800"
             }`}
           >
             {option.label}
-            <span className={`ml-1.5 ${isActive ? "text-blue-100" : "text-slate-400"}`}>
+            <span className={`ml-1.5 ${isActive ? "text-white/70 dark:text-slate-600" : "text-muted dark:text-slate-400"}`}>
               {option.count}
             </span>
           </button>

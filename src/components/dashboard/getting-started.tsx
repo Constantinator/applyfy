@@ -67,20 +67,20 @@ export function GettingStarted({ steps }: { steps: StartStep[] }) {
   if (dismissed || progress.complete) return null;
 
   return (
-    <section aria-labelledby="start-title" className="card p-5 sm:p-6">
+    <section aria-labelledby="start-title" className="ui-card p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="start-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+          <h2 id="start-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
             Pour bien démarrer
           </h2>
-          <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-0.5 text-sm text-muted dark:text-slate-300">
             {progress.done} étape{progress.done > 1 ? "s" : ""} sur {progress.total}
           </p>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          className="inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          className="ui-focus inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-medium text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white"
         >
           Masquer
         </button>
@@ -92,9 +92,9 @@ export function GettingStarted({ steps }: { steps: StartStep[] }) {
         aria-valuemin={0}
         aria-valuemax={progress.total}
         aria-valuenow={progress.done}
-        className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+        className="mt-3 h-2 overflow-hidden rounded-full bg-line-soft dark:bg-slate-800"
       >
-        <div className="h-full rounded-full bg-blue-600 transition-[width] dark:bg-blue-500" style={{ width: `${progress.percent}%` }} />
+        <div className="h-full rounded-full bg-accent transition-[width] dark:bg-blue-500" style={{ width: `${progress.percent}%` }} />
       </div>
 
       <ul className="mt-3">
@@ -104,21 +104,21 @@ export function GettingStarted({ steps }: { steps: StartStep[] }) {
               aria-hidden="true"
               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                 step.done
-                  ? "bg-blue-600 text-white dark:bg-blue-500"
-                  : "ring-1 ring-slate-300 dark:ring-slate-600"
+                  ? "bg-accent text-white dark:bg-blue-500"
+                  : "ring-1 ring-line-strong dark:ring-slate-600"
               }`}
             >
               {step.done && "✓"}
             </span>
             {step.done ? (
-              <span className="min-w-0 text-slate-500 dark:text-slate-400">
+              <span className="min-w-0 text-muted dark:text-slate-400">
                 <span className="sr-only">Fait : </span>
                 {step.label}
               </span>
             ) : (
               <Link
                 href={step.href}
-                className="min-w-0 font-medium text-blue-700 underline-offset-2 hover:underline dark:text-blue-300"
+                className="ui-link inline-flex min-h-11 min-w-0 items-center"
               >
                 {step.label}
               </Link>

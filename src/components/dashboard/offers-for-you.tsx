@@ -18,25 +18,25 @@ export async function OffersForYou({
   if (offers.length === 0) return null;
 
   return (
-    <section aria-labelledby="offers-title" className="card p-5 sm:p-6">
-      <h2 id="offers-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+    <section aria-labelledby="offers-title" className="ui-card p-5 sm:p-6">
+      <h2 id="offers-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
         Offres pour toi
       </h2>
       <ul className="mt-1">
         {offers.map((offer) => (
           <li
             key={offer.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 py-3.5 first:border-t-0 dark:border-slate-800"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-soft py-3.5 first:border-t-0 dark:border-slate-800"
           >
             <div className="min-w-0 flex-1 basis-48">
-              <p className="font-semibold break-words text-slate-900 dark:text-white">{offer.title}</p>
-              <p className="text-sm break-words text-slate-600 dark:text-slate-300">{offer.company}</p>
+              <p className="font-semibold break-words text-ink dark:text-white">{offer.title}</p>
+              <p className="text-sm break-words text-muted dark:text-slate-300">{offer.company}</p>
             </div>
             <Link
               href={offerImportHref(offer.url)}
               prefetch={false}
               aria-label={`Importer l'offre ${offer.title} chez ${offer.company}`}
-              className="btn-secondary min-h-11 w-full px-4 text-sm sm:w-auto"
+              className="ui-btn-secondary w-full px-4 sm:w-auto"
             >
               Importer l&apos;offre
             </Link>

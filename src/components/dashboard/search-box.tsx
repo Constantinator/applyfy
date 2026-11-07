@@ -11,7 +11,7 @@ export function SearchBox({ value, onChange }: { value: string; onChange: (value
         aria-hidden="true"
         viewBox="0 0 20 20"
         fill="currentColor"
-        className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
+        className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted"
       >
         <path
           fillRule="evenodd"
@@ -29,7 +29,7 @@ export function SearchBox({ value, onChange }: { value: string; onChange: (value
         autoComplete="off"
         enterKeyHint="search"
         // 16 px sur mobile : pas de zoom automatique sur iOS.
-        className="input py-2 pr-9 pl-9 text-base sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
+        className={`ui-input min-h-11 py-2 pl-9 text-base placeholder:text-sm placeholder-shown:text-ellipsis sm:text-sm [&::-webkit-search-cancel-button]:appearance-none ${value ? "pr-11" : "pr-3"}`}
       />
       {value && (
         <button
@@ -39,7 +39,7 @@ export function SearchBox({ value, onChange }: { value: string; onChange: (value
             input.current?.focus();
           }}
           aria-label="Effacer la recherche"
-          className="absolute top-1/2 right-2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          className="ui-focus absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:text-ink dark:text-slate-400 dark:hover:text-slate-200"
         >
           <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
             <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />

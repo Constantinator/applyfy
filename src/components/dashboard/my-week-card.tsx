@@ -14,7 +14,7 @@ import {
 } from "@/lib/dashboard-week";
 
 const LINK_CLASS =
-  "inline-flex min-h-11 items-center text-sm font-medium text-blue-700 underline-offset-2 hover:underline dark:text-blue-300";
+  "ui-link inline-flex min-h-11 items-center text-sm";
 
 function GoalForm({ goal, onClose }: { goal: number | null; onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ function GoalForm({ goal, onClose }: { goal: number | null; onClose: () => void 
       }}
       className="mt-3"
     >
-      <label htmlFor="weekly-goal" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+      <label htmlFor="weekly-goal" className="text-sm font-medium text-ink dark:text-slate-200">
         Candidatures par semaine
       </label>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -53,12 +53,12 @@ function GoalForm({ goal, onClose }: { goal: number | null; onClose: () => void 
           autoFocus
           aria-invalid={Boolean(error)}
           aria-describedby={error ? "weekly-goal-error" : undefined}
-          className="input min-h-11 w-24"
+          className="ui-input min-h-11 w-24"
         />
-        <button type="submit" disabled={pending} className="btn-primary min-h-11 px-4 text-sm">
+        <button type="submit" disabled={pending} className="ui-btn-primary px-4">
           {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
-        <button type="button" onClick={onClose} disabled={pending} className="btn-secondary min-h-11 px-4 text-sm">
+        <button type="button" onClick={onClose} disabled={pending} className="ui-btn-secondary px-4">
           Annuler
         </button>
         {goal !== null && (
@@ -95,15 +95,15 @@ export function MyWeekCard({
   const shown = stats[period];
 
   return (
-    <section aria-labelledby="week-title" className="card p-5 sm:p-6">
-      <h2 id="week-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+    <section aria-labelledby="week-title" className="ui-card p-5 sm:p-6">
+      <h2 id="week-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
         Ma semaine
       </h2>
 
-      <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+      <p className="mt-2 text-3xl font-semibold tracking-title text-ink dark:text-white">
         {sentThisWeek}
-        {goal !== null && <span className="text-lg font-semibold text-slate-500 dark:text-slate-400"> / {goal}</span>}
-        <span className="ml-2 text-sm font-normal text-slate-600 dark:text-slate-300">
+        {goal !== null && <span className="text-lg font-semibold text-muted dark:text-slate-400"> / {goal}</span>}
+        <span className="ml-2 text-sm font-normal tracking-normal text-muted dark:text-slate-300">
           envoyée{sentThisWeek > 1 ? "s" : ""} cette semaine
         </span>
       </p>
@@ -115,16 +115,16 @@ export function MyWeekCard({
           aria-valuemin={0}
           aria-valuemax={goal}
           aria-valuenow={Math.min(sentThisWeek, goal)}
-          className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+          className="mt-3 h-2 overflow-hidden rounded-full bg-line-soft dark:bg-slate-800"
         >
           <div
-            className="h-full rounded-full bg-blue-600 transition-[width] dark:bg-blue-500"
+            className="h-full rounded-full bg-accent transition-[width] dark:bg-blue-500"
             style={{ width: `${goalPercent(sentThisWeek, goal)}%` }}
           />
         </div>
       )}
 
-      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{weekMessage(sentThisWeek, goal)}</p>
+      <p className="mt-2 text-sm text-muted dark:text-slate-300">{weekMessage(sentThisWeek, goal)}</p>
 
       {goalEditable &&
         (editing ? (
@@ -135,18 +135,18 @@ export function MyWeekCard({
           </button>
         ))}
 
-      <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
-        <div role="group" aria-label="Période" className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+      <div className="mt-4 border-t border-line-soft pt-4 dark:border-slate-800">
+        <div role="group" aria-label="Période" className="flex rounded-full bg-pill p-1 dark:bg-slate-800">
           {PERIODS.map(({ id, label }) => (
             <button
               key={id}
               type="button"
               aria-pressed={period === id}
               onClick={() => setPeriod(id)}
-              className={`min-h-11 flex-1 rounded-lg px-2 text-sm font-medium transition ${
+              className={`ui-focus min-h-11 flex-auto rounded-full px-1 text-sm font-medium whitespace-nowrap transition sm:flex-1 sm:px-2 ${
                 period === id
-                  ? "bg-white text-blue-700 shadow-sm dark:bg-slate-900 dark:text-blue-300"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                  ? "bg-white text-ink shadow-sm dark:bg-slate-900 dark:text-white"
+                  : "text-muted hover:text-ink dark:text-slate-300 dark:hover:text-white"
               }`}
             >
               {label}
@@ -163,16 +163,16 @@ export function MyWeekCard({
             ] as const
           ).map(([label, value]) => (
             <div key={label} className="flex flex-col-reverse">
-              <dt className="text-sm text-slate-600 dark:text-slate-300">{label}</dt>
-              <dd className="text-2xl font-bold text-slate-900 dark:text-white">{value}</dd>
+              <dt className="text-sm text-muted dark:text-slate-300">{label}</dt>
+              <dd className="text-2xl font-semibold tracking-title text-ink dark:text-white">{value}</dd>
             </div>
           ))}
         </dl>
 
         {shown.responseRate !== null && (
-          <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-3 text-center text-sm text-muted dark:text-slate-300">
             Taux de réponse :{" "}
-            <strong className="font-semibold text-slate-900 dark:text-white">{shown.responseRate} %</strong>
+            <strong className="font-semibold text-ink dark:text-white">{shown.responseRate} %</strong>
           </p>
         )}
       </div>

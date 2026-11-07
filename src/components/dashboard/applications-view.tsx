@@ -133,7 +133,7 @@ export function ApplicationsView({
           }}
         />
         <div className="flex shrink-0 items-center gap-2">
-          <label htmlFor="sort" className="text-sm whitespace-nowrap text-slate-500 dark:text-slate-400">
+          <label htmlFor="sort" className="text-sm whitespace-nowrap text-muted dark:text-slate-400">
             Trier par
           </label>
           <select
@@ -144,7 +144,7 @@ export function ApplicationsView({
               setSort(value);
               syncUrl({ filtre: filter, tri: value });
             }}
-            className="input w-auto py-1.5"
+            className="ui-input min-h-11 w-auto py-1.5 lg:min-h-0"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -161,12 +161,12 @@ export function ApplicationsView({
       </p>
 
       {normalizedQuery && visible.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
-          <p className="font-medium text-slate-900 dark:text-white">Aucune candidature ne correspond à ta recherche</p>
+        <div className="rounded-card border border-dashed border-line-strong bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="font-medium text-ink dark:text-white">Aucune candidature ne correspond à ta recherche</p>
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="mt-2 text-sm font-medium text-blue-600 underline-offset-2 hover:underline dark:text-blue-400"
+            className="ui-link mt-2 min-h-11 text-sm"
           >
             Effacer la recherche
           </button>

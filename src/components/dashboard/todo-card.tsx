@@ -6,14 +6,14 @@ import { TODO_MAX_LINES, TODO_MAX_LINES_MOBILE, remainingTodo, type TodoItem } f
 import { FOLLOW_UP_FILTER } from "@/lib/follow-up";
 
 const LINKS_CLASS =
-  "inline-flex min-h-11 items-center font-medium text-blue-700 underline-offset-2 hover:underline dark:text-blue-300";
+  "ui-link inline-flex min-h-11 items-center";
 
 /** « Voir les autres : 2 à relancer · 1 brouillon », chaque type menant à son filtre. */
 function RemainingLinks({ items, shown, className }: { items: TodoItem[]; shown: number; className: string }) {
   const { relances, drafts } = remainingTodo(items, shown);
   if (relances + drafts === 0) return null;
   return (
-    <p className={`mt-2 flex-wrap items-center gap-x-2 border-t border-slate-100 pt-2 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300 ${className}`}>
+    <p className={`mt-2 flex-wrap items-center gap-x-2 border-t border-line-soft pt-2 text-sm text-muted dark:border-slate-800 dark:text-slate-300 ${className}`}>
       <span>Voir les autres :</span>
       {relances > 0 && (
         <Link href={`/candidatures?filtre=${FOLLOW_UP_FILTER}`} className={LINKS_CLASS}>
@@ -35,7 +35,7 @@ function TodoLine({ item, desktopOnly }: { item: TodoItem; desktopOnly: boolean 
   const Icon = relance ? IconBell : IconDocument;
   return (
     <li
-      className={`flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 py-3.5 first:border-t-0 dark:border-slate-800 ${
+      className={`flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-soft py-3.5 first:border-t-0 dark:border-slate-800 ${
         desktopOnly ? "hidden sm:flex" : "flex"
       }`}
     >
@@ -44,23 +44,23 @@ function TodoLine({ item, desktopOnly }: { item: TodoItem; desktopOnly: boolean 
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
           relance
             ? "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400"
-            : "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
+            : "bg-pill text-ink dark:bg-slate-800 dark:text-slate-200"
         }`}
       >
         <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1 basis-48">
-        <p className="font-semibold break-words text-slate-900 dark:text-white">
+        <p className="font-semibold break-words text-ink dark:text-white">
           {relance ? `Relancer ${item.company}` : `Finir ta candidature chez ${item.company}`}
         </p>
-        <p className="text-sm break-words text-slate-600 dark:text-slate-300">
+        <p className="text-sm break-words text-muted dark:text-slate-300">
           {[item.position, item.delay].filter(Boolean).join(" · ")}
         </p>
       </div>
       <Link
         href={relance ? `/candidatures/${item.id}#relance` : `/candidatures/${item.id}`}
         aria-label={relance ? `Écrire la relance à ${item.company}` : `Continuer ta candidature chez ${item.company}`}
-        className="btn-secondary min-h-11 w-full px-4 text-sm sm:w-auto"
+        className="ui-btn-secondary w-full px-4 sm:w-auto"
       >
         {relance ? "Écrire la relance" : "Continuer"}
       </Link>
@@ -74,18 +74,18 @@ function TodoLine({ item, desktopOnly }: { item: TodoItem; desktopOnly: boolean 
  */
 export function TodoCard({ items, hasRealApplication }: { items: TodoItem[]; hasRealApplication: boolean }) {
   return (
-    <section aria-labelledby="todo-title" className="card min-w-0 p-5 sm:p-6">
-      <h2 id="todo-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+    <section aria-labelledby="todo-title" className="ui-card min-w-0 p-5 sm:p-6">
+      <h2 id="todo-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
         À faire aujourd&apos;hui
       </h2>
 
       {!hasRealApplication ? (
         <div className="mt-3 space-y-4">
-          <p className="text-slate-600 dark:text-slate-300">
+          <p className="text-muted dark:text-slate-300">
             Ajoute l&apos;offre qui t&apos;intéresse : Applyfy t&apos;aide à adapter ton CV, à écrire ta lettre et à relancer au bon moment.
           </p>
           <OnboardingTip id="nouvelle-candidature" text="Clique ici pour ajouter une offre">
-            <Link href="/candidatures/nouvelle" className="btn-primary min-h-11 px-5 text-sm">
+            <Link href="/candidatures/nouvelle" className="ui-btn-primary px-5">
               <IconPlus className="h-4 w-4" />
               Ajouter ta première candidature
             </Link>
@@ -95,13 +95,13 @@ export function TodoCard({ items, hasRealApplication }: { items: TodoItem[]; has
         <div className="mt-3 flex items-center gap-3">
           <span
             aria-hidden="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pill text-ink dark:bg-slate-800 dark:text-slate-200"
           >
             <IconSparkles className="h-5 w-5" />
           </span>
-          <p className="min-w-0 text-slate-600 dark:text-slate-300">
+          <p className="min-w-0 text-muted dark:text-slate-300">
             Rien à faire pour l&apos;instant : tes candidatures sont à jour. Une nouvelle offre à tenter ?{" "}
-            <Link href="/offres" className="font-medium text-blue-700 underline underline-offset-2 dark:text-blue-300">
+            <Link href="/offres" className="ui-link underline">
               Trouver une offre
             </Link>
           </p>

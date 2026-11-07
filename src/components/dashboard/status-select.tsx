@@ -24,7 +24,7 @@ export function StatusSelect({
   return (
     <div className="relative z-10 inline-flex flex-col items-end gap-1 md:items-start" onClick={(e) => e.stopPropagation()}>
       <span
-        className={`relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ring-1 ring-inset transition-shadow has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-blue-500 hover:brightness-95 ${style.badge}`}
+        className={`relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ring-1 ring-inset transition-shadow has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-accent hover:brightness-95 ${style.badge}`}
       >
         <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
         {STATUS_LABELS[status]}
@@ -39,7 +39,8 @@ export function StatusSelect({
           aria-label={`Statut de la candidature ${company}`}
           value={status}
           onChange={(e) => onChange(e.target.value as ApplicationStatus)}
-          className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+          // Mobile : zone de 44 px de haut, plus grande que le badge (invisible).
+          className="absolute inset-x-0 top-1/2 h-11 w-full -translate-y-1/2 cursor-pointer appearance-none opacity-0 md:top-0 md:h-full md:translate-y-0"
         >
           {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map((s) => (
             <option key={s} value={s}>

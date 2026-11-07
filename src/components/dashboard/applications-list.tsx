@@ -41,14 +41,14 @@ export function ApplicationsList({
 }) {
   if (applications.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center">
-        <p className="font-medium text-slate-900 dark:text-white">Aucune candidature ici</p>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      <div className="rounded-card border border-dashed border-line-strong dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center">
+        <p className="font-medium text-ink dark:text-white">Aucune candidature ici</p>
+        <p className="mt-1 text-sm text-muted dark:text-slate-400">
           Ajoute ta première candidature pour commencer le suivi.
         </p>
         <Link
           href="/candidatures/nouvelle"
-          className="btn-primary mt-4 px-4 py-2 text-sm"
+          className="ui-btn-primary mt-4 px-4"
         >
           Ajouter une candidature
         </Link>
@@ -63,22 +63,22 @@ export function ApplicationsList({
         {applications.map((app) => (
           <li
             key={app.id}
-            className="card relative p-4 transition-colors hover:border-blue-300 has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-blue-500"
+            className="ui-card relative p-4 transition-colors hover:border-line-strong has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-accent"
           >
             <div className="flex items-start justify-between gap-3">
               <Link
                 href={`/candidatures/${app.id}`}
-                className="min-w-0 after:absolute after:inset-0 after:rounded-2xl focus:outline-none"
+                className="min-w-0 after:absolute after:inset-0 after:rounded-card focus:outline-none"
               >
-                <p className="flex items-center gap-2 font-medium text-slate-900 dark:text-white">
+                <p className="flex items-center gap-2 font-medium text-ink dark:text-white">
                   <span className="truncate">{app.company}</span>
                   {app.is_example && <ExampleBadge />}
                 </p>
-                <p className="truncate text-sm text-slate-500 dark:text-slate-400">{app.position}</p>
+                <p className="truncate text-sm text-muted dark:text-slate-400">{app.position}</p>
               </Link>
               <StatusSelect status={app.status} company={app.company} error={errors[app.id]} onChange={(status) => onStatusChange(app, status)} />
             </div>
-            <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-3 text-xs text-muted dark:text-slate-400">
               <p>Envoyée : {formatDate(app.applied_at)}</p>
               <p className={needsFollowUp(app, now) ? "font-medium text-amber-700 dark:text-amber-300" : ""}>
                 Dernier contact : {lastContactLabel(app, now)}
@@ -89,9 +89,9 @@ export function ApplicationsList({
       </ul>
 
       {/* Desktop : tableau */}
-      <div className="hidden card overflow-hidden md:block">
-        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-          <thead className="bg-slate-50/80 dark:bg-slate-800/60 text-left text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
+      <div className="hidden ui-card overflow-hidden md:block">
+        <table className="min-w-full divide-y divide-line dark:divide-slate-800 text-sm">
+          <thead className="bg-surface dark:bg-slate-800/60 text-left text-xs font-semibold tracking-wide text-muted dark:text-slate-400 uppercase">
             <tr>
               <th scope="col" className="px-5 py-3.5">Entreprise / Poste</th>
               <th scope="col" className="px-5 py-3.5">Statut</th>
@@ -99,11 +99,11 @@ export function ApplicationsList({
               <th scope="col" className="px-5 py-3.5">Dernier contact</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-line-soft dark:divide-slate-800">
             {applications.map((app) => (
               <tr
                 key={app.id}
-                className="group relative cursor-pointer transition-colors hover:bg-blue-50/40 has-[a:focus-visible]:bg-blue-50"
+                className="group relative cursor-pointer transition-colors hover:bg-surface has-[a:focus-visible]:bg-surface has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-accent dark:hover:bg-slate-800/60 dark:has-[a:focus-visible]:bg-slate-800/60"
               >
                 <td className="px-5 py-4">
                   <Link
@@ -112,18 +112,18 @@ export function ApplicationsList({
                   >
                     <span
                       aria-hidden="true"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/15 text-sm font-bold text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-500/20"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pill dark:bg-slate-800 text-sm font-semibold text-ink dark:text-slate-200"
                     >
                       {app.company.charAt(0).toUpperCase()}
                     </span>
                     <span className="min-w-0">
-                      <span className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white group-hover:text-blue-600">
+                      <span className="flex items-center gap-2 font-semibold text-ink dark:text-white group-hover:text-accent dark:group-hover:text-blue-300">
                         {app.company}
                         {app.is_example && <ExampleBadge />}
                       </span>
-                      <span className="block text-slate-500 dark:text-slate-400">
+                      <span className="block text-muted dark:text-slate-400">
                         {app.position}
-                        {app.location && <span className="text-slate-400"> · {app.location}</span>}
+                        {app.location && <span className="text-muted dark:text-slate-400"> · {app.location}</span>}
                       </span>
                     </span>
                   </Link>
@@ -131,10 +131,10 @@ export function ApplicationsList({
                 <td className="px-5 py-4">
                   <StatusSelect status={app.status} company={app.company} error={errors[app.id]} onChange={(status) => onStatusChange(app, status)} />
                 </td>
-                <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(app.applied_at)}</td>
+                <td className="px-5 py-4 text-muted dark:text-slate-300">{formatDate(app.applied_at)}</td>
                 <td
                   className={`px-5 py-4 ${
-                    needsFollowUp(app, now) ? "font-medium text-amber-700 dark:text-amber-300" : "text-slate-600 dark:text-slate-300"
+                    needsFollowUp(app, now) ? "font-medium text-amber-700 dark:text-amber-300" : "text-muted dark:text-slate-300"
                   }`}
                 >
                   {lastContactLabel(app, now)}
@@ -151,6 +151,6 @@ export function ApplicationsList({
 /** Badge discret de la candidature exemple créée à l'inscription. */
 function ExampleBadge() {
   return (
-    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">Exemple</span>
+    <span className="rounded-full bg-pill px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted uppercase ring-1 ring-line dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">Exemple</span>
   );
 }

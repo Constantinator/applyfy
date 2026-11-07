@@ -126,126 +126,128 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     realApplications.filter((app) => app.status === status).length;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      {source === "demo" && (
-        <p className="rounded-lg bg-amber-100 px-4 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
-          Mode démo : configure Supabase dans <code>.env.local</code> pour utiliser tes vraies
-          données.
-        </p>
-      )}
-
-      {/* Conversion Google Ads (abonnement Premium) au retour de Stripe Checkout. */}
-      {welcomePremium && (
-        <Suspense fallback={null}>
-          <GoogleAdsConversion />
-        </Suspense>
-      )}
-
-      {welcomePremium && (
-        <p
-          role="status"
-          className="rounded-lg bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
-        >
-          🎉 Bienvenue en Premium ! Toutes les fonctionnalités IA sont maintenant illimitées.
-        </p>
-      )}
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm text-slate-500 dark:text-slate-400">{todayLabel(now)}</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight break-words text-slate-900 sm:text-4xl dark:text-white">
-            Bonjour{accountName ? ` ${accountName.firstName}` : ""}
-          </h1>
-          <p className="mt-2 text-lg text-slate-600 dark:text-slate-300">
-            {!hasRealApplication ? (
-              "Commence par ajouter ta première candidature."
-            ) : todo.length > 0 ? (
-              <>
-                Tu as{" "}
-                <strong className="font-semibold text-slate-900 dark:text-white">{todoCountLabel(todo.length)}</strong>{" "}
-                pour faire avancer tes candidatures.
-              </>
-            ) : (
-              "Bravo, tout est à jour aujourd'hui."
-            )}
+    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+      <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+        {source === "demo" && (
+          <p className="rounded-block bg-amber-100 px-4 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
+            Mode démo : configure Supabase dans <code>.env.local</code> pour utiliser tes vraies
+            données.
           </p>
-        </div>
-        {(canJoinBeta || canGoPremium) && (
-          <div className="flex flex-wrap items-center gap-2 self-start">
-            {canJoinBeta && (
-              <BetaJoinDialog
-                mode="join"
-                spotsLeft={betaSpotsLeft}
-                autoOpen={betaParam === "rejoindre"}
-                triggerClassName="btn-secondary min-h-11 px-4 text-sm"
-              />
-            )}
-            {canGoPremium && (
-              <Link href="/premium" className="btn-secondary min-h-11 px-4 text-sm">
-                <IconSparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                Passer au Premium
-              </Link>
-            )}
-          </div>
         )}
-      </div>
 
-      <OfferLinkForm />
+        {/* Conversion Google Ads (abonnement Premium) au retour de Stripe Checkout. */}
+        {welcomePremium && (
+          <Suspense fallback={null}>
+            <GoogleAdsConversion />
+          </Suspense>
+        )}
 
-      {betaReport && (
-        <p className="flex flex-wrap items-center gap-x-2 rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-900 ring-1 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-100 dark:ring-blue-400/30">
-          <span>Rapport à rendre avant le {betaReport.dueLabel}</span>
-          <Link
-            href="/beta"
-            className="inline-flex min-h-11 items-center font-medium text-blue-700 underline underline-offset-2 dark:text-blue-300"
+        {welcomePremium && (
+          <p
+            role="status"
+            className="rounded-block bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
           >
-            Écrire le rapport
-          </Link>
-        </p>
-      )}
+            🎉 Bienvenue en Premium ! Toutes les fonctionnalités IA sont maintenant illimitées.
+          </p>
+        )}
 
-      {startSteps && <GettingStarted steps={startSteps} />}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm text-muted dark:text-slate-400">{todayLabel(now)}</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-title break-words text-ink sm:text-4xl dark:text-white">
+              Bonjour{accountName ? ` ${accountName.firstName}` : ""}
+            </h1>
+            <p className="mt-2 text-lg text-muted dark:text-slate-300">
+              {!hasRealApplication ? (
+                "Commence par ajouter ta première candidature."
+              ) : todo.length > 0 ? (
+                <>
+                  Tu as{" "}
+                  <strong className="font-semibold text-ink dark:text-white">{todoCountLabel(todo.length)}</strong>{" "}
+                  pour faire avancer tes candidatures.
+                </>
+              ) : (
+                "Bravo, tout est à jour aujourd'hui."
+              )}
+            </p>
+          </div>
+          {(canJoinBeta || canGoPremium) && (
+            <div className="flex flex-wrap items-center gap-2 self-start">
+              {canJoinBeta && (
+                <BetaJoinDialog
+                  mode="join"
+                  spotsLeft={betaSpotsLeft}
+                  autoOpen={betaParam === "rejoindre"}
+                  triggerClassName="ui-btn-secondary px-4"
+                />
+              )}
+              {canGoPremium && (
+                <Link href="/premium" className="ui-btn-secondary px-4">
+                  <IconSparkles className="h-4 w-4" />
+                  Passer au Premium
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
 
-      <div className={`grid items-start gap-6 ${latestCv === undefined ? "" : "lg:grid-cols-[minmax(0,1fr)_22rem]"}`}>
-        <TodoCard items={todo} hasRealApplication={hasRealApplication} />
-        {/* Lecture du CV en échec : pas de carte, plutôt qu'un « Crée ton CV » trompeur. */}
-        {latestCv !== undefined && <CvCard cv={latestCv} />}
-      </div>
+        <OfferLinkForm />
 
-      {periodStats && <MyWeekCard stats={periodStats} goal={weeklyGoal.goal} goalEditable={weeklyGoal.available} />}
+        {betaReport && (
+          <p className="ui-block flex flex-wrap items-center gap-x-2 px-4 py-2 text-sm text-ink dark:text-slate-200">
+            <span>Rapport à rendre avant le {betaReport.dueLabel}</span>
+            <Link
+              href="/beta"
+              className="ui-link inline-flex min-h-11 items-center underline"
+            >
+              Écrire le rapport
+            </Link>
+          </p>
+        )}
 
-      {latestCv && (
-        <Suspense fallback={null}>
-          <OffersForYou sector={latestCv.sector} targetJob={latestCv.targetJob} applied={realApplications} />
-        </Suspense>
-      )}
+        {startSteps && <GettingStarted steps={startSteps} />}
 
-      {hasRealApplication && (
-        <section aria-labelledby="stats-title" className="space-y-3">
-          <h2 id="stats-title" className="text-lg font-semibold text-slate-900 dark:text-white">
-            Tes chiffres
-          </h2>
-          <StatsCards
-            stats={[
-              { label: "Candidatures", value: realApplications.length, tone: "blue" },
-              {
-                label: "En attente de réponse",
-                value:
-                  countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
-                tone: "waiting",
-              },
-              { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
-              {
-                label: "À relancer",
-                value: toFollowUp.length,
-                hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
-                tone: "amber",
-                highlight: toFollowUp.length > 0,
-              },
-            ]}
-          />
-        </section>
-      )}
-    </main>
+        <div className={`grid items-start gap-6 ${latestCv === undefined ? "" : "lg:grid-cols-[minmax(0,1fr)_22rem]"}`}>
+          <TodoCard items={todo} hasRealApplication={hasRealApplication} />
+          {/* Lecture du CV en échec : pas de carte, plutôt qu'un « Crée ton CV » trompeur. */}
+          {latestCv !== undefined && <CvCard cv={latestCv} />}
+        </div>
+
+        {periodStats && <MyWeekCard stats={periodStats} goal={weeklyGoal.goal} goalEditable={weeklyGoal.available} />}
+
+        {latestCv && (
+          <Suspense fallback={null}>
+            <OffersForYou sector={latestCv.sector} targetJob={latestCv.targetJob} applied={realApplications} />
+          </Suspense>
+        )}
+
+        {hasRealApplication && (
+          <section aria-labelledby="stats-title" className="space-y-3">
+            <h2 id="stats-title" className="text-lg font-semibold tracking-title text-ink dark:text-white">
+              Tes chiffres
+            </h2>
+            <StatsCards
+              stats={[
+                { label: "Candidatures", value: realApplications.length, tone: "blue" },
+                {
+                  label: "En attente de réponse",
+                  value:
+                    countByStatus("envoyee") + countByStatus("en_attente") + countByStatus("relancee"),
+                  tone: "waiting",
+                },
+                { label: "Entretiens", value: countByStatus("entretien"), tone: "violet" },
+                {
+                  label: "À relancer",
+                  value: toFollowUp.length,
+                  hint: `Sans nouvelles depuis ${FOLLOW_UP_AFTER_DAYS} j+`,
+                  tone: "amber",
+                  highlight: toFollowUp.length > 0,
+                },
+              ]}
+            />
+          </section>
+        )}
+      </main>
+    </div>
   );
 }
