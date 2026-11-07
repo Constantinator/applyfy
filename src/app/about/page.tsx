@@ -18,11 +18,12 @@ export default function AboutPage() {
     <div className="flex flex-1 flex-col bg-white">
       <SiteHeader />
       <main className="flex-1">
-        <article className="ui-page-narrow">
-          <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink">
+        <article className="ui-page">
+          <div className="mx-auto max-w-[760px]">
+          <h1 className="text-[36px] leading-[1.08] font-bold tracking-[-0.035em] text-ink sm:text-[44px]">
             Notre histoire
           </h1>
-          <div className="mt-10 space-y-6 text-lg leading-relaxed text-muted">
+          <div className="mt-7 space-y-4 text-[16.5px] leading-[1.75] text-prose">
             <p>
               Applyfy est né d&apos;une frustration simple : gérer des dizaines et des dizaines de
               candidatures en jonglant entre Excel, Word et PDF, c&apos;est épuisant.
@@ -66,13 +67,15 @@ export default function AboutPage() {
           {/* Emplacement réservé à un texte à venir. */}
           <div className="min-h-16" />
 
-          <div className="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
-            <Link href="/signup" className="ui-btn-primary text-base">
+          </div>
+
+          <div className="mx-auto mt-10 flex max-w-[980px] flex-col items-center gap-4 rounded-[28px] bg-ink px-6 py-10 text-center sm:p-11">
+            <Link href="/signup" className="ui-btn-inverse">
               Essayer Applyfy gratuitement
             </Link>
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className="ui-focus ui-hit relative text-sm font-semibold text-accent underline-offset-4 hover:underline"
+              className="ui-focus ui-hit relative text-sm font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline"
             >
               Nous contacter
             </a>
