@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
+import { READY_SCORE, scoreLabel, scoreTone, type CvScore } from "@/lib/cv-score";
 
 /** Couleurs du score : rouge sous 70, orange de 70 à 79, vert à partir de 80. */
 export const SCORE_TONES = {
@@ -10,12 +10,6 @@ export const SCORE_TONES = {
   orange: { stroke: "#f97316", bar: "bg-orange-500", text: "text-orange-600 dark:text-orange-400" },
   green: { stroke: "#16a34a", bar: "bg-green-600", text: "text-green-700 dark:text-green-400" },
 } as const;
-
-/** Appréciation du score sur 100. */
-export function scoreLabel(score: number) {
-  if (score >= READY_SCORE) return "Prêt à postuler";
-  return score >= 70 ? "Presque prêt" : "À retravailler";
-}
 
 /** Jauge circulaire du score sur 100. */
 export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" | "lg" | "card" }) {

@@ -13,12 +13,12 @@ import {
   type CvAnalysis,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { READY_SCORE, scoreTone, type CvScore } from "@/lib/cv-score";
+import { READY_SCORE, scoreLabel, scoreTone, type CvScore } from "@/lib/cv-score";
 import { countLabel } from "@/lib/plan-features";
 
 import { CvImportProgress, type ImportedCv } from "./cv-import-progress";
 import { CvReplacementNotice, TemplateChoiceDialog } from "./new-cv-dialog";
-import { SCORE_TONES, ScoreGauge, scoreLabel } from "./cv-score-card";
+import { SCORE_TONES, ScoreGauge } from "./cv-score-card";
 
 const STEPS = ["Import", "Analyse", "Modèle", "Éditeur"] as const;
 

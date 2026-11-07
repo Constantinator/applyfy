@@ -18,11 +18,15 @@ import {
 } from "@/components/landing/feature-previews";
 import { CountUp } from "@/components/landing/count-up";
 import { DemoDashboard } from "@/components/landing/demo-dashboard";
+import { HeroVisual } from "@/components/landing/hero-visual";
 import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
+import { BETA_MAX_TESTERS, BETA_PREMIUM_UNTIL_LABEL, isBetaOfferOpen } from "@/lib/beta-rules";
+import { CV_TEMPLATES } from "@/lib/cv-builder-types";
+import { SCORE_TOTAL } from "@/lib/cv-score";
 import { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } from "@/lib/plan-features";
-import { PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
+import { FREE_PLAN_PRICE, PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -31,6 +35,20 @@ export const metadata: Metadata = pageMetadata({
     "Applyfy centralise tes candidatures, adapte ton CV et ta lettre pour chaque offre, et te rappelle quand relancer. Gratuit.",
   path: "/",
 });
+
+// Page statique, régénérée chaque jour : l'offre bêta disparaît d'elle-même après sa date de fin.
+export const revalidate = 86400;
+
+// Conteneur de la maquette : 1180 px au plus, marges de 20 px sur mobile, 32 px au-delà.
+const WRAP = "mx-auto w-full max-w-[1180px] px-5 sm:px-8";
+const HERO_BUTTON = "min-h-[52px]! px-[30px]! text-base! max-sm:w-full";
+
+const FACTS = [
+  { value: String(CV_TEMPLATES.length), label: "modèles de CV" },
+  { value: String(SCORE_TOTAL), label: "points : un score que tu comprends" },
+  { value: "ATS", label: "texte sélectionnable, lisible par les ATS" },
+  { value: `${FREE_PLAN_PRICE} €`, label: "pour commencer" },
+];
 
 // Typographie : graisse 600 sur tous les titres, letter-spacing négatif sur H1 et H2.
 const H1 = "font-semibold tracking-[-0.03em]";
@@ -194,82 +212,6 @@ const STEPS = [
 ];
 
 /**
- * Rubans SVG du wrapper (milieu gauche, bas droite, bas gauche), sous les sections (z-0). Placés
- * avant l'en-tête dans le DOM : les sections, positionnées après, passent au-dessus.
- * Chaque SVG est 30 % plus large que sa zone visible et décalé d'autant hors de l'écran : les
- * rubans traversent le bord et continuent au-delà (coupés par overflow-x-clip), sans arête visible.
- */
-function PageRibbons() {
-  return (
-    <>
-      {/* Milieu gauche : 3 rubans qui entrent par le bord gauche et s'affinent en pointe. */}
-      <svg
-        aria-hidden="true"
-        viewBox="-120 0 520 500"
-        className="pointer-events-none absolute top-[40%] -left-[120px] z-0 h-[500px] w-[520px] -translate-y-1/2"
-      >
-        <path
-          d="M-120 140 C0 100 120 150 220 210 S340 300 400 290 C330 330 260 290 200 260 S40 180 -120 200 Z"
-          fill="#0ea5e9"
-          opacity="0.12"
-        />
-        <path
-          d="M-120 250 C20 210 150 260 240 310 S350 380 390 375 C330 410 250 360 190 340 S20 290 -120 300 Z"
-          fill="#1d4ed8"
-          opacity="0.10"
-        />
-        <path
-          d="M-120 320 C40 300 140 350 210 390 S310 450 350 470 C290 480 200 430 140 400 S0 350 -120 360 Z"
-          fill="#38bdf8"
-          opacity="0.08"
-        />
-      </svg>
-
-      {/* Bas droite : rubans qui naissent en pointe et remontent vers le bord droit, plus discrets. */}
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 650 600"
-        className="pointer-events-none absolute -right-[150px] bottom-[20%] z-0 h-[600px] w-[650px]"
-      >
-        <path
-          d="M120 560 C220 470 320 420 400 340 S520 180 650 140 L650 290 C540 320 460 390 400 440 S240 540 120 560 Z"
-          fill="#1d4ed8"
-          opacity="0.12"
-        />
-        <path
-          d="M220 590 C280 530 350 500 420 450 S540 340 650 320 L650 390 C560 400 480 460 420 500 S300 580 220 590 Z"
-          fill="#6366f1"
-          opacity="0.10"
-        />
-        <path
-          d="M80 520 C170 420 280 360 360 270 S480 100 650 40 L650 80 C510 120 420 250 340 320 S160 480 80 520 Z"
-          fill="#0ea5e9"
-          opacity="0.08"
-        />
-      </svg>
-
-      {/* Tout en bas à gauche : 2 rubans très discrets, du bord gauche vers le bas de la page. */}
-      <svg
-        aria-hidden="true"
-        viewBox="-120 0 520 400"
-        className="pointer-events-none absolute bottom-0 -left-[120px] z-0 h-[400px] w-[520px]"
-      >
-        <path
-          d="M-120 100 C0 140 100 210 160 280 S240 370 270 400 L210 400 C180 370 130 320 100 290 S10 200 -120 180 Z"
-          fill="#38bdf8"
-          opacity="0.10"
-        />
-        <path
-          d="M-120 230 C20 260 90 310 125 355 S155 395 165 400 L105 400 C85 380 65 355 45 335 S-20 290 -120 285 Z"
-          fill="#0ea5e9"
-          opacity="0.07"
-        />
-      </svg>
-    </>
-  );
-}
-
-/**
  * FAQ : chaque réponse doit rester exacte (CGU, politique de confidentialité, prompts de
  * src/lib/claude.ts, import d'offres de src/lib/offer-import.ts).
  */
@@ -328,13 +270,11 @@ function PlanFeatures({ items }: { items: string[] }) {
 }
 
 export default function LandingPage() {
-  return (
-    // Dégradé sur toute la page : les sections sont transparentes ou teintées par-dessus.
-    <div className="relative isolate flex flex-1 flex-col overflow-x-clip bg-[linear-gradient(180deg,#eff6ff_0%,#f8faff_30%,#ffffff_60%,#f0f9ff_80%,#ecfeff_100%)]">
-      {/* Rubans décoratifs répartis sur la page (le 1er, en haut à droite, est dans le hero).
-          overflow-x-clip : pas de défilement horizontal sur mobile (clip, pas hidden : l'en-tête reste collant). */}
-      <PageRibbons />
+  const betaOpen = isBetaOfferOpen(new Date());
 
+  return (
+    // overflow-x-clip : pas de défilement horizontal sur mobile (clip, pas hidden : l'en-tête reste collant).
+    <div className="flex flex-1 flex-col overflow-x-clip bg-white leading-normal tracking-[-0.011em] text-ink">
       <SiteHeader />
 
       <main className="flex-1">
@@ -343,79 +283,56 @@ export default function LandingPage() {
           <AccountDeletedNotice />
         </Suspense>
 
-        {/*
-          Hero : fond transparent (dégradé du wrapper), rubans SVG façon Stripe dans le coin
-          supérieur droit. isolate : le z-10 du contenu reste sous l'en-tête collant (z-10 aussi).
-          120px au-dessus au minimum, 160px sur grand écran.
-        */}
-        <section className="relative isolate overflow-hidden">
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 780 700"
-            className="pointer-events-none absolute top-0 -right-[180px] z-0 h-[700px] w-[780px]"
-          >
-            {/* Ruban large */}
-            <path
-              d="M180 0 C260 140 380 200 470 300 S600 470 780 520 L780 360 C640 330 540 250 460 180 S330 60 300 0 Z"
-              fill="#1d4ed8"
-              opacity="0.15"
-            />
-            {/* Ruban moyen, près du coin */}
-            <path
-              d="M320 0 C380 110 470 170 560 240 S700 330 780 340 L780 230 C700 220 610 160 540 110 S440 30 420 0 Z"
-              fill="#0ea5e9"
-              opacity="0.20"
-            />
-            {/* Ruban fin, le plus long */}
-            <path
-              d="M100 0 C200 180 330 260 430 380 S600 600 780 660 L780 610 C620 560 500 440 410 340 S180 110 140 0 Z"
-              fill="#38bdf8"
-              opacity="0.12"
-            />
-            {/* Ruban indigo, croise les deux premiers */}
-            <path
-              d="M240 0 C300 80 400 110 480 180 S620 300 780 290 L780 220 C640 230 520 150 440 100 S340 30 330 0 Z"
-              fill="#6366f1"
-              opacity="0.10"
-            />
-          </svg>
-          <div className="relative z-10 mx-auto max-w-7xl px-4 pt-[120px] pb-24 sm:px-6 lg:pt-40">
-            <div className="mx-auto max-w-4xl text-center">
-              <h1
-                className={`text-5xl leading-[1.08] text-balance text-slate-900 sm:text-6xl lg:text-7xl ${H1}`}
+        {/* Hero : halo bleu très léger (seul dégradé de la page avec la carte bêta). */}
+        <section className="bg-[radial-gradient(420px_260px_at_50%_0%,#F3F6FF_0%,#fff_75%)] pt-10 pb-8 text-center md:bg-[radial-gradient(900px_380px_at_50%_0%,#F3F6FF_0%,#fff_70%)] md:pt-[84px] md:pb-10">
+          <div className={WRAP}>
+            {betaOpen && (
+              <a
+                href="#beta"
+                className="ui-focus inline-flex min-h-11 items-center gap-2 rounded-full border border-line-strong bg-white py-1.5 pr-3.5 pl-2 text-xs font-medium md:text-[13px]"
               >
-                Toutes tes candidatures au même endroit.{" "}
-                <span className="text-blue-600">
-                  Un CV adapté à chaque offre.
+                <span className="rounded-full bg-accent px-2 py-[3px] text-[10px] font-bold text-white md:text-[11px]">
+                  BÊTA
                 </span>
-              </h1>
-              <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-pretty text-slate-500 sm:text-xl">
-                Applyfy suit tes candidatures, adapte ton CV et ta lettre à
-                chacune d&apos;entre elles, et te dit quand relancer. Pour
-                trouver ton job sans t&apos;y noyer.
-              </p>
-              <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link href="/signup" className={BTN_PRIMARY}>
-                  Commencer gratuitement
-                </Link>
-                <a href="#comment-ca-marche" className={BTN_SECONDARY}>
-                  Voir comment ça marche
-                </a>
-              </div>
-              {/* Réducteur de friction sous le CTA (« Se connecter » reste dans l'en-tête). */}
-              <p className="mt-4 text-sm text-slate-500">{FRICTION_REDUCER}</p>
+                <span>
+                  <span className="hidden md:inline">{BETA_MAX_TESTERS} places au maximum · </span>
+                  Premium offert jusqu&apos;au {BETA_PREMIUM_UNTIL_LABEL}
+                </span>
+              </a>
+            )}
+            <h1 className="mx-auto mt-[22px] max-w-[1080px] text-[38px] leading-[1.05] font-extrabold tracking-[-0.045em] text-balance md:mt-[26px] md:text-[66px] md:leading-[1.02]">
+              Toutes tes candidatures au même endroit.{" "}
+              <span className="block text-accent">Un CV adapté à chaque offre.</span>
+            </h1>
+            <p className="mx-auto mt-[18px] max-w-[640px] text-[17px] leading-normal text-nav md:mt-[26px] md:text-xl">
+              Applyfy suit tes candidatures, adapte ton CV et ta lettre à
+              chacune d&apos;entre elles, et te dit quand relancer. Pour
+              trouver ton job sans t&apos;y noyer.
+            </p>
+            <div className="mt-[26px] flex flex-col justify-center gap-3.5 sm:flex-row sm:gap-3 md:mt-[34px]">
+              <Link href="/signup" className={`ui-btn-primary ${HERO_BUTTON}`}>
+                Commencer gratuitement
+              </Link>
+              <a href="#comment-ca-marche" className={`ui-btn-secondary ${HERO_BUTTON}`}>
+                Voir comment ça marche
+              </a>
             </div>
-
-            {/* Dashboard : 90 % de la largeur du conteneur (1 280 px au plus), ombre légère. */}
-            <figure className="mx-auto mt-20 w-[90%] sm:mt-24">
-              <div className="overflow-hidden rounded-[16px] border border-[#e5e7eb] shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)]">
-                <DemoDashboard />
-              </div>
-              <figcaption className="mt-4 text-center text-sm text-slate-500">
-                Le dashboard Applyfy — toutes tes candidatures au même endroit
-              </figcaption>
-            </figure>
+            {/* Réducteur de friction sous le CTA (« Se connecter » reste dans l'en-tête). */}
+            <p className="mt-3.5 text-[12.5px] text-muted md:mt-4 md:text-[13px]">{FRICTION_REDUCER}</p>
+            <HeroVisual />
           </div>
+        </section>
+
+        {/* Bande de chiffres : tous lus dans le code. */}
+        <section aria-label="Applyfy en bref" className="pt-5 pb-2 md:pt-9">
+          <ul className={`${WRAP} grid grid-cols-2 gap-x-3 gap-y-5 text-center md:grid-cols-4 md:gap-4`}>
+            {FACTS.map((fact) => (
+              <li key={fact.value}>
+                <p className="text-[26px] font-bold tracking-[-0.03em] md:text-[28px]">{fact.value}</p>
+                <p className="text-[13px] text-muted md:text-sm">{fact.label}</p>
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/*
@@ -507,7 +424,7 @@ export default function LandingPage() {
         </section>
 
         {/* Fonctionnalités (blanc) : blocs pleine largeur, texte et aperçu en alternance. */}
-        <section aria-labelledby="features-title" className={BG_WHITE}>
+        <section id="fonctionnalites" aria-labelledby="features-title" className={`scroll-mt-[60px] lg:scroll-mt-[68px] ${BG_WHITE}`}>
           <div
             className={`mx-auto max-w-6xl px-4 sm:px-6 ${SECTION_Y} ${CONTENT}`}
           >
@@ -555,11 +472,23 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Démonstration du tableau de bord, hors de Reveal : son message est en position fixe. */}
+        <section aria-label="Démonstration du tableau de bord" className="pb-16 md:pb-24">
+          <figure className={WRAP}>
+            <div className="overflow-hidden rounded-[16px] border border-line">
+              <DemoDashboard />
+            </div>
+            <figcaption className="mt-4 text-center text-sm text-muted">
+              Le dashboard Applyfy — toutes tes candidatures au même endroit
+            </figcaption>
+          </figure>
+        </section>
+
         {/* Comment ça marche (gris) */}
         <section
           id="comment-ca-marche"
           aria-labelledby="steps-title"
-          className={`scroll-mt-16 ${BG_GRAY}`}
+          className={`scroll-mt-[60px] lg:scroll-mt-[68px] ${BG_GRAY}`}
         >
           <Reveal
             className={`mx-auto max-w-6xl px-4 sm:px-6 ${SECTION_Y} ${CONTENT}`}
@@ -681,8 +610,9 @@ export default function LandingPage() {
 
         {/* Nos tarifs (blanc) : Gratuit, Premium Mensuel et Premium 3 mois (mis en avant). */}
         <section
+          id="tarifs"
           aria-labelledby="pricing-title"
-          className="relative isolate bg-white"
+          className="relative isolate scroll-mt-[60px] bg-white lg:scroll-mt-[68px]"
         >
           <div className={`mx-auto max-w-5xl px-4 py-20 sm:px-6 ${CONTENT}`}>
             <h2
@@ -698,7 +628,7 @@ export default function LandingPage() {
                   Sans carte bancaire
                 </span>
                 <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Gratuit</h3>
-                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
+                <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>{FREE_PLAN_PRICE} €</p>
                 <div className="mt-6 mb-8">
                   <PlanFeatures items={FREE_FEATURES} />
                 </div>

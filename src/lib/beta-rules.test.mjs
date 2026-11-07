@@ -2,10 +2,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { pendingBetaReport } = await import("./beta-rules.ts");
+const { BETA_PREMIUM_UNTIL, isBetaOfferOpen, pendingBetaReport } = await import("./beta-rules.ts");
 
 const JOINED = "2026-11-01T10:00:00Z";
 const beta = (fields = {}) => ({ status: "active", joinedAt: JOINED, reports: [], ...fields });
+
+test("offre beta : proposée jusqu'au dernier jour inclus, plus après", () => {
+  assert.equal(isBetaOfferOpen(new Date(`${BETA_PREMIUM_UNTIL}T23:00:00Z`)), true);
+  assert.equal(isBetaOfferOpen(new Date(new Date(`${BETA_PREMIUM_UNTIL}T23:00:00Z`).getTime() + 3_600_000)), false);
+});
 
 test("rapport ouvert et non envoyé : attendu, avec sa date limite à l'heure de Paris", () => {
   const pending = pendingBetaReport(beta(), new Date("2026-11-03T10:00:00Z"));

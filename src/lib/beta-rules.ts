@@ -6,6 +6,11 @@ export const BETA_MAX_TESTERS = 30;
 /** Fin du Premium offert aux beta testeurs (inclus). */
 export const BETA_PREMIUM_UNTIL = "2026-12-31";
 export const BETA_PREMIUM_UNTIL_LABEL = "31 décembre 2026";
+/** Offre beta encore en cours à cette date (jour UTC) : la landing cesse de la proposer ensuite. */
+export function isBetaOfferOpen(now: Date) {
+  return now.toISOString().slice(0, 10) <= BETA_PREMIUM_UNTIL;
+}
+
 /** Rappel envoyé ce nombre de jours avant la date limite d'un rapport. */
 export const BETA_REMINDER_DAYS_BEFORE = 2;
 

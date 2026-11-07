@@ -1,41 +1,46 @@
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/logo";
+import { SiteMobileMenu } from "@/components/site/site-mobile-menu";
+
+// Chemins complets (/#…) : l'en-tête sert aussi au blog, à « Notre histoire » et aux pages légales.
+const NAV_LINKS = [
+  { href: "/#fonctionnalites", label: "Fonctionnalités" },
+  { href: "/#comment-ca-marche", label: "Comment ça marche" },
+  { href: "/#tarifs", label: "Tarifs" },
+  { href: "/blog", label: "Blog" },
+];
+
+const LOGIN = { href: "/login", label: "Se connecter" };
 
 // En-tête des pages publiques (landing, blog) : logo, navigation et inscription.
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-white">
-      <div className="mx-auto flex h-[68px] max-w-[1180px] items-center justify-between px-4 sm:px-8">
-        <Link href="/" aria-label="Applyfy, accueil">
-          <BrandLogo />
-        </Link>
-        <nav className="flex items-center gap-2 text-sm font-medium text-nav sm:gap-6">
-          <Link
-            href="/#comment-ca-marche"
-            className="hidden hover:text-ink sm:block"
-          >
-            Comment ça marche
+    <header className="sticky top-0 z-30 border-b border-line bg-white/92 tracking-[-0.01em] backdrop-blur-[8px]">
+      <div className="mx-auto flex h-[60px] max-w-[1180px] items-center justify-between gap-3 px-4 sm:px-8 lg:h-[68px]">
+        <div className="flex items-center gap-9">
+          <Link href="/" aria-label="Applyfy, accueil" className="ui-focus inline-flex min-h-11 items-center rounded-lg">
+            <BrandLogo />
           </Link>
-          <Link href="/blog" className="hidden hover:text-ink min-[400px]:block">
-            Blog
+          <nav aria-label="Navigation du site" className="hidden items-center gap-1.5 text-sm font-medium text-nav lg:flex">
+            {NAV_LINKS.map((link) => (
+              <Link key={link.href} href={link.href} className="ui-focus rounded-full px-3.5 py-2 hover:text-ink">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="flex items-center gap-2 lg:gap-[18px]">
+          <Link href={LOGIN.href} className="ui-focus hidden rounded-full text-sm font-medium text-nav hover:text-ink lg:block">
+            {LOGIN.label}
           </Link>
-          <Link href="/about" className="hidden hover:text-ink sm:block">
-            Notre histoire
-          </Link>
-          <Link href="/login" className="whitespace-nowrap hover:text-ink">
-            Se connecter
-          </Link>
-          {/*
-            « gratuitement » masqué sous 520 px : le bouton tient sur les plus petits écrans. Un seul
-            <span> autour du texte : sinon le gap du bouton (inline-flex) s'ajoute à l'espace.
-          */}
-          <Link href="/signup" className="ui-btn-primary max-sm:px-3.5 lg:min-h-0! lg:px-4! lg:py-[9px]! lg:text-[13px]!">
+          <Link href="/signup" className="ui-btn-primary max-lg:px-4 max-lg:text-[13px]">
             <span>
-              Commencer<span className="max-[519px]:hidden"> gratuitement</span>
+              Commencer<span className="hidden lg:inline"> gratuitement</span>
             </span>
           </Link>
-        </nav>
+          <SiteMobileMenu links={[...NAV_LINKS, LOGIN]} />
+        </div>
       </div>
     </header>
   );

@@ -55,6 +55,15 @@ export type CvScore = {
 /** Score à partir duquel le CV est prêt à postuler. */
 export const READY_SCORE = 80;
 
+/** Total des points de toutes les catégories (100). */
+export const SCORE_TOTAL = SCORE_CATEGORIES.reduce((total, category) => total + category.max, 0);
+
+/** Appréciation du score sur 100. */
+export function scoreLabel(score: number) {
+  if (score >= READY_SCORE) return "Prêt à postuler";
+  return score >= 70 ? "Presque prêt" : "À retravailler";
+}
+
 /** Couleur du score : rouge sous 70, orange de 70 à 79, vert à partir de 80. */
 export function scoreTone(score: number): "red" | "orange" | "green" {
   if (score >= READY_SCORE) return "green";

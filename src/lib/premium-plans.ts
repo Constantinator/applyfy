@@ -6,6 +6,9 @@ import {
 
 // Les deux offres Premium et leur prix récurrent Stripe (identifiants publics, mode live).
 
+/** Prix du plan gratuit, en euros. */
+export const FREE_PLAN_PRICE = 0;
+
 export type PremiumPlan = {
   key: "mensuel" | "trimestriel";
   name: string;
