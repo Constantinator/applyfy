@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ContactLink, LegalDocument, LegalSection } from "@/components/legal/legal-document";
+import { AI_DAILY_LIMIT, AI_RATE_LIMIT_PER_MINUTE } from "@/lib/ai-usage-limits";
 
 export const metadata: Metadata = { title: "Conditions générales d'utilisation — Applyfy" };
 
@@ -9,6 +10,7 @@ export default function TermsPage() {
   return (
     <LegalDocument
       title="Conditions générales d'utilisation"
+      updatedOn="7 novembre 2026"
       intro="Les présentes conditions générales d'utilisation (CGU) encadrent l'accès et l'utilisation du service Applyfy. En créant un compte, tu les acceptes sans réserve."
     >
       <LegalSection title="1. Objet du service">
@@ -36,16 +38,16 @@ export default function TermsPage() {
       <LegalSection title="3. Plan gratuit">
         <p>
           L&apos;inscription et l&apos;utilisation d&apos;Applyfy sont <strong>gratuites</strong>. Les
-          fonctionnalités d&apos;intelligence artificielle sont limitées à un nombre d&apos;utilisations
-          par mois, indiqué sur la page <strong>Premium</strong> et remis à zéro le 1er de chaque mois. Des
-          fonctionnalités peuvent évoluer, être ajoutées ou retirées.
+          fonctionnalités d&apos;intelligence artificielle sont limitées à des quotas indiqués sur la page{" "}
+          <strong>Premium</strong>, par mois ou par jour selon la fonctionnalité. Des fonctionnalités peuvent
+          évoluer, être ajoutées ou retirées.
         </p>
       </LegalSection>
 
       <LegalSection title="4. Abonnement Premium">
         <p>
-          L&apos;abonnement Premium donne un accès illimité aux fonctionnalités d&apos;intelligence
-          artificielle d&apos;Applyfy.
+          L&apos;abonnement Premium lève ces quotas, dans la limite de {AI_DAILY_LIMIT} actions IA par jour et
+          de {AI_RATE_LIMIT_PER_MINUTE} requêtes par minute.
         </p>
         <ul>
           <li>
