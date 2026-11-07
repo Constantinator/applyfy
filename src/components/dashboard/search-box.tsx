@@ -6,12 +6,12 @@ import { useRef } from "react";
 export function SearchBox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const input = useRef<HTMLInputElement>(null);
   return (
-    <div role="search" className="relative w-full sm:max-w-sm">
+    <div role="search" className="relative w-full max-w-[400px]">
       <svg
         aria-hidden="true"
         viewBox="0 0 20 20"
         fill="currentColor"
-        className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted"
+        className="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted"
       >
         <path
           fillRule="evenodd"
@@ -29,7 +29,7 @@ export function SearchBox({ value, onChange }: { value: string; onChange: (value
         autoComplete="off"
         enterKeyHint="search"
         // 16 px sur mobile : pas de zoom automatique sur iOS.
-        className={`ui-input min-h-11 py-2 pl-9 text-base placeholder:text-sm placeholder-shown:text-ellipsis sm:text-sm [&::-webkit-search-cancel-button]:appearance-none ${value ? "pr-11" : "pr-3"}`}
+        className={`ui-input min-h-11 rounded-full py-3 pl-10 text-base placeholder:text-sm placeholder-shown:text-ellipsis sm:text-sm [&::-webkit-search-cancel-button]:appearance-none ${value ? "pr-11" : "pr-4"}`}
       />
       {value && (
         <button

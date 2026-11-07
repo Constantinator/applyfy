@@ -132,7 +132,7 @@ export function ApplicationsView({
             syncUrl({ filtre: value, tri: sort });
           }}
         />
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
           <label htmlFor="sort" className="text-sm whitespace-nowrap text-muted dark:text-slate-400">
             Trier par
           </label>
@@ -144,7 +144,7 @@ export function ApplicationsView({
               setSort(value);
               syncUrl({ filtre: filter, tri: value });
             }}
-            className="ui-input min-h-11 w-auto py-1.5 lg:min-h-0"
+            className="ui-input min-h-11 w-auto rounded-full py-2 lg:min-h-0"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

@@ -25,9 +25,9 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
 
   return (
     <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
-      <main className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+      <main className="ui-page flex-1 space-y-8">
         {source === "demo" && (
-          <p className="rounded-block bg-amber-100 px-4 py-2 text-sm text-amber-900 ring-1 ring-amber-400">
+          <p className="ui-notice px-4 py-2 text-sm">
             Mode démo : configure Supabase dans <code>.env.local</code> pour utiliser tes vraies
             données.
           </p>
@@ -36,7 +36,7 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
         {ajout === "ok" && (
           <p
             role="status"
-            className="rounded-block bg-emerald-50 dark:bg-emerald-500/15 px-4 py-2 text-sm text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200 dark:ring-emerald-400/30"
+            className="ui-notice px-4 py-2 text-sm"
           >
             ✓ Candidature ajoutée.
           </p>
@@ -44,7 +44,7 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
         {suppression === "ok" && (
           <p
             role="status"
-            className="ui-block px-4 py-2 text-sm text-ink dark:text-slate-200"
+            className="ui-notice px-4 py-2 text-sm"
           >
             Candidature supprimée.
           </p>
@@ -52,14 +52,14 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-title text-ink dark:text-white">Candidatures</h1>
+            <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink dark:text-white">Candidatures</h1>
             <p className="mt-1.5 text-muted dark:text-slate-400">
               Suis l&apos;avancement de ta recherche d&apos;emploi et relance au bon moment.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <OnboardingTip id="nouvelle-candidature" text="Clique ici pour ajouter une offre" align="end">
-              <Link href="/candidatures/nouvelle" className="ui-btn-primary px-4">
+              <Link href="/candidatures/nouvelle" className="ui-btn-primary">
                 <IconPlus className="h-4 w-4" />
                 Nouvelle candidature
               </Link>
@@ -73,11 +73,11 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
           <>
             {/* Seulement la candidature exemple créée à l'inscription : invitation à ajouter la vraie. */}
             {applications.every((app) => app.is_example) && (
-              <div className="ui-block flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted dark:text-slate-300">
+              <div className="ui-notice flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm">
                   Ceci est un exemple — ajoute ta première vraie candidature !
                 </p>
-                <Link href="/candidatures/nouvelle" className="ui-btn-primary shrink-0 self-start px-4 sm:self-auto">
+                <Link href="/candidatures/nouvelle" className="ui-btn-primary shrink-0 self-start sm:self-auto">
                   <IconPlus className="h-4 w-4" />
                   Ajouter une candidature
                 </Link>
