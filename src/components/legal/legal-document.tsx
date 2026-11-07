@@ -18,9 +18,9 @@ export function LegalDocument({
   return (
     <article className="space-y-10">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
-        <p className="mt-2 text-sm text-slate-500">Dernière mise à jour : {updatedOn}</p>
-        {intro && <p className="mt-6 leading-relaxed text-slate-700">{intro}</p>}
+        <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink">{title}</h1>
+        <p className="mt-2 text-sm text-muted">Dernière mise à jour : {updatedOn}</p>
+        {intro && <p className="mt-6 leading-relaxed text-ink">{intro}</p>}
       </header>
       {children}
     </article>
@@ -30,8 +30,8 @@ export function LegalDocument({
 export function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
-      <div className="space-y-3 leading-relaxed text-slate-700 [&_a]:font-medium [&_a]:text-blue-600 [&_a:hover]:text-blue-500 [&_li]:pl-1 [&_strong]:font-semibold [&_strong]:text-slate-900 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:marker:text-slate-400">
+      <h2 className="ui-title-sm text-ink">{title}</h2>
+      <div className="space-y-3 leading-relaxed text-ink [&_a]:font-medium [&_a]:text-accent [&_a:hover]:text-ink [&_li]:pl-1 [&_strong]:font-semibold [&_strong]:text-ink [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:marker:text-muted">
         {children}
       </div>
     </section>

@@ -68,7 +68,7 @@ export default function TermsPage() {
           </li>
         </ul>
 
-        <h3 className="pt-2 font-semibold text-slate-900">Droit de rétractation</h3>
+        <h3 className="pt-2 font-semibold text-ink">Droit de rétractation</h3>
         <ul>
           <li>
             Conformément à l&apos;article L221-18 du Code de la consommation, tu disposes d&apos;un
@@ -84,7 +84,7 @@ export default function TermsPage() {
           </li>
         </ul>
 
-        <h3 className="pt-2 font-semibold text-slate-900">Remboursement, renouvellement et résiliation</h3>
+        <h3 className="pt-2 font-semibold text-ink">Remboursement, renouvellement et résiliation</h3>
         <ul>
           <li>
             <strong>Sans renonciation au droit de rétractation :</strong> remboursement intégral possible
