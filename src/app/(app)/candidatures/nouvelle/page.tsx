@@ -16,23 +16,25 @@ export default async function NewApplicationPage({ searchParams }: PageProps<"/c
   const [usage, { lien }] = await Promise.all([readAiUsage(), searchParams]);
   const offerLink = parseOfferLink(lien);
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-      {/* Retiré de l'adresse dès l'arrivée : recharger la page ne relance pas l'import. */}
-      {lien !== undefined && <ClearSearchParams />}
-      <Link href="/candidatures" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-        Retour aux candidatures
-      </Link>
-      <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Nouvelle candidature</h1>
-      <p className="mt-1 mb-6 text-sm text-slate-500 dark:text-slate-400">
-        Ajoute une candidature sur ton dashboard
-      </p>
-      <NewApplicationForm
-        initialOfferUrl={offerLink}
-        invalidOfferLink={lien !== undefined && !offerLink}
-        aiEnabled={isClaudeConfigured()}
-        summaryUsage={usage.counts.resume_offre}
-        resetLabel={formatResetDate(usage.resetsOn)}
-      />
-    </main>
+    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+      <main className="ui-page-narrow flex-1">
+        {/* Retiré de l'adresse dès l'arrivée : recharger la page ne relance pas l'import. */}
+        {lien !== undefined && <ClearSearchParams />}
+        <Link href="/candidatures" className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white">
+          Retour aux candidatures
+        </Link>
+        <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] mt-3 text-ink dark:text-white">Nouvelle candidature</h1>
+        <p className="mt-2.5 mb-8 text-muted dark:text-slate-400">
+          Ajoute une candidature sur ton dashboard
+        </p>
+        <NewApplicationForm
+          initialOfferUrl={offerLink}
+          invalidOfferLink={lien !== undefined && !offerLink}
+          aiEnabled={isClaudeConfigured()}
+          summaryUsage={usage.counts.resume_offre}
+          resetLabel={formatResetDate(usage.resetsOn)}
+        />
+      </main>
+    </div>
   );
 }
