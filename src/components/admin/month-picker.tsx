@@ -24,11 +24,11 @@ export function MonthPicker({ month, months }: { month: string; months: string[]
   const newer = index > 0 ? months[index - 1] : null;
   const older = index < months.length - 1 ? months[index + 1] : null;
 
-  const arrow = "btn-secondary px-3 py-2 text-sm";
+  const arrow = "ui-btn-secondary w-11 shrink-0 px-0!";
   const disabledArrow = `${arrow} pointer-events-none opacity-40`;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full items-center gap-2 sm:w-auto">
       {older ? (
         <Link href={hrefFor(older, current)} className={arrow} aria-label={`Mois précédent : ${formatMonth(older)}`}>
           ←
@@ -45,7 +45,7 @@ export function MonthPicker({ month, months }: { month: string; months: string[]
         id="admin-mois"
         value={month}
         onChange={(event) => router.push(hrefFor(event.target.value, current))}
-        className="input w-auto py-2 pr-8 text-sm font-medium capitalize"
+        className="ui-input min-w-0 flex-1 py-2 pr-8 text-sm font-medium capitalize sm:w-auto sm:flex-none"
       >
         {months.map((m) => (
           <option key={m} value={m}>

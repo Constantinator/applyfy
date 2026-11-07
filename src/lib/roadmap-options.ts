@@ -19,11 +19,11 @@ export const ROADMAP_CATEGORY_LABELS: Record<RoadmapCategory, string> = {
   long_terme: "Long terme",
 };
 
-/** Badge de statut : gris (à faire), amber (en cours), vert (terminé). */
+/** Badge de statut : gris (à faire), noir (en cours), gris foncé (terminé). */
 export const ROADMAP_STATUS_STYLES: Record<RoadmapStatus, string> = {
-  a_faire: "bg-slate-100 text-slate-700 ring-slate-200",
-  en_cours: "bg-amber-50 text-amber-800 ring-amber-200",
-  termine: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  a_faire: "bg-pill text-muted ring-line",
+  en_cours: "bg-ink text-white ring-ink",
+  termine: "bg-pill text-ink ring-line",
 };
 
 /** Statut suivant au clic sur le badge : à faire → en cours → terminé → à faire. */

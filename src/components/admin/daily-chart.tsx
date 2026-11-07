@@ -88,12 +88,12 @@ export function DailyChart({
                 <path
                   key={p.day}
                   d={`M${left} ${y(0)} V${y(p.value) + r} Q${left} ${y(p.value)} ${left + r} ${y(p.value)} H${left + barW - r} Q${left + barW} ${y(p.value)} ${left + barW} ${y(p.value) + r} V${y(0)} Z`}
-                  className={hovered === i ? "fill-blue-700" : "fill-blue-600"}
+                  className={hovered === i ? "fill-ink" : "fill-accent"}
                 />
               );
             })
           : points.length > 0 && (
-              <path d={linePath} fill="none" strokeWidth={2} strokeLinejoin="round" className="stroke-blue-600" />
+              <path d={linePath} fill="none" strokeWidth={2} strokeLinejoin="round" className="stroke-accent" />
             )}
 
         {hovered !== null && (
@@ -112,7 +112,7 @@ export function DailyChart({
             cy={y(active.value)}
             r={4.5}
             strokeWidth={2}
-            className="fill-blue-600 stroke-white"
+            className="fill-accent stroke-white"
           />
         )}
 
@@ -134,7 +134,7 @@ export function DailyChart({
       {active && hovered !== null && (
         <div
           role="status"
-          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs whitespace-nowrap text-white shadow-lg"
+          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-block bg-slate-900 px-2.5 py-1.5 text-xs whitespace-nowrap text-white"
           style={{ left: `${((x(hovered) + slot / 2) / W) * 100}%` }}
         >
           <span className="text-slate-300">{formatDay(active.day)}</span> ·{" "}

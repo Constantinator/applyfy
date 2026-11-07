@@ -7,8 +7,8 @@ const decimal = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maxim
 const date = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Paris" });
 const monthName = new Intl.DateTimeFormat("fr-FR", { month: "short", year: "numeric", timeZone: "UTC" });
 
-const th = "px-3 py-2 text-left text-xs font-medium tracking-wide text-slate-500 uppercase";
-const td = "px-3 py-2 align-top text-sm text-slate-700";
+const th = "px-3 py-2 text-left text-xs font-medium tracking-wide text-muted uppercase";
+const td = "px-3 py-2 align-top text-sm text-ink";
 
 const stars = (rating: number) => `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
 
@@ -16,20 +16,20 @@ const stars = (rating: number) => `${"★".repeat(rating)}${"☆".repeat(5 - rat
 function Breakdown({ title, rows, total }: { title: string; rows: { label: string; count: number }[]; total: number }) {
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
-    <div className="card space-y-3 p-4">
-      <h3 className="text-sm font-medium text-slate-900">{title}</h3>
+    <div className="ui-card space-y-3 p-5 sm:p-7">
+      <h3 className="text-sm font-medium text-ink">{title}</h3>
       <ul className="space-y-2">
         {rows.map((row) => (
           <li key={row.label} className="space-y-1">
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-slate-700">{row.label}</span>
-              <span className="tabular-nums text-slate-500">
+              <span className="text-ink">{row.label}</span>
+              <span className="tabular-nums text-muted">
                 {integer.format(row.count)}
-                {total > 0 && <span className="text-slate-400"> · {percent.format(row.count / total)}</span>}
+                {total > 0 && <span className="text-muted"> · {percent.format(row.count / total)}</span>}
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
-              <div className="h-full rounded-full bg-blue-600" style={{ width: `${(row.count / max) * 100}%` }} />
+            <div className="h-2 overflow-hidden rounded-full bg-pill" aria-hidden="true">
+              <div className="h-full rounded-full bg-accent" style={{ width: `${(row.count / max) * 100}%` }} />
             </div>
           </li>
         ))}
@@ -42,14 +42,14 @@ function Breakdown({ title, rows, total }: { title: string; rows: { label: strin
 export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null }) {
   if (!feedback) {
     return (
-      <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-400">
+      <p className="ui-notice px-4 py-3 text-sm">
         Les avis ne sont pas encore disponibles : applique la migration 0016 (table feedback) dans Supabase.
       </p>
     );
   }
   if (feedback.count === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+      <p className="rounded-card border border-dashed border-line-strong bg-white p-6 text-center text-sm text-muted">
         Aucun avis pour l&apos;instant.
       </p>
     );
@@ -61,24 +61,24 @@ export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="card p-4">
-          <p className="text-sm text-slate-500">Avis reçus</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900 tabular-nums">{integer.format(count)}</p>
+        <div className="ui-card p-5 sm:p-7">
+          <p className="text-sm text-muted">Avis reçus</p>
+          <p className="mt-1 text-2xl font-bold tracking-title text-ink tabular-nums">{integer.format(count)}</p>
         </div>
-        <div className="card p-4">
-          <p className="text-sm text-slate-500">Note moyenne</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
+        <div className="ui-card p-5 sm:p-7">
+          <p className="text-sm text-muted">Note moyenne</p>
+          <p className="mt-1 text-2xl font-bold tracking-title text-ink tabular-nums">
             {decimal.format(feedback.averageRating)}
-            <span className="text-base font-medium text-slate-500"> / 5</span>
+            <span className="text-base font-medium text-muted"> / 5</span>
           </p>
-          <p className="mt-0.5 text-xs text-amber-500" aria-hidden="true">
+          <p className="mt-0.5 text-xs text-ink" aria-hidden="true">
             {stars(Math.round(feedback.averageRating))}
           </p>
         </div>
-        <div className="card p-4">
-          <p className="text-sm text-slate-500">Recommanderaient Applyfy</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900 tabular-nums">{percent.format(yes / count)}</p>
-          <p className="mt-0.5 text-xs text-slate-500">Réponse « Oui »</p>
+        <div className="ui-card p-5 sm:p-7">
+          <p className="text-sm text-muted">Recommanderaient Applyfy</p>
+          <p className="mt-1 text-2xl font-bold tracking-title text-ink tabular-nums">{percent.format(yes / count)}</p>
+          <p className="mt-0.5 text-xs text-muted">Réponse « Oui »</p>
         </div>
       </div>
 
@@ -105,13 +105,13 @@ export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null
         />
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="ui-card overflow-x-auto">
         <table className="w-full">
           <caption className="px-3 pt-3 text-left">
-            <span className="block text-sm font-medium text-slate-900">Tendance sur 6 mois</span>
-            <span className="block text-xs text-slate-500">Avis donnés ou modifiés chaque mois.</span>
+            <span className="block text-sm font-medium text-ink">Tendance sur 6 mois</span>
+            <span className="block text-xs text-muted">Avis donnés ou modifiés chaque mois.</span>
           </caption>
-          <thead className="border-b border-slate-200">
+          <thead className="border-b border-line">
             <tr>
               <th className={th}>Mois</th>
               <th className={`${th} text-right`}>Avis</th>
@@ -136,10 +136,10 @@ export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null
         </table>
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="ui-card overflow-x-auto">
         <table className="w-full">
-          <caption className="px-3 pt-3 text-left text-sm font-medium text-slate-900">Tous les avis</caption>
-          <thead className="border-b border-slate-200">
+          <caption className="px-3 pt-3 text-left text-sm font-medium text-ink">Tous les avis</caption>
+          <thead className="border-b border-line">
             <tr>
               <th className={th}>Date</th>
               <th className={th}>Email</th>
@@ -153,9 +153,9 @@ export function FeedbackSection({ feedback }: { feedback: FeedbackMetrics | null
           <tbody className="divide-y divide-slate-100">
             {feedback.entries.map((entry) => (
               <tr key={`${entry.email}-${entry.updatedAt}`}>
-                <td className={`${td} whitespace-nowrap text-slate-500`}>{date.format(new Date(entry.updatedAt))}</td>
+                <td className={`${td} whitespace-nowrap text-muted`}>{date.format(new Date(entry.updatedAt))}</td>
                 <td className={`${td} break-all`}>{entry.email}</td>
-                <td className={`${td} whitespace-nowrap text-amber-500`}>
+                <td className={`${td} whitespace-nowrap text-ink`}>
                   <span aria-hidden="true">{stars(entry.rating)}</span>
                   <span className="sr-only">{entry.rating} sur 5</span>
                 </td>

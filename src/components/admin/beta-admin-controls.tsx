@@ -39,10 +39,10 @@ export function BetaMessageForm({
     <form onSubmit={submit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <div className="space-y-1.5">
-          <label htmlFor="beta-target" className="text-sm font-medium text-slate-700">
+          <label htmlFor="beta-target" className="text-sm font-medium text-ink">
             Destinataire
           </label>
-          <select id="beta-target" value={target} onChange={(e) => setTarget(e.target.value)} className="input py-2">
+          <select id="beta-target" value={target} onChange={(e) => setTarget(e.target.value)} className="ui-input py-2">
             <option value="all">Tous les beta testeurs actifs ({activeCount})</option>
             {testers.map((t) => (
               <option key={t.userId} value={t.userId}>
@@ -53,7 +53,7 @@ export function BetaMessageForm({
           </select>
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="beta-subject" className="text-sm font-medium text-slate-700">
+          <label htmlFor="beta-subject" className="text-sm font-medium text-ink">
             Objet
           </label>
           <input
@@ -62,12 +62,12 @@ export function BetaMessageForm({
             onChange={(e) => setSubject(e.target.value)}
             maxLength={150}
             required
-            className="input py-2"
+            className="ui-input py-2"
           />
         </div>
       </div>
       <div className="space-y-1.5">
-        <label htmlFor="beta-message" className="text-sm font-medium text-slate-700">
+        <label htmlFor="beta-message" className="text-sm font-medium text-ink">
           Message
         </label>
         <textarea
@@ -78,15 +78,15 @@ export function BetaMessageForm({
           rows={6}
           required
           placeholder="Une ligne vide sépare les paragraphes."
-          className="input"
+          className="ui-input"
         />
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending} className="btn-primary px-4 py-2 text-sm">
+        <button type="submit" disabled={pending} className="ui-btn-primary">
           {pending ? "Envoi…" : "Envoyer l'email"}
         </button>
         {result && (
-          <p role={result.ok ? "status" : "alert"} className={`text-sm ${result.ok ? "text-emerald-700" : "text-red-700"}`}>
+          <p role={result.ok ? "status" : "alert"} className={`text-sm ${result.ok ? "text-ink dark:text-slate-200" : "text-red-700"}`}>
             {result.text}
           </p>
         )}
@@ -106,7 +106,7 @@ export function RemoveBetaButton({ userId, email }: { userId: string; email: str
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap text-red-700 ring-1 ring-red-300 hover:bg-red-50"
+        className="ui-btn-danger"
       >
         Retirer l&apos;accès beta
       </button>
@@ -115,7 +115,7 @@ export function RemoveBetaButton({ userId, email }: { userId: string; email: str
 
   return (
     <div className="space-y-1.5">
-      <p className="text-xs text-slate-600">Retirer l&apos;accès de {email} ?</p>
+      <p className="text-xs text-muted">Retirer l&apos;accès de {email} ?</p>
       <div className="flex gap-1.5">
         <button
           type="button"
@@ -126,11 +126,11 @@ export function RemoveBetaButton({ userId, email }: { userId: string; email: str
               if (!result.ok) setError(result.error);
             })
           }
-          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-60"
+          className="ui-btn-danger"
         >
           {pending ? "Retrait…" : "Confirmer"}
         </button>
-        <button type="button" onClick={() => setConfirming(false)} className="btn-secondary px-3 py-1.5 text-xs">
+        <button type="button" onClick={() => setConfirming(false)} className="ui-btn-secondary">
           Annuler
         </button>
       </div>
@@ -150,7 +150,7 @@ export function ReactivateBetaButton({ userId, email }: { userId: string; email:
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap text-emerald-700 ring-1 ring-emerald-300 hover:bg-emerald-50"
+        className="ui-btn-secondary"
       >
         Réactiver
       </button>
@@ -159,7 +159,7 @@ export function ReactivateBetaButton({ userId, email }: { userId: string; email:
 
   return (
     <div className="space-y-1.5">
-      <p className="text-xs text-slate-600">
+      <p className="text-xs text-muted">
         Réactiver {email} ? Ses rapports non soumis auront de nouvelles dates limites à partir d&apos;aujourd&apos;hui.
       </p>
       <div className="flex gap-1.5">
@@ -172,11 +172,11 @@ export function ReactivateBetaButton({ userId, email }: { userId: string; email:
               if (!result.ok) setError(result.error);
             })
           }
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+          className="ui-btn-primary"
         >
           {pending ? "Réactivation…" : "Confirmer"}
         </button>
-        <button type="button" onClick={() => setConfirming(false)} className="btn-secondary px-3 py-1.5 text-xs">
+        <button type="button" onClick={() => setConfirming(false)} className="ui-btn-secondary">
           Annuler
         </button>
       </div>
