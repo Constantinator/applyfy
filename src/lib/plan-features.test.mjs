@@ -10,7 +10,8 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { FREE_FEATURES, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } = await import("./plan-features.ts");
+const { FREE_FEATURES, LANDING_FREE_ANSWER, LANDING_FREE_FEATURES, LANDING_PREMIUM_FEATURES, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, RESET_NOTE } =
+  await import("./plan-features.ts");
 const { AI_DAILY_LIMIT, AI_MONTHLY_LIMITS, AI_RATE_LIMIT_PER_MINUTE, CVB_COACH_DAILY_LIMIT } = await import("./ai-usage-limits.ts");
 const { CV_BUILDER_MAX } = await import("./cv-builder-types.ts");
 
@@ -27,6 +28,7 @@ const PROMISE_FILES = [
   "app/(app)/dashboard/page.tsx",
   "components/onboarding/welcome-premium-modal.tsx",
   "components/beta/beta-join-dialog.tsx",
+  "app/page.tsx",
 ];
 
 test("aucune promesse « illimité » ou « sans limite » hors commentaires", () => {
@@ -66,6 +68,19 @@ test("plus de limite inventée ni de fonctionnalité sans interface", () => {
 
 test("Premium annonce la levée de la limite du coach", () => {
   assert.ok(PREMIUM_FEATURES.join("\n").includes(`Plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour au coach`));
+});
+
+test("landing : mêmes quotas gratuits, dans les tarifs et la FAQ", () => {
+  for (const text of [LANDING_FREE_FEATURES.join("\n"), LANDING_FREE_ANSWER]) {
+    assert.ok(text.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations de CV par mois`));
+    assert.ok(text.includes(`${CVB_COACH_DAILY_LIMIT} questions au coach par jour`));
+    assert.ok(text.includes(`${AI_MONTHLY_LIMITS.cvb_import} import de CV par mois`));
+    assert.doesNotMatch(text, /analyses? de CV|action IA par type/i);
+  }
+});
+
+test("landing : Premium dit ce qui reste limité pour tous", () => {
+  assert.ok(LANDING_PREMIUM_FEATURES.join("\n").includes(`${AI_DAILY_LIMIT} actions IA par jour`));
 });
 
 test("remises à zéro : le coach par jour, le reste par mois", () => {

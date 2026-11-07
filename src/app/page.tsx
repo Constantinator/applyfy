@@ -20,7 +20,8 @@ import { CountUp } from "@/components/landing/count-up";
 import { DemoDashboard } from "@/components/landing/demo-dashboard";
 import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
-import { AI_MONTHLY_LIMITS, PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
+import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
+import { LANDING_FREE_ANSWER, LANDING_FREE_FEATURES, LANDING_PREMIUM_FEATURES } from "@/lib/plan-features";
 import { PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
 import { pageMetadata } from "@/lib/seo";
 
@@ -269,32 +270,13 @@ function PageRibbons() {
 }
 
 /**
- * Tarifs : uniquement ce que l'app fait aujourd'hui (voir /premium, ai-usage-limits, premium-plans).
- * Premium « illimité » comme sur /premium (garde-fou de 50 actions IA par jour en interne).
- */
-const PLAN_FEATURES = {
-  free: [
-    "Suivi illimité des candidatures",
-    "Tableau de bord",
-    "Rappels de relance par e-mail",
-    `${AI_MONTHLY_LIMITS.lettre} action${AI_MONTHLY_LIMITS.lettre > 1 ? "s" : ""} IA par type et par mois (résumé d'offre, analyse de CV, lettre…)`,
-  ],
-  premium: [
-    "Tout le plan gratuit",
-    "Résumés d'offre et analyses de CV illimités",
-    "Éditeur de CV et lettres de motivation illimités",
-    "Chat « Affiner avec l'IA » illimité",
-  ],
-};
-
-/**
  * FAQ : chaque réponse doit rester exacte (CGU, politique de confidentialité, prompts de
  * src/lib/claude.ts, import d'offres de src/lib/offer-import.ts).
  */
 const FAQ: { question: string; answer: React.ReactNode }[] = [
   {
     question: "Qu'est-ce qui est gratuit ?",
-    answer: `Le plan gratuit inclut le suivi illimité de tes candidatures, le tableau de bord, les rappels de relance et ${AI_MONTHLY_LIMITS.lettre} action${AI_MONTHLY_LIMITS.lettre > 1 ? "s" : ""} IA par type et par mois. Aucune carte bancaire requise.`,
+    answer: LANDING_FREE_ANSWER,
   },
   {
     question: "L'IA invente-t-elle des choses dans mon CV ?",
@@ -713,12 +695,12 @@ export default function LandingPage() {
             <div className="mt-12 grid gap-6 md:grid-cols-3">
               <article className="flex h-full flex-col justify-between rounded-[12px] border border-[#e5e7eb] bg-white p-8">
                 <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  Gratuit pour toujours
+                  Sans carte bancaire
                 </span>
                 <h3 className={`mt-5 text-lg text-slate-900 ${H3}`}>Gratuit</h3>
                 <p className={`mt-1 text-4xl text-slate-900 ${H1}`}>0 €</p>
                 <div className="mt-6 mb-8">
-                  <PlanFeatures items={PLAN_FEATURES.free} />
+                  <PlanFeatures items={LANDING_FREE_FEATURES} />
                 </div>
                 <Link
                   href="/signup"
@@ -745,7 +727,7 @@ export default function LandingPage() {
                   Résiliable à tout moment.
                 </p>
                 <div className="mt-6 mb-8">
-                  <PlanFeatures items={PLAN_FEATURES.premium} />
+                  <PlanFeatures items={LANDING_PREMIUM_FEATURES} />
                 </div>
                 <Link
                   href="/signup"
@@ -772,7 +754,7 @@ export default function LandingPage() {
                   Facturé {PREMIUM_QUARTERLY_PLAN.billedAmount} € tous les {PREMIUM_QUARTERLY_PLAN.intervalMonths} mois, renouvelable.
                 </p>
                 <div className="mt-6 mb-8">
-                  <PlanFeatures items={PLAN_FEATURES.premium} />
+                  <PlanFeatures items={LANDING_PREMIUM_FEATURES} />
                 </div>
                 <Link
                   href="/signup"

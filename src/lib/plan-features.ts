@@ -40,4 +40,25 @@ export const PREMIUM_FEATURES = [
 
 export const PLAN_LIMITS_NOTE = `Pour tous les plans : ${AI_DAILY_LIMIT} actions IA par jour, ${AI_RATE_LIMIT_PER_MINUTE} requêtes par minute et ${CV_BUILDER_MAX} CV au maximum.`;
 
+/** Tarifs de la landing : gratuit, puis les deux offres Premium. */
+export const LANDING_FREE_FEATURES = [
+  "Suivi de toutes tes candidatures",
+  "Tableau de bord",
+  "Rappels de relance par e-mail",
+  ADAPTATIONS,
+  COACH,
+  IMPORTS,
+  `${countLabel(L.resume_offre, "résumé d'offre", "résumés d'offre")} et ${countLabel(L.lettre, "lettre", "lettres")} par mois`,
+];
+
+export const LANDING_PREMIUM_FEATURES = [
+  "Tout le plan gratuit",
+  "Plus de quota mensuel : adaptations, imports, résumés, lettres",
+  COACH_LIFTED,
+  `Pour tous : ${AI_DAILY_LIMIT} actions IA par jour maximum`,
+];
+
+/** Réponse de la FAQ « Qu'est-ce qui est gratuit ? ». */
+export const LANDING_FREE_ANSWER = `Le plan gratuit inclut le suivi de toutes tes candidatures, le tableau de bord, les rappels de relance, ${ADAPTATIONS}, ${COACH}, ${IMPORTS}, ${countLabel(L.resume_offre, "résumé d'offre", "résumés d'offre")} et ${countLabel(L.lettre, "lettre", "lettres")} par mois. Aucune carte bancaire requise.`;
+
 export const RESET_NOTE ="Le coach repart à zéro chaque jour à minuit. Les autres compteurs, le 1er de chaque mois.";
