@@ -87,6 +87,17 @@ test("comparatif Huntr : prix de départ et mensuel, rien d'affirmé sans source
   assert.doesNotMatch(page, /très cher/);
 });
 
+test("favicon SVG : sans fond, chevron selon le thème, même tracé que le logo", () => {
+  const svg = read("app/icon.svg");
+  assert.doesNotMatch(svg, /<rect/);
+  assert.match(svg, /path\{stroke:#0A0A0A\}/);
+  assert.match(svg, /@media \(prefers-color-scheme:dark\)\{path\{stroke:#FFFFFF\}\}/);
+  assert.match(svg, /viewBox="0 0 48 48"/);
+  assert.match(svg, /d="M9 38 L24 8 L39 38"/);
+  assert.match(svg, /stroke-width="6"/);
+  assert.match(svg, /r="4.2" fill="#2563EB"/);
+});
+
 test("ancres de l'en-tête présentes sur la landing", () => {
   const header = code("components/site/site-header.tsx");
   for (const id of ["fonctionnalites", "comment-ca-marche", "tarifs"]) {
