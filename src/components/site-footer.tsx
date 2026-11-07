@@ -9,7 +9,7 @@ export const LEGAL_LINKS = [
   { href: "/cgu", label: "CGU" },
 ] as const;
 
-const LINK = "ui-focus inline-flex min-h-11 items-center hover:text-ink md:min-h-0 dark:hover:text-white";
+const LINK = "ui-focus inline-flex min-h-11 items-center hover:text-ink lg:min-h-0 dark:hover:text-white";
 
 /** Pied de page commun à toutes les pages (masqué à l'impression : CV et lettres en PDF). */
 export function SiteFooter() {

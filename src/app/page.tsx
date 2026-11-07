@@ -572,14 +572,20 @@ export default function LandingPage() {
             <p className="mt-3.5 text-base text-muted md:mt-4 md:text-center md:text-lg">
               Ce que les autres outils ne font pas (ou font payer très cher).
             </p>
-            <div className="relative mt-7 overflow-x-auto rounded-card border border-line md:mt-12">
+            {/* Zone qui défile : atteignable au clavier. */}
+            <div
+              role="region"
+              aria-label="Comparatif, à faire défiler"
+              tabIndex={0}
+              className="ui-focus relative mt-7 overflow-x-auto rounded-card border border-line md:mt-12"
+            >
               <table className="w-full min-w-[34rem] border-collapse text-sm">
                 <caption className="sr-only">
                   Comparatif d&apos;Applyfy avec Huntr et Excel / Word
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col" className="px-4 py-4 text-left font-medium text-muted">
+                    <th scope="col" className="sticky left-0 z-10 bg-white px-4 py-4 text-left font-medium text-muted sm:static">
                       <span className="sr-only">Fonctionnalité</span>
                     </th>
                     {COMPARISON_TOOLS.map((tool, index) => (
@@ -601,7 +607,7 @@ export default function LandingPage() {
                 <tbody>
                   {COMPARISON.map((row) => (
                     <tr key={row.feature} className="border-t border-line">
-                      <th scope="row" className="px-4 py-3.5 text-left font-medium text-ink">
+                      <th scope="row" className="sticky left-0 z-10 max-w-36 bg-white px-4 py-3.5 text-left font-medium text-ink sm:static sm:max-w-none">
                         {row.feature}
                       </th>
                       {row.values.map((value, index) => {
@@ -621,7 +627,8 @@ export default function LandingPage() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-4 text-center text-xs text-muted">
+            <p className="mt-3 text-center text-xs text-muted sm:hidden">Fais glisser le tableau pour voir les autres outils.</p>
+            <p className="mt-4 text-center text-xs text-muted max-sm:mt-1">
               ~ = fonctionnalité partielle ou disponible uniquement sur plan
               payant
             </p>

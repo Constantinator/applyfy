@@ -774,7 +774,7 @@ export function DemoDashboard() {
                           // Reste sur le statut actuel : la démo ne modifie rien.
                           value={shown.status}
                           onChange={() => showToast(TOAST_FEATURE)}
-                          className="ui-input min-w-40 flex-1"
+                          className="ui-input min-w-40 flex-1 max-sm:text-base!"
                         >
                           {APPLICATION_STATUSES.filter((s) => !RESPONSE_STATUSES.includes(s)).map((status) => (
                             <option key={status} value={status}>
