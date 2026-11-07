@@ -42,33 +42,33 @@ export function CopyCvForOfferButton({
     return (
       <form action={copyCvForOfferAction}>
         {fields}
-        <SubmitButton className="btn-secondary px-4 py-2 text-sm">Utiliser pour cette offre</SubmitButton>
+        <SubmitButton className="ui-btn-secondary">Utiliser pour cette offre</SubmitButton>
       </form>
     );
   }
 
   return (
     <>
-      <button type="button" onClick={() => dialogRef.current?.showModal()} className="btn-secondary px-4 py-2 text-sm">
+      <button type="button" onClick={() => dialogRef.current?.showModal()} className="ui-btn-secondary">
         Utiliser pour cette offre
       </button>
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 shadow-xl backdrop:bg-slate-900/50 dark:bg-slate-900"
+        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card p-0 backdrop:bg-slate-900/50 dark:bg-slate-900"
       >
         <form action={copyCvForOfferAction} className="space-y-4 p-6">
           {fields}
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-white">
+          <h2 id={titleId} className="text-lg font-semibold text-ink dark:text-white">
             Utiliser ce CV pour cette offre ?
           </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-300">Une copie sera créée : ce CV ne sera pas modifié.</p>
+          <p className="text-sm text-muted dark:text-slate-300">Une copie sera créée : ce CV ne sera pas modifié.</p>
           <CvReplacementNotice title={replacedTitle} />
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-            <button type="button" autoFocus onClick={() => dialogRef.current?.close()} className="btn-secondary px-4 py-2 text-sm">
+            <button type="button" autoFocus onClick={() => dialogRef.current?.close()} className="ui-btn-secondary">
               Annuler
             </button>
-            <SubmitButton className="btn-primary px-4 py-2 text-sm">Créer la copie</SubmitButton>
+            <SubmitButton className="ui-btn-primary">Créer la copie</SubmitButton>
           </div>
         </form>
       </dialog>

@@ -110,23 +110,23 @@ export function TemplateChoiceDialog({
       onClick={(e) => {
         if (e.target === e.currentTarget) dialogRef.current?.close();
       }}
-      className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-5xl rounded-2xl bg-white p-0 shadow-xl backdrop:bg-slate-900/60 dark:bg-slate-900"
+      className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-5xl rounded-card bg-white p-0 backdrop:bg-slate-900/60 dark:bg-slate-900"
     >
       {open && (
         <div className="flex max-h-[92vh] flex-col">
           <CvFontFaces />
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+          <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4 dark:border-slate-700">
             <div>
-              <h2 id={titleId} className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h2 id={titleId} className="text-xl font-bold tracking-title text-ink dark:text-white">
                 Choisis un modèle
               </h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+              <p className="mt-0.5 text-sm text-muted dark:text-slate-400">{subtitle}</p>
             </div>
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
               aria-label="Fermer"
-              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+              className="rounded-block p-1.5 text-muted hover:bg-pill hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path d="M6 6l12 12M18 6 6 18" />
@@ -144,25 +144,25 @@ export function TemplateChoiceDialog({
                   role="radio"
                   aria-checked={active}
                   onClick={() => setSelected(t.id)}
-                  className={`flex flex-col items-center gap-3 rounded-2xl p-3 text-left transition ${
+                  className={`flex flex-col items-center gap-3 rounded-card p-3 text-left transition ${
                     active
-                      ? "bg-blue-50 ring-2 ring-blue-600 dark:bg-blue-500/15 dark:ring-blue-400"
-                      : "ring-1 ring-slate-200 hover:ring-slate-300 dark:ring-slate-700 dark:hover:ring-slate-500"
+                      ? "bg-pill ring-2 ring-accent dark:bg-blue-500/15 dark:ring-blue-400"
+                      : "ring-1 ring-line hover:ring-line-strong dark:ring-slate-700 dark:hover:ring-slate-500"
                   }`}
                 >
-                  <div className="overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 dark:ring-slate-700">
+                  <div className="overflow-hidden rounded-block ring-1 ring-line dark:ring-slate-700">
                     <CvThumbnail data={SAMPLE} templateId={t.id} width={220} />
                   </div>
                   <span className="w-full">
-                    <span className="block text-sm font-semibold text-slate-900 dark:text-white">{t.name}</span>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400">{t.description}</span>
+                    <span className="block text-sm font-semibold text-ink dark:text-white">{t.name}</span>
+                    <span className="block text-xs text-muted dark:text-slate-400">{t.description}</span>
                   </span>
                 </button>
               );
             })}
           </div>
 
-          <div className="flex flex-col-reverse items-center gap-3 border-t border-slate-200 px-6 py-4 sm:flex-row sm:justify-between dark:border-slate-700">
+          <div className="flex flex-col-reverse items-center gap-3 border-t border-line px-6 py-4 sm:flex-row sm:justify-between dark:border-slate-700">
             {footer(selected)}
           </div>
         </div>
@@ -174,7 +174,7 @@ export function TemplateChoiceDialog({
 /** Prévient qu'un nouveau CV prendra la place de celui déjà lié à la candidature. */
 export function CvReplacementNotice({ title, className = "" }: { title: string; className?: string }) {
   return (
-    <p className={`text-sm text-amber-700 dark:text-amber-300 ${className}`}>
+    <p className={`text-sm font-semibold text-ink dark:text-slate-200 ${className}`}>
       Ce CV remplacera « {title} » pour cette offre. L&apos;ancien CV restera dans ta bibliothèque.
     </p>
   );
@@ -214,7 +214,7 @@ export function NewCvDialog({
 
   return (
     <>
-      <button type="button" onClick={open} className="btn-primary px-5 py-2.5 text-sm">
+      <button type="button" onClick={open} className="ui-btn-primary">
         {application ? "Créer un CV à partir de zéro" : "Créer un CV depuis zéro"}
       </button>
       <dialog
@@ -224,13 +224,13 @@ export function NewCvDialog({
         onClick={(e) => {
           if (e.target === e.currentTarget) dialogRef.current?.close();
         }}
-        className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-2xl rounded-2xl bg-white p-0 shadow-xl backdrop:bg-slate-900/60 dark:bg-slate-900"
+        className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-2xl rounded-card bg-white p-0 backdrop:bg-slate-900/60 dark:bg-slate-900"
       >
         <div className="flex max-h-[92vh] flex-col">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+          <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4 dark:border-slate-700">
             <div>
-              {!jobKnown && <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Étape {step} sur 2</p>}
-              <h2 id={titleId} className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {!jobKnown && <p className="text-xs font-medium text-muted dark:text-slate-400">Étape {step} sur 2</p>}
+              <h2 id={titleId} className="text-xl font-bold tracking-title text-ink dark:text-white">
                 {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
               </h2>
               {application?.linkedCvTitle && <CvReplacementNotice title={application.linkedCvTitle} className="mt-1" />}
@@ -239,7 +239,7 @@ export function NewCvDialog({
               type="button"
               onClick={() => dialogRef.current?.close()}
               aria-label="Fermer"
-              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+              className="rounded-block p-1.5 text-muted hover:bg-pill hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path d="M6 6l12 12M18 6 6 18" />
@@ -256,7 +256,7 @@ export function NewCvDialog({
               className="space-y-5 p-6"
             >
               <div className="space-y-1.5">
-                <label htmlFor={jobId} className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                <label htmlFor={jobId} className="text-sm font-medium text-ink dark:text-slate-200">
                   Poste visé
                 </label>
                 <input
@@ -266,14 +266,14 @@ export function NewCvDialog({
                   maxLength={TARGET_JOB_MAX}
                   placeholder="Ex. Analyste financier, Développeur backend"
                   autoFocus
-                  className="input w-full"
+                  className="ui-input w-full"
                 />
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-muted dark:text-slate-400">
                   Il sert de titre à ton CV et adapte le score et le coach à ton secteur.
                 </p>
               </div>
               <div className="flex justify-end">
-                <button type="submit" disabled={!jobReady} className="btn-primary px-6 py-2.5 text-sm">
+                <button type="submit" disabled={!jobReady} className="ui-btn-primary">
                   Suivant
                 </button>
               </div>
@@ -284,26 +284,26 @@ export function NewCvDialog({
                 <TemplateGrid selected={templateId} onSelect={setTemplateId} />
               </div>
               {application?.hasLegacyCv && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
-                  <p className="min-w-0 flex-1 basis-64 text-xs text-slate-500 dark:text-slate-400">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 dark:border-slate-700">
+                  <p className="min-w-0 flex-1 basis-64 text-xs text-muted dark:text-slate-400">
                     Ton ancien CV est converti une seule fois, sans décompte. Cela peut prendre jusqu&apos;à une minute.
                   </p>
                   <form action={convertLegacyCvAction}>
                     <input type="hidden" name="applicationId" value={application.id} />
-                    <SubmitButton className="btn-secondary px-4 py-2 text-sm">Reprendre mon ancien CV</SubmitButton>
+                    <SubmitButton className="ui-btn-secondary">Reprendre mon ancien CV</SubmitButton>
                   </form>
                 </div>
               )}
-              <div className={`flex items-center gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700 ${jobKnown ? "justify-end" : "justify-between"}`}>
+              <div className={`flex items-center gap-3 border-t border-line px-6 py-4 dark:border-slate-700 ${jobKnown ? "justify-end" : "justify-between"}`}>
                 {!jobKnown && (
-                  <button type="button" onClick={() => setStep(1)} className="btn-secondary px-5 py-2.5 text-sm">
+                  <button type="button" onClick={() => setStep(1)} className="ui-btn-secondary">
                     Retour
                   </button>
                 )}
                 <form action={createBuilderCvAction.bind(null, templateId)}>
                   <input type="hidden" name="targetJob" value={targetJob.trim()} />
                   {application && <input type="hidden" name="applicationId" value={application.id} />}
-                  <SubmitButton className="btn-primary px-6 py-2.5 text-sm">Créer mon CV</SubmitButton>
+                  <SubmitButton className="ui-btn-primary">Créer mon CV</SubmitButton>
                 </form>
               </div>
             </>
