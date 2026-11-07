@@ -51,12 +51,6 @@ const ANIMATIONS_CSS = `
   33% { transform: scale(.93) }
 }
 @keyframes oa-rewrite { 0%, 38% { transform: scaleX(0) } 52%, 90% { transform: scaleX(1) } 97%, 100% { transform: scaleX(0) } }
-@keyframes oa-shimmer {
-  0%, 36% { opacity: 0; transform: translateX(-120%) skewX(-20deg) }
-  38% { opacity: 1; transform: translateX(-120%) skewX(-20deg) }
-  60% { opacity: 1; transform: translateX(320%) skewX(-20deg) }
-  61%, 100% { opacity: 0; transform: translateX(320%) skewX(-20deg) }
-}
 @keyframes oa-fade-pop { 0%, 54% { opacity: 0; transform: translateY(4px) } 58%, 90% { opacity: 1; transform: none } 95%, 100% { opacity: 0 } }
 
 /* Carte 3 — statut qui avance (cycle de 9 s, un tiers par statut) */
@@ -72,8 +66,8 @@ const ANIMATIONS_CSS = `
 function TypedField({ label, value, index }: { label: string; value: string; index: 1 | 2 | 3 }) {
   return (
     <div>
-      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
-      <div className="mt-0.5 flex h-7 items-center rounded-md bg-white px-2 font-mono text-xs text-slate-800 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700">
+      <p className="text-[10px] font-medium text-muted dark:text-slate-400">{label}</p>
+      <div className="mt-0.5 flex h-7 items-center rounded-md bg-white px-2 font-mono text-xs text-ink ring-1 ring-line dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700">
         <span
           className="overflow-hidden whitespace-nowrap"
           style={{ ...typed(value), animation: `oa-type-${index} 7s steps(${value.length}) infinite` }}
@@ -81,7 +75,7 @@ function TypedField({ label, value, index }: { label: string; value: string; ind
           {value}
         </span>
         <span className="opacity-0" style={{ animation: `oa-caret-${index} 7s linear infinite` }}>
-          <span className="block h-4 w-px bg-blue-600" style={{ animation: "oa-blink .8s linear infinite" }} />
+          <span className="block h-4 w-px bg-accent" style={{ animation: "oa-blink .8s linear infinite" }} />
         </span>
       </div>
     </div>
@@ -91,7 +85,7 @@ function TypedField({ label, value, index }: { label: string; value: string; ind
 function AddApplicationScene() {
   return (
     <div className="flex h-full items-center justify-center p-5">
-      <div className="w-full max-w-xs space-y-2 rounded-xl bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800/80 dark:ring-slate-700">
+      <div className="w-full max-w-xs space-y-2 rounded-block bg-surface p-3 ring-1 ring-line dark:bg-slate-800/80 dark:ring-slate-700">
         <div className="grid grid-cols-2 gap-2">
           <TypedField label="Entreprise" value="Spotify" index={1} />
           <TypedField label="Poste" value="Product Designer" index={2} />
@@ -101,12 +95,12 @@ function AddApplicationScene() {
             <TypedField label="Date d'envoi" value="14/10/2026" index={3} />
           </div>
           <span
-            className="bg-brand relative inline-flex h-7 items-center rounded-md px-3 text-xs font-semibold text-white"
+            className="bg-ink relative inline-flex h-7 items-center rounded-md px-3 text-xs font-semibold text-white"
             style={{ animation: "oa-add-btn 7s ease-in-out infinite" }}
           >
             Ajouter
             <span
-              className="absolute inset-0 inline-flex items-center justify-center rounded-md bg-emerald-600 opacity-0"
+              className="absolute inset-0 inline-flex items-center justify-center rounded-md bg-accent opacity-0"
               style={{ animation: "oa-add-done 7s linear infinite" }}
             >
               ✓ Ajoutée
@@ -123,11 +117,11 @@ const DOCUMENT_LINES = ["92%", "78%", "86%", "64%", "82%"];
 function AdaptDocumentScene() {
   return (
     <div className="flex h-full items-center justify-center p-5">
-      <div className="relative w-full max-w-xs overflow-hidden rounded-xl bg-white p-3.5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+      <div className="relative w-full max-w-xs overflow-hidden rounded-block bg-white p-3.5 ring-1 ring-line dark:bg-slate-900 dark:ring-slate-700">
         <div className="flex items-center justify-between gap-2">
-          <span className="h-2.5 w-20 rounded-full bg-slate-300 dark:bg-slate-600" />
+          <span className="h-2.5 w-20 rounded-full bg-line-strong dark:bg-slate-600" />
           <span
-            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[10px] font-semibold text-white"
+            className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-[10px] font-semibold text-white"
             style={{ animation: "oa-ai-btn 6s ease-in-out infinite" }}
           >
             <IconSparkles className="h-3 w-3" />
@@ -136,26 +130,20 @@ function AdaptDocumentScene() {
         </div>
         <div className="mt-3 space-y-2">
           {DOCUMENT_LINES.map((width, i) => (
-            <div key={i} className="relative h-2 rounded-full bg-slate-200 dark:bg-slate-700" style={{ width }}>
+            <div key={i} className="relative h-2 rounded-full bg-pill dark:bg-slate-700" style={{ width }}>
               <div
-                className="absolute inset-0 origin-left rounded-full bg-linear-to-r from-blue-500 to-blue-600"
+                className="absolute inset-0 origin-left rounded-full bg-accent"
                 style={{ animation: `oa-rewrite 6s ease-out ${i * 0.12}s infinite both` }}
               />
             </div>
           ))}
         </div>
         <span
-          className="mt-3 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/30"
+          className="mt-3 inline-flex items-center rounded-full bg-pill px-2 py-0.5 text-[10px] font-semibold text-ink ring-1 ring-line"
           style={{ animation: "oa-fade-pop 6s ease-out infinite" }}
         >
           ✓ Adapté à l&apos;offre
         </span>
-        {/* Reflet qui balaie le document pendant la réécriture. */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-linear-to-r from-transparent via-white/70 to-transparent opacity-0 dark:via-white/15"
-          style={{ animation: "oa-shimmer 6s ease-in-out infinite" }}
-        />
       </div>
     </div>
   );
@@ -170,14 +158,14 @@ const STATUS_STEPS = [
 function StatusScene() {
   return (
     <div className="flex h-full items-center justify-center p-5">
-      <div className="w-full max-w-xs space-y-4 rounded-xl bg-white p-3.5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+      <div className="w-full max-w-xs space-y-4 rounded-block bg-white p-3.5 ring-1 ring-line dark:bg-slate-900 dark:ring-slate-700">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-sm font-bold text-white">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink text-sm font-bold text-white">
             S
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-slate-900 dark:text-white">Spotify</span>
-            <span className="block text-xs text-slate-500 dark:text-slate-400">Product Designer</span>
+            <span className="block text-sm font-semibold text-ink dark:text-white">Spotify</span>
+            <span className="block text-xs text-muted dark:text-slate-400">Product Designer</span>
           </span>
           {/* Les trois badges sont superposés ; un seul est visible à la fois. */}
           <span className="grid justify-items-end">
@@ -193,13 +181,13 @@ function StatusScene() {
           </span>
         </div>
         <div>
-          <div className="relative mx-2 h-1 rounded-full bg-slate-200 dark:bg-slate-700">
+          <div className="relative mx-2 h-1 rounded-full bg-pill dark:bg-slate-700">
             <div
-              className="bg-brand absolute inset-y-0 left-0 w-full rounded-full"
+              className="bg-ink absolute inset-y-0 left-0 w-full rounded-full"
               style={{ animation: "oa-progress 9s ease-in-out infinite" }}
             />
           </div>
-          <div className="mt-1.5 flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 flex justify-between text-[10px] font-medium text-muted dark:text-slate-400">
             {STATUS_STEPS.map(({ label }) => (
               <span key={label}>{label}</span>
             ))}
@@ -275,7 +263,7 @@ export function OnboardingModal() {
         if (e.key === "ArrowRight") goTo(index + 1);
         if (e.key === "ArrowLeft") goTo(index - 1);
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white p-0 shadow-xl backdrop:bg-black/50 dark:bg-slate-900"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-card bg-white p-0 backdrop:bg-black/50 dark:bg-slate-900"
     >
       <style>{ANIMATIONS_CSS}</style>
 
@@ -284,7 +272,7 @@ export function OnboardingModal() {
           type="button"
           onClick={finish}
           aria-label="Fermer"
-          className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+          className="absolute top-1.5 right-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full text-muted transition hover:bg-pill hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" />
@@ -295,19 +283,19 @@ export function OnboardingModal() {
         <div
           key={index}
           aria-hidden="true"
-          className="oa-scene h-48 overflow-hidden rounded-xl bg-linear-to-br from-blue-50 to-blue-50 dark:from-blue-500/10 dark:to-blue-500/10"
+          className="oa-scene h-48 overflow-hidden rounded-block bg-surface dark:bg-blue-500/10"
         >
           <Scene />
         </div>
 
         <div className="mt-5 min-h-24">
-          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+          <p className="text-xs ui-title-sm">
             Étape {index + 1} sur {CARDS.length}
           </p>
-          <h2 id="onboarding-title" className="mt-1 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h2 id="onboarding-title" className="mt-1 text-xl font-bold tracking-title text-ink dark:text-white">
             {title}
           </h2>
-          <p id="onboarding-description" className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+          <p id="onboarding-description" className="mt-1.5 text-sm text-muted dark:text-slate-300">
             {description}
           </p>
         </div>
@@ -316,7 +304,7 @@ export function OnboardingModal() {
           <button
             type="button"
             onClick={() => goTo(index - 1)}
-            className={`btn-secondary px-4 py-2 text-sm ${index === 0 ? "invisible" : ""}`}
+            className={`ui-btn-secondary ${index === 0 ? "invisible" : ""}`}
           >
             Précédent
           </button>
@@ -330,18 +318,18 @@ export function OnboardingModal() {
                 aria-label={`Aller à l'étape ${i + 1}`}
                 aria-current={i === index ? "step" : undefined}
                 className={`h-2 rounded-full transition-all ${
-                  i === index ? "bg-brand w-5" : "w-2 bg-slate-300 hover:bg-slate-400 dark:bg-slate-600"
+                  i === index ? "bg-ink w-5" : "w-2 bg-line-strong hover:bg-muted dark:bg-slate-600"
                 }`}
               />
             ))}
           </div>
 
           {isLast ? (
-            <button type="button" autoFocus onClick={finish} className="btn-primary px-4 py-2 text-sm">
+            <button type="button" autoFocus onClick={finish} className="ui-btn-primary">
               C&apos;est parti !
             </button>
           ) : (
-            <button type="button" autoFocus onClick={() => goTo(index + 1)} className="btn-primary px-4 py-2 text-sm">
+            <button type="button" autoFocus onClick={() => goTo(index + 1)} className="ui-btn-primary">
               Suivant
             </button>
           )}
