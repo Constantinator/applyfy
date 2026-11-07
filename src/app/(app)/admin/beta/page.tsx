@@ -106,22 +106,22 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="ui-card p-5 sm:p-7">
-            <p className="text-sm text-muted">Testeurs actifs</p>
-            <p className="mt-1 text-2xl font-bold tracking-title text-ink tabular-nums">
+          <div className="ui-card-soft p-5">
+            <p className="text-[13px] text-muted">Testeurs actifs</p>
+            <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">
               {active.length}
               <span className="text-base font-medium text-muted"> / {BETA_MAX_TESTERS}</span>
             </p>
           </div>
-          <div className="ui-card p-5 sm:p-7">
-            <p className="text-sm text-muted">Suspendus ou retirés</p>
-            <p className="mt-1 text-2xl font-bold tracking-title text-ink tabular-nums">
+          <div className="ui-card-soft p-5">
+            <p className="text-[13px] text-muted">Suspendus ou retirés</p>
+            <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">
               {testers.length - active.length}
             </p>
           </div>
-          <div className="ui-card p-5 sm:p-7">
-            <p className="text-sm text-muted">Rapports reçus</p>
-            <p className="mt-1 text-2xl font-bold tracking-title text-ink tabular-nums">{submittedCount}</p>
+          <div className="ui-card-soft p-5">
+            <p className="text-[13px] text-muted">Rapports reçus</p>
+            <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">{submittedCount}</p>
           </div>
         </div>
 

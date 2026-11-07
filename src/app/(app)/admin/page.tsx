@@ -52,10 +52,10 @@ function Stat({
   hintTone?: "good" | "bad";
 }) {
   return (
-    <div className="ui-card p-5 sm:p-7">
-      <p className="text-sm text-muted">{label}</p>
+    <div className="ui-card-soft p-5">
+      <p className="text-[13px] text-muted">{label}</p>
       <p
-        className={`mt-1 text-2xl font-bold tracking-title tabular-nums ${
+        className={`text-[30px] leading-tight font-bold tracking-[-0.03em] tabular-nums ${
           tone === "good" ? "text-ink dark:text-slate-200" : tone === "bad" ? "text-red-700" : "text-ink"
         }`}
       >
