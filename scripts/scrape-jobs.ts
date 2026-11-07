@@ -33,7 +33,6 @@ import type { OfferListing } from "../src/lib/offer-types";
 
 const MIN_DELAY_MS = 3_000;
 const TIMEOUT_MS = 20_000;
-const TOP_TRENDS = 30;
 
 // Les modules de l'application sont écrits pour Next.js : « server-only », alias « @/ », imports
 // sans extension et JSON importé sans attribut. Ces hooks les rendent chargeables par Node
@@ -68,7 +67,9 @@ type Hooks = {
 });
 
 const { SECTORS, matchSectorKeywords } = await import("../src/lib/cv-sector-context");
-const { collectSector, collectUserAgent, createAtsClient, decodeEntities, decodeHtml } = await import("../src/lib/job-collect");
+const { collectSector, collectUserAgent, createAtsClient, decodeEntities, decodeHtml, refreshTrends, saveOffers } = await import(
+  "../src/lib/job-collect",
+);
 const USER_AGENT = collectUserAgent();
 
 /** Recherche lancée sur chaque source pour un secteur. */
@@ -392,8 +393,6 @@ function createCollectors(ids: string[]): Collector[] {
 
 // --- Mots-clés et enregistrement -------------------------------------------------------------
 
-type Offer = RawOffer & { source: string; sector: Sector; keywords: string[] };
-
 /** Produits des entreprises de ats-companies.json, par nom d'entreprise. */
 const PRODUCTS = new Map(
   Object.values(ATS_COMPANIES)
@@ -410,40 +409,6 @@ function createAdminClient() {
 }
 
 type Supabase = ReturnType<typeof createAdminClient>;
-
-/** Enregistre les offres nouvelles et compte leurs mots-clés ; une offre déjà vue n'est pas recomptée. */
-async function save(supabase: Supabase, offers: Offer[]) {
-  let saved = 0;
-  for (const offer of offers) {
-    const { data, error } = await supabase
-      .from("job_offers_raw")
-      .upsert(
-        {
-          source: offer.source,
-          external_id: offer.externalId,
-          title: offer.title,
-          company: offer.company,
-          sector: offer.sector,
-          description: offer.description,
-          url: offer.url,
-        },
-        { onConflict: "source,external_id", ignoreDuplicates: true },
-      )
-      .select("id");
-    if (error) throw error;
-    if (!data?.length) continue;
-    saved++;
-    if (offer.keywords.length) {
-      const { error: rpcError } = await supabase.rpc("increment_job_keywords", {
-        p_sector: offer.sector,
-        p_keywords: offer.keywords,
-        p_source: offer.source,
-      });
-      if (rpcError) throw rpcError;
-    }
-  }
-  return saved;
-}
 
 /**
  * Recompte job_keywords d'un secteur à partir des offres stockées (y compris celles collées par
@@ -484,20 +449,6 @@ async function recount(supabase: Supabase, sector: Sector, write: boolean) {
     }
   }
   return { offers, top: rows.sort((a, b) => b.frequency - a.frequency).slice(0, 10), keywords: rows.length };
-}
-
-async function refreshTrends(supabase: Supabase, sector: Sector) {
-  const { data, error } = await supabase
-    .from("job_keywords")
-    .select("keyword, frequency")
-    .eq("sector", sector)
-    .order("frequency", { ascending: false })
-    .limit(TOP_TRENDS);
-  if (error) throw error;
-  const { error: upsertError } = await supabase
-    .from("sector_trends")
-    .upsert({ sector, top_keywords: data ?? [], updated_at: new Date().toISOString() }, { onConflict: "sector" });
-  if (upsertError) throw upsertError;
 }
 
 // --- Exécution -------------------------------------------------------------------------------
@@ -558,7 +509,7 @@ async function main() {
         for (const offer of offers) for (const keyword of offer.keywords) keywords.add(`${sector}:${keyword}`);
         const sectorKeywords = new Set(offers.flatMap((o) => o.keywords));
         console.log(`  → ${offers.length} offre(s), ${sectorKeywords.size} mot(s)-clé(s) distinct(s) : ${[...sectorKeywords].join(", ")}`);
-        if (supabase) saved += await save(supabase, offers);
+        if (supabase) saved += (await saveOffers(supabase, offers)).created;
       }
       report.push(
         `${collector.id} : ${found} offre(s) lue(s), ${keywords.size} mot(s)-clé(s) distinct(s)${supabase ? `, ${saved} nouvelle(s)` : ""}`,

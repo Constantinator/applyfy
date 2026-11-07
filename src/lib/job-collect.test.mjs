@@ -10,7 +10,71 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { ATS_OFFERS_PER_COMPANY, collectSector, createAtsClient, readCompanyOffers } = await import("./job-collect.ts");
+const { ATS_OFFERS_PER_COMPANY, collectSector, createAtsClient, planOfferSave, readCompanyOffers, saveOffers } = await import(
+  "./job-collect.ts"
+);
+
+/** Base simulée : lignes de job_offers_raw, appels à increment_job_keywords. */
+function fakeDb(rows = [], { failOn, conflict = [] } = {}) {
+  const db = { rows, rpc: [] };
+  const fail = (op) => (failOn === op ? { data: null, error: new Error(op) } : null);
+  db.from = () => ({
+    select: () => {
+      const filters = {};
+      const chain = {
+        eq: (column, value) => ((filters[column] = [value]), chain),
+        in: (column, values) => ((filters[column] = values), chain),
+        then: (resolve) =>
+          resolve(
+            fail("select") ?? {
+              data: db.rows.filter((row) => Object.entries(filters).every(([column, values]) => values.includes(row[column]))),
+              error: null,
+            },
+          ),
+      };
+      return chain;
+    },
+    update: (patch) => ({
+      in: async (_column, ids) => {
+        const failure = fail("update");
+        if (failure) return failure;
+        for (const row of db.rows) if (ids.includes(row.id)) Object.assign(row, patch);
+        return { error: null };
+      },
+    }),
+    upsert: (row) => ({
+      select: async () => {
+        const failure = fail("insert");
+        if (failure) return failure;
+        if (conflict.includes(row.external_id)) return { data: [], error: null };
+        db.rows.push({ id: `n${db.rows.length}`, scraped_at: "NOW", ...row });
+        return { data: [{ id: row.external_id }], error: null };
+      },
+    }),
+  });
+  db.rpc = Object.assign(
+    async (_name, args) => {
+      db.rpc.calls.push(args);
+      return { error: null };
+    },
+    { calls: [] },
+  );
+  return db;
+}
+const toSave = (id, fields = {}) => ({
+  externalId: id,
+  title: `Poste ${id}`,
+  company: "Acme",
+  description: "Texte",
+  url: `https://a.fr/${id}`,
+  location: "Paris",
+  publishedAt: null,
+  source: "ats",
+  sector: "tech",
+  keywords: ["SQL"],
+  ...fields,
+});
+const SEEN_AT = new Date("2026-11-08T03:00:00Z");
 
 /** Réponses simulées par adresse ; null : la page ne répond pas. */
 const fakeGet = (routes) => {
@@ -195,6 +259,72 @@ test("arrêt au milieu des détails SmartRecruiters : les offres lues restent", 
   });
   assert.equal(kept.length, 2);
   assert.equal(result.partial, true);
+});
+
+test("enregistrement : offre nouvelle ajoutée, mots-clés comptés une fois", async () => {
+  const db = fakeDb();
+  const result = await saveOffers(db, [toSave("a", { publishedAt: "2026-11-01T00:00:00.000Z" })], SEEN_AT);
+  assert.deepEqual(result, { created: 1, seen: 0 });
+  assert.equal(db.rows[0].location, "Paris");
+  assert.equal(db.rows[0].published_at, "2026-11-01T00:00:00.000Z");
+  assert.equal(db.rows[0].last_seen_at, SEEN_AT.toISOString());
+  assert.deepEqual(db.rpc.calls, [{ p_sector: "tech", p_keywords: ["SQL"], p_source: "ats" }]);
+});
+
+test("enregistrement : offre revue rafraîchie, mots-clés non recomptés, première vue et secteur gardés", async () => {
+  const row = { id: "r1", source: "ats", external_id: "a", sector: "rh", scraped_at: "2026-10-27T10:00:00Z", last_seen_at: "2026-10-27T10:00:00Z", location: null };
+  const db = fakeDb([row]);
+  const result = await saveOffers(db, [toSave("a", { sector: "tech" })], SEEN_AT);
+  assert.deepEqual(result, { created: 0, seen: 1 });
+  assert.equal(row.last_seen_at, SEEN_AT.toISOString());
+  assert.equal(row.location, "Paris");
+  assert.equal(row.scraped_at, "2026-10-27T10:00:00Z");
+  assert.equal(row.sector, "rh");
+  assert.deepEqual(db.rpc.calls, []);
+});
+
+test("enregistrement : un lieu absent n'efface pas le lieu déjà connu", async () => {
+  const row = { id: "r1", source: "ats", external_id: "a", last_seen_at: "2026-10-27T10:00:00Z", location: "Lyon" };
+  await saveOffers(fakeDb([row]), [toSave("a", { location: null })], SEEN_AT);
+  assert.equal(row.location, "Lyon");
+  assert.equal(row.last_seen_at, SEEN_AT.toISOString());
+});
+
+test("enregistrement : même identifiant sur une autre source, offre distincte", async () => {
+  const row = { id: "r1", source: "user", external_id: "a", last_seen_at: "ANCIEN" };
+  const db = fakeDb([row]);
+  assert.deepEqual(await saveOffers(db, [toSave("a")], SEEN_AT), { created: 1, seen: 0 });
+  assert.equal(row.last_seen_at, "ANCIEN");
+});
+
+test("enregistrement : offre arrivée entre-temps, pas de second comptage des mots-clés", async () => {
+  const db = fakeDb([], { conflict: ["a"] });
+  assert.deepEqual(await saveOffers(db, [toSave("a")], SEEN_AT), { created: 0, seen: 0 });
+  assert.deepEqual(db.rpc.calls, []);
+});
+
+test("enregistrement : une erreur de base remonte, sans être avalée", async () => {
+  for (const failOn of ["select", "insert"]) {
+    await assert.rejects(saveOffers(fakeDb([], { failOn }), [toSave("a")], SEEN_AT), new RegExp(failOn));
+  }
+  const row = { id: "r1", source: "ats", external_id: "a" };
+  await assert.rejects(saveOffers(fakeDb([row], { failOn: "update" }), [toSave("a")], SEEN_AT), /update/);
+});
+
+test("plan : offres revues regroupées par lieu, doublons d'un même passage ignorés", () => {
+  const { toInsert, toRefresh } = planOfferSave(
+    [toSave("a"), toSave("a"), toSave("b"), toSave("c", { location: "Lyon" }), toSave("d")],
+    [
+      { id: "1", external_id: "a" },
+      { id: "2", external_id: "b" },
+      { id: "3", external_id: "c" },
+    ],
+  );
+  assert.deepEqual(toInsert.map((offer) => offer.externalId), ["d"]);
+  assert.deepEqual(toRefresh, [
+    { location: "Paris", ids: ["1", "2"] },
+    { location: "Lyon", ids: ["3"] },
+  ]);
 });
 
 test("client : délai entre deux requêtes, robot identifié, erreurs sans exception", async () => {

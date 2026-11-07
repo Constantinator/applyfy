@@ -6,6 +6,8 @@
 // Dans ats-companies.json, `products` liste les produits de l'entreprise, exclus des mots-clés
 // comme son nom ; `filterTitles` ne garde que les offres du métier du secteur (marque grand public
 // classée en marketing : postes marketing seulement).
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import type { Sector } from "./cv-sector-context";
 
 export type AtsPlatform = "greenhouse" | "lever" | "lever-eu" | "ashby" | "smartrecruiters";
@@ -356,4 +358,108 @@ export async function collectSector({
     }
   }
   return result;
+}
+
+// --- Enregistrement ---------------------------------------------------------------------------
+
+export type OfferToSave = RawOffer & { source: string; sector: Sector; keywords: string[] };
+export type SaveResult = { created: number; seen: number };
+
+const LOOKUP_CHUNK = 200;
+const TOP_TRENDS = 30;
+
+/** Sépare les offres nouvelles des offres revues, regroupées par lieu pour une seule requête chacune. */
+export function planOfferSave(offers: OfferToSave[], existing: { id: string; external_id: string }[]) {
+  const ids = new Map(existing.map((row) => [row.external_id, row.id]));
+  const unique = [...new Map(offers.map((offer) => [offer.externalId, offer])).values()];
+  const groups = new Map<string | null, string[]>();
+  for (const offer of unique) {
+    const id = ids.get(offer.externalId);
+    if (id) groups.set(offer.location, [...(groups.get(offer.location) ?? []), id]);
+  }
+  return {
+    toInsert: unique.filter((offer) => !ids.has(offer.externalId)),
+    toRefresh: [...groups].map(([location, rowIds]) => ({ location, ids: rowIds })),
+  };
+}
+
+/**
+ * Offre nouvelle : enregistrée, ses mots-clés comptés. Offre déjà connue : last_seen_at et lieu mis
+ * à jour, sans recompter ses mots-clés. Le secteur et scraped_at (première vue) ne changent jamais.
+ * Un lieu absent de la source n'efface pas le lieu déjà connu.
+ */
+export async function saveOffers(supabase: SupabaseClient, offers: OfferToSave[], now = new Date()): Promise<SaveResult> {
+  const result: SaveResult = { created: 0, seen: 0 };
+  const lastSeen = now.toISOString();
+  for (const source of new Set(offers.map((offer) => offer.source))) {
+    const sourceOffers = offers.filter((offer) => offer.source === source);
+    const existing: { id: string; external_id: string }[] = [];
+    for (let from = 0; from < sourceOffers.length; from += LOOKUP_CHUNK) {
+      const { data, error } = await supabase
+        .from("job_offers_raw")
+        .select("id, external_id")
+        .eq("source", source)
+        .in("external_id", sourceOffers.slice(from, from + LOOKUP_CHUNK).map((offer) => offer.externalId));
+      if (error) throw error;
+      existing.push(...((data ?? []) as { id: string; external_id: string }[]));
+    }
+
+    const { toInsert, toRefresh } = planOfferSave(sourceOffers, existing);
+    for (const { location, ids } of toRefresh) {
+      const { error } = await supabase
+        .from("job_offers_raw")
+        .update({ last_seen_at: lastSeen, ...(location ? { location } : {}) })
+        .in("id", ids);
+      if (error) throw error;
+      result.seen += ids.length;
+    }
+    for (const offer of toInsert) {
+      const { data, error } = await supabase
+        .from("job_offers_raw")
+        .upsert(
+          {
+            source: offer.source,
+            external_id: offer.externalId,
+            title: offer.title,
+            company: offer.company,
+            sector: offer.sector,
+            description: offer.description,
+            url: offer.url,
+            location: offer.location,
+            published_at: offer.publishedAt,
+            last_seen_at: lastSeen,
+          },
+          { onConflict: "source,external_id", ignoreDuplicates: true },
+        )
+        .select("id");
+      if (error) throw error;
+      // Enregistrée entre-temps par un autre passage : pas de second comptage.
+      if (!data?.length) continue;
+      result.created++;
+      if (offer.keywords.length) {
+        const { error: rpcError } = await supabase.rpc("increment_job_keywords", {
+          p_sector: offer.sector,
+          p_keywords: offer.keywords,
+          p_source: offer.source,
+        });
+        if (rpcError) throw rpcError;
+      }
+    }
+  }
+  return result;
+}
+
+/** Recalcule le classement des mots-clés d'un secteur. */
+export async function refreshTrends(supabase: SupabaseClient, sector: Sector) {
+  const { data, error } = await supabase
+    .from("job_keywords")
+    .select("keyword, frequency")
+    .eq("sector", sector)
+    .order("frequency", { ascending: false })
+    .limit(TOP_TRENDS);
+  if (error) throw error;
+  const { error: upsertError } = await supabase
+    .from("sector_trends")
+    .upsert({ sector, top_keywords: data ?? [], updated_at: new Date().toISOString() }, { onConflict: "sector" });
+  if (upsertError) throw upsertError;
 }
