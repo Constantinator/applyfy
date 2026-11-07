@@ -20,6 +20,7 @@ import {
 import { CountUp } from "@/components/landing/count-up";
 import { DemoDashboard } from "@/components/landing/demo-dashboard";
 import { HERO_EXAMPLE_SCORE, HeroVisual } from "@/components/landing/hero-visual";
+import { MobileCtaBar } from "@/components/landing/mobile-cta-bar";
 import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
@@ -769,6 +770,7 @@ export default function LandingPage() {
           </div>
         </section>
       </main>
+      <MobileCtaBar />
     </div>
   );
 }
