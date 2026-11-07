@@ -16,7 +16,7 @@ const NOW = new Date("2026-11-06T12:00:00Z");
 let nextId = 0;
 const row = (title, fields = {}) => {
   const id = `o${nextId++}`;
-  return { id, title, company: `Société ${id}`, url: `https://exemple.fr/${id}`, scraped_at: "2026-11-01T10:00:00Z", ...fields };
+  return { id, title, company: `Société ${id}`, url: `https://exemple.fr/${id}`, scraped_at: "2026-11-01T10:00:00Z", last_seen_at: "2026-11-01T10:00:00Z", ...fields };
 };
 const pick = (rows, target = "Analyste financier", applied = []) => pickOffersForYou(rows, target, applied, NOW);
 
@@ -38,7 +38,7 @@ test("à pertinence égale, la plus récente", () => {
   const offers = pick([
     row("Analyste A", { scraped_at: "2026-10-20T10:00:00Z" }),
     row("Analyste B", { scraped_at: "2026-11-05T10:00:00Z" }),
-    row("Analyste C", { scraped_at: "2026-11-01T10:00:00Z" }),
+    row("Analyste C", { scraped_at: "2026-11-01T10:00:00Z", last_seen_at: "2026-11-01T10:00:00Z" }),
   ]);
   assert.deepEqual(offers.map((offer) => offer.title), ["Analyste B", "Analyste C", "Analyste A"]);
 });
@@ -52,10 +52,21 @@ test("sans poste visé : aucune", () => {
   assert.deepEqual(pick([row("Analyste A"), row("Analyste B"), row("Analyste C")], "  "), []);
 });
 
-test("offres de 30 jours maximum", () => {
-  const rows = [row("Analyste A"), row("Analyste B"), row("Analyste C", { scraped_at: "2026-10-06T11:59:00Z" })];
+test("offre non revue depuis plus de 21 jours : plus proposée", () => {
+  const rows = [row("Analyste A"), row("Analyste B"), row("Analyste C", { last_seen_at: "2026-10-16T11:59:00Z" })];
   assert.deepEqual(pick(rows), []);
-  rows[2].scraped_at = "2026-10-07T12:00:00Z";
+  rows[2].last_seen_at = "2026-10-16T12:00:00Z";
+  assert.equal(pick(rows).length, 3);
+});
+
+test("offre ancienne mais revue récemment : toujours proposée", () => {
+  const rows = ["A", "B", "C"].map((name) => row(`Analyste ${name}`, { scraped_at: "2026-08-01T10:00:00Z", last_seen_at: "2026-11-05T10:00:00Z" }));
+  assert.equal(pick(rows).length, 3);
+});
+
+test("après la migration, last_seen_at égal à scraped_at : les offres récentes restent proposées", () => {
+  const collected = "2026-10-27T03:57:00+00:00";
+  const rows = ["A", "B", "C"].map((name) => row(`Analyste ${name}`, { scraped_at: collected, last_seen_at: collected }));
   assert.equal(pick(rows).length, 3);
 });
 

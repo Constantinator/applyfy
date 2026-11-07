@@ -19,10 +19,10 @@ export async function getOffersForYou(sector: Sector, targetJob: string, applied
   try {
     const { data, error } = await createAdminClient()
       .from("job_offers_raw")
-      .select("id, title, company, url, scraped_at")
+      .select("id, title, company, url, scraped_at, last_seen_at")
       .eq("sector", sector)
       .not("url", "is", null)
-      .gte("scraped_at", offersCutoff(now))
+      .gte("last_seen_at", offersCutoff(now))
       .order("scraped_at", { ascending: false })
       .limit(CANDIDATE_LIMIT);
     if (error) throw error;

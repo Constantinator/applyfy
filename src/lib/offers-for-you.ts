@@ -5,8 +5,8 @@ import { parseOfferLink } from "./offer-limits";
 import { titleTerms } from "./offer-title";
 
 export const OFFERS_FOR_YOU_COUNT = 3;
-/** Sans date d'expiration en base : au-delà, l'offre a de bonnes chances d'être pourvue. */
-export const OFFERS_MAX_AGE_DAYS = 30;
+/** Sans date d'expiration chez les sources : non revue depuis ce délai, l'offre a de bonnes chances d'être pourvue. */
+export const OFFERS_NOT_SEEN_MAX_DAYS = 21;
 
 const DAY = 86_400_000;
 
@@ -15,15 +15,18 @@ export type JobOfferRow = {
   title: string;
   company: string | null;
   url: string | null;
+  /** Première vue : à pertinence égale, la plus récente d'abord. */
   scraped_at: string;
+  /** Dernière fois que la collecte l'a retrouvée sur sa source. */
+  last_seen_at: string;
 };
 export type OfferForYou = { id: string; title: string; company: string; url: string };
 
 /** Offres déjà ajoutées par l'utilisateur, à ne pas reproposer. */
 export type AppliedOffer = { company: string; position: string; offer_url: string | null };
 
-/** Date limite de collecte (ISO) des offres retenues. */
-export const offersCutoff = (now: Date) => new Date(now.getTime() - OFFERS_MAX_AGE_DAYS * DAY).toISOString();
+/** Dernière vue la plus ancienne (ISO) des offres retenues. */
+export const offersCutoff = (now: Date) => new Date(now.getTime() - OFFERS_NOT_SEEN_MAX_DAYS * DAY).toISOString();
 
 const offerKey = (company: string, title: string) => `${normalizeText(company).trim()}|${normalizeText(title).trim()}`;
 
@@ -43,7 +46,7 @@ export function pickOffersForYou(rows: JobOfferRow[], targetJob: string, applied
     const company = row.company?.trim();
     const title = row.title.trim();
     const url = parseOfferLink(row.url);
-    if (!company || !title || !url || row.scraped_at < cutoff || appliedUrls.has(url)) return [];
+    if (!company || !title || !url || row.last_seen_at < cutoff || appliedUrls.has(url)) return [];
     const normalized = normalizeText(title);
     const matched = terms.filter((term) => hasPhrase(normalized, term)).length;
     return matched > 0 ? [{ offer: { id: row.id, title, company, url }, matched, scrapedAt: row.scraped_at }] : [];
