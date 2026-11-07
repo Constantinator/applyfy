@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AccountDeletedNotice } from "@/components/account-deleted-notice";
+import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import {
   IconActivity,
   IconBell,
@@ -22,7 +23,7 @@ import { HERO_EXAMPLE_SCORE, HeroVisual } from "@/components/landing/hero-visual
 import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
-import { BETA_MAX_TESTERS, BETA_PREMIUM_UNTIL_LABEL, isBetaOfferOpen } from "@/lib/beta-rules";
+import { BETA_MAX_TESTERS, BETA_PREMIUM_UNTIL_LABEL, BETA_REPORTS, isBetaOfferOpen } from "@/lib/beta-rules";
 import { CV_TEMPLATES } from "@/lib/cv-builder-types";
 import { SCORE_CATEGORIES, SCORE_TOTAL } from "@/lib/cv-score";
 import { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, QUARTERLY_FEATURES, RESET_NOTE } from "@/lib/plan-features";
@@ -54,9 +55,6 @@ const FACTS = [
   { value: `${FREE_PLAN_PRICE} €`, label: "pour commencer" },
 ];
 
-// Typographie : graisse 600 sur tous les titres, letter-spacing négatif sur H1 et H2.
-const H2 = "font-semibold tracking-[-0.02em]";
-
 // Sur-titre bleu et titre de section de la maquette.
 const EYEBROW = "mb-2.5 text-[13px] font-semibold tracking-[.02em] text-accent md:mb-3";
 const TITLE = "text-[31px] leading-[1.1] font-bold tracking-[-0.035em] md:text-[44px] md:leading-[1.08]";
@@ -73,19 +71,6 @@ const PLAN_BUTTON = "mt-auto w-full";
 const CHECK = "flex items-start gap-2.5 text-[15px] md:text-[14.5px]";
 const CHECK_ICON =
   "mt-[3px] flex h-[18px] w-[18px] flex-none items-center justify-center rounded-md bg-ink text-[11px] text-white md:mt-0.5";
-
-// Boutons compacts (8px 14px, rayon 8px, 14px, graisse 500) : le « ! » l'emporte sur btn-*.
-const BUTTON = "rounded-[8px]! px-[14px]! py-2! text-sm! font-medium!";
-const BTN_PRIMARY = `btn-primary ${BUTTON}`;
-
-// Rythme : sections alternées blanc / gris clair, 96px de part et d'autre.
-// Transparent / voile gris léger : le dégradé de la page reste visible sous chaque section.
-// relative isolate : le z-10 du contenu reste dans la section (sous l'en-tête collant, z-10 aussi)
-// et la section passe au-dessus des rubans SVG du wrapper.
-const BG_GRAY = "relative isolate bg-slate-500/[0.04]";
-// Contenu de chaque section, au-dessus des rubans.
-const CONTENT = "relative z-10";
-const SECTION_Y = "py-24";
 
 // Sous chaque CTA d'inscription. L'inscription ne demande jamais de carte (Stripe : Premium seulement).
 const FRICTION_REDUCER = "Gratuit · Sans carte bancaire · Prêt en 1 minute";
@@ -253,7 +238,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
         nécessaires au service (hébergement, IA, paiement), listés dans notre{" "}
         <Link
           href="/politique-confidentialite"
-          className="font-medium text-blue-600 underline-offset-4 hover:underline"
+          className="ui-link underline"
         >
           politique de confidentialité
         </Link>
@@ -705,67 +690,76 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Questions fréquentes (blanc), séparée des tarifs par un filet et 80px d'espace. */}
-        <section
-          aria-labelledby="faq-title"
-          className="relative isolate border-t border-[#e5e7eb] bg-white"
-        >
-          <div className={`mx-auto max-w-3xl px-4 py-20 sm:px-6 ${CONTENT}`}>
+        {/* Bêta : fond dégradé léger de la maquette. Les conditions s'affichent avant l'inscription. */}
+        {betaOpen && (
+          <section id="beta" aria-labelledby="beta-title" className={`pb-16 md:pb-24 ${SCROLL_MARGIN}`}>
+            <div className={WRAP}>
+              <div className="rounded-[28px] border border-[#DBE4FF] bg-[linear-gradient(135deg,#F3F6FF,#fff)] px-[22px] py-7 md:flex md:items-center md:justify-between md:gap-8 md:rounded-[32px] md:px-12 md:py-11">
+                <div className="max-w-[640px]">
+                  <p className={`${EYEBROW} mb-2!`}>Bêta ouverte</p>
+                  <h2 id="beta-title" className="text-[25px] leading-[1.15] font-bold tracking-[-0.03em] md:text-[34px]">
+                    Deviens beta testeur : Premium offert jusqu&apos;au {BETA_PREMIUM_UNTIL_LABEL}.
+                  </h2>
+                  <p className="mt-3 mb-5 text-[15px] text-muted md:mb-0 md:text-base">
+                    {BETA_MAX_TESTERS} places au maximum. Tu testes Applyfy, tu nous envoies {BETA_REPORTS.length} rapports sur ce qui marche et ce qui coince, et tu influences la suite.
+                  </p>
+                </div>
+                <div className="shrink-0 [&>button]:w-full md:[&>button]:w-auto">
+                  <BetaJoinDialog mode="link" triggerClassName="ui-btn-primary" />
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Questions fréquentes : réponses ouvertes, comme sur la maquette. */}
+        <section aria-labelledby="faq-title" className="pb-16 md:pb-24">
+          <div className={`${WRAP} md:flex md:gap-20`}>
             <h2
               id="faq-title"
-              className={`text-center text-3xl text-slate-900 sm:text-4xl ${H2}`}
+              className="mb-[22px] text-[28px] leading-[1.1] font-bold tracking-[-0.035em] md:mb-0 md:flex-[.8] md:text-[38px] md:leading-[1.08]"
             >
               Questions fréquentes
             </h2>
-            <div className="mt-12 divide-y divide-[#e5e7eb] border-y border-[#e5e7eb]">
+            <div className="md:flex-[1.2]">
               {FAQ.map((item) => (
-                <details key={item.question} className="group py-5">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-slate-900 [&::-webkit-details-marker]:hidden">
-                    {item.question}
-                    <span
-                      aria-hidden="true"
-                      className="text-xl leading-none text-slate-400 transition-transform duration-200 group-open:rotate-45"
-                    >
-                      +
-                    </span>
-                  </summary>
-                  <p className="mt-3 pr-8 text-[15px] leading-relaxed text-slate-600">
-                    {item.answer}
-                  </p>
-                </details>
+                <div key={item.question} className="border-t border-line py-[18px] first:border-t-0 first:pt-0 md:py-[22px]">
+                  <h3 className="text-base font-semibold md:text-[17px]">{item.question}</h3>
+                  <p className="mt-2 text-[15px] text-muted md:text-base">{item.answer}</p>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Appel à l'action final (gris) */}
-        <section aria-labelledby="cta-title" className={BG_GRAY}>
-          <Reveal
-            className={`mx-auto max-w-4xl px-4 text-center sm:px-6 ${SECTION_Y} ${CONTENT}`}
-          >
-            <h2
-              id="cta-title"
-              className={`text-3xl text-[#1E40AF] sm:text-4xl ${H2}`}
-            >
-              Prêt(e) à reprendre le contrôle de ta recherche ?
-            </h2>
-            <p className="mt-4 text-slate-600">
-              Crée ton compte en une minute et ajoute ta première candidature.
-            </p>
-            <Link href="/signup" className={`mt-8 ${BTN_PRIMARY}`}>
-              Commencer gratuitement
-            </Link>
-            <p className="mt-3 text-sm text-slate-500">{FRICTION_REDUCER}</p>
-            <p className="mt-4 text-sm text-slate-500">
-              J&apos;ai déjà un compte ?{" "}
-              <Link
-                href="/login"
-                className="font-medium text-blue-600 underline-offset-4 hover:underline"
+        {/* Appel à l'action final */}
+        <section aria-labelledby="cta-title" className="pb-12 md:pb-24">
+          <div className={WRAP}>
+            <Reveal className="rounded-[28px] bg-ink px-[22px] py-10 text-center text-white md:rounded-[36px] md:px-12 md:py-[72px]">
+              <h2
+                id="cta-title"
+                className="mx-auto max-w-[720px] text-[31px] leading-[1.08] font-extrabold tracking-[-0.04em] md:text-[50px] md:leading-[1.06]"
               >
-                Se connecter
+                Prêt(e) à reprendre le contrôle de ta recherche ?
+              </h2>
+              <p className="mx-auto mt-4 max-w-[520px] text-base text-[#A1A1AA] md:mt-5 md:text-lg">
+                Crée ton compte en une minute et ajoute ta première candidature.
+              </p>
+              <Link href="/signup" className="ui-btn-inverse mt-6 min-h-[52px]! px-8! text-base! max-md:w-full md:mt-8">
+                Commencer gratuitement
               </Link>
-            </p>
-          </Reveal>
+              <p className="mt-3 text-[13px] text-[#A1A1AA]">{FRICTION_REDUCER}</p>
+              <p className="mt-1 text-sm text-[#A1A1AA]">
+                J&apos;ai déjà un compte ?{" "}
+                <Link
+                  href="/login"
+                  className="inline-flex min-h-11 items-center font-medium text-white underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                  Se connecter
+                </Link>
+              </p>
+            </Reveal>
+          </div>
         </section>
       </main>
     </div>

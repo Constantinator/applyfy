@@ -24,6 +24,9 @@ export function SiteFooter() {
           <Link href="/about" className={LINK}>
             Notre histoire
           </Link>
+          <Link href="/blog" className={LINK}>
+            Blog
+          </Link>
           {LEGAL_LINKS.map((link) => (
             <Link key={link.href} href={link.href} className={LINK}>
               {link.label}
