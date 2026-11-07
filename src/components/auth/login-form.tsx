@@ -25,7 +25,7 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
       )}
 
       <div className="space-y-1.5">
-        <label htmlFor="email" className="text-sm font-medium text-slate-700">
+        <label htmlFor="email" className="text-sm font-medium text-ink">
           Email
         </label>
         <input
@@ -41,7 +41,7 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="password" className="text-sm font-medium text-slate-700">
+        <label htmlFor="password" className="text-sm font-medium text-ink">
           Mot de passe
         </label>
         <input
@@ -60,9 +60,9 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
         {pending ? "Connexion…" : "Se connecter"}
       </button>
 
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-muted">
         Pas encore de compte ?{" "}
-        <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+        <Link href="/signup" className="ui-focus ui-hit relative font-medium text-accent hover:text-ink">
           Créer un compte
         </Link>
       </p>

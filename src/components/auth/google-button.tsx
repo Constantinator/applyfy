@@ -61,7 +61,7 @@ export function GoogleButton({ next = "/dashboard" }: { next?: string }) {
         type="button"
         onClick={signIn}
         disabled={pending}
-        className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="ui-btn-secondary w-full gap-3"
       >
         <GoogleLogo />
         {pending ? "Redirection vers Google…" : "Continuer avec Google"}
@@ -73,10 +73,10 @@ export function GoogleButton({ next = "/dashboard" }: { next?: string }) {
 /** Séparateur « ou » entre la connexion Google et le formulaire email / mot de passe. */
 export function AuthDivider() {
   return (
-    <div className="my-6 flex items-center gap-3 text-xs font-medium tracking-wide text-slate-400 uppercase">
-      <span className="h-px flex-1 bg-slate-200" />
+    <div className="my-6 flex items-center gap-3 text-xs font-medium tracking-wide text-muted uppercase">
+      <span className="h-px flex-1 bg-line" />
       ou
-      <span className="h-px flex-1 bg-slate-200" />
+      <span className="h-px flex-1 bg-line" />
     </div>
   );
 }

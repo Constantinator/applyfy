@@ -17,8 +17,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <>
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Connexion</h1>
-      <p className="mt-1 mb-6 text-sm text-slate-500">Content de te revoir !</p>
+      <h1 className="text-[28px] leading-[1.15] font-bold tracking-[-0.03em] text-ink">Connexion</h1>
+      <p className="mt-1.5 mb-6 text-sm text-muted">Content de te revoir !</p>
       {isSupabaseConfigured() && (
         <>
           <GoogleButton next={safeRedirectPath(next)} />

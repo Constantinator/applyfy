@@ -13,7 +13,7 @@ import { FormError, inputClassName, submitClassName } from "./form-field";
 const initialState: AuthFormState = { status: "idle" };
 
 function RuleItem({ ok, touched, label }: { ok: boolean; touched: boolean; label: string }) {
-  const color = ok ? "text-emerald-600" : touched ? "text-red-600" : "text-slate-500";
+  const color = ok ? "text-ink" : touched ? "text-[#B91C1C]" : "text-muted";
   return (
     <li className={`flex items-center gap-2 text-sm ${color}`}>
       <span aria-hidden="true" className="w-4 text-center font-bold">
@@ -38,14 +38,14 @@ export function SignupForm() {
   if (state.status === "check-email") {
     return (
       <div role="status" className="space-y-3 text-center">
-        <h2 className="text-lg font-semibold text-slate-900">Vérifie ta boîte mail</h2>
-        <p className="text-sm text-slate-600">
+        <h2 className="ui-title-sm text-ink">Vérifie ta boîte mail</h2>
+        <p className="text-sm text-muted">
           Un lien de confirmation a été envoyé à <strong>{state.email}</strong>. Clique dessus pour
           activer ton compte et accéder à ton dashboard.
         </p>
         <Link
           href="/login"
-          className="inline-block text-sm font-medium text-blue-600 hover:text-blue-500"
+          className="ui-focus ui-hit relative inline-block text-sm font-medium text-accent hover:text-ink"
         >
           Aller à la connexion
         </Link>
@@ -69,7 +69,7 @@ export function SignupForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <label htmlFor="firstName" className="text-sm font-medium text-slate-700">
+          <label htmlFor="firstName" className="text-sm font-medium text-ink">
             Prénom
           </label>
           <input
@@ -85,7 +85,7 @@ export function SignupForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="lastName" className="text-sm font-medium text-slate-700">
+          <label htmlFor="lastName" className="text-sm font-medium text-ink">
             Nom
           </label>
           <input
@@ -103,7 +103,7 @@ export function SignupForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="email" className="text-sm font-medium text-slate-700">
+        <label htmlFor="email" className="text-sm font-medium text-ink">
           Email
         </label>
         <input
@@ -119,7 +119,7 @@ export function SignupForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="password" className="text-sm font-medium text-slate-700">
+        <label htmlFor="password" className="text-sm font-medium text-ink">
           Mot de passe
         </label>
         {/* Bouton œil à la place d'un champ de confirmation : on vérifie ce qu'on a tapé. */}
@@ -141,7 +141,7 @@ export function SignupForm() {
             onClick={() => setShowPassword((shown) => !shown)}
             aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
             aria-controls="password"
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-slate-400 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-600"
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
           >
             {showPassword ? <IconEyeOff className="h-5 w-5" /> : <IconEye className="h-5 w-5" />}
           </button>
@@ -160,9 +160,9 @@ export function SignupForm() {
         {pending ? "Création du compte…" : "Créer mon compte"}
       </button>
 
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-muted">
         Déjà un compte ?{" "}
-        <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+        <Link href="/login" className="ui-focus ui-hit relative font-medium text-accent hover:text-ink">
           Se connecter
         </Link>
       </p>
