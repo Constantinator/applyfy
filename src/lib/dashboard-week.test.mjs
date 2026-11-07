@@ -87,7 +87,7 @@ test("envoyées : période, brouillons et candidature exemple exclus", () => {
   assert.equal(stats.total.sent, 4);
 });
 
-test("réponses et entretiens : date de l'événement, candidatures distinctes", () => {
+test("réponses et entretiens : candidatures envoyées sur la période, réponse à n'importe quelle date", () => {
   const a = app({ status: "offre" });
   const b = app({ status: "refusee" });
   const events = [
@@ -96,8 +96,8 @@ test("réponses et entretiens : date de l'événement, candidatures distinctes",
     response(b.id, "2026-10-20T10:00:00Z"),
   ];
   const stats = buildPeriodStats([a, b], events, NOW);
-  assert.deepEqual([stats.week.responses, stats.week.interviews], [1, 1]);
-  assert.deepEqual([stats.month.responses, stats.month.interviews], [1, 1]);
+  assert.deepEqual([stats.week.responses, stats.week.interviews], [2, 1]);
+  assert.deepEqual([stats.month.responses, stats.month.interviews], [2, 1]);
   assert.deepEqual([stats.total.responses, stats.total.interviews], [2, 1]);
 });
 
@@ -107,11 +107,11 @@ test("le repère des entretiens suit le texte écrit par l'événement", () => {
   assert.ok(!statusChangeContent("entretien", "offre").endsWith(INTERVIEW_EVENT_SUFFIX));
 });
 
-test("réponse à la frontière d'une semaine : jour de Paris", () => {
+test("réponse à une candidature envoyée avant la période : hors de la semaine, dans le total", () => {
   const a = app({ status: "refusee", applied_at: "2026-10-20" });
-  // Dimanche 23h30 UTC, soit lundi 00h30 à Paris : semaine suivante.
-  const stats = buildPeriodStats([a], [response(a.id, "2026-11-01T23:30:00Z")], NOW);
-  assert.equal(stats.week.responses, 1);
+  const stats = buildPeriodStats([a], [response(a.id, "2026-11-05T10:00:00Z")], NOW);
+  assert.equal(stats.week.responses, 0);
+  assert.equal(stats.total.responses, 1);
 });
 
 test("exemple exclu des réponses, même au total", () => {
@@ -121,10 +121,10 @@ test("exemple exclu des réponses, même au total", () => {
   assert.equal(stats.week.interviews, 0);
 });
 
-test("au total : le statut actuel complète l'historique", () => {
+test("le statut actuel complète l'historique, sur chaque période", () => {
   const stats = buildPeriodStats([app({ status: "entretien" })], [], NOW);
   assert.deepEqual([stats.total.responses, stats.total.interviews], [1, 1]);
-  assert.deepEqual([stats.week.responses, stats.week.interviews], [0, 0]);
+  assert.deepEqual([stats.week.responses, stats.week.interviews], [1, 1]);
 });
 
 test("taux de réponse : seulement à partir de 10 envois sur la période", () => {
@@ -146,6 +146,44 @@ test("taux de réponse : réponse à n'importe quelle date, jamais plus de 100 %
   assert.equal(buildPeriodStats([...sentThisWeek, old], [...events, response(old.id, "2026-11-05T10:00:00Z")], NOW).week.responseRate, 20);
   const everyone = sentThisWeek.flatMap((a) => [response(a.id, "2026-11-05T10:00:00Z"), response(a.id, "2026-11-06T10:00:00Z")]);
   assert.equal(buildPeriodStats(sentThisWeek, everyone, NOW).week.responseRate, 100);
+});
+
+test("plusieurs réponses sur une même candidature comptent une seule fois", () => {
+  const a = app({ status: "offre" });
+  const events = [
+    response(a.id, "2026-11-04T10:00:00Z", statusChangeContent("envoyee", "entretien")),
+    response(a.id, "2026-11-05T10:00:00Z", statusChangeContent("entretien", "entretien")),
+    response(a.id, "2026-11-06T10:00:00Z", statusChangeContent("entretien", "offre")),
+  ];
+  const stats = buildPeriodStats([a], events, NOW);
+  for (const period of ["week", "month", "total"]) {
+    assert.deepEqual([stats[period].sent, stats[period].responses, stats[period].interviews], [1, 1, 1]);
+  }
+});
+
+test("réponses : même règle que le taux, les candidatures hors des envois ne comptent pas", () => {
+  const sent = Array.from({ length: 14 }, () => app());
+  // Passées de Brouillon à Refusée sans date d'envoi : réponse enregistrée, mais jamais envoyées.
+  const neverSent = Array.from({ length: 8 }, () => app({ status: "refusee", applied_at: null }));
+  const events = [sent[0], sent[1], ...neverSent].map((a) => response(a.id, "2026-11-05T10:00:00Z"));
+  assert.deepEqual(buildPeriodStats([...sent, ...neverSent], events, NOW).total, {
+    sent: 14,
+    responses: 2,
+    interviews: 0,
+    responseRate: 14,
+  });
+});
+
+test("entretiens : jamais plus que les réponses ni que les envois de la période", () => {
+  const neverSent = app({ status: "entretien", applied_at: null });
+  const oldSent = app({ status: "entretien", applied_at: "2026-09-10" });
+  const events = [
+    response(neverSent.id, "2026-11-05T10:00:00Z", statusChangeContent("brouillon", "entretien")),
+    response(oldSent.id, "2026-11-05T10:00:00Z", statusChangeContent("envoyee", "entretien")),
+  ];
+  const stats = buildPeriodStats([neverSent, oldSent], events, NOW);
+  assert.deepEqual([stats.week.sent, stats.week.responses, stats.week.interviews], [0, 0, 0]);
+  assert.deepEqual([stats.total.sent, stats.total.responses, stats.total.interviews], [1, 1, 1]);
 });
 
 test("objectif : un entier de 1 à 50, vide pour le retirer", () => {

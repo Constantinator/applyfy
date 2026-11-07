@@ -50,28 +50,21 @@ function statsFor(applications: Application[], events: ResponseEvent[], bounds: 
 
   const sent = real.filter((app) => app.status !== "brouillon" && app.applied_at && inPeriod(app.applied_at.slice(0, 10)));
 
-  const eventsInPeriod = realEvents.filter((event) => inPeriod(parisDay(new Date(event.created_at))));
-  const responses = new Set(eventsInPeriod.map((event) => event.application_id));
-  const interviews = new Set(
-    eventsInPeriod.filter((event) => event.content?.endsWith(INTERVIEW_EVENT_SUFFIX)).map((event) => event.application_id),
-  );
-  // Au total, le statut actuel complète l'historique (événement absent ou écrit autrement).
-  if (!bounds) {
-    for (const app of real) {
-      if (RESPONSE_STATUSES.includes(app.status)) responses.add(app.id);
-      if (app.status === "entretien") interviews.add(app.id);
-    }
-  }
-
-  // Taux : part des candidatures envoyées sur la période ayant reçu une réponse, à n'importe quelle date.
+  // Parmi les candidatures envoyées sur la période, celles ayant reçu une réponse ou un entretien,
+  // à n'importe quelle date : entretiens <= réponses <= envoyées, et le taux suit la tuile. Le statut
+  // actuel complète l'historique (événement absent ou écrit autrement).
   const everAnswered = new Set(realEvents.map((event) => event.application_id));
-  const answered = sent.filter((app) => everAnswered.has(app.id) || RESPONSE_STATUSES.includes(app.status)).length;
+  const everInterviewed = new Set(
+    realEvents.filter((event) => event.content?.endsWith(INTERVIEW_EVENT_SUFFIX)).map((event) => event.application_id),
+  );
+  const answered = sent.filter((app) => everAnswered.has(app.id) || RESPONSE_STATUSES.includes(app.status));
+  const interviews = answered.filter((app) => everInterviewed.has(app.id) || app.status === "entretien");
 
   return {
     sent: sent.length,
-    responses: responses.size,
-    interviews: interviews.size,
-    responseRate: sent.length >= RESPONSE_RATE_MIN_SENT ? Math.round((answered / sent.length) * 100) : null,
+    responses: answered.length,
+    interviews: interviews.length,
+    responseRate: sent.length >= RESPONSE_RATE_MIN_SENT ? Math.round((answered.length / sent.length) * 100) : null,
   };
 }
 
