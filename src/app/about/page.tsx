@@ -18,11 +18,11 @@ export default function AboutPage() {
     <div className="flex flex-1 flex-col bg-white">
       <SiteHeader />
       <main className="flex-1">
-        <article className="mx-auto max-w-3xl px-4 py-20 sm:px-6 sm:py-24">
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+        <article className="ui-page-narrow">
+          <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink">
             Notre histoire
           </h1>
-          <div className="mt-10 space-y-6 text-lg leading-relaxed text-slate-600">
+          <div className="mt-10 space-y-6 text-lg leading-relaxed text-muted">
             <p>
               Applyfy est né d&apos;une frustration simple : gérer des dizaines et des dizaines de
               candidatures en jonglant entre Excel, Word et PDF, c&apos;est épuisant.
@@ -50,14 +50,14 @@ export default function AboutPage() {
               alt="Constantin, fondateur d'Applyfy"
               width={192}
               height={192}
-              className="h-48 w-48 shrink-0 rounded-2xl object-cover object-top"
+              className="h-48 w-48 shrink-0 rounded-card object-cover object-top"
             />
             <figure>
-              <blockquote className="text-xl leading-relaxed text-pretty text-slate-700 italic">
+              <blockquote className="text-xl leading-relaxed text-pretty text-ink italic">
                 « Applyfy, c&apos;est l&apos;outil que j&apos;aurais voulu avoir quand je
                 cherchais mon stage. »
               </blockquote>
-              <figcaption className="mt-3 text-sm text-slate-500">
+              <figcaption className="mt-3 text-sm text-muted">
                 — Constantin, fondateur d&apos;Applyfy
               </figcaption>
             </figure>
@@ -67,12 +67,12 @@ export default function AboutPage() {
           <div className="min-h-16" />
 
           <div className="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
-            <Link href="/signup" className="btn-primary px-6 py-3 text-base">
+            <Link href="/signup" className="ui-btn-primary text-base">
               Essayer Applyfy gratuitement
             </Link>
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className="text-sm font-semibold text-blue-600 underline-offset-4 hover:underline"
+              className="ui-focus ui-hit relative text-sm font-semibold text-accent underline-offset-4 hover:underline"
             >
               Nous contacter
             </a>
