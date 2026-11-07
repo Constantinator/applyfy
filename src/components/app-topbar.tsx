@@ -25,7 +25,7 @@ import {
 import { FeedbackDialog, type FeedbackDialogHandle } from "@/components/feedback/feedback-dialog";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { DARK_MODE_ENABLED } from "@/lib/theme";
-import { Logo } from "@/components/logo";
+import { BrandLogo } from "@/components/logo";
 
 import { isFullscreenPath, useAppNav } from "./app-nav-context";
 
@@ -124,11 +124,11 @@ const ADMIN_ITEMS: NavItem[] = [
   },
 ];
 
-const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const UNREAD_BADGE = "rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] leading-none font-semibold text-white";
-const MENU_ITEM = `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`;
-const MENU_ITEM_ACTIVE = "bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-300";
-const PANEL_SECONDARY_ITEM = `flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`;
+const MENU_ITEM = `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-pill dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`;
+const MENU_ITEM_ACTIVE = "bg-pill font-medium dark:bg-slate-800 dark:text-white";
+const PANEL_SECONDARY_ITEM = `flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-muted hover:bg-pill hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`;
 
 /** Compteur affiché dans un badge : « 99+ » à partir de 100, pour que la barre ne déborde pas. */
 const badgeCount = (count: number) => (count >= 100 ? "99+" : String(count));
@@ -199,7 +199,7 @@ export function AppTopbar({
 
   const logo = (size: "sm" | "md") => (
     <Link href="/dashboard" aria-label="Applyfy, tableau de bord" className={`inline-flex min-h-11 shrink-0 items-center rounded-lg ${FOCUS}`}>
-      <Logo size={size} />
+      <BrandLogo size={size} />
     </Link>
   );
 
@@ -214,7 +214,7 @@ export function AppTopbar({
         <Link
           href={NEW_APPLICATION.href}
           aria-current={NEW_APPLICATION.isActive(pathname) ? "page" : undefined}
-          className="btn-primary min-h-11 w-full px-4 py-2 text-sm"
+          className="ui-btn-primary w-full px-4 py-2"
         >
           <IconPlus className="h-4 w-4" />
           {NEW_APPLICATION.label}
@@ -229,13 +229,13 @@ export function AppTopbar({
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${FOCUS} ${
+              className={`flex min-h-11 items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors ${FOCUS} ${
                 active
-                  ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/20"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                  ? "bg-pill text-ink dark:bg-slate-800 dark:text-white"
+                  : "text-muted hover:bg-pill hover:text-ink dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
               }`}
             >
-              <item.icon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <item.icon className="h-5 w-5" />
               {item.label}
               <UnreadBadge count={unread[item.href] ?? 0} className="ml-auto" />
             </Link>
@@ -243,23 +243,23 @@ export function AppTopbar({
         })}
       </nav>
 
-      <div className="mt-3 space-y-1 border-t border-slate-200 p-3 dark:border-slate-800">
+      <div className="mt-3 space-y-1 border-t border-line-soft p-3 dark:border-slate-800">
         <Link
           href={PREMIUM.href}
           aria-current={PREMIUM.isActive(pathname) ? "page" : undefined}
           className={PANEL_SECONDARY_ITEM}
         >
-          <IconSparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <IconSparkles className="h-5 w-5" />
           {PREMIUM.label}
         </Link>
         {!isDemo && (
           <button type="button" onClick={openFeedback} className={PANEL_SECONDARY_ITEM}>
-            <IconStar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <IconStar className="h-5 w-5" />
             Donner mon avis
           </button>
         )}
         <Link href="/" className={PANEL_SECONDARY_ITEM}>
-          <IconHome className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <IconHome className="h-5 w-5" />
           Retour à l&apos;accueil
         </Link>
         {DARK_MODE_ENABLED && <ThemeToggle className="min-h-11 w-full px-3 py-2" />}
@@ -269,7 +269,7 @@ export function AppTopbar({
           </p>
         ) : (
           <div className="flex items-center gap-2 rounded-xl px-3 py-1">
-            <span className="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300" title={email}>
+            <span className="min-w-0 flex-1 truncate text-xs text-muted dark:text-slate-300" title={email}>
               {email}
             </span>
             <form action={logoutAction}>
@@ -277,7 +277,7 @@ export function AppTopbar({
                 type="submit"
                 title="Se déconnecter"
                 aria-label="Se déconnecter"
-                className={`flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 ${FOCUS}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-pill hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 ${FOCUS}`}
               >
                 <IconLogout className="h-4 w-4" />
               </button>
@@ -304,20 +304,20 @@ export function AppTopbar({
   const accountItems = [PROFILE, EXTENSION, PREMIUM];
   const accountActive = accountItems.some((item) => item.isActive(pathname));
   const barLink = (active: boolean) =>
-    `flex h-full items-center gap-1 border-b-2 px-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600 ${
+    `flex items-center gap-1 rounded-full px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${FOCUS} ${
       active
-        ? "border-blue-600 text-blue-700 dark:border-blue-400 dark:text-blue-300"
-        : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
+        ? "bg-pill text-ink dark:bg-slate-800 dark:text-white"
+        : "text-muted hover:text-ink dark:text-slate-300 dark:hover:text-white"
     }`;
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white print:hidden dark:border-slate-800 dark:bg-slate-900">
+      <header className="sticky top-0 z-30 border-b border-line bg-white print:hidden dark:border-slate-800 dark:bg-slate-900">
         <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:h-16">
           {logo("sm")}
 
           {/* Grand écran : liens dans la barre. */}
-          <nav aria-label="Navigation principale" className="-mb-px hidden self-stretch lg:flex">
+          <nav aria-label="Navigation principale" className="hidden items-center gap-0.5 lg:flex">
             {barLinks.map((item) => {
               const active = item.isActive(pathname);
               return (
@@ -348,7 +348,6 @@ export function AppTopbar({
                   </>
                 }
                 panelClassName="left-0 w-56"
-                rootClassName="h-full"
               >
                 {ADMIN_ITEMS.map((item) => {
                   const active = item.isActive(pathname);
@@ -359,7 +358,7 @@ export function AppTopbar({
                       aria-current={active ? "page" : undefined}
                       className={`${MENU_ITEM} ${active ? MENU_ITEM_ACTIVE : ""}`}
                     >
-                      <item.icon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <item.icon className="h-5 w-5" />
                       {item.label}
                       <UnreadBadge count={unread[item.href] ?? 0} className="ml-auto" />
                     </Link>
@@ -374,7 +373,7 @@ export function AppTopbar({
               href={NEW_APPLICATION.href}
               aria-current={NEW_APPLICATION.isActive(pathname) ? "page" : undefined}
               aria-label={compactNewApplication ? NEW_APPLICATION.label : undefined}
-              className="btn-primary px-3.5 py-2 text-sm"
+              className="ui-btn-primary px-4 py-2"
             >
               <IconPlus className="h-4 w-4" />
               {compactNewApplication ? (
@@ -388,13 +387,13 @@ export function AppTopbar({
 
             <NavDropdown
               label="Menu du compte"
-              triggerClassName={`flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 ${FOCUS} ${
-                accountActive ? "ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-900" : ""
+              triggerClassName={`flex h-10 w-10 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white hover:bg-ink-hover dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 ${FOCUS} ${
+                accountActive ? "ring-2 ring-ink ring-offset-2 dark:ring-white dark:ring-offset-slate-900" : ""
               }`}
               trigger={initials ? <span aria-hidden="true">{initials}</span> : <IconUser className="h-5 w-5" />}
               panelClassName="right-0 w-64"
             >
-              <div className="truncate px-3 pt-1 pb-2 text-xs text-slate-500 dark:text-slate-400" title={email ?? undefined}>
+              <div className="truncate px-3 pt-1 pb-2 text-xs text-muted dark:text-slate-400" title={email ?? undefined}>
                 {isDemo ? <DemoBadge /> : email}
               </div>
               {accountItems.map((item) => {
@@ -406,26 +405,26 @@ export function AppTopbar({
                     aria-current={active ? "page" : undefined}
                     className={`${MENU_ITEM} ${active ? MENU_ITEM_ACTIVE : ""}`}
                   >
-                    <item.icon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <item.icon className="h-5 w-5" />
                     {item.label}
                   </Link>
                 );
               })}
               {!isDemo && (
                 <button type="button" onClick={openFeedback} className={MENU_ITEM}>
-                  <IconStar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <IconStar className="h-5 w-5" />
                   Donner mon avis
                 </button>
               )}
               <Link href="/" className={MENU_ITEM}>
-                <IconHome className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <IconHome className="h-5 w-5" />
                 Retour à l&apos;accueil
               </Link>
               {DARK_MODE_ENABLED && <ThemeToggle className={MENU_ITEM} />}
               {!isDemo && (
-                <form action={logoutAction} className="mt-1 border-t border-slate-200 pt-1 dark:border-slate-800">
+                <form action={logoutAction} className="mt-1 border-t border-line-soft pt-1 dark:border-slate-800">
                   <button type="submit" className={MENU_ITEM}>
-                    <IconLogout className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <IconLogout className="h-5 w-5" />
                     Se déconnecter
                   </button>
                 </form>
@@ -440,7 +439,7 @@ export function AppTopbar({
             aria-label="Ouvrir le menu"
             aria-haspopup="dialog"
             aria-expanded={panelOpen}
-            className={`-mr-2 ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:hidden dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`}
+            className={`-mr-2 ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-ink hover:bg-pill lg:hidden dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`}
           >
             <IconMenu className="h-6 w-6" />
           </button>
@@ -553,7 +552,7 @@ function NavDropdown({
           button.current?.focus();
           setOpen(false);
         }}
-        className={`absolute top-full z-40 mt-2 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 ${panelClassName}`}
+        className={`absolute top-full z-40 mt-2 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-block border border-line bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 ${panelClassName}`}
       >
         {children}
       </div>
@@ -617,7 +616,7 @@ function MenuDrawer({
           type="button"
           onClick={onClose}
           aria-label="Fermer le menu"
-          className={`absolute top-3 right-2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`}
+          className={`absolute top-3 right-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-pill hover:text-ink dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`}
         >
           <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
             <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
