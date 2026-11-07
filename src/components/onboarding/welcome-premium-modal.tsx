@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
 
 import { startCheckoutAction } from "@/app/actions/premium";
+import { IconSparkles } from "@/components/icons";
 import { isOnboardingDone } from "@/components/OnboardingModal";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
 import { ONBOARDING_OPEN_ATTRIBUTE, notifyOnboardingChange, subscribeOnboarding } from "@/lib/onboarding-tips";
@@ -89,17 +90,20 @@ export function WelcomePremiumModal() {
       onClick={(e) => {
         if (e.target === e.currentTarget) close();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card bg-white p-0 backdrop:bg-black/60 dark:bg-slate-900"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card border border-line bg-white p-0 backdrop:bg-[rgba(10,10,10,0.45)] dark:bg-slate-900"
     >
-      <div className="p-6 text-center sm:p-8">
-        <h2 id="welcome-premium-title" className="text-2xl font-bold tracking-title text-ink dark:text-white">
+      <div className="p-5 sm:p-7">
+        <span className="mb-3.5 flex h-10 w-10 items-center justify-center rounded-xl bg-box text-ink dark:bg-slate-800 dark:text-slate-200">
+          <IconSparkles className="h-[18px] w-[18px]" />
+        </span>
+        <h2 id="welcome-premium-title" className="text-[22px] font-bold tracking-[-0.03em] text-ink dark:text-white">
           Bienvenue sur Applyfy
         </h2>
-        <p id="welcome-premium-description" className="mt-3 text-sm text-muted dark:text-slate-300">
+        <p id="welcome-premium-description" className="mt-2 text-[15px] text-muted dark:text-slate-300">
           Passe au Premium pour lever les quotas mensuels et la limite du Chat IA.
         </p>
 
-        <p className="mt-6 text-3xl font-bold text-ink dark:text-slate-200">
+        <p className="mt-5 text-[28px] font-bold tracking-[-0.03em] text-ink dark:text-slate-200">
           {PREMIUM_PRICE_FROM_LABEL.charAt(0).toUpperCase() + PREMIUM_PRICE_FROM_LABEL.slice(1)}
         </p>
         <p className="mt-1 text-xs text-muted dark:text-slate-400">
@@ -108,7 +112,7 @@ export function WelcomePremiumModal() {
           {PREMIUM_MONTHLY_PLAN.monthlyPrice} €/mois sans engagement.
         </p>
 
-        <div className="mt-6 space-y-2.5">
+        <div className="mt-5 space-y-2.5">
           <form action={startCheckoutAction.bind(null, PREMIUM_QUARTERLY_PLAN.priceId)}>
             <CheckoutButton
               primary
@@ -122,7 +126,7 @@ export function WelcomePremiumModal() {
         <button
           type="button"
           onClick={close}
-          className="ui-focus ui-hit relative mt-3 text-sm text-muted underline-offset-4 hover:text-ink hover:underline dark:text-slate-400 dark:hover:text-white"
+          className="ui-focus ui-hit relative mx-auto mt-3 block text-sm text-muted underline-offset-4 hover:text-ink hover:underline dark:text-slate-400 dark:hover:text-white"
         >
           Non merci, continuer gratuitement
         </button>

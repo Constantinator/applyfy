@@ -47,17 +47,17 @@ export function WelcomeDialog({ firstName }: { firstName: string | null }) {
         e.preventDefault();
         finish();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-card bg-white p-0 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-card border border-line bg-white p-0 backdrop:bg-[rgba(10,10,10,0.45)]"
     >
-      <div className="bg-ink px-6 pt-7 pb-6 text-white sm:px-8">
-        <p className="text-sm font-medium text-white/80">Ton espace est prêt</p>
-        <h2 id="welcome-title" className="mt-1 text-2xl font-bold tracking-title">
+      <div className="px-5 pt-7 sm:px-7">
+        <p className="text-sm font-medium text-muted">Ton espace est prêt</p>
+        <h2 id="welcome-title" className="mt-1 text-[22px] font-bold tracking-[-0.03em] text-ink">
           Bienvenue sur Applyfy{firstName ? `, ${firstName}` : ""} !
         </h2>
-        <p className="mt-2 text-sm text-white/90">Trois étapes pour bien démarrer ta recherche :</p>
+        <p className="mt-2 text-[15px] text-muted">Trois étapes pour bien démarrer ta recherche :</p>
       </div>
 
-      <ol className="space-y-4 px-6 py-6 sm:px-8">
+      <ol className="space-y-4 px-5 py-6 sm:px-7">
         {STEPS.map((step, index) => (
           <li key={step.title} className="flex items-start gap-4">
             <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-box text-ink">
@@ -74,8 +74,8 @@ export function WelcomeDialog({ firstName }: { firstName: string | null }) {
         ))}
       </ol>
 
-      <div className="px-6 pb-6 sm:px-8 sm:pb-8">
-        <button type="button" autoFocus onClick={finish} className="ui-btn-primary w-full text-base">
+      <div className="px-5 pb-7 sm:px-7">
+        <button type="button" autoFocus onClick={finish} className="ui-btn-primary w-full">
           C&apos;est parti !
         </button>
       </div>

@@ -110,11 +110,11 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
       <dialog
         ref={dialogRef}
         aria-labelledby="feedback-title"
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card bg-white dark:bg-slate-900 p-0 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card border border-line bg-white dark:bg-slate-900 p-0 backdrop:bg-[rgba(10,10,10,0.45)]"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line dark:border-slate-800 px-6 py-5">
+        <div className="flex items-start justify-between gap-4 px-5 pt-7 sm:px-7">
           <div>
-            <h2 id="feedback-title" className="text-lg font-bold tracking-title text-ink dark:text-white">
+            <h2 id="feedback-title" className="text-[22px] font-bold tracking-[-0.03em] text-ink dark:text-white">
               Donner mon avis
             </h2>
             <p className="mt-0.5 text-sm text-muted dark:text-slate-400">
@@ -149,7 +149,7 @@ export function FeedbackDialog({ ref }: { ref?: React.Ref<FeedbackDialogHandle> 
             Chargement…
           </p>
         ) : (
-          <form onSubmit={submit} className="space-y-6 px-6 py-6">
+          <form onSubmit={submit} className="space-y-6 px-5 pt-5 pb-7 sm:px-7">
             <fieldset>
               <legend className={legend}>Ta note globale</legend>
               <div className="mt-1 -ml-1.5 flex items-center">
