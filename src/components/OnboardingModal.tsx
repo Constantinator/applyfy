@@ -127,7 +127,7 @@ function AdaptDocumentScene() {
         <div className="flex items-center justify-between gap-2">
           <span className="h-2.5 w-20 rounded-full bg-slate-300 dark:bg-slate-600" />
           <span
-            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-[10px] font-semibold text-white"
+            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[10px] font-semibold text-white"
             style={{ animation: "oa-ai-btn 6s ease-in-out infinite" }}
           >
             <IconSparkles className="h-3 w-3" />
@@ -138,7 +138,7 @@ function AdaptDocumentScene() {
           {DOCUMENT_LINES.map((width, i) => (
             <div key={i} className="relative h-2 rounded-full bg-slate-200 dark:bg-slate-700" style={{ width }}>
               <div
-                className="absolute inset-0 origin-left rounded-full bg-linear-to-r from-blue-500 to-indigo-500"
+                className="absolute inset-0 origin-left rounded-full bg-linear-to-r from-blue-500 to-blue-600"
                 style={{ animation: `oa-rewrite 6s ease-out ${i * 0.12}s infinite both` }}
               />
             </div>
@@ -295,7 +295,7 @@ export function OnboardingModal() {
         <div
           key={index}
           aria-hidden="true"
-          className="oa-scene h-48 overflow-hidden rounded-xl bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-500/10 dark:to-indigo-500/10"
+          className="oa-scene h-48 overflow-hidden rounded-xl bg-linear-to-br from-blue-50 to-blue-50 dark:from-blue-500/10 dark:to-blue-500/10"
         >
           <Scene />
         </div>

@@ -36,6 +36,28 @@
   --color-blue-950: #0f1a3d;
 }
 
+/*
+ * Base « noir + bleu » (refonte en cours) : jetons et classes ui-*, utilisés par la barre du
+ * haut, le Tableau de bord et Candidatures. Les autres pages gardent btn-*, card et input (et
+ * l'ancien bleu blue-600) jusqu'à leur migration.
+ */
+@theme {
+  --color-ink: #0a0a0a;
+  --color-ink-hover: #262626;
+  --color-accent: #2563eb;
+  --color-muted: #6b6b6b;
+  --color-surface: #fafafa;
+  --color-pill: #f3f4f6;
+  --color-line: #ececec;
+  --color-line-soft: #f0f0f0;
+  --color-line-strong: #dadada;
+
+  --radius-card: 24px;
+  --radius-block: 16px;
+
+  --tracking-title: -0.02em;
+}
+
 body {
   font-family: var(--font-sans);
 }
@@ -181,6 +203,177 @@ body {
     border-color: var(--color-slate-800);
     background-color: var(--color-slate-900);
     box-shadow: none;
+  }
+}
+
+/* Focus clavier bleu, pour les éléments sans classe ui-* qui le porte déjà. */
+@utility ui-focus {
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Bouton principal : pilule noire, 44 px de haut (la largeur vient du px-* de l'appelant). */
+@utility ui-btn-primary {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--color-ink);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 150ms;
+
+  &:hover {
+    background-color: var(--color-ink-hover);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  &:disabled,
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  @variant dark {
+    background-color: white;
+    color: var(--color-slate-900);
+
+    &:hover {
+      background-color: var(--color-slate-200);
+    }
+  }
+}
+
+/* Bouton secondaire : pilule blanche, bordure grise, texte noir. */
+@utility ui-btn-secondary {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-line-strong);
+  background-color: white;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 150ms;
+
+  &:hover {
+    background-color: var(--color-pill);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  @variant dark {
+    border-color: var(--color-slate-700);
+    background-color: var(--color-slate-900);
+    color: var(--color-slate-200);
+
+    &:hover {
+      background-color: var(--color-slate-800);
+    }
+  }
+}
+
+/* Carte : blanche, bordure fine, sans ombre. */
+@utility ui-card {
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-line);
+  background-color: white;
+
+  @variant dark {
+    border-color: var(--color-slate-800);
+    background-color: var(--color-slate-900);
+  }
+}
+
+/* Petit bloc dans ou entre les cartes. */
+@utility ui-block {
+  border-radius: var(--radius-block);
+  border: 1px solid var(--color-line);
+  background-color: var(--color-surface);
+
+  @variant dark {
+    border-color: var(--color-slate-700);
+    background-color: rgb(30 41 59 / 0.5);
+  }
+}
+
+/* Lien : bleu, souligné au survol. */
+@utility ui-link {
+  color: var(--color-accent);
+  font-weight: 500;
+  text-underline-offset: 2px;
+
+  &:hover {
+    text-decoration-line: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @variant dark {
+    color: var(--color-blue-300);
+  }
+}
+
+/* Champ de formulaire : bordure grise, focus bleu, indication lisible. */
+@utility ui-input {
+  width: 100%;
+  border-radius: var(--radius-block);
+  border: 1px solid var(--color-line-strong);
+  background-color: white;
+  padding: 0.625rem 0.875rem;
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  transition: border-color 150ms, box-shadow 150ms;
+
+  &::placeholder {
+    color: var(--color-muted);
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.2);
+  }
+  &[aria-invalid="true"] {
+    border-color: var(--color-red-400);
+  }
+  &:disabled {
+    background-color: var(--color-pill);
+    color: var(--color-muted);
+    cursor: not-allowed;
+  }
+
+  @variant dark {
+    border-color: var(--color-slate-700);
+    background-color: var(--color-slate-900);
+    color: var(--color-slate-100);
+
+    &::placeholder {
+      color: var(--color-slate-400);
+    }
+    &:disabled {
+      background-color: var(--color-slate-800);
+      color: var(--color-slate-500);
+    }
   }
 }
 
