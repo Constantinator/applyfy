@@ -25,10 +25,10 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 const STATUS_STYLES: Record<BetaReportStatus, string> = {
-  a_venir: "bg-slate-100 text-slate-600 ring-slate-200",
-  a_faire: "bg-blue-50 text-blue-700 ring-blue-200",
-  soumis: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  en_retard: "bg-red-50 text-red-700 ring-red-200",
+  a_venir: "bg-pill text-muted ring-line",
+  a_faire: "bg-ink text-white ring-ink",
+  soumis: "bg-pill text-ink ring-line",
+  en_retard: "bg-[#FEF2F2] text-[#B91C1C] ring-[#FECACA]",
 };
 
 function ReportForm({ def, onDone }: { def: BetaReportDefinition; onDone: () => void }) {
@@ -48,13 +48,13 @@ function ReportForm({ def, onDone }: { def: BetaReportDefinition; onDone: () => 
   }
 
   return (
-    <form onSubmit={submit} className="mt-3 space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+    <form onSubmit={submit} className="mt-3 space-y-4 rounded-block bg-surface p-4 ring-1 ring-line">
       {def.fields.map((field) => {
         const id = `beta-${def.number}-${field.name}`;
         if (field.kind === "text") {
           return (
             <div key={field.name} className="space-y-1.5">
-              <label htmlFor={id} className="text-sm font-medium text-slate-700">
+              <label htmlFor={id} className="text-sm font-medium text-ink">
                 {field.label}
               </label>
               <textarea
@@ -65,7 +65,7 @@ function ReportForm({ def, onDone }: { def: BetaReportDefinition; onDone: () => 
                 placeholder={field.placeholder}
                 value={String(answers[field.name] ?? "")}
                 onChange={(e) => set(field.name, e.target.value)}
-                className="input bg-white"
+                className="ui-input bg-white"
               />
             </div>
           );
@@ -76,7 +76,7 @@ function ReportForm({ def, onDone }: { def: BetaReportDefinition; onDone: () => 
             : Object.entries(BETA_RECOMMEND_OPTIONS);
         return (
           <fieldset key={field.name}>
-            <legend className="text-sm font-medium text-slate-700">{field.label}</legend>
+            <legend className="text-sm font-medium text-ink">{field.label}</legend>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {options.map(([value, label]) => {
                 const parsed = field.kind === "rating10" ? Number(value) : value;
@@ -84,8 +84,8 @@ function ReportForm({ def, onDone }: { def: BetaReportDefinition; onDone: () => 
                 return (
                   <label
                     key={value}
-                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm ring-1 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 ${
-                      selected ? "bg-blue-600 font-medium text-white ring-blue-600" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+                    className={`inline-flex min-h-11 cursor-pointer items-center rounded-full px-3.5 py-1.5 text-sm ring-1 lg:min-h-0 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
+                      selected ? "bg-ink font-medium text-white ring-ink" : "bg-white text-ink ring-line hover:bg-surface"
                     }`}
                   >
                     <input
@@ -111,10 +111,10 @@ function ReportForm({ def, onDone }: { def: BetaReportDefinition; onDone: () => 
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={pending} className="btn-primary px-4 py-2 text-sm">
+        <button type="submit" disabled={pending} className="ui-btn-primary">
           {pending ? "Envoi…" : `Envoyer le ${def.title.toLowerCase()}`}
         </button>
-        <p className="text-xs text-slate-500">Un rapport envoyé ne peut plus être modifié.</p>
+        <p className="text-xs text-muted">Un rapport envoyé ne peut plus être modifié.</p>
       </div>
     </form>
   );
@@ -138,22 +138,22 @@ export function BetaReports({
   const now = new Date();
 
   return (
-    <ol className="space-y-3">
+    <ol>
       {BETA_REPORTS.map((def) => {
         const report = submitted.find((r) => r.number === def.number);
         const status = reportStatus(joinedAt, def.number, report?.submittedAt ?? null, now);
         const deadline = reportDeadline(joinedAt, def.number);
         return (
-          <li key={def.number} className="rounded-xl border border-slate-200 p-4">
+          <li key={def.number} className="border-t border-line-soft py-4 first:border-t-0 first:pt-0 last:pb-0">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="font-medium text-slate-900">
+                <h3 className="text-[15px] font-semibold text-ink">
                   {def.title} · {def.period}
                 </h3>
-                <p className="mt-0.5 text-sm text-slate-500">
+                <p className="mt-0.5 text-[13px] text-muted">
                   {def.fields.map((f) => f.label.toLowerCase()).join(", ")}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-[13px] text-muted">
                   {status === "soumis" && report
                     ? `Envoyé le ${dateFormatter.format(new Date(report.submittedAt))}`
                     : status === "a_venir"
@@ -170,7 +170,7 @@ export function BetaReports({
               <button
                 type="button"
                 onClick={() => setOpenForm(def.number)}
-                className="btn-primary mt-3 px-4 py-2 text-sm"
+                className="ui-btn-primary mt-3"
               >
                 Remplir le {def.title.toLowerCase()}
               </button>
@@ -180,11 +180,11 @@ export function BetaReports({
             )}
 
             {report && (
-              <dl className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm">
+              <dl className="mt-3 space-y-2 border-t border-line-soft pt-3 text-sm">
                 {def.fields.map((field) => (
                   <div key={field.name}>
-                    <dt className="text-xs font-medium text-slate-500">{field.label}</dt>
-                    <dd className="whitespace-pre-line text-slate-700">{formatAnswer(field, report.answers[field.name])}</dd>
+                    <dt className="text-xs font-medium text-muted">{field.label}</dt>
+                    <dd className="whitespace-pre-line text-ink">{formatAnswer(field, report.answers[field.name])}</dd>
                   </div>
                 ))}
               </dl>

@@ -78,20 +78,20 @@ function Thread({
     <div className="space-y-3">
       <div ref={listRef} role="log" aria-label="Historique des messages" className="max-h-96 space-y-3 overflow-y-auto pr-1">
         {messages.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Aucun message pour l&apos;instant.</p>
+          <p className="py-6 text-center text-sm text-muted">Aucun message pour l&apos;instant.</p>
         ) : (
           messages.map((message) => {
             const mine = message.sender === viewer;
             return (
               <div key={message.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-line ${
-                    mine ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md bg-slate-100 text-slate-800"
+                  className={`max-w-[85%] rounded-block px-3.5 py-2.5 text-sm whitespace-pre-line ${
+                    mine ? "bg-ink text-white" : "bg-box text-ink"
                   }`}
                 >
                   {message.body}
                 </div>
-                <span className="mt-0.5 px-1 text-xs text-slate-400">
+                <span className="mt-0.5 px-1 text-xs text-muted">
                   {mine ? "Toi" : otherLabel} · {timeFormatter.format(new Date(message.createdAt))}
                 </span>
               </div>
@@ -100,7 +100,7 @@ function Thread({
         )}
       </div>
 
-      <form onSubmit={submit} className="space-y-2 border-t border-slate-100 pt-3">
+      <form onSubmit={submit} className="space-y-2 border-t border-line-soft pt-3">
         <label htmlFor={`message-${viewer}`} className="sr-only">
           Ton message
         </label>
@@ -111,14 +111,14 @@ function Thread({
           maxLength={MAX_LENGTH}
           rows={3}
           placeholder={placeholder}
-          className="input"
+          className="ui-input"
         />
         {error && (
           <p role="alert" className="text-sm text-red-700">
             {error}
           </p>
         )}
-        <button type="submit" disabled={pending || !body.trim()} className="btn-primary px-4 py-2 text-sm">
+        <button type="submit" disabled={pending || !body.trim()} className="ui-btn-primary">
           {pending ? "Envoi…" : "Envoyer"}
         </button>
       </form>
@@ -180,7 +180,7 @@ export function BroadcastMessageForm({ activeCount }: { activeCount: number }) {
 
   return (
     <form onSubmit={submit} className="space-y-2">
-      <label htmlFor="broadcast-message" className="text-sm font-medium text-slate-700">
+      <label htmlFor="broadcast-message" className="text-sm font-medium text-ink">
         À tous les beta testeurs actifs ({activeCount})
       </label>
       <textarea
@@ -190,14 +190,14 @@ export function BroadcastMessageForm({ activeCount }: { activeCount: number }) {
         maxLength={MAX_LENGTH}
         rows={3}
         placeholder="Annonce, nouveauté à tester… (le message apparaît dans le fil de chaque testeur)"
-        className="input"
+        className="ui-input"
       />
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending || !body.trim() || activeCount === 0} className="btn-primary px-4 py-2 text-sm">
+        <button type="submit" disabled={pending || !body.trim() || activeCount === 0} className="ui-btn-primary">
           {pending ? "Envoi…" : "Envoyer à tous"}
         </button>
         {result && (
-          <p role={result.ok ? "status" : "alert"} className={`text-sm ${result.ok ? "text-emerald-700" : "text-red-700"}`}>
+          <p role={result.ok ? "status" : "alert"} className={`text-sm ${result.ok ? "text-ink dark:text-slate-200" : "text-red-700"}`}>
             {result.text}
           </p>
         )}

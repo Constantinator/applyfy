@@ -30,7 +30,7 @@ export function BetaJoinDialog({
   mode,
   spotsLeft = null,
   autoOpen = false,
-  triggerClassName = "btn-secondary px-4 py-2.5 text-sm",
+  triggerClassName = "ui-btn-secondary",
 }: {
   mode: "join" | "link";
   /** Places restantes (inconnues sur la landing page). */
@@ -85,11 +85,11 @@ export function BetaJoinDialog({
         onClose={() => {
           if (autoOpen) router.replace("/dashboard", { scroll: false });
         }}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl bg-white p-0 text-left shadow-2xl shadow-slate-900/20 backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-card bg-white p-0 text-left backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm"
       >
-        <div className="bg-brand px-6 pt-6 pb-5 text-white sm:px-8">
+        <div className="bg-ink px-6 pt-6 pb-5 text-white sm:px-8">
           <p className="text-sm font-medium text-white/80">Programme beta · {BETA_MAX_TESTERS} places</p>
-          <h2 id="beta-title" className="mt-1 text-2xl font-bold tracking-tight">
+          <h2 id="beta-title" className="mt-1 text-2xl font-bold tracking-title">
             Deviens beta testeur
           </h2>
           <p className="mt-2 text-sm text-white/90">
@@ -102,17 +102,17 @@ export function BetaJoinDialog({
             <p className="text-3xl" aria-hidden="true">
               🎉
             </p>
-            <p role="status" className="font-semibold text-slate-900">
+            <p role="status" className="font-semibold text-ink">
               Bienvenue dans la beta !
             </p>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               Ton Premium est actif. Retrouve tes 3 rapports à envoyer dans l&apos;onglet « Beta testing ».
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Link href="/beta" className="btn-primary px-5 py-2.5 text-sm">
+              <Link href="/beta" className="ui-btn-primary">
                 Voir mes rapports
               </Link>
-              <button type="button" onClick={close} className="btn-secondary px-5 py-2.5 text-sm">
+              <button type="button" onClick={close} className="ui-btn-secondary">
                 Fermer
               </button>
             </div>
@@ -122,19 +122,19 @@ export function BetaJoinDialog({
             <ul className="space-y-3">
               {CONDITIONS.map((condition) => (
                 <li key={condition.title} className="flex gap-3 text-sm">
-                  <span aria-hidden="true" className="mt-0.5 font-bold text-blue-600">
+                  <span aria-hidden="true" className="mt-0.5 font-bold text-accent">
                     ✓
                   </span>
                   <span>
-                    <span className="block font-semibold text-slate-900">{condition.title}</span>
-                    <span className="text-slate-600">{condition.detail}</span>
+                    <span className="block font-semibold text-ink">{condition.title}</span>
+                    <span className="text-muted">{condition.detail}</span>
                   </span>
                 </li>
               ))}
             </ul>
 
             {spotsLeft !== null && (
-              <p className="text-sm font-medium text-slate-700">
+              <p className="text-sm font-medium text-ink">
                 {full
                   ? "Les 30 places sont prises : le programme est complet."
                   : `${spotsLeft} place${spotsLeft > 1 ? "s" : ""} restante${spotsLeft > 1 ? "s" : ""} sur ${BETA_MAX_TESTERS}.`}
@@ -142,7 +142,7 @@ export function BetaJoinDialog({
             )}
 
             {error && (
-              <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+              <p role="alert" className="ui-notice-error px-3 py-2 text-sm">
                 {error}
               </p>
             )}
@@ -153,21 +153,21 @@ export function BetaJoinDialog({
                   type="button"
                   onClick={join}
                   disabled={pending || full}
-                  className="btn-primary px-5 py-2.5 text-sm"
+                  className="ui-btn-primary"
                 >
                   {pending ? "Inscription…" : "Je m'engage et je rejoins la beta"}
                 </button>
               ) : (
-                <Link href="/dashboard?beta=rejoindre" className="btn-primary px-5 py-2.5 text-center text-sm">
+                <Link href="/dashboard?beta=rejoindre" className="ui-btn-primary text-center">
                   Je m&apos;engage et je rejoins la beta
                 </Link>
               )}
-              <button type="button" onClick={close} className="btn-secondary px-5 py-2.5 text-sm">
+              <button type="button" onClick={close} className="ui-btn-secondary">
                 Annuler
               </button>
             </div>
             {mode === "link" && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted">
                 Tu te connecteras (ou créeras ton compte) pour confirmer ton inscription.
               </p>
             )}
