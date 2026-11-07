@@ -263,7 +263,7 @@ export function OnboardingModal() {
         if (e.key === "ArrowRight") goTo(index + 1);
         if (e.key === "ArrowLeft") goTo(index - 1);
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-card bg-white p-0 backdrop:bg-black/50 dark:bg-slate-900"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-card border border-line bg-white p-0 backdrop:bg-[rgba(10,10,10,0.45)] dark:bg-slate-900"
     >
       <style>{ANIMATIONS_CSS}</style>
 
