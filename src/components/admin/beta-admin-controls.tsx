@@ -15,8 +15,8 @@ export function BetaMessageForm({
   testers,
   initialTarget = "all",
 }: {
-  /** Testeurs joignables (id, email, statut). */
-  testers: { userId: string; email: string; active: boolean }[];
+  /** Testeurs (id, email, statut, désinscrit des e-mails). */
+  testers: { userId: string; email: string; active: boolean; unsubscribed: boolean }[];
   initialTarget?: string;
 }) {
   const [target, setTarget] = useState(initialTarget);
@@ -24,7 +24,7 @@ export function BetaMessageForm({
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
-  const activeCount = testers.filter((t) => t.active).length;
+  const activeCount = testers.filter((t) => t.active && !t.unsubscribed).length;
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -49,11 +49,12 @@ export function BetaMessageForm({
             Destinataire
           </label>
           <select id="beta-target" value={target} onChange={(e) => setTarget(e.target.value)} className="ui-input py-2">
-            <option value="all">Tous les beta testeurs actifs ({activeCount})</option>
+            <option value="all">Tous les beta testeurs actifs joignables ({activeCount})</option>
             {testers.map((t) => (
               <option key={t.userId} value={t.userId}>
                 {t.email}
                 {t.active ? "" : " (inactif)"}
+                {t.unsubscribed ? " (désinscrit des e-mails)" : ""}
               </option>
             ))}
           </select>

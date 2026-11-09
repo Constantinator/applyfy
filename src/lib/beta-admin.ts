@@ -31,6 +31,8 @@ export type BetaTesterReport = {
 export type BetaTester = {
   userId: string;
   email: string;
+  /** Désinscrit des e-mails : le message libre ne lui est pas envoyé. */
+  unsubscribed: boolean;
   status: BetaStatus;
   joinedAt: string;
   suspendedAt: string | null;
@@ -74,6 +76,7 @@ export async function listBetaTesters(now = new Date()): Promise<BetaTester[] | 
   }
 
   const emailById = new Map(users.map((u) => [u.id, u.email ?? "(sans email)"]));
+  const unsubscribedIds = new Set(users.filter((u) => u.emailsUnsubscribed).map((u) => u.id));
   const reportsByUser = new Map<string, ReportRow[]>();
   for (const report of (reports.data ?? []) as ReportRow[]) {
     reportsByUser.set(report.user_id, [...(reportsByUser.get(report.user_id) ?? []), report]);
@@ -84,6 +87,7 @@ export async function listBetaTesters(now = new Date()): Promise<BetaTester[] | 
     return {
       userId: t.user_id,
       email: emailById.get(t.user_id) ?? "(compte supprimé)",
+      unsubscribed: unsubscribedIds.has(t.user_id),
       status: t.status,
       joinedAt: t.joined_at,
       suspendedAt: t.suspended_at,
@@ -220,26 +224,28 @@ export async function addBetaTesterByEmail(adminId: string, email: string) {
 }
 
 /**
- * Envoie un message par email à un testeur, ou à tous les testeurs actifs (`"all"`).
- * Retourne le nombre d'emails envoyés et les adresses en échec.
+ * Envoie un message par email à un testeur, ou à tous les testeurs actifs (`"all"`). Les
+ * comptes désinscrits des e-mails sont ignorés (`skipped`). Retourne aussi les adresses en échec.
  */
 export async function sendBetaMessage(target: string, subject: string, message: string) {
   if (!isEmailConfigured()) throw new Error("Brevo n'est pas configuré (BREVO_API_KEY, BREVO_SENDER_EMAIL).");
   const testers = (await listBetaTesters()) ?? [];
-  const recipients =
-    target === "all" ? testers.filter((t) => t.status === "active") : testers.filter((t) => t.userId === target);
-  const emails = recipients.map((t) => t.email).filter((email) => email.includes("@"));
+  const targeted = (
+    target === "all" ? testers.filter((t) => t.status === "active") : testers.filter((t) => t.userId === target)
+  ).filter((t) => t.email.includes("@"));
+  const recipients = targeted.filter((t) => !t.unsubscribed);
+  const skipped = targeted.length - recipients.length;
 
   let sent = 0;
   const failed: string[] = [];
-  for (const to of emails) {
+  for (const { email: to, userId } of recipients) {
     try {
-      await sendEmail(buildBetaMessageEmail({ to, subject, message }));
+      await sendEmail(buildBetaMessageEmail({ to, subject, message, userId }));
       sent += 1;
     } catch (error) {
       console.error("[beta-admin] message", to, error);
       failed.push(to);
     }
   }
-  return { sent, failed, recipients: emails.length };
+  return { sent, skipped, failed, recipients: recipients.length };
 }

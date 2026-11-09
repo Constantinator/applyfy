@@ -15,6 +15,7 @@ import {
   type MissingFeature,
   type RecommendAnswer,
 } from "./feedback-options";
+import { isUnsubscribed } from "./email/unsubscribe-token";
 import { findPremiumPlan, PREMIUM_MONTHLY_PLAN } from "./premium-plans";
 import { isPremiumStatus } from "./subscription";
 import { createAdminClient, isAdminConfigured } from "./supabase/admin";
@@ -103,7 +104,8 @@ export function isAdminEmail(email: string | null | undefined) {
 
 export type AdminClient = ReturnType<typeof createAdminClient>;
 
-export type AuthUser = { id: string; email: string | null; createdAt: string };
+/** `emailsUnsubscribed` : désinscrit des e-mails (lien de désinscription ou profil). */
+export type AuthUser = { id: string; email: string | null; createdAt: string; emailsUnsubscribed: boolean };
 type UsageRow = { user_id: string; kind: AiUsageKind };
 type SubscriptionRow = {
   user_id: string;
@@ -120,7 +122,14 @@ export async function listAllUsers(supabase: AdminClient): Promise<AuthUser[]> {
   for (let page = 1; ; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: PAGE });
     if (error) throw new Error(`Lecture des utilisateurs impossible : ${error.message}`);
-    users.push(...data.users.map((u) => ({ id: u.id, email: u.email ?? null, createdAt: u.created_at })));
+    users.push(
+      ...data.users.map((u) => ({
+        id: u.id,
+        email: u.email ?? null,
+        createdAt: u.created_at,
+        emailsUnsubscribed: isUnsubscribed(u.user_metadata),
+      })),
+    );
     if (data.users.length < PAGE) return users;
   }
 }

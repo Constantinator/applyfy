@@ -341,7 +341,12 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
               <BetaMessageForm
                 key={target}
                 initialTarget={target}
-                testers={testers.map((t) => ({ userId: t.userId, email: t.email, active: t.status === "active" }))}
+                testers={testers.map((t) => ({
+                  userId: t.userId,
+                  email: t.email,
+                  active: t.status === "active",
+                  unsubscribed: t.unsubscribed,
+                }))}
               />
             </div>
           ) : (

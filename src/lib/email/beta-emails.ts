@@ -1,24 +1,39 @@
 // Emails du programme beta : rappel avant une date limite, suspension, message de l'équipe.
 // Gabarit commun : layout.ts.
 import type { EmailMessage } from "./brevo";
-import { SIGNATURE, emailButton, emailParagraph, emailSignature, endsWithSignature, escapeHtml, renderEmail } from "./layout";
+import {
+  SIGNATURE,
+  emailButton,
+  emailLink,
+  emailParagraph,
+  emailSignature,
+  endsWithSignature,
+  escapeHtml,
+  renderEmail,
+} from "./layout";
+import { oneClickUnsubscribeUrl, unsubscribeUrl } from "./unsubscribe-token";
 
 const dateLabel = (date: Date) =>
   new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" }).format(date);
 
 const FOOTER = "Tu reçois cet email car tu participes au programme beta d'Applyfy.";
 
-/** Gabarit beta : paragraphes (texte brut, échappé), bouton et signature facultatifs. */
+/**
+ * Gabarit beta : paragraphes (texte brut, échappé), bouton et signature facultatifs.
+ * `unsubscribeLink` : message libre seulement (rappel et suspension sont des e-mails de service).
+ */
 function layout({
   title,
   paragraphs,
   button,
   signed = true,
+  unsubscribeLink,
 }: {
   title: string;
   paragraphs: string[];
   button?: { label: string; url: string };
   signed?: boolean;
+  unsubscribeLink?: string;
 }) {
   return renderEmail({
     title,
@@ -28,7 +43,9 @@ function layout({
       ...(button ? [emailButton(button.label, button.url)] : []),
       ...(signed ? [emailSignature()] : []),
     ],
-    footer: escapeHtml(FOOTER),
+    footer: unsubscribeLink
+      ? `${escapeHtml(FOOTER)} ${emailLink("Se désinscrire des emails", unsubscribeLink)}`
+      : escapeHtml(FOOTER),
   });
 }
 
@@ -67,13 +84,19 @@ export function buildBetaSuspensionEmail(input: { to: string; reportTitle: strin
   };
 }
 
-/** Message libre de l'équipe (tableau de bord admin), texte brut échappé. Signé s'il ne l'est pas déjà. */
-export function buildBetaMessageEmail(input: { to: string; subject: string; message: string }): EmailMessage {
+/**
+ * Message libre de l'équipe (tableau de bord admin), texte brut échappé. Signé s'il ne l'est pas
+ * déjà. Avec lien de désinscription (HTML, texte, en-têtes one-click) : ce n'est pas un e-mail de service.
+ */
+export function buildBetaMessageEmail(input: { to: string; subject: string; message: string; userId: string }): EmailMessage {
   const signed = !endsWithSignature(input.message);
+  const unsubscribeLink = unsubscribeUrl(input.userId);
+  const body = signed ? `${input.message.trimEnd()}\n\n${SIGNATURE}` : input.message.trimEnd();
   return {
     to: input.to,
     subject: input.subject,
-    html: layout({ title: input.subject, paragraphs: input.message.split(/\n{2,}/), signed }),
-    text: signed ? `${input.message.trimEnd()}\n\n${SIGNATURE}` : input.message,
+    html: layout({ title: input.subject, paragraphs: input.message.split(/\n{2,}/), signed, unsubscribeLink }),
+    text: `${body}\n\n—\n${FOOTER} Se désinscrire des emails : ${unsubscribeLink}`,
+    unsubscribeUrl: oneClickUnsubscribeUrl(input.userId),
   };
 }

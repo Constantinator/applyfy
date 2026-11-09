@@ -30,12 +30,18 @@ export async function sendBetaMessageAction(input: {
   if (!message || message.length > MESSAGE_MAX_LENGTH) return { ok: false, error: "Message requis (5 000 caractères max)." };
 
   try {
-    const { sent, failed, recipients } = await sendBetaMessage(target, subject, message);
-    if (recipients === 0) return { ok: false, error: "Aucun destinataire (aucun beta testeur actif)." };
-    if (failed.length) {
-      return { ok: false, error: `${sent} envoyé(s), échec pour : ${failed.join(", ")}.` };
+    const { sent, skipped, failed, recipients } = await sendBetaMessage(target, subject, message);
+    const ignored = skipped
+      ? ` ${skipped} ignoré${skipped > 1 ? "s" : ""} (désinscrit${skipped > 1 ? "s" : ""} des e-mails).`
+      : "";
+    if (recipients === 0) {
+      if (skipped && target !== "all") return { ok: false, error: "Ce testeur s'est désinscrit des e-mails : rien n'a été envoyé." };
+      return { ok: false, error: `Aucun destinataire (aucun beta testeur actif joignable).${ignored}` };
     }
-    return { ok: true, message: `Message envoyé à ${sent} beta testeur${sent > 1 ? "s" : ""}.` };
+    if (failed.length) {
+      return { ok: false, error: `${sent} envoyé(s), échec pour : ${failed.join(", ")}.${ignored}` };
+    }
+    return { ok: true, message: `Message envoyé à ${sent} beta testeur${sent > 1 ? "s" : ""}.${ignored}` };
   } catch (error) {
     unstable_rethrow(error);
     console.error("[beta-admin] message", error);
