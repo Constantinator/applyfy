@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SectorPill } from "@/components/sector-pill";
 import { daysSince, needsFollowUp } from "@/lib/follow-up";
 import type { Application, ApplicationStatus } from "@/lib/types";
 
@@ -70,6 +71,7 @@ export function ApplicationsList({
               <span className="flex items-center gap-2 text-[15px] font-semibold text-ink group-hover:text-accent dark:text-white dark:group-hover:text-blue-300">
                 <span className="truncate">{app.company}</span>
                 {app.is_example && <ExampleBadge />}
+                <SectorPill sector={app.sector} />
               </span>
               <span className="mt-0.5 block text-[13px] break-words text-muted dark:text-slate-400">
                 {[app.position, app.location].filter(Boolean).join(" · ")}

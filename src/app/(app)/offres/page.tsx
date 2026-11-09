@@ -9,7 +9,9 @@ import { OfferLink } from "@/components/offers/offer-link";
 import { RecentSearchRecorder } from "@/components/offers/recent-search-recorder";
 import { RecommendationsToggle } from "@/components/offers/recommendations-toggle";
 import { SortSelect } from "@/components/offers/sort-select";
+import { SectorPill } from "@/components/sector-pill";
 import { requireUser } from "@/lib/auth";
+import { detectOfferSector } from "@/lib/cv-sector-context";
 import type { Department } from "@/lib/geo";
 import { findCompanyDomain, getCompanyLogo, isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
@@ -328,8 +330,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                               />
                             <div className="min-w-0 flex-1">
                               <h3 className="text-[15px] leading-snug font-semibold text-ink dark:text-white">{offer.title}</h3>
-                              <p className="mt-0.5 text-[13px] text-muted dark:text-slate-300">
-                                {offer.company ?? "Entreprise non communiquée"}
+                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted dark:text-slate-300">
+                                <span className="min-w-0 break-words">{offer.company ?? "Entreprise non communiquée"}</span>
+                                {/* Secteur calculé au titre et à la description (null → « Autre »). */}
+                                <SectorPill sector={detectOfferSector(offer.title, offer.description)} />
                               </p>
                             <div className="mt-1.5 flex items-end justify-between gap-3">
                               <ul className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">

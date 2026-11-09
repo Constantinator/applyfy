@@ -11,6 +11,7 @@ import { FollowUpBox } from "@/components/application/follow-up-box";
 import { StatusChanger } from "@/components/application/status-changer";
 import { Timeline } from "@/components/application/timeline";
 import { CollapsibleBox } from "@/components/collapsible-box";
+import { SectorPill } from "@/components/sector-pill";
 import { FormattedText } from "@/components/formatted-text";
 import { IconSparkles } from "@/components/icons";
 import { StatusBadge } from "@/components/status-badge";
@@ -132,6 +133,7 @@ export default async function ApplicationPage({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] break-words text-ink dark:text-white">{app.company}</h1>
+            <SectorPill sector={app.sector} className="mt-2" />
             <p className="mt-1.5 text-muted dark:text-slate-300">
               {app.position}
               {app.location && <span> · {app.location}</span>}
