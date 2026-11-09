@@ -11,12 +11,14 @@ registerHooks({
   },
 });
 const {
+  LUMEO_CLOSED,
   LUMEO_PREPAINT_SCRIPT,
   LUMEO_STORAGE_PREFIX,
   isLumeoHidden,
   isShownOnce,
   localDay,
   lumeoBannerContent,
+  lumeoLaterValue,
   lumeoMessageKey,
   pickLumeoMessage,
 } = await import("./lumeo-dashboard.ts");
@@ -130,13 +132,41 @@ test("« Plus tard » : masqué jusqu'à demain, par message", () => {
   assert.equal(isLumeoHidden({ kind: "bienvenue" }, "2026-11-08", "2026-11-09"), false);
 });
 
-test("carte verte : une seule fois, puis plus jamais", () => {
-  const premiere = { kind: "premiere", applicationId: "x" };
-  assert.equal(isShownOnce(premiere), true);
+test("carte verte : clé liée à sa candidature", () => {
+  const a1 = { kind: "premiere", applicationId: "a1" };
+  const a2 = { kind: "premiere", applicationId: "a2" };
+  assert.equal(lumeoMessageKey(a1), "premiere-a1");
+  assert.notEqual(lumeoMessageKey(a1), lumeoMessageKey(a2));
+  assert.equal(isShownOnce(a1), true);
   assert.equal(isShownOnce({ kind: "bienvenue" }), false);
-  assert.equal(isLumeoHidden(premiere, null, "2026-11-09"), false);
-  assert.equal(isLumeoHidden(premiere, "2026-11-09", "2026-11-09"), true);
-  assert.equal(isLumeoHidden(premiere, "2026-11-09", "2027-01-01"), true);
+});
+
+test("carte verte : visible toute la journée du premier affichage, masquée dès le lendemain", () => {
+  const premiere = { kind: "premiere", applicationId: "a1" };
+  assert.equal(isLumeoHidden(premiere, null, "2026-11-09"), false, "jamais vue");
+  assert.equal(isLumeoHidden(premiere, "2026-11-09", "2026-11-09"), false, "vue aujourd'hui");
+  assert.equal(isLumeoHidden(premiere, "2026-11-08", "2026-11-09"), true, "vue hier");
+  assert.equal(isLumeoHidden(premiere, "2026-09-09", "2026-11-09"), true, "vue il y a deux mois");
+});
+
+test("carte verte : « Plus tard » la ferme pour de bon, les autres jusqu'à demain", () => {
+  const premiere = { kind: "premiere", applicationId: "a1" };
+  const relance = { kind: "relance", applicationId: "x", company: "Acme", days: 8 };
+  assert.equal(lumeoLaterValue(premiere, "2026-11-09"), LUMEO_CLOSED);
+  assert.equal(isLumeoHidden(premiere, LUMEO_CLOSED, "2026-11-09"), true);
+  assert.equal(lumeoLaterValue(relance, "2026-11-09"), "2026-11-09");
+  assert.equal(lumeoLaterValue({ kind: "bienvenue" }, "2026-11-09"), "2026-11-09");
+});
+
+test("carte verte : l'ancienne clé commune « premiere » ne masque plus rien", () => {
+  // Aucun message ne produit plus la clé « premiere » seule : sa valeur n'est jamais relue.
+  const messages = [
+    { kind: "premiere", applicationId: "a1" },
+    { kind: "bienvenue" },
+    { kind: "objectif", sent: 1, goal: 2 },
+    { kind: "relance", applicationId: "x", company: "Acme", days: 8 },
+  ];
+  for (const message of messages) assert.notEqual(lumeoMessageKey(message), "premiere");
 });
 
 test("textes : tutoiement, accords et liens", () => {
@@ -181,13 +211,49 @@ test("script d'avant affichage : mêmes règles que isLumeoHidden", () => {
   const css = runPrepaint({
     [`${p}relance-a1`]: "2026-11-09",
     [`${p}relance-a2`]: "2026-11-08",
-    [`${p}premiere`]: "2026-10-01",
     [`${p}bad"]{x}`]: "2026-11-09",
     theme: "light",
   });
   assert.match(css, /\[data-lumeo-key="relance-a1"\]\{display:none\}/);
-  assert.match(css, /\[data-lumeo-key="premiere"\]\{display:none\}/);
   assert.doesNotMatch(css, /relance-a2/);
   assert.doesNotMatch(css, /bad/);
   assert.equal(runPrepaint({}), "");
+});
+
+test("script d'avant affichage : carte verte visible le jour même, masquée ensuite ou fermée", () => {
+  const p = LUMEO_STORAGE_PREFIX;
+  const css = runPrepaint({
+    [`${p}premiere-a1`]: "2026-11-09",
+    [`${p}premiere-a2`]: "2026-11-08",
+    [`${p}premiere-a3`]: LUMEO_CLOSED,
+    [`${p}premiere-6f1c2e4a-0b7d-4c55-9e1a-2d3b4c5d6e7f`]: "2026-10-01",
+    [`${p}premiere`]: "2026-10-01",
+  });
+  assert.doesNotMatch(css, /premiere-a1/, "vue aujourd'hui : visible");
+  assert.match(css, /\[data-lumeo-key="premiere-a2"\]\{display:none\}/);
+  assert.match(css, /\[data-lumeo-key="premiere-a3"\]\{display:none\}/);
+  assert.match(css, /\[data-lumeo-key="premiere-6f1c2e4a-0b7d-4c55-9e1a-2d3b4c5d6e7f"\]\{display:none\}/, "identifiant UUID");
+  assert.doesNotMatch(css, /"premiere"/, "ancienne clé commune : sans effet");
+  // Ancienne clé marquée aujourd'hui : elle viserait au pire un attribut qui n'existe plus.
+  const today = runPrepaint({ [`${p}premiere`]: "2026-11-09" });
+  for (const key of ["premiere-a1", "premiere-x"]) assert.doesNotMatch(today, new RegExp(`"${key}"`));
+});
+
+test("script d'avant affichage et isLumeoHidden : même verdict", () => {
+  const p = LUMEO_STORAGE_PREFIX;
+  const today = "2026-11-09";
+  const cases = [
+    [{ kind: "premiere", applicationId: "a1" }, today],
+    [{ kind: "premiere", applicationId: "a1" }, "2026-11-08"],
+    [{ kind: "premiere", applicationId: "a1" }, LUMEO_CLOSED],
+    [{ kind: "relance", applicationId: "r1", company: "Acme", days: 8 }, today],
+    [{ kind: "relance", applicationId: "r1", company: "Acme", days: 8 }, "2026-11-08"],
+    [{ kind: "bienvenue" }, today],
+    [{ kind: "bienvenue" }, "2026-11-08"],
+  ];
+  for (const [message, stored] of cases) {
+    const key = lumeoMessageKey(message);
+    const hiddenByScript = runPrepaint({ [`${p}${key}`]: stored }).includes(`[data-lumeo-key="${key}"]`);
+    assert.equal(hiddenByScript, isLumeoHidden(message, stored, today), `${key} = ${stored}`);
+  }
 });

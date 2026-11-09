@@ -10,6 +10,7 @@ import {
   isShownOnce,
   localDay,
   lumeoBannerContent,
+  lumeoLaterValue,
   lumeoMessageKey,
   type LumeoDashboardMessage,
 } from "@/lib/lumeo-dashboard";
@@ -42,6 +43,15 @@ function readStored(key: string): string | null {
   return readAtLoad.get(key) ?? null;
 }
 
+/** Valeur actuelle du navigateur (pas celle lue au chargement) ; null si absente ou illisible. */
+function readNow(key: string): string | null {
+  try {
+    return window.localStorage.getItem(LUMEO_STORAGE_PREFIX + key);
+  } catch {
+    return null;
+  }
+}
+
 function write(key: string, value: string) {
   try {
     window.localStorage.setItem(LUMEO_STORAGE_PREFIX + key, value);
@@ -50,7 +60,10 @@ function write(key: string, value: string) {
   }
 }
 
-/** Bandeau de Lumeo : un message, « Plus tard » jusqu'à demain. N'écrit que dans le navigateur. */
+/**
+ * Bandeau de Lumeo : un message, « Plus tard » jusqu'à demain (carte verte : fermée pour de
+ * bon). N'écrit que dans le navigateur.
+ */
 export function LumeoBanner({ message }: { message: LumeoDashboardMessage }) {
   const key = lumeoMessageKey(message);
   // Côté serveur : affiché ; un bandeau déjà masqué est caché avant l'affichage par
@@ -61,9 +74,10 @@ export function LumeoBanner({ message }: { message: LumeoDashboardMessage }) {
     () => false,
   );
 
-  // Carte verte : marquée « vue » dès qu'elle s'affiche, elle ne reviendra plus.
+  // Carte verte : marquée « vue » au premier affichage, une seule fois (un onglet resté ouvert
+  // après minuit ne repousse pas la date) ; visible ce jour-là, plus à partir du lendemain.
   useEffect(() => {
-    if (!hidden && isShownOnce(message)) write(key, localDay(new Date()));
+    if (!hidden && isShownOnce(message) && readNow(key) === null) write(key, localDay(new Date()));
   }, [hidden, key, message]);
 
   if (hidden) return null;
@@ -74,7 +88,8 @@ export function LumeoBanner({ message }: { message: LumeoDashboardMessage }) {
 
   function later() {
     laterForVisit.add(key);
-    write(key, localDay(new Date()));
+    // Carte verte : fermée pour de bon ; sinon, jusqu'à demain.
+    write(key, lumeoLaterValue(message, localDay(new Date())));
     listeners.forEach((listener) => listener());
   }
 

@@ -51,13 +51,26 @@ export function pickLumeoMessage({ hasCv, applications, weekSent, weeklyGoal, no
 /** Préfixe des clés du navigateur (lues aussi par LUMEO_PREPAINT_SCRIPT). */
 export const LUMEO_STORAGE_PREFIX = "applyfy:lumeo:";
 
-/** Clé « Plus tard » : par message (une autre relance n'est pas masquée par la première). */
+/**
+ * Clé du navigateur, par message : une autre relance n'est pas masquée par la première, et la
+ * carte verte est liée à sa candidature (un autre compte sur le même navigateur la verra aussi).
+ */
 export function lumeoMessageKey(message: LumeoDashboardMessage): string {
-  return message.kind === "relance" ? `relance-${message.applicationId}` : message.kind;
+  if (message.kind === "relance") return `relance-${message.applicationId}`;
+  if (message.kind === "premiere") return `premiere-${message.applicationId}`;
+  return message.kind;
 }
 
-/** Message montré une seule fois (marque « vue » enregistrée à l'affichage). */
+/** Message montré une seule journée (marque « vue » enregistrée au premier affichage). */
 export const isShownOnce = (message: LumeoDashboardMessage) => message.kind === "premiere";
+
+/** Carte verte fermée par « Plus tard » : masquée pour de bon. */
+export const LUMEO_CLOSED = "fermee";
+
+/** Valeur enregistrée par « Plus tard » : fermeture définitive pour la carte verte, le jour sinon. */
+export function lumeoLaterValue(message: LumeoDashboardMessage, today: string): string {
+  return isShownOnce(message) ? LUMEO_CLOSED : today;
+}
 
 /** Jour local (YYYY-MM-DD) : « Plus tard » vaut jusqu'à minuit, heure du navigateur. */
 export function localDay(date: Date): string {
@@ -67,11 +80,12 @@ export function localDay(date: Date): string {
 
 /**
  * Bandeau masqué ? `stored` : valeur enregistrée pour ce message (null si aucune).
- * Message unique : masqué dès qu'il a été vu. Sinon : masqué le jour du « Plus tard ».
+ * Carte verte : visible toute la journée du premier affichage, masquée à partir du lendemain
+ * (ou dès qu'elle est fermée). Sinon : masqué le jour du « Plus tard ».
  */
 export function isLumeoHidden(message: LumeoDashboardMessage, stored: string | null, today: string): boolean {
   if (stored === null) return false;
-  return isShownOnce(message) || stored === today;
+  return isShownOnce(message) ? stored !== today : stored === today;
 }
 
 export type LumeoBannerContent = {
@@ -131,4 +145,4 @@ export function lumeoBannerContent(message: LumeoDashboardMessage): LumeoBannerC
  * remis à plus tard, pour que la page ne saute pas. Mêmes règles que isLumeoHidden ; le
  * composant prend le relais une fois chargé.
  */
-export const LUMEO_PREPAINT_SCRIPT = `try{var d=new Date(),z=function(n){return(n<10?"0":"")+n},t=d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()),p=${JSON.stringify(LUMEO_STORAGE_PREFIX)},c="";for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(!k||k.indexOf(p)!==0)continue;var m=k.slice(p.length);if(!/^[a-z0-9-]+$/i.test(m))continue;if(m==="premiere"||localStorage.getItem(k)===t)c+='[data-lumeo-key="'+m+'"]{display:none}'}if(c){var s=document.createElement("style");s.textContent=c;document.head.appendChild(s)}}catch(e){}`;
+export const LUMEO_PREPAINT_SCRIPT = `try{var d=new Date(),z=function(n){return(n<10?"0":"")+n},t=d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()),p=${JSON.stringify(LUMEO_STORAGE_PREFIX)},c="";for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(!k||k.indexOf(p)!==0)continue;var m=k.slice(p.length);if(!/^[a-z0-9-]+$/i.test(m))continue;var v=localStorage.getItem(k);if(m.indexOf("premiere-")===0?v!==t:v===t)c+='[data-lumeo-key="'+m+'"]{display:none}'}if(c){var s=document.createElement("style");s.textContent=c;document.head.appendChild(s)}}catch(e){}`;
