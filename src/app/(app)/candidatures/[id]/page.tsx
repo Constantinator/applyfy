@@ -14,6 +14,7 @@ import { CollapsibleBox } from "@/components/collapsible-box";
 import { SectorPill } from "@/components/sector-pill";
 import { FormattedText } from "@/components/formatted-text";
 import { IconSparkles } from "@/components/icons";
+import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { MarkAsSent } from "@/components/application/mark-as-sent";
 import {
@@ -26,6 +27,8 @@ import { getAccountName } from "@/lib/account";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
+import { showLumeoSentLine } from "@/lib/lumeo-fiche";
+import { LUMEO_FICHE_TEXTS } from "@/lib/lumeo-texts";
 import { fullName } from "@/lib/person-name";
 import { getBuilderCvByApplication } from "@/lib/cv-builder";
 import { getLatestProfileCvText, listProfileCvs } from "@/lib/profile";
@@ -146,6 +149,12 @@ export default async function ApplicationPage({
                 </>
               )}
             </p>
+            {showLumeoSentLine(app) && (
+              <p className="mt-3 flex min-w-0 items-center gap-2.5 text-[13px] text-muted dark:text-slate-400">
+                <LumeoAvatar size={36} expression="content" />
+                <span className="min-w-0">{LUMEO_FICHE_TEXTS.sent}</span>
+              </p>
+            )}
           </div>
           <StatusBadge status={app.status} />
         </div>

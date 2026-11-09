@@ -58,3 +58,8 @@ export const LUMEO_DASHBOARD_TEXTS = {
     primary: "Voir la relance",
   },
 } as const;
+
+/** Petite ligne de Lumeo sur la fiche d'une candidature envoyée (cf. lib/lumeo-fiche). */
+export const LUMEO_FICHE_TEXTS = {
+  sent: "Elle est partie. Je te préviens quand il sera temps de relancer.",
+} as const;
