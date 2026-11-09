@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 
 import { saveAccountName } from "@/lib/account";
+import { requireUser } from "@/lib/auth";
 import { readPdfUpload } from "@/lib/cv-file";
+import { setEmailsSubscribed } from "@/lib/email-preferences";
 import { validateAccountName } from "@/lib/person-name";
 import { CV_NAME_MAX_LENGTH } from "@/lib/cv-types";
 import {
@@ -15,6 +17,7 @@ import {
   saveReminderSettings,
 } from "@/lib/profile";
 import { isFirstReminderOption, isSecondReminderOption } from "@/lib/reminders";
+import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export type ProfileActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -90,5 +93,16 @@ export async function saveReminderSettingsAction(input: {
   return run("saveReminderSettings", async () => {
     await saveReminderSettings({ enabled: input.enabled === true, firstDays, secondDays });
     return "✓ Préférences de rappel enregistrées.";
+  });
+}
+
+/** Interrupteur « Recevoir les e-mails d'Applyfy » : réinscription (true) ou désinscription (false). */
+export async function setEmailsSubscribedAction(subscribed: boolean): Promise<ProfileActionResult> {
+  await requireUser();
+  if (typeof subscribed !== "boolean") return { ok: false, error: "Choix invalide." };
+  if (!isSupabaseConfigured()) return { ok: false, error: "Indisponible en mode démo." };
+  return run("emailsSubscribed", async () => {
+    await setEmailsSubscribed(subscribed);
+    return subscribed ? "✓ E-mails réactivés." : "✓ E-mails désactivés.";
   });
 }

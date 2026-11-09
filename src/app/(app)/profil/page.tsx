@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { openBillingPortalAction } from "@/app/actions/premium";
 import { AccountNameForm } from "@/components/profile/account-name-form";
 import { DeleteAccount } from "@/components/profile/delete-account";
+import { EmailSubscriptionToggle } from "@/components/profile/email-subscription-toggle";
 import { ProfileCvs } from "@/components/profile/profile-cvs";
 import { getAccountName } from "@/lib/account";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
@@ -13,6 +14,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { PROFILE_CV_LIMIT } from "@/lib/cv-types";
 import { isEmailConfigured } from "@/lib/email/brevo";
+import { getEmailsSubscribed } from "@/lib/email-preferences";
 import { getReminderSettings, listProfileCvs } from "@/lib/profile";
 import { DEFAULT_REMINDER_SETTINGS } from "@/lib/reminders";
 import { getSubscription } from "@/lib/subscription";
@@ -29,7 +31,7 @@ const longDate = new Intl.DateTimeFormat("fr-FR", {
 export default async function ProfilePage({ searchParams }: PageProps<"/profil">) {
   await connection(); // toujours rendu à la requête : la liste des CV change
   const { abonnement } = await searchParams;
-  const [user, accountName, cvs, reminderSettings, subscription] = await Promise.all([
+  const [user, accountName, cvs, reminderSettings, subscription, emailsSubscribed] = await Promise.all([
     getCurrentUser(),
     getAccountName(),
     listProfileCvs(),
@@ -39,6 +41,10 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
       return DEFAULT_REMINDER_SETTINGS;
     }),
     getSubscription(),
+    getEmailsSubscribed().catch((error) => {
+      console.error("[profil] préférence e-mails", error);
+      return true;
+    }),
   ]);
   const beta = await getMyBeta();
   const stripePremium = subscription?.premium ?? false;
@@ -104,6 +110,13 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
             </p>
           </div>
           <ReminderSettingsForm initial={reminderSettings} emailEnabled={isEmailConfigured()} />
+        </section>
+
+        <section aria-labelledby="emails-title" className="space-y-4 ui-card p-5 sm:p-7">
+          <h2 id="emails-title" className="ui-title-sm">
+            E-mails
+          </h2>
+          <EmailSubscriptionToggle initial={emailsSubscribed} />
         </section>
 
         <section aria-labelledby="abonnement-title" className="space-y-4 ui-card p-5 sm:p-7">
