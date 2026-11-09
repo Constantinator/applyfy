@@ -27,6 +27,8 @@ export type Application = {
   created_at: string;
   /** Candidature exemple créée à l'inscription (migration 0022). */
   is_example?: boolean;
+  /** Secteur détecté (migration 0038) : null ou inconnu → pastille « Autre ». */
+  sector?: string | null;
 };
 
 export type ApplicationDetail = Application & {

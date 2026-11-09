@@ -4,19 +4,9 @@ import { matchKeywords } from "./keyword-match";
 // Base de connaissance CV par secteur (cv-knowledge-base.json) : détection du secteur du
 // candidat et contexte sectoriel injecté dans le prompt du coach du CV Builder.
 
-export const SECTORS = [
-  "finance",
-  "conseil",
-  "tech",
-  "marketing",
-  "creatif",
-  "commercial",
-  "rh",
-  "sante",
-  "etudiant",
-  "luxe",
-] as const;
-export type Sector = (typeof SECTORS)[number];
+// Liste des secteurs : source unique dans sectors.ts (réexportée ici pour les appels existants).
+import { SECTORS, type Sector } from "./sectors";
+export { SECTORS, type Sector };
 
 export type SectorContext = {
   name: string;
@@ -143,6 +133,25 @@ export function detectSector(cvJson: string, targetJob?: string | null): Sector 
     .map((sector) => ({ sector, score: countMatches(whole, KNOWLEDGE[sector].ats_keywords) }))
     .sort((a, b) => b.score - a.score)[0];
   return byKeywords.score >= 3 ? byKeywords.sector : "etudiant";
+}
+
+/**
+ * Secteur d'une offre ou d'une candidature (titre du poste, puis description), ou null si rien
+ * n'est reconnu : contrairement à detectSector, pas de repli « etudiant » (pas de faux secteur).
+ */
+export function detectOfferSector(title: string, description?: string | null): Sector | null {
+  const titles = normalize(title);
+  const scores = SECTORS.map((sector) => ({ sector, score: countMatches(titles, TITLE_KEYWORDS[sector]) }));
+  // « etudiant » ne l'emporte que si aucun métier n'est reconnu (un stage en audit reste de la finance).
+  const job = scores.filter((s) => s.sector !== "etudiant" && s.score > 0).sort((a, b) => b.score - a.score)[0];
+  if (job) return job.sector;
+  if (scores.some((s) => s.sector === "etudiant" && s.score > 0)) return "etudiant";
+
+  const whole = normalize(`${title} | ${description ?? ""}`);
+  const byKeywords = SECTORS.filter((s) => s !== "etudiant")
+    .map((sector) => ({ sector, score: countMatches(whole, KNOWLEDGE[sector].ats_keywords) }))
+    .sort((a, b) => b.score - a.score)[0];
+  return byKeywords.score >= 3 ? byKeywords.sector : null;
 }
 
 /** Données du secteur dans la base de connaissance. */

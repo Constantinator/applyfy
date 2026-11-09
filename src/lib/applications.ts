@@ -2,6 +2,7 @@ import "server-only";
 
 import { requireUser } from "./auth";
 import type { CvStyle } from "./cv-style";
+import { detectOfferSector } from "./cv-sector-context";
 import type { CvSuggestions } from "./cv-types";
 import { demoStore } from "./demo-data";
 import type { ResponseEvent } from "./dashboard-week";
@@ -25,6 +26,13 @@ export { FOLLOW_UP_AFTER_DAYS, daysSince, needsFollowUp } from "./follow-up";
 
 const LIST_COLUMNS =
   "id, company, position, location, offer_url, contact_name, contact_email, status, applied_at, last_contact_at, created_at, is_example";
+/** Colonne ajoutée par la migration 0038 : lue en plus si elle existe. */
+const SECTOR_COLUMN = "sector";
+
+/** Erreur « colonne sector inconnue » (migration 0038 pas encore appliquée). */
+function isMissingSectorColumn(error: { code?: string; message?: string } | null) {
+  return Boolean(error && (error.code === "42703" || error.code === "PGRST204") && /sector/.test(error.message ?? ""));
+}
 
 export type DataSource = "supabase" | "demo";
 
@@ -54,15 +62,16 @@ export async function getApplications(): Promise<ApplicationsResult> {
 
   const user = await requireUser();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("applications")
-    .select(LIST_COLUMNS)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const list = (columns: string) =>
+    supabase.from("applications").select(columns).eq("user_id", user.id).order("created_at", { ascending: false });
+  let { data, error } = await list(`${LIST_COLUMNS}, ${SECTOR_COLUMN}`);
+  // Migration 0038 pas encore appliquée : liste sans secteur (pastilles « Autre »).
+  if (isMissingSectorColumn(error)) ({ data, error } = await list(LIST_COLUMNS));
 
   if (error) throw new Error(`Chargement des candidatures impossible : ${error.message}`);
 
-  return { applications: data as Application[], source: "supabase" };
+  // Colonnes passées en chaîne dynamique (avec ou sans secteur) : type non déduit par Supabase.
+  return { applications: (data ?? []) as unknown as Application[], source: "supabase" };
 }
 
 /** Réponses reçues (toutes candidatures de l'utilisateur) : carte « Ma semaine » du tableau de bord. */
@@ -193,6 +202,8 @@ export type NewApplicationInput = {
  */
 export async function createApplication(input: NewApplicationInput): Promise<string> {
   const { offer_summary, offer_description_partial, ...fields } = input;
+  // Secteur (migration 0038) : seulement s'il est reconnu, sinon null (pastille « Autre »).
+  const sector = detectOfferSector(fields.position, fields.offer_description);
   const row = {
     ...fields,
     // Colonne ajoutée par la migration 0004 : envoyée seulement si un résumé existe.
@@ -230,7 +241,13 @@ export async function createApplication(input: NewApplicationInput): Promise<str
 
   const insert = (values: Record<string, unknown>) =>
     supabase.from("applications").insert(values).select("id").single();
-  let { data, error } = await insert({ ...row, ...partialFlag, user_id: user.id });
+  const sectorField = sector ? { sector } : {};
+  let { data, error } = await insert({ ...row, ...partialFlag, ...sectorField, user_id: user.id });
+  // Migration 0038 pas encore appliquée : la candidature est créée sans secteur.
+  if (sector && isMissingSectorColumn(error)) {
+    console.error("[createApplication] colonne sector absente (migration 0038)");
+    ({ data, error } = await insert({ ...row, ...partialFlag, user_id: user.id }));
+  }
   // Migration 0015 pas encore appliquée (colonne inconnue, code PGRST204) : la mention
   // « description partielle » est perdue, mais la candidature est créée.
   if (error?.code === "PGRST204" && offer_description_partial) {
@@ -324,6 +341,17 @@ export async function updateApplicationDetails(id: string, patch: ApplicationDet
     .select("id");
   if (error) throw new Error(error.message);
   if (!data?.length) return { ok: false as const, error: "Candidature introuvable." };
+
+  // Description complétée : secteur recalculé s'il est maintenant reconnu (sans échec si la
+  // migration 0038 manque ; un secteur déjà connu n'est jamais effacé).
+  if ("offer_description" in patch) {
+    const { data: app } = await supabase.from("applications").select("position").eq("id", id).eq("user_id", user.id).single();
+    const sector = app ? detectOfferSector(app.position as string, patch.offer_description) : null;
+    if (sector) {
+      const { error: sectorError } = await supabase.from("applications").update({ sector }).eq("id", id).eq("user_id", user.id);
+      if (sectorError && !isMissingSectorColumn(sectorError)) console.error("[updateApplicationDetails] secteur", sectorError.message);
+    }
+  }
   return { ok: true as const };
 }
 
