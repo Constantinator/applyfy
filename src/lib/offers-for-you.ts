@@ -15,12 +15,14 @@ export type JobOfferRow = {
   title: string;
   company: string | null;
   url: string | null;
+  /** Lieu nettoyé par la collecte (« Paris, Lyon », « Télétravail (France) ») ; null pour les plus anciennes. */
+  location: string | null;
   /** Première vue : à pertinence égale, la plus récente d'abord. */
   scraped_at: string;
   /** Dernière fois que la collecte l'a retrouvée sur sa source. */
   last_seen_at: string;
 };
-export type OfferForYou = { id: string; title: string; company: string; url: string };
+export type OfferForYou = { id: string; title: string; company: string; url: string; location: string | null };
 
 /** Offres déjà ajoutées par l'utilisateur, à ne pas reproposer. */
 export type AppliedOffer = { company: string; position: string; offer_url: string | null };
@@ -49,7 +51,8 @@ export function pickOffersForYou(rows: JobOfferRow[], targetJob: string, applied
     if (!company || !title || !url || row.last_seen_at < cutoff || appliedUrls.has(url)) return [];
     const normalized = normalizeText(title);
     const matched = terms.filter((term) => hasPhrase(normalized, term)).length;
-    return matched > 0 ? [{ offer: { id: row.id, title, company, url }, matched, scrapedAt: row.scraped_at }] : [];
+    const location = row.location?.trim() || null;
+    return matched > 0 ? [{ offer: { id: row.id, title, company, url, location }, matched, scrapedAt: row.scraped_at }] : [];
   });
 
   matches.sort((a, b) => b.matched - a.matched || b.scrapedAt.localeCompare(a.scrapedAt));

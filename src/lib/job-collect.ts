@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Sector } from "./cv-sector-context";
+import { cleanLocation } from "./offer-location";
 
 export type AtsPlatform = "greenhouse" | "lever" | "lever-eu" | "ashby" | "smartrecruiters";
 export type AtsCompany = { name: string; platform: AtsPlatform; slug: string; products?: string[]; filterTitles?: boolean };
@@ -151,11 +152,9 @@ type SmartRecruitersDetail = {
   jobAd?: { sections?: Record<string, { text?: string } | undefined> };
 };
 
-/** Lieu affiché : le premier situé en France, sinon le premier renseigné. */
-function pickLocation(candidates: (string | null | undefined)[]): string | null {
-  const known = candidates.map((value) => decodeHtml(value ?? "")).filter(Boolean);
-  const place = known.find((value) => FRANCE.test(value)) ?? known[0];
-  return place ? place.slice(0, LOCATION_MAX_LENGTH) : null;
+/** Lieu affiché : villes françaises nettoyées (offer-location.ts), sinon « France » ou « Télétravail (France) ». */
+function pickLocation(candidates: (string | null | undefined)[]): string {
+  return cleanLocation(candidates.map((value) => decodeHtml(value ?? ""))).label.slice(0, LOCATION_MAX_LENGTH);
 }
 
 /** Date ISO, ou null si la source n'en donne pas de valide. */

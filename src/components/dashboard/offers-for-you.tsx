@@ -41,6 +41,7 @@ export async function OffersForYou({
             </span>
             <p className="mt-3 text-base font-semibold break-words text-ink dark:text-white">{offer.title}</p>
             <p className="mt-0.5 text-[13px] break-words text-muted dark:text-slate-300">{offer.company}</p>
+            {offer.location && <p className="mt-0.5 text-[13px] break-words text-muted dark:text-slate-400">{offer.location}</p>}
             <Link
               href={offerImportHref(offer.url)}
               prefetch={false}

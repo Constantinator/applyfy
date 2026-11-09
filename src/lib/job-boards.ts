@@ -30,13 +30,14 @@ type Company = {
   slug: string;
 };
 
-// Slugs vérifiés le 23/10/2026 sur les API des trois ATS. Les autres entreprises
+// Slugs vérifiés le 23/10/2026 sur les API des trois ATS, puis le 08/11/2026 : Doctolib est passé
+// de Greenhouse à Ashby, Mistral AI de Lever à Ashby (« mistral.ai ») et Aircall est sur Greenhouse
+// sous « aircallioinc » (les anciennes adresses répondent 404). Les autres entreprises
 // envisagées (Lydia, Yousign, Hyperline, PayFit, Notion, Spotify, Hugging Face…) n'ont
 // pas de page carrières sur l'un d'eux ; Lunchr est l'ancien nom de Swile. Les boards
 // Ashby « shift » et « swan » sont des homonymes (fintech australienne, société
 // américaine), pas Shift Technology ni Swan.
 export const JOB_BOARD_COMPANIES: Company[] = [
-  { key: "doctolib", name: "Doctolib", domain: "doctolib.fr", ats: "greenhouse", slug: "doctolib" },
   { key: "mirakl", name: "Mirakl", domain: "mirakl.com", ats: "greenhouse", slug: "mirakl" },
   { key: "ivalua", name: "Ivalua", domain: "ivalua.com", ats: "greenhouse", slug: "ivalua" },
   { key: "dataiku", name: "Dataiku", domain: "dataiku.com", ats: "greenhouse", slug: "dataiku" },
@@ -56,11 +57,12 @@ export const JOB_BOARD_COMPANIES: Company[] = [
   { key: "pagerduty", name: "PagerDuty", domain: "pagerduty.com", ats: "greenhouse", slug: "pagerduty" },
   { key: "twilio", name: "Twilio", domain: "twilio.com", ats: "greenhouse", slug: "twilio" },
   { key: "vercel", name: "Vercel", domain: "vercel.com", ats: "greenhouse", slug: "vercel" },
+  { key: "aircall", name: "Aircall", domain: "aircall.io", ats: "greenhouse", slug: "aircallioinc" },
   { key: "swile", name: "Swile", domain: "swile.co", ats: "lever", slug: "swile" },
   { key: "contentsquare", name: "Contentsquare", domain: "contentsquare.com", ats: "lever", slug: "contentsquare" },
-  { key: "mistral", name: "Mistral AI", domain: "mistral.ai", ats: "lever", slug: "mistral" },
-  { key: "aircall", name: "Aircall", domain: "aircall.io", ats: "lever", slug: "aircall" },
   { key: "ogury", name: "Ogury", domain: "ogury.com", ats: "lever", slug: "ogury" },
+  { key: "doctolib", name: "Doctolib", domain: "doctolib.fr", ats: "ashby", slug: "doctolib" },
+  { key: "mistral", name: "Mistral AI", domain: "mistral.ai", ats: "ashby", slug: "mistral.ai" },
   { key: "alan", name: "Alan", domain: "alan.com", ats: "ashby", slug: "alan" },
   { key: "qonto", name: "Qonto", domain: "qonto.com", ats: "ashby", slug: "qonto" },
   { key: "pennylane", name: "Pennylane", domain: "pennylane.com", ats: "ashby", slug: "pennylane" },

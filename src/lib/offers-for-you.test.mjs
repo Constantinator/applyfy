@@ -34,6 +34,15 @@ test("3 offres au plus, les plus proches du poste visé d'abord", () => {
   assert.ok(!offers.some((offer) => offer.title === "Comptable"));
 });
 
+test("lieu nettoyé transmis pour l'affichage, rien s'il est absent", () => {
+  const offers = pick([
+    row("Analyste A", { location: "Paris, Lyon" }),
+    row("Analyste B", { location: "  " }),
+    row("Analyste C"),
+  ]);
+  assert.deepEqual(offers.map((offer) => offer.location).sort(), ["Paris, Lyon", null, null].sort());
+});
+
 test("à pertinence égale, la plus récente", () => {
   const offers = pick([
     row("Analyste A", { scraped_at: "2026-10-20T10:00:00Z" }),

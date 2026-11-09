@@ -141,7 +141,7 @@ test("migration 0037 : offre liée à une candidature protégée par le lien et 
   assert.match(body, /case when o\.source = 'user' then p_user_before else p_collected_before end/);
 });
 
-test("Greenhouse : offres en France, lieu et date de publication", async () => {
+test("Greenhouse : offres en France, lieu nettoyé et date de publication", async () => {
   const get = fakeGet({
     "boards-api.greenhouse.io": {
       jobs: [
@@ -154,12 +154,33 @@ test("Greenhouse : offres en France, lieu et date de publication", async () => {
   const { offers, failed } = await readCompanyOffers(company("greenhouse"), 10, all, get);
   assert.equal(failed, false);
   assert.deepEqual(offers.map((o) => [o.externalId, o.title, o.location]), [
-    ["greenhouse-acme-1", "Analyste & data", "Paris, France"],
+    ["greenhouse-acme-1", "Analyste & data", "Paris"],
     ["greenhouse-acme-3", "Par bureau", "Lyon"],
   ]);
   assert.equal(offers[0].description, "Texte");
   assert.equal(offers[0].publishedAt, "2026-11-01T10:00:00.000Z");
   assert.equal(offers[1].publishedAt, null);
+});
+
+test("Ashby : lieux « Madrid Office; Paris Office » nettoyés en « Paris »", async () => {
+  const get = fakeGet({
+    "api.ashbyhq.com": { jobs: [{ id: "a", title: "Account Executive", jobUrl: "https://s.fr/a", location: "Madrid Office; Paris Office" }] },
+  });
+  const { offers } = await readCompanyOffers(company("ashby"), 10, all, get);
+  assert.deepEqual(offers.map((o) => o.location), ["Paris"]);
+});
+
+test("sources corrigées : Doctolib sur Ashby, Aircall sur Greenhouse (aircallioinc)", () => {
+  const sectors = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const entries = (name) => Object.values(sectors).flat().filter((c) => c.name === name);
+  const doctolib = entries("Doctolib");
+  assert.equal(doctolib.length, 4);
+  for (const c of doctolib) assert.deepEqual([c.platform, c.slug], ["ashby", "doctolib"]);
+  assert.deepEqual(entries("Aircall").map((c) => [c.platform, c.slug]), [["greenhouse", "aircallioinc"]]);
+  const boards = readFileSync(new URL("./job-boards.ts", import.meta.url), "utf8");
+  assert.match(boards, /key: "doctolib",[^}]*ats: "ashby", slug: "doctolib"/);
+  assert.match(boards, /key: "aircall",[^}]*ats: "greenhouse", slug: "aircallioinc"/);
+  assert.match(boards, /key: "mistral",[^}]*ats: "ashby", slug: "mistral\.ai"/);
 });
 
 test("Lever : pays ou lieu en France, date en millisecondes", async () => {
@@ -189,7 +210,7 @@ test("Ashby : offres listées, lieu secondaire en France", async () => {
   assert.deepEqual(offers.map((o) => [o.title, o.location]), [["Poste A", "Paris"]]);
 });
 
-test("SmartRecruiters : ville de la liste, description lue offre par offre", async () => {
+test("SmartRecruiters : ville de la liste (« France » sans ville), description lue offre par offre", async () => {
   const get = fakeGet({
     "postings?country=fr": {
       content: [
@@ -203,7 +224,7 @@ test("SmartRecruiters : ville de la liste, description lue offre par offre", asy
   const { offers } = await readCompanyOffers(company("smartrecruiters"), 10, all, get);
   assert.deepEqual(offers.map((o) => [o.url, o.location, o.description]), [
     ["https://j.fr/1", "Nantes", "Missions"],
-    ["https://jobs.smartrecruiters.com/acme/2", null, ""],
+    ["https://jobs.smartrecruiters.com/acme/2", "France", ""],
   ]);
 });
 

@@ -19,7 +19,7 @@ export async function getOffersForYou(sector: Sector, targetJob: string, applied
   try {
     const { data, error } = await createAdminClient()
       .from("job_offers_raw")
-      .select("id, title, company, url, scraped_at, last_seen_at")
+      .select("id, title, company, url, location, scraped_at, last_seen_at")
       .eq("sector", sector)
       .not("url", "is", null)
       .gte("last_seen_at", offersCutoff(now))
