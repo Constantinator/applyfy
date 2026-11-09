@@ -4,10 +4,11 @@ import { IconBell, IconPencil, IconPlus, IconSparkles } from "@/components/icons
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { TODO_MAX_LINES, TODO_MAX_LINES_MOBILE, remainingTodo, type TodoItem } from "@/lib/dashboard-todo";
 import { FOLLOW_UP_FILTER } from "@/lib/follow-up";
+import { FUNCTION_TINTS, type FunctionTint } from "@/lib/ui-tints";
 
 const LINKS_CLASS = "ui-link inline-flex min-h-11 items-center";
-const ICON_BOX =
-  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-box text-ink dark:bg-slate-800 dark:text-slate-200";
+/** Tuile d'icône teintée par fonction : relance → lettres, brouillon → offres, tout à jour → réussites. */
+const iconBox = (tint: FunctionTint) => `flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${FUNCTION_TINTS[tint]}`;
 
 /** « Voir les autres : 2 à relancer · 1 brouillon », chaque type menant à son filtre. */
 function RemainingLinks({ items, shown, className }: { items: TodoItem[]; shown: number; className: string }) {
@@ -40,7 +41,7 @@ function TodoLine({ item, desktopOnly }: { item: TodoItem; desktopOnly: boolean 
         desktopOnly ? "hidden sm:flex" : "flex"
       }`}
     >
-      <span aria-hidden="true" className={ICON_BOX}>
+      <span aria-hidden="true" className={iconBox(relance ? "letter" : "offer")}>
         <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1 basis-48">
@@ -87,7 +88,7 @@ export function TodoCard({ items, hasRealApplication }: { items: TodoItem[]; has
         </div>
       ) : items.length === 0 ? (
         <div className="mt-3 flex items-center gap-3">
-          <span aria-hidden="true" className={ICON_BOX}>
+          <span aria-hidden="true" className={iconBox("success")}>
             <IconSparkles className="h-5 w-5" />
           </span>
           <p className="min-w-0 text-muted dark:text-slate-300">

@@ -4,6 +4,7 @@ import { ScoreGauge } from "@/components/cv-builder/cv-score-card";
 import { IconDocument } from "@/components/icons";
 import { READY_SCORE } from "@/lib/cv-score";
 import type { Sector } from "@/lib/cv-sector-context";
+import { FUNCTION_TINTS, SUCCESS_PILL } from "@/lib/ui-tints";
 
 export type LatestCv = {
   id: string;
@@ -38,6 +39,7 @@ export function CvCard({ cv }: { cv: LatestCv | null }) {
                   ? `Encore ${missing} point${missing > 1 ? "s" : ""} pour être prêt à postuler`
                   : "Ton CV est prêt à postuler"}
               </p>
+              {cv.score >= READY_SCORE && <span className={`mt-2 ${SUCCESS_PILL}`}>Prêt à envoyer</span>}
             </div>
           </div>
           {cv.weakPoint && (
@@ -69,7 +71,7 @@ export function CvCard({ cv }: { cv: LatestCv | null }) {
           <div className="flex items-center gap-3">
             <span
               aria-hidden="true"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-box text-ink dark:bg-slate-800 dark:text-slate-200"
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${FUNCTION_TINTS.cv}`}
             >
               <IconDocument className="h-5 w-5" />
             </span>

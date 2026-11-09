@@ -12,6 +12,7 @@ import {
   type PeriodId,
   type PeriodStats,
 } from "@/lib/dashboard-week";
+import { SUCCESS_PILL } from "@/lib/ui-tints";
 
 const LINK_CLASS =
   "ui-link inline-flex min-h-11 items-center text-sm";
@@ -144,6 +145,7 @@ export function MyWeekCard({
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-sm text-muted dark:text-slate-300">
+        {goal !== null && sentThisWeek >= goal && <span className={SUCCESS_PILL}>Objectif tenu</span>}
         <p>{weekMessage(sentThisWeek, goal)}</p>
         {goalEditable && !editing && (
           <button type="button" onClick={() => setEditing(true)} className={LINK_CLASS}>

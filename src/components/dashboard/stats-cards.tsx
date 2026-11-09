@@ -1,4 +1,5 @@
 import { IconBell, IconBriefcase, IconChat, IconClock } from "@/components/icons";
+import { FUNCTION_TINTS } from "@/lib/ui-tints";
 
 export type StatTone = "blue" | "waiting" | "violet" | "amber";
 
@@ -6,10 +7,11 @@ type Stat = { label: string; value: number; hint?: string; tone: StatTone; highl
 
 const NEUTRAL = "bg-pill text-ink dark:bg-slate-800 dark:text-slate-200";
 
+// Candidatures → offres, entretiens → entretiens ; « en attente » reste neutre, « à relancer » garde l'orange de retard.
 const TONES: Record<StatTone, { icon: typeof IconBriefcase; badge: string }> = {
-  blue: { icon: IconBriefcase, badge: NEUTRAL },
+  blue: { icon: IconBriefcase, badge: FUNCTION_TINTS.offer },
   waiting: { icon: IconClock, badge: NEUTRAL },
-  violet: { icon: IconChat, badge: NEUTRAL },
+  violet: { icon: IconChat, badge: FUNCTION_TINTS.interview },
   amber: { icon: IconBell, badge: "bg-pill dark:bg-amber-500/15 text-late dark:text-amber-400" },
 };
 

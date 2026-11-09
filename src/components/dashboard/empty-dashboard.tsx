@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { IconBriefcase, IconPlus } from "@/components/icons";
+import { FUNCTION_TINTS } from "@/lib/ui-tints";
 
 /** Dashboard sans aucune candidature : invitation à ajouter la première. */
 export function EmptyDashboard() {
@@ -9,7 +10,7 @@ export function EmptyDashboard() {
       {/* Illustration : mallette dans un carré gris */}
       <div
         aria-hidden="true"
-        className="mx-auto flex h-24 w-24 items-center justify-center rounded-card bg-box text-ink dark:bg-slate-800 dark:text-slate-200"
+        className={`mx-auto flex h-24 w-24 items-center justify-center rounded-card ${FUNCTION_TINTS.offer}`}
       >
         <IconBriefcase className="h-11 w-11" />
       </div>
