@@ -49,7 +49,7 @@ export function MissingPointsPanel({ points, onInsert }: { points: string[]; onI
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-500 dark:text-slate-400">
+      <p className="text-xs text-muted dark:text-slate-400">
         D&apos;après l&apos;analyse de ton CV.{onInsert ? " Clique sur un point pour l'envoyer dans le chat." : " Clique sur un point pour le copier."}
       </p>
       <ul className="space-y-1.5">
@@ -58,11 +58,11 @@ export function MissingPointsPanel({ points, onInsert }: { points: string[]; onI
             <button
               type="button"
               onClick={() => pick(point, index)}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-left text-xs leading-snug text-slate-700 transition hover:border-blue-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="ui-focus min-h-11 w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-left text-xs leading-snug text-prose transition hover:border-line-strong hover:bg-white lg:min-h-0 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               {point}
               {copied === index && (
-                <span role="status" className="mt-1 block font-medium text-blue-700 dark:text-blue-300">
+                <span role="status" className="mt-1 block font-medium text-accent dark:text-blue-300">
                   {onInsert ? "✓ Ajouté au chat" : "✓ Copié"}
                 </span>
               )}

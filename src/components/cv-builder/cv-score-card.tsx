@@ -47,7 +47,7 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
     // Uniquement des <span> : la jauge peut être placée dans un bouton.
     <span className={`relative block shrink-0 ${size === "lg" ? "h-32 w-32" : "h-20 w-20"}`}>
       <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90" aria-hidden="true">
-        <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="10" className="stroke-slate-100 dark:stroke-slate-800" />
+        <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="10" className="stroke-track dark:stroke-slate-800" />
         <circle
           cx="60"
           cy="60"
@@ -63,7 +63,7 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={`font-bold ${t.text} ${size === "lg" ? "text-3xl" : "text-xl"}`}>{score}</span>
-        <span className="text-xs text-slate-500 dark:text-slate-400">sur 100</span>
+        <span className="text-xs text-muted dark:text-slate-400">sur 100</span>
       </span>
     </span>
   );
@@ -83,18 +83,18 @@ export function CvScoreDetail({ score }: { score: CvScore }) {
         return (
           <li key={category.id}>
             <p className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="font-medium text-slate-900 dark:text-white">{category.label}</span>
+              <span className="font-medium text-ink dark:text-white">{category.label}</span>
               <span className={`shrink-0 font-semibold ${SCORE_TONES[scoreTone((category.score / category.max) * 100)].text}`}>
                 {category.score}/{category.max}
               </span>
             </p>
             {incomplete && (
-              <ul className="mt-1 space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
+              <ul className="mt-1 space-y-0.5 text-xs text-prose dark:text-slate-300">
                 {lines.slice(0, DETAIL_MAX_LINES).map((c) => (
                   <li key={c.id}>{c.message}</li>
                 ))}
                 {others > 0 && (
-                  <li className="text-slate-500 dark:text-slate-400">
+                  <li className="text-muted dark:text-slate-400">
                     et {others} {others > 1 ? "autres points" : "autre point"}
                   </li>
                 )}
@@ -143,7 +143,7 @@ export function CvScorePanel({ score }: { score: CvScore }) {
 
   return (
     // z-index à l'ouverture : le détail passe au-dessus des onglets et du chat, placés après dans la page.
-    <section aria-labelledby={titleId} className={`card relative p-4 ${open ? "z-20" : ""}`}>
+    <section aria-labelledby={titleId} className={`ui-card relative p-4 ${open ? "z-20" : ""}`}>
       <div className="flex items-center gap-4">
         <div ref={rootRef} className="relative shrink-0">
           <button
@@ -154,25 +154,25 @@ export function CvScorePanel({ score }: { score: CvScore }) {
             aria-label={`Score de ${score.score} sur 100 : ${open ? "masquer" : "voir"} le détail`}
             title="Voir le détail du score"
             onClick={() => setOpen((value) => !value)}
-            className="block rounded-full transition hover:ring-2 hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none dark:hover:ring-slate-600"
+            className="block rounded-full transition hover:ring-2 hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none dark:hover:ring-slate-600 dark:focus-visible:ring-blue-500"
           >
             <ScoreGauge score={score.score} size="sm" />
           </button>
           {open && (
             <div
               id={detailId}
-              className="absolute top-full left-0 z-30 mt-2 max-h-[60vh] w-[min(20rem,calc(100vw-3.5rem))] overflow-y-auto rounded-xl bg-white p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700"
+              className="absolute top-full left-0 z-30 mt-2 max-h-[60vh] w-[min(20rem,calc(100vw-3.5rem))] overflow-y-auto rounded-block border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-900 dark:shadow-lg"
             >
               <CvScoreDetail score={score} />
             </div>
           )}
         </div>
         <div className="min-w-0">
-          <h2 id={titleId} className="font-semibold text-slate-900 dark:text-white">
+          <h2 id={titleId} className="font-semibold text-ink dark:text-white">
             Score de ton CV
           </h2>
           <p className={`text-sm font-medium ${t.text}`}>{scoreLabel(score.score)}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{READY_SCORE} = prêt à postuler</p>
+          <p className="text-xs text-muted dark:text-slate-400">{READY_SCORE} = prêt à postuler</p>
         </div>
       </div>
     </section>

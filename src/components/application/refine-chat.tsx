@@ -262,7 +262,7 @@ export function RefineChat({
   return (
     <section
       aria-labelledby="refine-title"
-      className={`card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`}
+      className={`ui-card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`}
     >
       {minimal ? (
         <h2 id="refine-title" className="sr-only">
@@ -271,13 +271,13 @@ export function RefineChat({
       ) : (
         <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
           <div>
-            <h2 id="refine-title" className="font-semibold text-slate-900 dark:text-white">
+            <h2 id="refine-title" className="font-semibold text-ink dark:text-white">
               Affiner avec l&apos;IA
             </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{texts.intro}</p>
+            <p className="mt-1 text-sm text-muted dark:text-slate-400">{texts.intro}</p>
           </div>
           {aiEnabled && (
-            <p className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
+            <p className="shrink-0 text-xs text-muted dark:text-slate-400">
               {usage.limit === null
                 ? `${used} ${used > 1 ? units.many : units.one} ce mois-ci · sans quota mensuel`
                 : `${Math.min(used, usage.limit)}/${usage.limit} ${units.many} ${units.used} ce mois-ci`}
@@ -291,16 +291,16 @@ export function RefineChat({
         role="log"
         aria-live="polite"
         aria-label="Conversation avec l'assistant"
-        className={`${fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700`}
+        className={`${fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-block border border-line bg-surface p-3 dark:border-slate-700 dark:bg-slate-800/60`}
       >
         {messages.length === 0 && !pending && !openingPending && (
-          <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{texts.empty}</p>
+          <p className="py-6 text-center text-sm text-muted dark:text-slate-400">{texts.empty}</p>
         )}
         {openingPending && (
-          <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+          <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-500">
             <span
               aria-hidden="true"
-              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
+              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-accent dark:border-slate-300 dark:border-t-blue-600"
             />
             Lecture de ton CV…
           </p>
@@ -308,7 +308,7 @@ export function RefineChat({
         {messages.map((message) =>
           message.role === "user" ? (
             <div key={message.id} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-blue-600 px-3.5 py-2 text-sm whitespace-pre-wrap text-white">
+              <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-ink px-3.5 py-2 text-sm whitespace-pre-wrap text-white dark:bg-blue-600">
                 {message.content}
               </p>
             </div>
@@ -318,7 +318,7 @@ export function RefineChat({
                 className={`max-w-[85%] rounded-2xl rounded-bl-sm ring-1 ${
                   message.error
                     ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30"
-                    : "bg-white text-slate-800 ring-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
+                    : "bg-white text-ink ring-line dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
                 } ${
                   // Coach du CV Builder (markdown) : texte plus grand et bulle plus aérée.
                   markdown && !message.error
@@ -330,14 +330,14 @@ export function RefineChat({
               </div>
               {message.premium && <PremiumButton />}
               {message.undone ? (
-                <span className="pl-1 text-xs text-slate-500">Modification annulée.</span>
+                <span className="pl-1 text-xs text-muted dark:text-slate-500">Modification annulée.</span>
               ) : (
                 message === lastUndoable &&
                 !pending && (
                   <button
                     type="button"
                     onClick={() => undo(message)}
-                    className="pl-1 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-900"
+                    className="ui-focus ui-hit relative pl-1 text-xs font-medium text-muted underline underline-offset-2 hover:text-ink dark:text-slate-500 dark:hover:text-slate-900"
                   >
                     Annuler cette modification
                   </button>
@@ -347,10 +347,10 @@ export function RefineChat({
           ),
         )}
         {pending && (
-          <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+          <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-500">
             <span
               aria-hidden="true"
-              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
+              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-accent dark:border-slate-300 dark:border-t-blue-600"
             />
             {texts.pending}
           </p>
@@ -358,7 +358,7 @@ export function RefineChat({
       </div>
 
       {minimal ? null : !aiEnabled ? (
-        <p className="text-xs text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
+        <p className="text-xs text-muted dark:text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached ? (
         <UsageLimitBanner resetLabel={resetLabel} message={limitMessage} premiumBadge={limitMessage !== undefined} />
       ) : texts.suggestions.length === 0 ? null : (
@@ -372,7 +372,7 @@ export function RefineChat({
                 setInput(suggestion);
                 inputRef.current?.focus();
               }}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-blue-500/15 dark:hover:text-blue-300"
+              className="ui-focus ui-hit relative rounded-full bg-box px-3 py-1.5 text-xs font-medium text-prose transition hover:bg-[#E9E9EB] disabled:opacity-50 dark:border dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-blue-500/15 dark:hover:text-blue-300"
             >
               {suggestion}
             </button>
@@ -406,12 +406,12 @@ export function RefineChat({
           maxLength={REFINE_MESSAGE_MAX_LENGTH}
           disabled={disabled}
           placeholder={texts.placeholder}
-          className="input min-w-0 flex-1 resize-none py-2 text-sm"
+          className="ui-input min-w-0 flex-1 resize-none py-2.5"
         />
         <button
           type="submit"
           disabled={disabled || pending || !input.trim()}
-          className="btn-primary px-4 py-2.5 text-sm"
+          className="ui-btn-primary"
         >
           {blocked ? LIMIT_REACHED_LABEL : pending ? "Envoi…" : "Envoyer"}
         </button>
@@ -422,13 +422,13 @@ export function RefineChat({
           // Après le premier message du coach, pour que sa réponse en tienne compte.
           disabled={disabled || pending || openingPending}
           onClick={() => void send(starter.message)}
-          className="self-start text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-900 disabled:opacity-50 dark:text-slate-400 dark:hover:text-white"
+          className="ui-focus ui-hit relative self-start text-xs font-medium text-muted underline underline-offset-2 hover:text-ink disabled:opacity-50 dark:text-slate-400 dark:hover:text-white"
         >
           {starter.label}
         </button>
       )}
       {!minimal && (
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-muted dark:text-slate-400">
           {texts.privacy}{" "}
           {usage.limit !== null && (
             <>

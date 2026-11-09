@@ -343,20 +343,20 @@ export function CvBuilderEditor({
     // Plein écran : la page entière sur grand écran (score et chat à gauche, aperçu à droite).
     <div className="flex flex-col lg:h-dvh">
       {/* Barre du haut : retour, menu de l'application, titre, enregistrement, téléchargement. */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-white px-3 py-2 sm:px-4 dark:border-slate-800 dark:bg-slate-900">
         <Link
           href={application ? `/candidatures/${application.id}` : "/cv-builder"}
           onClick={(e) => {
             if (!canLeave()) e.preventDefault();
           }}
-          className="btn-secondary gap-1.5 px-3 py-1.5 text-sm"
+          className="ui-btn-secondary gap-1.5 px-4 py-2 text-[13px]"
         >
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
             <path d="M12 4l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           Retour
         </Link>
-        <button type="button" onClick={openMenu} aria-haspopup="dialog" className="btn-secondary gap-1.5 px-3 py-1.5 text-sm">
+        <button type="button" onClick={openMenu} aria-haspopup="dialog" className="ui-btn-secondary gap-1.5 px-4 py-2 text-[13px]">
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
             <path d="M3 5h14M3 10h14M3 15h14" strokeLinecap="round" />
           </svg>
@@ -372,21 +372,21 @@ export function CvBuilderEditor({
               setStatus("pending");
               setTitle(value);
             }}
-            className="min-w-0 flex-1 basis-40 rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-bold tracking-tight text-slate-900 hover:border-slate-200 focus:border-blue-500 focus:outline-none dark:text-white dark:hover:border-slate-700"
+            className="min-h-11 min-w-0 flex-1 basis-40 rounded-xl border border-transparent bg-transparent px-2 py-1 text-lg font-bold tracking-title text-ink hover:border-line focus:border-accent focus:outline-none lg:min-h-0 dark:text-white dark:hover:border-slate-700"
           />
         </FieldEditingContext>
         <p
           role="status"
-          className={`text-sm ${status === "error" ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}
+          className={`text-[13px] ${status === "error" ? "text-red-600 dark:text-red-400" : "text-muted dark:text-slate-400"}`}
         >
           {SAVE_LABELS[status]}
         </p>
-        <button type="button" onClick={download} disabled={downloading} className="btn-primary px-4 py-2 text-sm">
+        <button type="button" onClick={download} disabled={downloading} className="ui-btn-primary px-5 py-2.5 text-[13px]">
           {downloading ? "Génération du PDF…" : "Télécharger en PDF"}
         </button>
       </div>
       {saveError && (
-        <p role="alert" className="mx-3 mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 sm:mx-4 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30">
+        <p role="alert" className="ui-notice-error mx-3 mt-3 px-4 py-3 text-sm sm:mx-4">
           {saveError}
         </p>
       )}
@@ -397,7 +397,7 @@ export function CvBuilderEditor({
           <div className="shrink-0">
             <CvScorePanel score={score} />
           </div>
-          <div role="tablist" aria-label="Panneau de l'éditeur" className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+          <div role="tablist" aria-label="Panneau de l'éditeur" className="flex shrink-0 flex-wrap gap-1.5">
             {tabs.map(([id, label]) => (
               <button
                 key={id}
@@ -407,10 +407,10 @@ export function CvBuilderEditor({
                 aria-selected={tab === id}
                 aria-controls={`panel-${id}`}
                 onClick={() => setTab(id)}
-                className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                className={`ui-focus ui-hit relative rounded-full px-3.5 py-2 text-[13px] leading-[18px] whitespace-nowrap transition-colors ${
                   tab === id
-                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                    ? "bg-ink font-semibold text-white dark:bg-white dark:text-slate-900"
+                    : "bg-box font-medium text-prose hover:bg-[#E9E9EB] dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
                 {label}
@@ -420,7 +420,7 @@ export function CvBuilderEditor({
           {/* Chat masqué (pas démonté) pendant l'onglet Style : la conversation en cours est gardée. */}
           <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" className={tab === "chat" ? "contents" : "hidden"}>
             {coachHistory === null ? (
-              <p role="status" className="card p-5 text-sm text-slate-500 dark:text-slate-400">
+              <p role="status" className="ui-card p-5 text-sm text-muted dark:text-slate-400">
                 Chargement de la conversation…
               </p>
             ) : (
@@ -471,12 +471,12 @@ export function CvBuilderEditor({
             )}
           </div>
           {tab === "content" && (
-            <div id="panel-content" role="tabpanel" aria-labelledby="tab-content" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+            <div id="panel-content" role="tabpanel" aria-labelledby="tab-content" className="ui-card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <CvContentPanel data={data} onChange={edit} onLimit={showLineLimit} />
             </div>
           )}
           {tab === "keywords" && (
-            <div id="panel-keywords" role="tabpanel" aria-labelledby="tab-keywords" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+            <div id="panel-keywords" role="tabpanel" aria-labelledby="tab-keywords" className="ui-card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               {keywordMatch ? (
                 <MissingKeywordsPanel match={keywordMatch} onInsert={insertInChat} />
               ) : (
@@ -485,7 +485,7 @@ export function CvBuilderEditor({
             </div>
           )}
           {tab === "style" && (
-            <div id="panel-style" role="tabpanel" aria-labelledby="tab-style" className="card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+            <div id="panel-style" role="tabpanel" aria-labelledby="tab-style" className="ui-card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <CvStylePanel
                 templateId={templateId}
                 accent={data.style.accent}
@@ -502,16 +502,16 @@ export function CvBuilderEditor({
         </div>
 
         {/* Aperçu : toute la hauteur disponible sur grand écran. */}
-        <section aria-label="Aperçu du CV" className="card flex h-[80vh] flex-col overflow-hidden lg:h-auto lg:min-h-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-xs dark:border-slate-700">
-            <p role="status" className={lineLimit ? "font-medium text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}>
+        <section aria-label="Aperçu du CV" className="ui-card flex h-[80vh] flex-col overflow-hidden lg:h-auto lg:min-h-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft px-5 py-3 text-xs dark:border-slate-700">
+            <p role="status" className={lineLimit ? "font-medium text-amber-700 dark:text-amber-300" : "text-muted dark:text-slate-400"}>
               {lineLimit ?? "Clique sur un texte de l'aperçu pour le modifier."}
             </p>
-            <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
+            <p className={pages > 1 ? "font-medium text-rose-600 dark:text-rose-400" : "text-muted dark:text-slate-400"}>
               {pages > 1 ? `Environ ${pages} pages` : "1 page"}
             </p>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-4 dark:bg-slate-800/60">
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-b-card bg-[#F7F7F8] p-4 dark:bg-slate-800/60">
             <CvHtmlPreview
               data={data}
               templateId={templateId}
@@ -526,7 +526,7 @@ export function CvBuilderEditor({
         </section>
       </div>
       {lineLimit && (
-        <p aria-hidden="true" className="fixed inset-x-4 bottom-4 z-40 rounded-xl bg-amber-100 px-4 py-2 text-center text-sm font-medium text-amber-900 shadow-lg lg:hidden dark:bg-amber-900 dark:text-amber-100">
+        <p aria-hidden="true" className="fixed inset-x-4 bottom-4 z-40 rounded-2xl border border-amber-300 bg-amber-100 px-4 py-2.5 text-center text-sm font-medium text-amber-900 lg:hidden dark:border-amber-700 dark:bg-amber-900 dark:text-amber-100">
           {lineLimit}
         </p>
       )}

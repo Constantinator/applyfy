@@ -1,0 +1,80 @@
+// Design « noir + bleu » de l'éditeur du CV Builder et de la page lettre. Lancé par `npm test`.
+// Le mode sombre n'est pas concerné (classes dark: laissées telles quelles), ni les couleurs des
+// CV eux-mêmes (modèles, pastilles d'accent), écrites en valeurs et non en classes.
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+
+/** Fichiers passés au nouveau design, ajoutés commit par commit. */
+const FILES = [
+  "components/cv-builder/cv-builder-editor.tsx",
+  "components/application/refine-chat.tsx",
+  "components/cv-builder/cv-score-card.tsx",
+  "components/application/missing-points-panel.tsx",
+];
+
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const withoutComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+
+/** Classes du mode clair : jetons des chaînes de classes, sans ceux qui portent la variante dark:. */
+function lightClasses(path) {
+  const strings = withoutComments(read(path)).match(/(["'`])(?:(?!\1)[^\\]|\\.)*\1/g) ?? [];
+  return strings
+    .flatMap((literal) => literal.slice(1, -1).split(/[\s"'`{}$]+/))
+    .filter(Boolean)
+    .filter((token) => !token.split(":").slice(0, -1).includes("dark"));
+}
+const base = (token) => token.split(":").pop();
+const offenders = (rule) => FILES.flatMap((path) => lightClasses(path).filter(rule).map((token) => `${path} : ${token}`));
+
+test("éditeur et lettre : plus d'ancien bleu (blue-600 vaut #1E40AF dans le thème), ni slate, indigo ou violet", () => {
+  assert.deepEqual(offenders((token) => /^-?[a-z-]+-(?:blue|slate|indigo|violet)-\d{2,3}(?:\/\d+)?$/.test(base(token))), []);
+  assert.deepEqual(FILES.filter((path) => /\[#1e40af\]|--color-blue-600/i.test(read(path))), []);
+});
+
+test("éditeur et lettre : anciennes classes card, btn-* et input remplacées par les classes ui-*", () => {
+  const legacy = /^(?:card|input|btn-primary|btn-secondary|btn-danger)$/;
+  // Une chaîne d'un seul mot hors className est une valeur (size="card"), pas une classe.
+  const words = (path) =>
+    (withoutComments(read(path)).match(/(["'`])(?:(?!\1)[^\\]|\\.)*\1/g) ?? []).filter((literal) => /\s/.test(literal.slice(1, -1)));
+  const found = FILES.flatMap((path) =>
+    words(path)
+      .flatMap((literal) => literal.slice(1, -1).split(/[\s"'`{}$]+/))
+      .filter((token) => legacy.test(base(token)) && !token.startsWith("dark:"))
+      .map((token) => `${path} : ${token}`),
+  );
+  const single = FILES.filter((path) => /className=(["'`])(?:card|input|btn-primary|btn-secondary|btn-danger)\1/.test(read(path)));
+  assert.deepEqual([...found, ...single], []);
+});
+
+test("éditeur et lettre : aucune ombre ni dégradé (impression mise à part)", () => {
+  assert.deepEqual(
+    offenders((token) => /^(?:shadow(?!-none$)|bg-gradient|bg-linear|from-|via-)/.test(base(token)) && !token.startsWith("print:")),
+    [],
+  );
+});
+
+test("onglets de l'éditeur : pilules, inactives lisibles, cible de 44 px sur mobile", () => {
+  const editor = read("components/cv-builder/cv-builder-editor.tsx");
+  const tab = /role="tab"[\s\S]*?className=\{`([^`]*)`/.exec(editor)?.[1] ?? "";
+  assert.match(tab, /ui-hit/);
+  assert.match(tab, /rounded-full/);
+  // Inactif : texte #3F3F46 (prose) sur #F4F4F5 (box), contraste de 9,7:1.
+  assert.match(tab, /bg-box font-medium text-prose/);
+});
+
+test("aperçu du CV : feuille blanche sur fond gris très léger", () => {
+  assert.match(read("components/cv-builder/cv-builder-editor.tsx"), /bg-\[#F7F7F8\] p-4/);
+});
+
+test("bandeaux d'avertissement : ambre et rose gardés, bandeau mobile bordé pour rester visible", () => {
+  const editor = read("components/cv-builder/cv-builder-editor.tsx");
+  assert.match(editor, /text-amber-700/);
+  assert.match(editor, /text-rose-600/);
+  assert.match(editor, /fixed inset-x-4 bottom-4 z-40 rounded-2xl border border-amber-300 bg-amber-100/);
+});
+
+test("score : couleurs de la jauge inchangées (rouge, orange, vert)", () => {
+  const score = read("components/cv-builder/cv-score-card.tsx");
+  for (const color of ["#dc2626", "#f97316", "#16a34a"]) assert.ok(score.includes(color), color);
+});
