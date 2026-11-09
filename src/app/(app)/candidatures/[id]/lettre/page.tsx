@@ -45,11 +45,11 @@ export default async function CoverLetterPage({ params, searchParams }: PageProp
       className={`${cvFontVariables} mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-10 lg:py-10 print:max-w-none print:space-y-0 print:p-0`}
     >
       <div className="space-y-1 print:hidden">
-        <Link href={`/candidatures/${app.id}`} className="text-sm text-slate-500 hover:text-slate-900">
+        <Link href={`/candidatures/${app.id}`} className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink">
           Retour à la candidature {app.company}
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Ma lettre de motivation</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="pt-3 text-[32px] leading-[1.1] font-bold tracking-[-0.035em] text-ink sm:text-[36px]">Ma lettre de motivation</h1>
+        <p className="text-sm text-muted">
           Pour le poste « {app.position} » chez {app.company}.
         </p>
       </div>

@@ -108,11 +108,11 @@ function StylePanel({
   listType: CvListState;
   onListType: (type: CvListState) => void;
 }) {
-  const sectionTitle = "text-xs font-semibold tracking-wide text-slate-500 uppercase";
+  const sectionTitle = "text-xs font-semibold tracking-wide text-muted uppercase";
   const config = EDITOR_KINDS[kind];
   return (
-    <aside aria-label="Mise en forme du document" className="card space-y-6 p-5 print:hidden">
-      <h2 className="font-semibold text-slate-900">Mise en forme</h2>
+    <aside aria-label="Mise en forme du document" className="ui-card space-y-6 p-5 print:hidden">
+      <h2 className="font-semibold text-ink">Mise en forme</h2>
 
       <div className="space-y-2">
         <label htmlFor="cv-font" className={`block ${sectionTitle}`}>
@@ -126,7 +126,7 @@ function StylePanel({
           <label htmlFor="cv-size" className={sectionTitle}>
             Taille
           </label>
-          <output htmlFor="cv-size" className="text-sm font-semibold text-slate-900 tabular-nums">
+          <output htmlFor="cv-size" className="text-sm font-semibold text-ink tabular-nums">
             {px(style.fontSize)}
           </output>
         </div>
@@ -138,9 +138,9 @@ function StylePanel({
           step={CV_FONT_SIZE_STEP}
           value={style.fontSize}
           onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
-          className="w-full accent-blue-600"
+          className="h-11 w-full accent-accent lg:h-auto"
         />
-        <div className="flex justify-between text-[11px] text-slate-400">
+        <div className="flex justify-between text-[11px] text-muted">
           <span>{px(CV_FONT_SIZE_MIN)}</span>
           <span>{px(CV_FONT_SIZE_MAX)}</span>
         </div>
@@ -166,10 +166,8 @@ function StylePanel({
                 aria-pressed={active}
                 aria-label={title}
                 title={title}
-                className={`h-9 rounded-md border text-sm font-medium transition ${
-                  active
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                className={`ui-focus h-11 rounded-xl border text-sm font-medium transition lg:h-9 ${
+                  active ? "border-ink bg-ink text-white" : "border-line text-ink hover:border-line-strong hover:bg-surface"
                 }`}
               >
                 {label}
@@ -177,14 +175,14 @@ function StylePanel({
             );
           })}
         </div>
-        <label htmlFor="cv-list-type" className="block pt-1 text-xs font-medium text-slate-600">
+        <label htmlFor="cv-list-type" className="block pt-1 text-xs font-medium text-prose">
           Type de liste
         </label>
         <select
           id="cv-list-type"
           value={listType ?? NO_LIST}
           onChange={(e) => onListType(e.target.value === NO_LIST ? null : (e.target.value as CvListType))}
-          className="input py-2 text-sm"
+          className="ui-input"
         >
           {(Object.keys(CV_LIST_TYPES) as CvListType[]).map((type) => (
             <option key={type} value={type}>
@@ -193,7 +191,7 @@ function StylePanel({
           ))}
           <option value={NO_LIST}>Sans liste</option>
         </select>
-        <p className="text-xs text-slate-500">S&apos;applique au texte sélectionné {config.inDocument}.</p>
+        <p className="text-xs text-muted">S&apos;applique au texte sélectionné {config.inDocument}.</p>
       </div>
 
       <fieldset className="space-y-2">
@@ -209,15 +207,15 @@ function StylePanel({
                 aria-pressed={selected}
                 aria-label={CV_ACCENTS[accent].label}
                 title={CV_ACCENTS[accent].label}
-                className={`h-8 w-8 rounded-full ring-offset-2 transition ${
-                  selected ? "ring-2 ring-slate-900" : "ring-1 ring-slate-200 hover:ring-slate-400"
+                className={`ui-focus h-11 w-11 rounded-full ring-offset-2 transition lg:h-8 lg:w-8 ${
+                  selected ? "ring-2 ring-ink" : "ring-1 ring-line hover:ring-line-strong"
                 }`}
                 style={{ backgroundColor: CV_ACCENTS[accent].value }}
               />
             );
           })}
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           {CV_ACCENTS[style.accent].label} · {config.accentHint}
         </p>
       </fieldset>
@@ -226,7 +224,7 @@ function StylePanel({
       <button
         type="button"
         onClick={() => onChange(config.defaultStyle)}
-        className="btn-secondary w-full px-3 py-2 text-sm"
+        className="ui-btn-secondary w-full"
       >
         Réinitialiser
       </button>
@@ -449,20 +447,20 @@ export function CvEditor({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start print:block">
       <div className="min-w-0 space-y-4 print:space-y-0">
-        <div className="sticky top-16 z-10 flex flex-wrap lg:top-18 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur print:hidden">
+        <div className="sticky top-16 z-10 flex flex-wrap items-center gap-2 rounded-block border border-line bg-white p-2 lg:top-18 print:hidden">
           {/* Affichage seulement : masquer les surlignages ne modifie pas le document. */}
-          <label className="flex cursor-pointer items-center gap-2 px-2 text-sm text-slate-700">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 px-2 text-sm text-ink lg:min-h-0">
             <input
               type="checkbox"
               checked={showMarks}
               onChange={(e) => setShowMarks(e.target.checked)}
-              className="accent-blue-600"
+              className="accent-accent"
             />
             {config.marksToggle}
           </label>
 
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden text-xs text-slate-500 sm:inline" aria-live="polite">
+            <span className="hidden text-xs text-muted sm:inline" aria-live="polite">
               {saving
                 ? "Enregistrement…"
                 : dirty
@@ -477,24 +475,24 @@ export function CvEditor({
               type="button"
               onClick={save}
               disabled={saving || !dirty || refining}
-              className="btn-secondary px-3 py-1.5 text-sm"
+              className="ui-btn-secondary px-4 py-2 text-[13px]"
             >
               Enregistrer
             </button>
-            <button type="button" onClick={exportPdf} className="btn-primary px-3 py-1.5 text-sm">
+            <button type="button" onClick={exportPdf} className="ui-btn-primary px-4 py-2 text-[13px]">
               Générer le PDF
             </button>
           </div>
         </div>
 
         {error && (
-          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200 print:hidden">
+          <p role="alert" className="ui-notice-error px-4 py-3 text-sm print:hidden">
             {error}
           </p>
         )}
 
         <div className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between print:hidden">
-          <p className="text-slate-500">
+          <p className="text-muted">
             <mark className="rounded bg-yellow-200 px-1">Surligné</mark> = {config.marksHint}. « Générer le PDF » ouvre l&apos;impression : choisis « Enregistrer
             au format PDF ».
           </p>
@@ -509,8 +507,9 @@ export function CvEditor({
         </div>
 
         {/* Page A4 éditable — mêmes dimensions qu'à l'impression */}
-        <div className="overflow-x-auto pb-2 print:overflow-visible print:pb-0">
-          <div className="relative mx-auto w-[210mm] bg-white shadow-lg ring-1 ring-slate-200 print:shadow-none print:ring-0">
+        {/* Feuille blanche sur fond gris très léger, comme l'aperçu du CV Builder. */}
+        <div className="overflow-x-auto rounded-card bg-[#F7F7F8] p-4 print:overflow-visible print:rounded-none print:bg-transparent print:p-0">
+          <div className="relative mx-auto w-[210mm] bg-white ring-1 ring-line print:ring-0">
             <div
               ref={editorRef}
               contentEditable={!refining}
@@ -532,7 +531,7 @@ export function CvEditor({
                   "--cv-accent": CV_ACCENTS[style.accent].value,
                 } as React.CSSProperties
               }
-              className={`cv-document min-h-[297mm] outline-none focus-visible:ring-2 focus-visible:ring-blue-300 print:min-h-0 ${config.documentClassName} ${
+              className={`cv-document min-h-[297mm] outline-none focus-visible:ring-2 focus-visible:ring-accent/40 print:min-h-0 ${config.documentClassName} ${
                 showMarks ? "[&_mark]:rounded-sm [&_mark]:bg-yellow-200" : "[&_mark]:bg-transparent"
               } [&_mark]:text-inherit print:[&_mark]:bg-transparent`}
             />

@@ -15,9 +15,13 @@ const FILES = [
   "components/application/font-combobox.tsx",
   "components/cv-builder/cv-content-panel.tsx",
   "components/cv-builder/form-controls.tsx",
+  "components/application/cv-editor.tsx",
+  "app/(app)/candidatures/[id]/lettre/page.tsx",
 ];
 
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+// Rendu de la lettre elle-même (texte du document, comme un modèle de CV) : hors du design de l'interface.
+const read = (path) => source(path).replace(/const letterStyles = \[[\s\S]*?\]\.join\(" "\);/, "");
 const withoutComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
 /** Classes du mode clair : jetons des chaînes de classes, sans ceux qui portent la variante dark:. */
@@ -97,4 +101,17 @@ test("formulaire du CV : boutons d'icône et de suppression de 44 px sur mobile"
   assert.match(controls, /const iconButton =\s*"[^"]*min-h-11 min-w-11/);
   assert.match(content, /const removeButton =\s*"[^"]*min-h-11 min-w-11/);
   assert.match(content, /const arrow =\s*"[^"]*min-h-11 min-w-11/);
+});
+
+test("lettre : rendu du document inchangé (couleurs du texte de la lettre)", () => {
+  const editor = source("components/application/cv-editor.tsx");
+  assert.match(editor, /const letterStyles = \[\s*"text-slate-800 leading-\[1\.4\]",/);
+  assert.match(editor, /\[&_h1\+p\]:text-slate-600/);
+});
+
+test("lettre : feuille sur fond #F7F7F8 sans ombre, surlignage jaune gardé, page toujours en clair", () => {
+  const editor = read("components/application/cv-editor.tsx");
+  assert.match(editor, /rounded-card bg-\[#F7F7F8\] p-4 print:overflow-visible print:rounded-none print:bg-transparent print:p-0/);
+  assert.match(editor, /\[&_mark\]:bg-yellow-200/);
+  assert.match(read("app/(app)/candidatures/[id]/lettre/page.tsx"), /data-theme-off/);
 });
