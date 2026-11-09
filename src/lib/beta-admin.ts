@@ -2,10 +2,12 @@ import "server-only";
 
 import { listAllUsers } from "./admin-metrics";
 import {
-  BETA_MAX_TESTERS,
+  BETA_PREMIUM_UNTIL,
   BETA_REPORTS,
+  betaAddOutcome,
   reportDeadline,
   reportStatus,
+  type BetaAddOutcome,
   type BetaReportAnswers,
   type BetaReportStatus,
   type BetaStatus,
@@ -15,7 +17,7 @@ import { isEmailConfigured, sendEmail } from "./email/brevo";
 import { createAdminClient } from "./supabase/admin";
 
 // Tableau de bord des beta testeurs (/admin/beta) : lecture de tous les testeurs et
-// rapports, retrait d'accès et messages par email. Client service_role, à n'appeler
+// rapports, ajout manuel, réactivation, retrait d'accès et messages par email. Client service_role, à n'appeler
 // qu'après requireAdmin().
 
 export type BetaTesterReport = {
@@ -135,35 +137,86 @@ export async function removeBetaAccess(userId: string) {
   return (data ?? []).length > 0;
 }
 
-/**
- * Réactive un testeur suspendu. Le calendrier des rapports repart d'aujourd'hui (joined_at) :
- * sans cela, le rapport manqué resterait en retard et la tâche quotidienne le suspendrait de
- * nouveau. Les rapports déjà soumis restent acquis ; les rappels J-2 repartent à zéro.
- * Retourne « complet » si les places actives sont toutes prises.
- */
-export async function reactivateBetaTester(userId: string): Promise<"ok" | "pas_suspendu" | "complet"> {
-  const supabase = createAdminClient();
-  const { count, error: countError } = await supabase
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/** Nombre de testeurs actifs (affiché à l'admin après un ajout : dépassement éventuel). */
+async function countActiveTesters(supabase: AdminClient) {
+  const { count, error } = await supabase
     .from("beta_testers")
     .select("user_id", { count: "exact", head: true })
     .eq("status", "active");
-  if (countError) throw new Error(`Lecture des beta testeurs impossible : ${countError.message}`);
-  if ((count ?? 0) >= BETA_MAX_TESTERS) return "complet";
+  if (error) throw new Error(`Lecture des beta testeurs impossible : ${error.message}`);
+  return count ?? 0;
+}
 
+/**
+ * Remet un testeur suspendu ou retiré en actif, mêmes droits qu'une inscription normale. Le
+ * calendrier des rapports repart d'aujourd'hui (joined_at) : sans cela, le rapport manqué
+ * resterait en retard et la tâche quotidienne le suspendrait de nouveau. Les rapports déjà
+ * soumis restent acquis ; les rappels J-2 repartent à zéro. Faux s'il était déjà actif.
+ */
+async function restartBetaAccess(supabase: AdminClient, userId: string) {
   const { data, error } = await supabase
     .from("beta_testers")
     .update({
       status: "active",
       joined_at: new Date().toISOString(),
+      premium_until: BETA_PREMIUM_UNTIL,
       reminders_sent: [],
       suspended_at: null,
       suspension_reason: null,
     })
     .eq("user_id", userId)
-    .eq("status", "suspended")
+    .neq("status", "active")
     .select("user_id");
   if (error) throw new Error(`Réactivation impossible : ${error.message}`);
-  return (data ?? []).length > 0 ? "ok" : "pas_suspendu";
+  return (data ?? []).length > 0;
+}
+
+/** Trace dans les logs (Vercel) : ids et date, jamais d'email en clair. */
+function logBetaAdd(adminId: string, userId: string, outcome: BetaAddOutcome) {
+  console.info(`[beta-admin] ${outcome} admin=${adminId} compte=${userId} date=${new Date().toISOString()}`);
+}
+
+/**
+ * « Réactiver » (suspendu ou retiré). L'admin peut dépasser les places : pas de limite ici.
+ * Retourne le résultat et le nombre de testeurs actifs ensuite.
+ */
+export async function reactivateBetaTester(adminId: string, userId: string) {
+  const supabase = createAdminClient();
+  const outcome: BetaAddOutcome = (await restartBetaAccess(supabase, userId)) ? "reactive" : "deja_actif";
+  if (outcome === "reactive") logBetaAdd(adminId, userId, outcome);
+  return { outcome, activeCount: await countActiveTesters(supabase) };
+}
+
+/**
+ * « Ajouter à la beta » par l'email d'un compte existant : ajout, ou réactivation s'il avait
+ * été suspendu ou retiré. Aucun compte n'est jamais créé, aucun email n'est envoyé.
+ */
+export async function addBetaTesterByEmail(adminId: string, email: string) {
+  const supabase = createAdminClient();
+  const wanted = email.trim().toLowerCase();
+  const account = (await listAllUsers(supabase)).find((u) => u.email?.toLowerCase() === wanted) ?? null;
+
+  let status: BetaStatus | null = null;
+  if (account) {
+    const { data, error } = await supabase.from("beta_testers").select("status").eq("user_id", account.id).maybeSingle();
+    if (error) throw new Error(`Lecture des beta testeurs impossible : ${error.message}`);
+    status = (data?.status as BetaStatus | undefined) ?? null;
+  }
+
+  let outcome = betaAddOutcome(Boolean(account), status);
+  if (!account || outcome === "deja_actif") return { outcome, activeCount: await countActiveTesters(supabase) };
+
+  if (outcome === "ajoute") {
+    // Valeurs par défaut de la table : actif, inscrit aujourd'hui, Premium jusqu'au 31/12/2026.
+    const { error } = await supabase.from("beta_testers").insert({ user_id: account.id, premium_until: BETA_PREMIUM_UNTIL });
+    if (error) throw new Error(`Ajout impossible : ${error.message}`);
+  } else if (!(await restartBetaAccess(supabase, account.id))) {
+    outcome = "deja_actif"; // réactivé entre-temps (double clic)
+  }
+  if (outcome !== "deja_actif") logBetaAdd(adminId, account.id, outcome);
+  return { outcome, activeCount: await countActiveTesters(supabase) };
 }
 
 /**

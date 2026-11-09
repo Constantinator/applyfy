@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
-import { BetaMessageForm, ReactivateBetaButton, RemoveBetaButton } from "@/components/admin/beta-admin-controls";
+import {
+  AddBetaTesterForm,
+  BetaMessageForm,
+  ReactivateBetaButton,
+  RemoveBetaButton,
+} from "@/components/admin/beta-admin-controls";
 import { AdminThread, BroadcastMessageForm } from "@/components/beta/beta-messages";
 import { requireAdmin } from "@/lib/admin-metrics";
 import { betaActivity, listBetaTesters, type BetaActivity } from "@/lib/beta-admin";
@@ -13,6 +18,7 @@ import {
   BETA_REPORTS,
   BETA_STATUS_LABELS,
   formatAnswer,
+  isOverCapacity,
   type BetaReportStatus,
   type BetaStatus,
 } from "@/lib/beta-rules";
@@ -112,6 +118,11 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
               {active.length}
               <span className="text-base font-medium text-muted"> / {BETA_MAX_TESTERS}</span>
             </p>
+            {isOverCapacity(active.length) && (
+              <p className="mt-1 text-xs font-medium text-amber-700">
+                Dépassement : {active.length - BETA_MAX_TESTERS} au-delà des places, inscriptions publiques fermées.
+              </p>
+            )}
           </div>
           <div className="ui-card-soft p-5">
             <p className="text-[13px] text-muted">Suspendus ou retirés</p>
@@ -124,6 +135,15 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
             <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">{submittedCount}</p>
           </div>
         </div>
+
+        <section aria-labelledby="beta-ajout" className="space-y-3">
+          <h2 id="beta-ajout" className="ui-title-sm">
+            Ajouter un beta testeur
+          </h2>
+          <div className="ui-card p-5 sm:p-7">
+            <AddBetaTesterForm />
+          </div>
+        </section>
 
         {/* Notifications : rapports soumis, en retard, suspensions (30 derniers jours) */}
         <section aria-labelledby="beta-activite" className="space-y-3">
@@ -232,7 +252,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
                             Email
                           </Link>
                         </div>
-                        {t.status === "suspended" && <ReactivateBetaButton userId={t.userId} email={t.email} />}
+                        {t.status !== "active" && <ReactivateBetaButton userId={t.userId} email={t.email} />}
                         {t.status !== "removed" && <RemoveBetaButton userId={t.userId} email={t.email} />}
                       </td>
                     </tr>

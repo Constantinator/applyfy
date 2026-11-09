@@ -16,6 +16,34 @@ export const BETA_REMINDER_DAYS_BEFORE = 2;
 
 export type BetaStatus = "active" | "suspended" | "removed";
 
+/**
+ * Ajout manuel par l'admin (/admin/beta) : « introuvable » (aucun compte, rien n'est créé),
+ * « ajoute » (pas encore testeur), « reactive » (suspendu ou retiré), « deja_actif ».
+ */
+export type BetaAddOutcome = "introuvable" | "ajoute" | "reactive" | "deja_actif";
+
+export function betaAddOutcome(accountExists: boolean, status: BetaStatus | null): BetaAddOutcome {
+  if (!accountExists) return "introuvable";
+  if (status === null) return "ajoute";
+  return status === "active" ? "deja_actif" : "reactive";
+}
+
+/** L'admin peut dépasser les places : les inscriptions publiques restent alors fermées. */
+export function isOverCapacity(activeCount: number) {
+  return activeCount > BETA_MAX_TESTERS;
+}
+
+/** Message affiché à l'admin après un ajout ou une réactivation. */
+export function betaAddMessage(outcome: BetaAddOutcome, email: string, activeCount: number): string {
+  if (outcome === "introuvable") return `Aucun compte Applyfy n'utilise l'adresse ${email}. Aucun compte n'a été créé.`;
+  if (outcome === "deja_actif") return `${email} est déjà beta testeur actif.`;
+  const verb = outcome === "ajoute" ? "ajouté à la beta" : "réactivé dans la beta";
+  const over = isOverCapacity(activeCount)
+    ? ` Attention : ${activeCount} testeurs actifs pour ${BETA_MAX_TESTERS} places (dépassement), les inscriptions publiques restent fermées.`
+    : "";
+  return `${email} ${verb} : Premium jusqu'au ${BETA_PREMIUM_UNTIL_LABEL}, rapports à partir d'aujourd'hui.${over}`;
+}
+
 export const BETA_STATUS_LABELS: Record<BetaStatus, string> = {
   active: "Actif",
   suspended: "Suspendu",

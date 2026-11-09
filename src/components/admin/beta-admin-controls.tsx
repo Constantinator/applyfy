@@ -2,7 +2,13 @@
 
 import { useState, useTransition } from "react";
 
-import { reactivateBetaTesterAction, removeBetaAccessAction, sendBetaMessageAction } from "@/app/actions/beta-admin";
+import {
+  addBetaTesterAction,
+  reactivateBetaTesterAction,
+  removeBetaAccessAction,
+  sendBetaMessageAction,
+} from "@/app/actions/beta-admin";
+import { BETA_PREMIUM_UNTIL_LABEL } from "@/lib/beta-rules";
 
 /** Formulaire « Envoyer un message » : à un beta testeur ou à tous les testeurs actifs. */
 export function BetaMessageForm({
@@ -139,7 +145,7 @@ export function RemoveBetaButton({ userId, email }: { userId: string; email: str
   );
 }
 
-/** « Réactiver » un testeur suspendu, avec confirmation (le calendrier des rapports repart à zéro). */
+/** « Réactiver » un testeur suspendu ou retiré, avec confirmation (le calendrier des rapports repart à zéro). */
 export function ReactivateBetaButton({ userId, email }: { userId: string; email: string }) {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,7 +174,7 @@ export function ReactivateBetaButton({ userId, email }: { userId: string; email:
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const result = await reactivateBetaTesterAction(userId);
+              const result = await reactivateBetaTesterAction(userId, email);
               if (!result.ok) setError(result.error);
             })
           }
@@ -182,5 +188,61 @@ export function ReactivateBetaButton({ userId, email }: { userId: string; email:
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}
     </div>
+  );
+}
+
+/** « Ajouter à la beta » : compte existant retrouvé par son email (ajout ou réactivation). */
+export function AddBetaTesterForm() {
+  const [email, setEmail] = useState("");
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setResult(null);
+    startTransition(async () => {
+      const response = await addBetaTesterAction(email);
+      if (response.ok) {
+        setResult({ ok: true, text: response.message });
+        setEmail("");
+      } else {
+        setResult({ ok: false, text: response.error });
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <div className="space-y-1.5">
+        <label htmlFor="beta-add-email" className="text-sm font-medium text-ink">
+          E-mail du compte
+        </label>
+        <div className="flex flex-wrap gap-3">
+          <input
+            id="beta-add-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            maxLength={254}
+            required
+            autoComplete="off"
+            placeholder="prenom@exemple.fr"
+            className="ui-input min-h-11 min-w-0 flex-1 basis-64 py-2"
+          />
+          <button type="submit" disabled={pending} className="ui-btn-primary">
+            {pending ? "Ajout…" : "Ajouter à la beta"}
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-muted">
+        Compte existant uniquement. Ajout ou réactivation : Premium jusqu&apos;au {BETA_PREMIUM_UNTIL_LABEL}, rapports à partir
+        d&apos;aujourd&apos;hui, aucun email envoyé. Possible même si les places sont prises.
+      </p>
+      {result && (
+        <p role={result.ok ? "status" : "alert"} className={`text-sm ${result.ok ? "text-ink" : "text-red-700"}`}>
+          {result.text}
+        </p>
+      )}
+    </form>
   );
 }
