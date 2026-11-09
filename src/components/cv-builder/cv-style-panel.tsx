@@ -90,7 +90,7 @@ function FittedThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
   }, []);
 
   return (
-    <div ref={ref} aria-hidden="true" className="aspect-[210/297] overflow-hidden border-b border-slate-100 bg-white dark:border-slate-800">
+    <div ref={ref} aria-hidden="true" className="aspect-[210/297] overflow-hidden border-b border-line-soft bg-white dark:border-slate-800">
       {width > 0 && <CvThumbnail data={data} templateId={id} width={width} />}
     </div>
   );
@@ -123,14 +123,14 @@ export function TemplateGrid({
                 onClick={() => onSelect(t.id)}
                 aria-pressed={active}
                 title={t.description}
-                className={`flex w-full flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition dark:bg-slate-900 ${
+                className={`ui-focus flex w-full flex-col overflow-hidden rounded-block border-2 bg-white text-left transition dark:bg-slate-900 ${
                   active
-                    ? "border-blue-600 ring-2 ring-blue-100 dark:ring-blue-500/20"
-                    : "border-slate-200 hover:border-blue-300 dark:border-slate-700"
+                    ? "border-ink dark:border-blue-600 dark:ring-2 dark:ring-blue-500/20"
+                    : "border-line hover:border-line-strong dark:border-slate-700 dark:hover:border-blue-300"
                 }`}
               >
                 <FittedThumbnail id={t.id} accent={accent} />
-                <span className="px-2 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">{t.name}</span>
+                <span className={`px-2.5 py-2 text-xs text-ink dark:text-slate-200 ${active ? "font-semibold" : "font-medium"}`}>{t.name}</span>
               </button>
             </li>
           );
@@ -164,14 +164,14 @@ export function CvStylePanel({
   return (
     <div className="space-y-6">
       <section aria-labelledby={templateTitle} className="space-y-3">
-        <h2 id={templateTitle} className="font-semibold text-slate-900 dark:text-white">
+        <h2 id={templateTitle} className="font-semibold text-ink dark:text-white">
           Template
         </h2>
         <TemplateGrid selected={templateId} accent={accent} onSelect={onTemplate} />
       </section>
 
       <section aria-labelledby={accentTitle} className="space-y-3">
-        <h2 id={accentTitle} className="font-semibold text-slate-900 dark:text-white">
+        <h2 id={accentTitle} className="font-semibold text-ink dark:text-white">
           Couleur d&apos;accent
         </h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -185,20 +185,20 @@ export function CvStylePanel({
                 aria-pressed={active}
                 aria-label={c.label}
                 title={c.label}
-                className={`h-8 w-8 rounded-full ring-offset-2 transition dark:ring-offset-slate-900 ${
-                  active ? "ring-2 ring-blue-600" : "ring-1 ring-slate-200 hover:ring-slate-400 dark:ring-slate-700"
+                className={`ui-focus h-11 w-11 rounded-full ring-offset-2 transition lg:h-8 lg:w-8 dark:ring-offset-slate-900 ${
+                  active ? "ring-2 ring-ink dark:ring-blue-600" : "ring-1 ring-line hover:ring-line-strong dark:ring-slate-700 dark:hover:ring-slate-400"
                 }`}
                 style={{ backgroundColor: c.value }}
               />
             );
           })}
-          <label htmlFor={pickerId} className="ml-1 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <label htmlFor={pickerId} className="ml-1 flex min-h-11 items-center gap-2 text-sm text-prose lg:min-h-0 dark:text-slate-300">
             <input
               id={pickerId}
               type="color"
               value={shown}
               onChange={(e) => onAccent(e.target.value)}
-              className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5 dark:border-slate-700"
+              className="h-11 w-12 cursor-pointer rounded-xl border border-line bg-white p-1 lg:h-8 lg:w-10 lg:rounded-lg lg:p-0.5 dark:border-slate-700"
             />
             Autre couleur
           </label>
@@ -207,8 +207,8 @@ export function CvStylePanel({
           type="button"
           onClick={() => onAccent("")}
           aria-pressed={!accent}
-          className={`text-sm underline-offset-2 hover:underline ${
-            accent ? "text-slate-600 dark:text-slate-300" : "font-medium text-blue-700 dark:text-blue-300"
+          className={`ui-focus ui-hit relative text-sm underline-offset-2 hover:underline ${
+            accent ? "text-prose dark:text-slate-300" : "font-semibold text-ink dark:font-medium dark:text-blue-300"
           }`}
         >
           Couleur du modèle

@@ -25,13 +25,13 @@ type Edit = (fn: (d: CvData) => CvData) => void;
 const LANGUAGE_LEVELS = ["Débutant", "Intermédiaire", "Courant", "Bilingue", "Natif"];
 
 const removeButton =
-  "shrink-0 rounded-lg px-2 py-2 text-sm font-medium text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400";
+  "ui-focus inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl px-2 text-sm font-medium text-muted hover:text-red-600 lg:min-h-9 lg:min-w-8 dark:text-slate-400 dark:hover:text-red-400";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const id = useId();
   return (
     <section aria-labelledby={id} className="space-y-3">
-      <h3 id={id} className="font-semibold text-slate-900 dark:text-white">
+      <h3 id={id} className="font-semibold text-ink dark:text-white">
         {title}
       </h3>
       {children}
@@ -117,13 +117,13 @@ function Experiences({ data, onChange }: { data: CvData; onChange: Edit }) {
                 placeholder={exp.current ? "Aujourd'hui" : "Ex. 06/2024"}
                 onChange={(v) => update(exp.id, { endDate: v, current: false })}
               />
-              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <label className="flex min-h-11 items-center gap-2 text-sm text-prose lg:min-h-0 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={exp.current}
                   // Poste en cours : la date de fin est vidée.
                   onChange={(e) => update(exp.id, e.target.checked ? { current: true, endDate: "" } : { current: false })}
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="h-4 w-4 rounded border-line-strong accent-accent dark:border-slate-300"
                 />
                 Aujourd&apos;hui
               </label>
@@ -166,7 +166,7 @@ function Bullet({
   const control = useFieldControl(path, value, onChange);
   return (
     <div className="flex items-start gap-2">
-      <textarea aria-label={`Puce ${index + 1}`} rows={2} placeholder={placeholder} className="input resize-y" {...control} />
+      <textarea aria-label={`Puce ${index + 1}`} rows={2} placeholder={placeholder} className="ui-input resize-y" {...control} />
       <button type="button" onClick={onRemove} aria-label={`Supprimer la puce ${index + 1}`} className={removeButton}>
         ×
       </button>
@@ -190,7 +190,7 @@ function Bullets({
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</p>
+      <p className="text-sm font-medium text-ink dark:text-slate-200">{label}</p>
       {bullets.map((bullet, i) => (
         <Bullet
           key={i}
@@ -206,7 +206,7 @@ function Bullets({
         type="button"
         disabled={bullets.length >= CV_LIMITS.bullets}
         onClick={() => onChange([...bullets, ""])}
-        className="text-sm font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-400"
+        className="ui-link ui-hit relative text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-400"
       >
         + Ajouter une puce
       </button>
@@ -276,9 +276,11 @@ function ListRow({
   onRemove: () => void;
   children: ReactNode;
 }) {
-  const arrow = "shrink-0 rounded-lg px-1.5 py-2 text-slate-500 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:text-white";
+  const arrow =
+    "ui-focus inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-muted hover:text-ink disabled:opacity-30 lg:min-h-9 lg:min-w-8 dark:text-slate-400 dark:hover:text-white";
   return (
-    <div className="flex items-center gap-2">
+    // Sur mobile, champ seul sur sa ligne si la rangée a aussi un niveau : boutons de 44 px.
+    <div className="flex flex-wrap items-center gap-x-1 gap-y-2 sm:flex-nowrap">
       {children}
       <button type="button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Monter ${label}`} className={arrow}>
         ↑
@@ -313,13 +315,13 @@ function Skills({ data, onChange }: { data: CvData; onChange: Edit }) {
             value={skill.name}
             placeholder="Ex. SQL"
             onChange={(name) => update(skill.id, { name })}
-            className="input min-w-0"
+            className="ui-input min-w-0 basis-full sm:basis-0 sm:flex-1"
           />
           <select
             aria-label={`Niveau de la compétence ${index + 1}`}
             value={skill.level}
             onChange={(e) => update(skill.id, { level: e.target.value as SkillLevel })}
-            className="input w-36 shrink-0"
+            className="ui-input mr-auto w-36 shrink-0 sm:mr-0"
           >
             {SKILL_LEVELS.map((l) => (
               <option key={l.value} value={l.value}>
@@ -362,13 +364,13 @@ function Languages({ data, onChange }: { data: CvData; onChange: Edit }) {
               value={lang.name}
               placeholder="Ex. Anglais"
               onChange={(name) => update(lang.id, { name })}
-              className="input min-w-0"
+              className="ui-input min-w-0 basis-full sm:basis-0 sm:flex-1"
             />
             <select
               aria-label={`Niveau de la langue ${index + 1}`}
               value={lang.level}
               onChange={(e) => update(lang.id, { level: e.target.value })}
-              className="input w-36 shrink-0"
+              className="ui-input mr-auto w-36 shrink-0 sm:mr-0"
             >
               <option value="">Niveau</option>
               {levels.map((level) => (
@@ -490,7 +492,7 @@ function Interests({ data, onChange }: { data: CvData; onChange: Edit }) {
             placeholder="Ex. Course à pied"
             // Une virgule séparerait l'intérêt en deux dans le CV.
             onChange={(value) => write(items.map((s, i) => (i === index ? value.replace(/[,\n]/g, " ") : s)))}
-            className="input min-w-0"
+            className="ui-input min-w-0 flex-1"
           />
         </ListRow>
       ))}

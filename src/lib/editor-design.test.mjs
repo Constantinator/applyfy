@@ -11,6 +11,10 @@ const FILES = [
   "components/application/refine-chat.tsx",
   "components/cv-builder/cv-score-card.tsx",
   "components/application/missing-points-panel.tsx",
+  "components/cv-builder/cv-style-panel.tsx",
+  "components/application/font-combobox.tsx",
+  "components/cv-builder/cv-content-panel.tsx",
+  "components/cv-builder/form-controls.tsx",
 ];
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -77,4 +81,20 @@ test("bandeaux d'avertissement : ambre et rose gardés, bandeau mobile bordé po
 test("score : couleurs de la jauge inchangées (rouge, orange, vert)", () => {
   const score = read("components/cv-builder/cv-score-card.tsx");
   for (const color of ["#dc2626", "#f97316", "#16a34a"]) assert.ok(score.includes(color), color);
+});
+
+test("style du CV : modèle choisi bordé de noir, pastilles de 44 px sur mobile, couleurs des CV inchangées", () => {
+  const panel = read("components/cv-builder/cv-style-panel.tsx");
+  assert.match(panel, /\? "border-ink /);
+  assert.match(panel, /h-11 w-11 rounded-full[^"`]*lg:h-8 lg:w-8/);
+  // Couleur du modèle « Moderne » : couleur du CV, pas de l'interface.
+  assert.match(panel, /moderne: "#1E40AF"/);
+});
+
+test("formulaire du CV : boutons d'icône et de suppression de 44 px sur mobile", () => {
+  const controls = read("components/cv-builder/form-controls.tsx");
+  const content = read("components/cv-builder/cv-content-panel.tsx");
+  assert.match(controls, /const iconButton =\s*"[^"]*min-h-11 min-w-11/);
+  assert.match(content, /const removeButton =\s*"[^"]*min-h-11 min-w-11/);
+  assert.match(content, /const arrow =\s*"[^"]*min-h-11 min-w-11/);
 });
