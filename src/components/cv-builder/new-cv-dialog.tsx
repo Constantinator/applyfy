@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { convertLegacyCvAction, createBuilderCvAction } from "@/app/actions/cv-builder";
 import { CV_TEMPLATES, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
 import { TemplateGrid } from "./cv-style-panel";
@@ -269,7 +270,7 @@ export function NewCvDialog({
                   className="ui-input w-full"
                 />
                 <p className="text-xs text-muted dark:text-slate-400">
-                  Il sert de titre à ton CV et adapte le score et le coach à ton secteur.
+                  {LUMEO_TEXTS.targetJobHelp}
                 </p>
               </div>
               <div className="flex justify-end">

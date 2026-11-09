@@ -12,6 +12,7 @@ import {
   type CvExperience,
   type SkillLevel,
 } from "@/lib/cv-builder-types";
+import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 
 import { AddButton, Field, FieldEditingContext, FieldInput, ItemCard, move, TextArea, useFieldControl } from "./form-controls";
 import { useLineEditing } from "./use-line-editing";
@@ -524,7 +525,7 @@ export function CvContentPanel({ data, onChange, onLimit }: { data: CvData; onCh
       </Section>
       <Section title="Poste visé">
         <Field
-          label="Poste visé (pour le score et le coach)"
+          label={LUMEO_TEXTS.targetJobLabel}
           path="targetJob"
           value={data.targetJob}
           placeholder="Ex. Analyste financier"

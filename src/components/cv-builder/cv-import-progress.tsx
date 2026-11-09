@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/cv-builder";
 import { CV_IMPORT_FOLDER, type CvAnalysis } from "@/lib/cv-builder-types";
 import type { CvScore } from "@/lib/cv-score";
+import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import { createClient } from "@/lib/supabase/client";
 
 /** CV importé, prêt pour les résultats de l'analyse. */
@@ -34,7 +35,7 @@ const STEPS = [
   "Comparaison avec les offres du marché",
   "Notation du CV",
   "Génération de conseils personnalisés",
-  "Préparation de ton coach",
+  LUMEO_TEXTS.importStep,
 ] as const;
 const COACH_STEP = STEPS.length - 1;
 
@@ -165,7 +166,7 @@ export function CvImportProgress({
       }
       default: {
         const coach = await coachOpeningAction(p.id!);
-        return coach.ok ? { ok: true, value: null } : { ok: false, error: "Ton coach n'a pas pu être préparé." };
+        return coach.ok ? { ok: true, value: null } : { ok: false, error: LUMEO_TEXTS.importError };
       }
     }
   }

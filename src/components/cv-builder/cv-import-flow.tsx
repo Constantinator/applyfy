@@ -14,6 +14,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { READY_SCORE, scoreLabel, scoreTone, type CvScore } from "@/lib/cv-score";
+import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import { countLabel } from "@/lib/plan-features";
 
 import { CvImportProgress, type ImportedCv } from "./cv-import-progress";
@@ -522,7 +523,7 @@ function OptimizationsCard({ analysis }: { analysis: CvAnalysis }) {
       <div>
         <CardTitle id={titleId}>Optimisations suggérées</CardTitle>
         <p className="mt-1 text-sm text-muted dark:text-slate-400">
-          Les priorités pour ton CV. Dans l&apos;éditeur, le coach les traitera avec toi une par une.
+          {LUMEO_TEXTS.optimizations}
         </p>
       </div>
       {analysis.optimizations.length > 0 ? (

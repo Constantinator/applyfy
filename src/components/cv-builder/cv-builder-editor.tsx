@@ -12,6 +12,7 @@ import {
 } from "@/app/actions/cv-builder";
 import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
 import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
+import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
@@ -90,11 +91,11 @@ function readStrings(value: unknown): string[] {
 type TabId = "content" | "chat" | "style" | "keywords";
 const SCRATCH_TABS: [TabId, string][] = [
   ["content", "Contenu"],
-  ["chat", "Chat IA"],
+  ["chat", LUMEO_TEXTS.name],
   ["style", "Style du CV"],
 ];
 const IMPORT_TABS: [TabId, string][] = [
-  ["chat", "Chat IA"],
+  ["chat", LUMEO_TEXTS.name],
   ["style", "Style du CV"],
 ];
 
@@ -467,6 +468,7 @@ export function CvBuilderEditor({
                 fill
                 minimal
                 markdown
+                persona="lumeo"
               />
             )}
           </div>

@@ -5,7 +5,11 @@ import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { PremiumButton, UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
+import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import type { DocumentChatResult } from "@/lib/refine";
+
+import { LumeoAvatar, type LumeoExpression } from "@/components/lumeo/lumeo-avatar";
+import { LumeoHeader } from "@/components/lumeo/lumeo-header";
 
 import { ChatMarkdown } from "./chat-markdown";
 
@@ -26,11 +30,11 @@ const DOCUMENTS = {
       "Raccourcis pour tenir en 1 page",
     ],
   },
-  // CV Builder : coach qui pose des questions et met à jour le CV (enregistrement automatique).
+  // CV Builder : Lumeo pose des questions et met à jour le CV (enregistrement automatique).
   cvBuilder: {
-    intro: "Réponds aux questions du coach : il intègre tes réponses directement dans ton CV.",
-    empty: "Écris au coach ce que tu veux améliorer dans ton CV, ou pose-lui une question.",
-    pending: "Le coach réfléchit… cela peut prendre quelques secondes.",
+    intro: LUMEO_TEXTS.intro,
+    empty: LUMEO_TEXTS.empty,
+    pending: LUMEO_TEXTS.pending,
     placeholder: "Ta réponse…",
     privacy: "Le contenu de ton CV (sans la photo) est transmis à Claude (Anthropic).",
     save: "Seules les réponses qui modifient ton CV comptent. Les modifications sont enregistrées automatiquement.",
@@ -76,6 +80,11 @@ type Message = {
   premium?: boolean;
 };
 
+/** Expression de Lumeo à côté d'une réponse : désolé sur une erreur ou une limite atteinte. */
+function assistantExpression(message: Message): LumeoExpression {
+  return message.error || message.premium ? "desole" : "content";
+}
+
 /**
  * Chat « Affiner avec l'IA » sous l'éditeur (CV amélioré ou lettre) : chaque demande est
  * appliquée par Claude au document affiché (modifications surlignées). Chaque message
@@ -103,6 +112,7 @@ export function RefineChat({
   minimal = false,
   markdown = false,
   undoable = true,
+  persona,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -145,6 +155,8 @@ export function RefineChat({
   markdown?: boolean;
   /** Bouton « Annuler cette modification » sous la dernière réponse qui a modifié le document. */
   undoable?: boolean;
+  /** Assistant incarné (CV Builder) : bandeau et avatar de Lumeo à côté de ses messages. */
+  persona?: "lumeo";
 }) {
   const texts = DOCUMENTS[document];
   const units = texts.units;
@@ -264,7 +276,9 @@ export function RefineChat({
       aria-labelledby="refine-title"
       className={`ui-card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`}
     >
-      {minimal ? (
+      {persona === "lumeo" ? (
+        <LumeoHeader id="refine-title" expression={messages.length === 0 && !openingPending ? "salue" : "neutre"} />
+      ) : minimal ? (
         <h2 id="refine-title" className="sr-only">
           Coach
         </h2>
@@ -290,7 +304,7 @@ export function RefineChat({
         ref={listRef}
         role="log"
         aria-live="polite"
-        aria-label="Conversation avec l'assistant"
+        aria-label={persona === "lumeo" ? LUMEO_TEXTS.log : "Conversation avec l'assistant"}
         className={`${fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-block border border-line bg-surface p-3 dark:border-slate-700 dark:bg-slate-800/60`}
       >
         {messages.length === 0 && !pending && !openingPending && (
@@ -298,11 +312,15 @@ export function RefineChat({
         )}
         {openingPending && (
           <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-500">
-            <span
-              aria-hidden="true"
-              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-accent dark:border-slate-300 dark:border-t-blue-600"
-            />
-            Lecture de ton CV…
+            {persona === "lumeo" ? (
+              <LumeoAvatar size={36} expression="reflechit" />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-accent dark:border-slate-300 dark:border-t-blue-600"
+              />
+            )}
+            {persona === "lumeo" ? LUMEO_TEXTS.reading : "Lecture de ton CV…"}
           </p>
         )}
         {messages.map((message) =>
@@ -313,9 +331,11 @@ export function RefineChat({
               </p>
             </div>
           ) : (
-            <div key={message.id} className="flex flex-col items-start gap-1">
+            <div key={message.id} className="flex items-start gap-2">
+              {persona === "lumeo" && <LumeoAvatar size={36} expression={assistantExpression(message)} />}
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
               <div
-                className={`max-w-[85%] rounded-2xl rounded-bl-sm ring-1 ${
+                className={`${persona === "lumeo" ? "max-w-[92%]" : "max-w-[85%]"} rounded-2xl rounded-bl-sm ring-1 ${
                   message.error
                     ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30"
                     : "bg-white text-ink ring-line dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
@@ -343,15 +363,20 @@ export function RefineChat({
                   </button>
                 )
               )}
+              </div>
             </div>
           ),
         )}
         {pending && (
           <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-500">
-            <span
-              aria-hidden="true"
-              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-accent dark:border-slate-300 dark:border-t-blue-600"
-            />
+            {persona === "lumeo" ? (
+              <LumeoAvatar size={36} expression="reflechit" />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-accent dark:border-slate-300 dark:border-t-blue-600"
+              />
+            )}
             {texts.pending}
           </p>
         )}
