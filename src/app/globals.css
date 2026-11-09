@@ -57,6 +57,43 @@
   --color-prose: #3f3f46;
   --color-late: #c2410c;
 
+  /* Teintes par fonction (tuiles d'icônes du Tableau de bord) : fond pâle, icône foncée.
+     Utilisées via src/lib/ui-tints.ts, jamais en dur dans les composants. */
+  --color-tint-cv: #e8effd;
+  --color-tint-cv-ink: #1d4ed8;
+  --color-tint-letter: #f1ebfc;
+  --color-tint-letter-ink: #6d28d9;
+  --color-tint-offer: #f6efe4;
+  --color-tint-offer-ink: #8a5a12;
+  --color-tint-interview: #fce8ec;
+  --color-tint-interview-ink: #b4234a;
+  --color-tint-success: #e8f5ec;
+  --color-tint-success-ink: #166534;
+
+  /* Pastilles de secteur (/candidatures, Trouver une offre) : src/lib/ui-tints.ts › sectorTint. */
+  --color-sector-finance: #e5ebfb;
+  --color-sector-finance-ink: #112e74;
+  --color-sector-tech: #e8e5fb;
+  --color-sector-tech-ink: #211174;
+  --color-sector-luxe: #f8e5fb;
+  --color-sector-luxe-ink: #671174;
+  --color-sector-marketing: #fbe5f0;
+  --color-sector-marketing-ink: #741142;
+  --color-sector-creatif: #fbf6e5;
+  --color-sector-creatif-ink: #745d11;
+  --color-sector-conseil: #f6fbe5;
+  --color-sector-conseil-ink: #607411;
+  --color-sector-etudiant: #ecfbe5;
+  --color-sector-etudiant-ink: #327411;
+  --color-sector-commercial: #e5fbf0;
+  --color-sector-commercial-ink: #117442;
+  --color-sector-rh: #e5fbf9;
+  --color-sector-rh-ink: #11746a;
+  --color-sector-sante: #e5f4fb;
+  --color-sector-sante-ink: #115674;
+  --color-sector-other: #f4f4f5;
+  --color-sector-other-ink: #3f3f46;
+
   --radius-card: 24px;
   --radius-block: 16px;
 
