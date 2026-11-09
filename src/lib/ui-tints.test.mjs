@@ -125,7 +125,7 @@ test("pastilles de secteur : /candidatures (liste et fiche) et Trouver une offre
   assert.match(source("app/(app)/offres/page.tsx"), /<SectorPill sector=\{detectOfferSector\(offer\.title, offer\.description\)\} \/>/);
   // Pas de faux secteur : sans correspondance, null (et non « etudiant »).
   const detect = /export function detectOfferSector[\s\S]*?\n\}/.exec(source("lib/cv-sector-context.ts"))?.[0] ?? "";
-  assert.match(detect, /return byKeywords\.score >= 3 \? byKeywords\.sector : null;/);
+  assert.match(detect, /return byKeywords\.length \? uniqueTop\(byKeywords\) : null;/);
   // Migration 0038 : colonne nullable, sans contrainte.
   const sql = source("../supabase/migrations/0038_application_sector.sql");
   assert.match(sql, /alter table applications add column if not exists sector text;/);

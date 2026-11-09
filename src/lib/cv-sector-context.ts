@@ -27,16 +27,22 @@ const TITLE_KEYWORDS: Record<Sector, string[]> = {
     "financ", "banque", "bancaire", "audit", "comptab", "controle de gestion", "controleur de gestion",
     "tresor", "m&a", "fusions", "private equity", "investment", "trader", "trading", "asset management",
     "gestion de patrimoine", "credit", "risk", "risques", "actuair", "fiscal", "cfo", "daf",
+    // Finance de marché et banque d'investissement.
+    "equity", "equities", "coverage", "debt capital markets", "equity capital markets", "capital markets",
+    "marches de capitaux", "dcm", "ecm", "corporate finance", "investment banking", "banque d'investissement",
+    "fixed income", "structured finance", "financements structures", "transaction services", "valuation",
+    "front office", "middle office", "sales & trading", "lbo", "leveraged", "refinancement", "liquidite",
+    "cash management", "gestion de fortune", "wealth", "private banking", "family office", "bank", "portfolio manager",
   ],
   conseil: [
-    "consultant", "conseil", "consulting", "strategy", "strategie", "transformation", "mckinsey", "bcg",
+    "consultant", "conseil", "consulting", "strateg", "transformation", "mckinsey", "bcg",
     "bain", "roland berger", "oliver wyman", "accenture", "kearney", "capgemini invent",
   ],
   tech: [
     "developpeur", "developer", "dev ", "software", "logiciel", "ingenieur informatique", "full stack",
     "fullstack", "frontend", "front-end", "backend", "back-end", "devops", "data engineer", "data scientist",
     "machine learning", "cto", "tech lead", "sre", "cloud", "cybersecurite", "securite informatique",
-    "architecte", "qa ", "mobile", "ios", "android", "python", "javascript", "java ",
+    "architecte", "qa ", "mobile", "ios", "android", "python", "javascript", "java ", "informatique",
   ],
   marketing: [
     "marketing", "communication", "seo", "sea", "growth", "brand", "marque", "community manager",
@@ -141,17 +147,25 @@ export function detectSector(cvJson: string, targetJob?: string | null): Sector 
  */
 export function detectOfferSector(title: string, description?: string | null): Sector | null {
   const titles = normalize(title);
-  const scores = SECTORS.map((sector) => ({ sector, score: countMatches(titles, TITLE_KEYWORDS[sector]) }));
-  // « etudiant » ne l'emporte que si aucun métier n'est reconnu (un stage en audit reste de la finance).
-  const job = scores.filter((s) => s.sector !== "etudiant" && s.score > 0).sort((a, b) => b.score - a.score)[0];
-  if (job) return job.sector;
-  if (scores.some((s) => s.sector === "etudiant" && s.score > 0)) return "etudiant";
+  // Métiers d'abord : « stage » / « alternance » (etudiant) ne l'emporte jamais sur un métier reconnu.
+  const jobs = SECTORS.filter((s) => s !== "etudiant")
+    .map((sector) => ({ sector, score: countMatches(titles, TITLE_KEYWORDS[sector]) }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+  if (jobs.length) return uniqueTop(jobs);
+  if (countMatches(titles, TITLE_KEYWORDS.etudiant) > 0) return "etudiant";
 
   const whole = normalize(`${title} | ${description ?? ""}`);
   const byKeywords = SECTORS.filter((s) => s !== "etudiant")
     .map((sector) => ({ sector, score: countMatches(whole, KNOWLEDGE[sector].ats_keywords) }))
-    .sort((a, b) => b.score - a.score)[0];
-  return byKeywords.score >= 3 ? byKeywords.sector : null;
+    .filter((s) => s.score >= 3)
+    .sort((a, b) => b.score - a.score);
+  return byKeywords.length ? uniqueTop(byKeywords) : null;
+}
+
+/** Secteur en tête, ou null en cas d'égalité (cas ambigu : « Autre » plutôt qu'un secteur deviné). */
+function uniqueTop(sorted: { sector: Sector; score: number }[]): Sector | null {
+  return sorted.length > 1 && sorted[1].score === sorted[0].score ? null : sorted[0].sector;
 }
 
 /** Données du secteur dans la base de connaissance. */
