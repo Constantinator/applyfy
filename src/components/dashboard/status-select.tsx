@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { STATUS_STYLES } from "@/components/status-badge";
 import { APPLICATION_STATUSES, RESPONSE_STATUSES, STATUS_LABELS, type ApplicationStatus } from "@/lib/types";
 
@@ -21,17 +23,25 @@ export function StatusSelect({
   onChange: (status: ApplicationStatus) => void;
 }) {
   const style = STATUS_STYLES[status];
+  // Fondu seulement après un changement : rien ne bouge au chargement de la liste.
+  const [changed, setChanged] = useState(false);
   return (
     <div className="relative z-10 inline-flex flex-col items-start gap-1 sm:items-end" onClick={(e) => e.stopPropagation()}>
       <span
-        className={`relative inline-flex items-center gap-1.5 rounded-full py-1.5 pr-2.5 pl-3 text-[13px] leading-[18px] font-semibold whitespace-nowrap transition-shadow has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-accent hover:brightness-95 ${style.badge}`}
+        className={`relative inline-flex items-center gap-1.5 rounded-full py-1.5 pr-2.5 pl-3 text-[13px] leading-[18px] font-semibold whitespace-nowrap transition-[color,background-color,box-shadow] duration-150 ease-out motion-reduce:transition-none has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-accent hover:brightness-95 ${style.badge}`}
       >
-        {STATUS_LABELS[status]}
+        {/* Nouveau libellé en fondu (150 ms) pendant que la couleur de la pastille passe à la suivante. */}
+        <span key={status} className={changed ? "animate-status-in" : undefined}>
+          {STATUS_LABELS[status]}
+        </span>
         <span aria-hidden="true" className="text-[10px]">▾</span>
         <select
           aria-label={`Statut de la candidature ${company}`}
           value={status}
-          onChange={(e) => onChange(e.target.value as ApplicationStatus)}
+          onChange={(e) => {
+            setChanged(true);
+            onChange(e.target.value as ApplicationStatus);
+          }}
           // Mobile : zone de 44 px de haut, plus grande que le badge (invisible).
           className="absolute inset-x-0 top-1/2 h-11 w-full -translate-y-1/2 cursor-pointer appearance-none opacity-0 md:top-0 md:h-full md:translate-y-0"
         >

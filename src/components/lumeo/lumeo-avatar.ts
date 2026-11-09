@@ -8,7 +8,7 @@ import { createElement, type ReactElement, type SVGProps } from "react";
  * Écrit sans JSX (createElement) pour être rendu tel quel par les tests (`node --test`).
  */
 
-export const LUMEO_SIZES = [24, 36, 56, 96] as const;
+export const LUMEO_SIZES = [24, 36, 56, 72, 96] as const;
 export type LumeoSize = (typeof LUMEO_SIZES)[number];
 
 export const LUMEO_EXPRESSIONS = [
@@ -29,7 +29,8 @@ const BLUE = "#2563EB";
 const BODY = `var(--lumeo-body, ${INK})`;
 const FACE = `var(--lumeo-face, #FFFFFF)`;
 
-type Shape = ["rect" | "circle" | "ellipse" | "path", SVGProps<SVGElement>];
+// `sparkle` : marque les étincelles de « felicite » (animées une fois avec `celebrate`), jamais rendue.
+type Shape = ["rect" | "circle" | "ellipse" | "path", SVGProps<SVGElement> & { sparkle?: true }];
 
 const fill = (color: string) => ({ style: { fill: color } });
 const line = (color: string, width = 3) => ({
@@ -50,7 +51,7 @@ const smile = (d = "M19 34.5 Q24 39 29 34.5"): Shape => ["path", { d, ...line(BL
 /** Étincelle à quatre branches (félicitations). */
 const sparkle = (x: number, y: number, r: number): Shape => [
   "path",
-  { d: `M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r} Z`, ...fill(BLUE) },
+  { d: `M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r} Z`, ...fill(BLUE), sparkle: true },
 ];
 
 /** Traits propres à chaque expression (yeux, bouche, détail), dessinés par-dessus la tête. */
@@ -108,6 +109,8 @@ export type LumeoAvatarProps = {
   standalone?: boolean;
   /** Version blanche, pour un fond sombre hors mode sombre. */
   inverse?: boolean;
+  /** « felicite » : les deux étincelles grossissent une fois (sauf animation réduite). */
+  celebrate?: boolean;
   className?: string;
 };
 
@@ -116,6 +119,7 @@ export function LumeoAvatar({
   expression = "neutre",
   standalone = false,
   inverse = false,
+  celebrate = false,
   className = "",
 }: LumeoAvatarProps): ReactElement {
   const shapes = [...HEAD, ...FACES[expression]];
@@ -141,6 +145,12 @@ export function LumeoAvatar({
       style: { fill: BLUE },
       className: expression === "reflechit" ? "animate-pulse motion-reduce:animate-none" : undefined,
     }),
-    ...shapes.map(([tag, props], i) => createElement(tag, { key: i, ...props })),
+    ...shapes.map(([tag, { sparkle: isSparkle, ...props }], i) =>
+      createElement(tag, {
+        key: i,
+        ...props,
+        ...(isSparkle && celebrate ? { className: "animate-sparkle-once" } : {}),
+      }),
+    ),
   );
 }

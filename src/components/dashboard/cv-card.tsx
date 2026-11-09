@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-import { ScoreGauge } from "@/components/cv-builder/cv-score-card";
 import { IconDocument } from "@/components/icons";
 import { READY_SCORE } from "@/lib/cv-score";
 import type { Sector } from "@/lib/cv-sector-context";
 import { FUNCTION_TINTS, SUCCESS_PILL } from "@/lib/ui-tints";
+
+import { AnimatedScoreGauge } from "./animated-score-gauge";
 
 export type LatestCv = {
   id: string;
@@ -30,7 +31,7 @@ export function CvCard({ cv }: { cv: LatestCv | null }) {
         <>
           <div className="flex items-center gap-4">
             <div role="img" aria-label={`Score du CV : ${cv.score} sur 100`} className="shrink-0">
-              <ScoreGauge score={cv.score} size="card" />
+              <AnimatedScoreGauge score={cv.score} />
             </div>
             <div className="min-w-0">
               <p className="text-[15px] font-semibold break-words text-ink dark:text-white">{cv.title}</p>

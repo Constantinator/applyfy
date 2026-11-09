@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { AdTrackers } from "@/components/consent/ad-trackers";
 import { SiteFooter } from "@/components/site-footer";
 import { pageMetadata, SITE_URL } from "@/lib/seo";
+import { LUMEO_PREPAINT_SCRIPT } from "@/lib/lumeo-dashboard";
 import { DARK_MODE_ENABLED } from "@/lib/theme";
 
 import "./globals.css";
@@ -35,12 +36,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // suppressHydrationWarning : la classe « dark » est ajoutée par THEME_SCRIPT avant React.
     <html lang="fr" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
-      {/* Mode sombre désactivé pour l'instant (DARK_MODE_ENABLED, src/lib/theme.ts). */}
-      {DARK_MODE_ENABLED && (
-        <head>
-          <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        </head>
-      )}
+      <head>
+        {/* Mode sombre désactivé pour l'instant (DARK_MODE_ENABLED, src/lib/theme.ts). */}
+        {DARK_MODE_ENABLED && <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />}
+        {/* Bandeau de Lumeo déjà vu ou remis à plus tard : caché avant l'affichage (pas de saut). */}
+        <script dangerouslySetInnerHTML={{ __html: LUMEO_PREPAINT_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col bg-white text-ink dark:bg-slate-950 dark:text-slate-100">
         {children}
         <SiteFooter />

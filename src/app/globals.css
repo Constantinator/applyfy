@@ -646,6 +646,69 @@ body {
 }
 
 /*
+ * Mouvement discret du Tableau de bord : 250 ms au plus, une seule fois, jamais bloquant.
+ * Les états finaux sont ceux de la page sans animation ; tout est coupé en mouvement réduit.
+ */
+
+/* Cartes (et bandeau de Lumeo) : fondu et glissement de 8 px, décalés par Reveal. */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-card-in {
+  animation: card-in 0.25s ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* Nouveau statut d'une candidature : le libellé apparaît en fondu, sans rebond. */
+@keyframes status-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility animate-status-in {
+  animation: status-in 0.15s ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* Première candidature fêtée : les étincelles de Lumeo grossissent une fois. */
+@keyframes sparkle-once {
+  from {
+    transform: scale(0.5);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@utility animate-sparkle-once {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkle-once 0.25s ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/*
  * Types de liste du CV (attribut data-list posé par l'éditeur, cf. lib/cv-html).
  * Hors @layer : prime sur les utilitaires list-disc du conteneur.
  */

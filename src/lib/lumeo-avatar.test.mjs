@@ -10,8 +10,8 @@ const { LUMEO_TEXTS } = await import("./lumeo-texts.ts");
 
 const render = (props) => renderToStaticMarkup(createElement(LumeoAvatar, props));
 
-test("8 expressions et 4 tailles", () => {
-  assert.deepEqual([...LUMEO_SIZES], [24, 36, 56, 96]);
+test("8 expressions et 5 tailles", () => {
+  assert.deepEqual([...LUMEO_SIZES], [24, 36, 56, 72, 96]);
   assert.equal(LUMEO_EXPRESSIONS.length, 8);
 });
 
@@ -58,6 +58,15 @@ test("couleurs : noir #0A0A0A et bleu #2563EB, version inversée blanche, sans o
 test("l'animation de réflexion respecte prefers-reduced-motion", () => {
   assert.match(render({ expression: "reflechit" }), /animate-pulse motion-reduce:animate-none/);
   assert.doesNotMatch(render({ expression: "content" }), /animate-/);
+});
+
+test("« felicite » fêtée : seules les deux étincelles s'animent, une fois", () => {
+  assert.doesNotMatch(render({ expression: "felicite" }), /animate-/);
+  const svg = render({ expression: "felicite", celebrate: true });
+  assert.equal((svg.match(/class="animate-sparkle-once"/g) ?? []).length, 2);
+  // Le marqueur interne n'est jamais rendu ; sans étincelles, celebrate ne change rien.
+  assert.doesNotMatch(svg, /sparkle="/);
+  assert.equal(render({ expression: "content", celebrate: true }), render({ expression: "content" }));
 });
 
 test("textes de Lumeo : courts, au tutoiement", () => {

@@ -12,7 +12,19 @@ export const SCORE_TONES = {
 } as const;
 
 /** Jauge circulaire du score sur 100. */
-export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" | "lg" | "card" }) {
+/**
+ * `shown` (carte du tableau de bord) : valeur affichée pendant l'animation du score, la couleur
+ * restant celle du score final.
+ */
+export function ScoreGauge({
+  score,
+  size = "lg",
+  shown = score,
+}: {
+  score: number;
+  size?: "sm" | "lg" | "card";
+  shown?: number;
+}) {
   const t = SCORE_TONES[scoreTone(score)];
   // Carte « Ton CV » du tableau de bord : 104 px, trait de 9 px, score en noir.
   if (size === "card") {
@@ -31,11 +43,11 @@ export function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" 
             strokeLinecap="round"
             stroke={t.stroke}
             strokeDasharray={length}
-            strokeDashoffset={length * (1 - score / 100)}
+            strokeDashoffset={length * (1 - shown / 100)}
           />
         </svg>
         <span className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[28px] leading-none font-bold text-ink dark:text-white">{score}</span>
+          <span className="text-[28px] leading-none font-bold text-ink dark:text-white">{shown}</span>
           <span className="mt-1 text-xs leading-none text-muted dark:text-slate-400">/ 100</span>
         </span>
       </span>

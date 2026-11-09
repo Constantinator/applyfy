@@ -7,10 +7,12 @@ import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { CvCard, type LatestCv } from "@/components/dashboard/cv-card";
 import { GettingStarted } from "@/components/dashboard/getting-started";
 import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversion";
+import { LumeoBanner } from "@/components/dashboard/lumeo-banner";
 import { FreePlanCard } from "@/components/dashboard/free-plan-card";
 import { MyWeekCard } from "@/components/dashboard/my-week-card";
 import { OfferLinkForm } from "@/components/dashboard/offer-link-form";
 import { OffersForYou } from "@/components/dashboard/offers-for-you";
+import { Reveal } from "@/components/dashboard/reveal";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { TodoCard } from "@/components/dashboard/todo-card";
 import { getAccountCreatedAt, getAccountName } from "@/lib/account";
@@ -29,6 +31,7 @@ import { buildTodo, todayLabel, todoCountLabel } from "@/lib/dashboard-todo";
 import { buildPeriodStats } from "@/lib/dashboard-week";
 import { FOLLOW_UP_AFTER_DAYS, needsFollowUp } from "@/lib/follow-up";
 import { isFreeAccount } from "@/lib/free-plan";
+import { pickLumeoMessage } from "@/lib/lumeo-dashboard";
 import { getWeeklyGoal } from "@/lib/profile";
 import { isStripeConfigured, syncCheckoutSession } from "@/lib/stripe";
 import { getSubscription } from "@/lib/subscription";
@@ -132,6 +135,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const startSteps =
     latestCv !== undefined && isNewAccount(accountCreatedAt, now) ? buildStartSteps(latestCv, applications) : null;
 
+  // Bandeau de Lumeo : un message à la fois, à partir des données déjà lues (aucune requête).
+  const lumeoMessage = pickLumeoMessage({
+    hasCv: latestCv === undefined ? undefined : latestCv !== null,
+    applications,
+    weekSent: periodStats ? periodStats.week.sent : null,
+    weeklyGoal: weeklyGoal.goal,
+    now,
+  });
+  // Cartes : apparition décalée de 40 ms, dans l'ordre de la page.
+  let revealIndex = 1;
+  const nextReveal = () => revealIndex++;
+
   const countByStatus = (status: string) =>
     realApplications.filter((app) => app.status === status).length;
 
@@ -184,6 +199,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <OfferLinkForm />
         </div>
 
+        {lumeoMessage && <LumeoBanner message={lumeoMessage} />}
+
         {betaReport && (
           <p className="ui-notice flex flex-wrap items-center gap-x-2 px-4 py-2 text-sm">
             <span>Rapport à rendre avant le {betaReport.dueLabel}</span>
@@ -197,18 +214,35 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         )}
 
         <div className={`grid gap-8 ${latestCv === undefined ? "" : "lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]"}`}>
-          <TodoCard items={todo} hasRealApplication={hasRealApplication} />
+          {/* Enveloppes en grille d'une colonne : chaque carte garde la hauteur de la ligne. */}
+          <Reveal index={nextReveal()} className="grid min-w-0 grid-cols-1">
+            <TodoCard items={todo} hasRealApplication={hasRealApplication} />
+          </Reveal>
           {/* Lecture du CV en échec : pas de carte, plutôt qu'un « Crée ton CV » trompeur. */}
-          {latestCv !== undefined && <CvCard cv={latestCv} />}
+          {latestCv !== undefined && (
+            <Reveal index={nextReveal()} className="grid min-w-0 grid-cols-1">
+              <CvCard cv={latestCv} />
+            </Reveal>
+          )}
         </div>
 
-        {startSteps && <GettingStarted steps={startSteps} />}
+        {startSteps && (
+          <Reveal index={nextReveal()}>
+            <GettingStarted steps={startSteps} />
+          </Reveal>
+        )}
 
-        {periodStats && <MyWeekCard stats={periodStats} goal={weeklyGoal.goal} goalEditable={weeklyGoal.available} />}
+        {periodStats && (
+          <Reveal index={nextReveal()}>
+            <MyWeekCard stats={periodStats} goal={weeklyGoal.goal} goalEditable={weeklyGoal.available} />
+          </Reveal>
+        )}
 
         {latestCv && (
           <Suspense fallback={null}>
-            <OffersForYou sector={latestCv.sector} targetJob={latestCv.targetJob} applied={realApplications} />
+            <Reveal index={nextReveal()}>
+              <OffersForYou sector={latestCv.sector} targetJob={latestCv.targetJob} applied={realApplications} />
+            </Reveal>
           </Suspense>
         )}
 
@@ -240,23 +274,29 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         )}
 
         {/* Masquée si la lecture des compteurs échoue : pas de faux chiffres. */}
-        {freePlanCounts && <FreePlanCard counts={freePlanCounts} />}
+        {freePlanCounts && (
+          <Reveal index={nextReveal()}>
+            <FreePlanCard counts={freePlanCounts} />
+          </Reveal>
+        )}
 
         {canJoinBeta && (
-          <section aria-labelledby="beta-invite-title" className="ui-card p-5 sm:p-7">
-            <h2 id="beta-invite-title" className="ui-title">
-              Deviens beta testeur
-            </h2>
-            <p className="mt-2 mb-5 text-sm text-muted dark:text-slate-300">
-              Aide-nous à construire Applyfy et profite du Premium gratuitement.
-            </p>
-            <BetaJoinDialog
-              mode="join"
-              spotsLeft={betaSpotsLeft}
-              autoOpen={betaParam === "rejoindre"}
-              triggerClassName="ui-btn-secondary"
-            />
-          </section>
+          <Reveal index={nextReveal()}>
+            <section aria-labelledby="beta-invite-title" className="ui-card p-5 sm:p-7">
+              <h2 id="beta-invite-title" className="ui-title">
+                Deviens beta testeur
+              </h2>
+              <p className="mt-2 mb-5 text-sm text-muted dark:text-slate-300">
+                Aide-nous à construire Applyfy et profite du Premium gratuitement.
+              </p>
+              <BetaJoinDialog
+                mode="join"
+                spotsLeft={betaSpotsLeft}
+                autoOpen={betaParam === "rejoindre"}
+                triggerClassName="ui-btn-secondary"
+              />
+            </section>
+          </Reveal>
         )}
       </main>
     </div>

@@ -26,3 +26,35 @@ export const LUMEO_TEXTS = {
   /** Nouveau CV : aide du champ « Poste visé ». */
   targetJobHelp: "Il sert de titre à ton CV et adapte le score et mes conseils à ton secteur.",
 } as const;
+
+/**
+ * Bandeau de Lumeo sur le Tableau de bord (un message à la fois, cf. lib/lumeo-dashboard).
+ * Tutoiement, jamais de reproche : Lumeo propose, l'utilisateur décide et envoie lui-même.
+ */
+export const LUMEO_DASHBOARD_TEXTS = {
+  label: "LUMEO",
+  later: "Plus tard",
+  bienvenue: {
+    title: "Bienvenue ! Je suis Lumeo. On commence par ton CV, ça prend 5 minutes.",
+    detail: "Je t'accompagne ensuite pour chaque candidature.",
+    primary: "Créer mon CV",
+    secondary: "J'ai déjà un CV",
+  },
+  premiere: {
+    title: "La première candidature est partie. Bravo. Je te rappelle de relancer dans 7 jours, si tu n'as pas de réponse.",
+    detail: "Tu peux suivre sa réponse dans Candidatures.",
+    primary: "Voir ma candidature",
+  },
+  objectif: {
+    title: (sent: number) =>
+      `${sent} candidature${sent > 1 ? "s" : ""} cette semaine, il t'en manque une pour ton objectif.`,
+    detail: "Une offre qui te plaît suffit.",
+    primary: "Trouver une offre",
+  },
+  relance: {
+    title: (company: string, days: number) =>
+      `${company} n'a pas répondu depuis ${days} jour${days > 1 ? "s" : ""} : tu peux la relancer.`,
+    detail: "Un message court et poli suffit souvent.",
+    primary: "Voir la relance",
+  },
+} as const;
