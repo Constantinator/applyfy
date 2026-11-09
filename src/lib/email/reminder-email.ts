@@ -1,7 +1,7 @@
 // Email de rappel de relance : encourageant, jamais culpabilisant. Gabarit commun : layout.ts.
 import type { EmailMessage } from "./brevo";
 import { SIGNATURE, emailButton, emailLink, emailParagraph, emailSignature, escapeHtml, renderEmail } from "./layout";
-import { unsubscribeUrl } from "./unsubscribe-token";
+import { oneClickUnsubscribeUrl, unsubscribeUrl } from "./unsubscribe-token";
 
 export function buildReminderEmail(input: {
   to: string;
@@ -35,5 +35,5 @@ export function buildReminderEmail(input: {
 
   const text = `${sentence}\n\n${button} : ${applicationUrl}\n\n${SIGNATURE}\n\n—\n${footer} Se désinscrire des emails : ${unsubscribeLink}`;
 
-  return { to: input.to, subject, html, text };
+  return { to: input.to, subject, html, text, unsubscribeUrl: oneClickUnsubscribeUrl(input.userId) };
 }

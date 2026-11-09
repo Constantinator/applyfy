@@ -1,7 +1,7 @@
 // Email de bienvenue, envoyé une fois à l'inscription. Gabarit commun : layout.ts.
 import type { EmailMessage } from "./brevo";
 import { SIGNATURE, emailButton, emailLink, emailParagraph, emailSignature, escapeHtml, renderEmail } from "./layout";
-import { unsubscribeUrl } from "./unsubscribe-token";
+import { oneClickUnsubscribeUrl, unsubscribeUrl } from "./unsubscribe-token";
 
 export function buildWelcomeEmail(input: {
   to: string;
@@ -33,5 +33,5 @@ export function buildWelcomeEmail(input: {
 
   const text = `${greeting}\n\n${intro}\n\n${button} : ${dashboardUrl}\n\n${hint}\n\n${SIGNATURE}\n\n—\n${footer} Se désinscrire des emails : ${unsubscribeLink}`;
 
-  return { to: input.to, subject, html, text };
+  return { to: input.to, subject, html, text, unsubscribeUrl: oneClickUnsubscribeUrl(input.userId) };
 }

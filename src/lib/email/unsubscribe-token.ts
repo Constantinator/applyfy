@@ -39,11 +39,16 @@ export function verifyUnsubscribeToken(token: string, userId: string): boolean {
   return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
-/** Lien de désinscription d'un compte ; sans secret configuré, la page profil (repli). */
-export function unsubscribeUrl(userId: string) {
-  if (!isUnsubscribeConfigured()) return `${appUrl()}/profil`;
+/** Lien signé de /api/unsubscribe : GET = page de confirmation, POST = désinscription (one-click). */
+export function oneClickUnsubscribeUrl(userId: string): string | null {
+  if (!isUnsubscribeConfigured()) return null;
   const params = new URLSearchParams({ token: generateUnsubscribeToken(userId), uid: userId });
   return `${appUrl()}/api/unsubscribe?${params}`;
+}
+
+/** Lien de désinscription d'un compte ; sans secret configuré, la page profil (repli). */
+export function unsubscribeUrl(userId: string) {
+  return oneClickUnsubscribeUrl(userId) ?? `${appUrl()}/profil`;
 }
 
 /** Le compte s'est désinscrit des emails (métadonnées Supabase). */

@@ -15,7 +15,18 @@ export type EmailMessage = {
   subject: string;
   html: string;
   text: string;
+  /**
+   * URL signée de /api/unsubscribe (POST one-click, RFC 8058) : ajoute les en-têtes
+   * List-Unsubscribe et List-Unsubscribe-Post. Absente pour les e-mails de service.
+   */
+  unsubscribeUrl?: string | null;
 };
+
+/** En-têtes de désinscription en un clic (Gmail, Yahoo, Apple Mail). */
+export function unsubscribeHeaders(url: string | null | undefined): Record<string, string> | undefined {
+  if (!url) return undefined;
+  return { "List-Unsubscribe": `<${url}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
+}
 
 export async function sendEmail(message: EmailMessage): Promise<{ messageId: string }> {
   const apiKey = process.env.BREVO_API_KEY;
@@ -31,6 +42,7 @@ export async function sendEmail(message: EmailMessage): Promise<{ messageId: str
       subject: message.subject,
       htmlContent: message.html,
       textContent: message.text,
+      headers: unsubscribeHeaders(message.unsubscribeUrl),
     }),
     signal: AbortSignal.timeout(15_000),
   });
