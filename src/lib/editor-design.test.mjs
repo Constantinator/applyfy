@@ -115,3 +115,11 @@ test("lettre : feuille sur fond #F7F7F8 sans ombre, surlignage jaune gardé, pag
   assert.match(editor, /\[&_mark\]:bg-yellow-200/);
   assert.match(read("app/(app)/candidatures/[id]/lettre/page.tsx"), /data-theme-off/);
 });
+
+test("fond de l'application : blanc, mode sombre inchangé", () => {
+  const body = /<body className="([^"]*)"/.exec(source("app/layout.tsx"))?.[1] ?? "";
+  assert.match(body, /(^| )bg-white( |$)/);
+  assert.match(body, /(^| )text-ink( |$)/);
+  assert.match(body, /dark:bg-slate-950 dark:text-slate-100/);
+  assert.doesNotMatch(body, /(^| )bg-slate-50( |$)/);
+});

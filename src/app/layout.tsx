@@ -41,7 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         </head>
       )}
-      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <body className="flex min-h-full flex-col bg-white text-ink dark:bg-slate-950 dark:text-slate-100">
         {children}
         <SiteFooter />
         {/* Meta Pixel et Google Ads : chargés seulement après acceptation dans le bandeau. */}
