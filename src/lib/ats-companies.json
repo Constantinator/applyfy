@@ -27,6 +27,7 @@
     { "name": "Ledger", "platform": "ashby", "slug": "ledger" },
     { "name": "Photoroom", "platform": "ashby", "slug": "photoroom" },
     { "name": "Dust", "platform": "ashby", "slug": "dust" },
+    { "name": "Mistral AI", "platform": "ashby", "slug": "mistral.ai" },
     { "name": "lemlist", "platform": "ashby", "slug": "lemlist" },
     { "name": "Sorare", "platform": "ashby", "slug": "sorare" },
     { "name": "BlaBlaCar", "platform": "lever", "slug": "blablacar" },

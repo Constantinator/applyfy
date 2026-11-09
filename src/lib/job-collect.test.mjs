@@ -183,6 +183,18 @@ test("sources corrigées : Doctolib sur Ashby, Aircall sur Greenhouse (aircallio
   assert.match(boards, /key: "mistral",[^}]*ats: "ashby", slug: "mistral\.ai"/);
 });
 
+test("Mistral AI : collecté dans le secteur tech, sur Ashby (mistral.ai)", async () => {
+  const sectors = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const found = Object.entries(sectors).flatMap(([sector, companies]) =>
+    companies.filter((c) => c.name === "Mistral AI").map((c) => [sector, c.platform, c.slug]),
+  );
+  assert.deepEqual(found, [["tech", "ashby", "mistral.ai"]]);
+  const get = fakeGet({ "job-board/mistral.ai": { jobs: [{ id: "m1", title: "AI Scientist", jobUrl: "https://jobs.ashbyhq.com/mistral/m1", location: "Paris" }] } });
+  const { offers, failed } = await readCompanyOffers({ name: "Mistral AI", platform: "ashby", slug: "mistral.ai" }, 10, all, get);
+  assert.deepEqual(get.calls, ["https://api.ashbyhq.com/posting-api/job-board/mistral.ai"]);
+  assert.deepEqual([failed, offers.map((o) => [o.externalId, o.location])], [false, [["ashby-mistral.ai-m1", "Paris"]]]);
+});
+
 test("Lever : pays ou lieu en France, date en millisecondes", async () => {
   const get = fakeGet({
     "api.lever.co": [
