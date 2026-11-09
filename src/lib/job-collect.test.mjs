@@ -13,6 +13,10 @@ registerHooks({
 const {
   ATS_OFFERS_PER_COMPANY,
   COLLECT_BUDGET_MS,
+  COLLECTED_OFFERS_MAX_DAYS,
+  PURGE_MIN_REMAINING_MS,
+  USER_OFFERS_MAX_DAYS,
+  purgeCutoffs,
   collectSector,
   createAtsClient,
   planOfferSave,
@@ -97,6 +101,7 @@ const all = () => true;
 const company = (platform, slug = "acme", extra = {}) => ({ name: "Acme", platform, slug, ...extra });
 
 const migration = readFileSync(new URL("../../supabase/migrations/0036_job_collect.sql", import.meta.url), "utf8");
+const purgeMigration = readFileSync(new URL("../../supabase/migrations/0037_job_offers_purge.sql", import.meta.url), "utf8");
 
 test("migration : les offres existantes reçoivent last_seen_at avant la contrainte", () => {
   const fill = migration.indexOf("update job_offers_raw set last_seen_at = scraped_at where last_seen_at is null");
@@ -109,6 +114,31 @@ test("migration : aucune suppression, journal fermé aux clients", () => {
   assert.doesNotMatch(migration.replace(/--.*$/gm, ""), /\b(delete|drop|truncate)\b/i);
   assert.match(migration, /alter table job_collect_runs enable row level security/);
   assert.match(migration, /revoke all on job_collect_runs from anon, authenticated/);
+});
+
+test("migration 0037 : rejouable, aucune suppression hors de la fonction, fonction fermée aux clients", () => {
+  const code = purgeMigration.replace(/--.*$/gm, "");
+  const outside = code.replace(/\$\$[\s\S]*?\$\$/g, "");
+  assert.doesNotMatch(outside, /\b(delete|drop|truncate)\b/i);
+  const creates = outside.match(/\b(add column|create index)\b[^;]*/gi);
+  assert.equal(creates.length, 4);
+  for (const statement of creates) assert.match(statement, /if not exists/i, statement);
+  assert.match(code, /create or replace function purge_stale_job_offers/);
+  assert.match(code, /revoke all on function purge_stale_job_offers\(text, timestamptz, timestamptz\) from public, anon, authenticated/);
+  assert.match(code, /grant execute on function purge_stale_job_offers\(text, timestamptz, timestamptz\) to service_role/);
+});
+
+test("migration 0037 : offre liée à une candidature protégée par le lien et par entreprise + intitulé, chacun indexé", () => {
+  const body = /\$\$([\s\S]*?)\$\$/.exec(purgeMigration)[1];
+  // Deux « not exists » séparés (pas un « or ») : chacun peut s'appuyer sur son index.
+  assert.equal(body.match(/not exists/g).length, 2);
+  assert.doesNotMatch(body, /\bor\b/i);
+  assert.match(body, /a\.offer_url = o\.url/);
+  assert.match(body, /lower\(a\.company\) = lower\(o\.company\) and lower\(a\.position\) = lower\(o\.title\)/);
+  assert.match(purgeMigration, /create index if not exists applications_offer_url_idx on applications \(offer_url\)/);
+  assert.match(purgeMigration, /create index if not exists applications_company_position_idx on applications \(lower\(company\), lower\(position\)\)/);
+  // Offres collées (source « user ») : leur propre date limite.
+  assert.match(body, /case when o\.source = 'user' then p_user_before else p_collected_before end/);
 });
 
 test("Greenhouse : offres en France, lieu et date de publication", async () => {
@@ -334,14 +364,32 @@ test("plan : offres revues regroupées par lieu, doublons d'un même passage ign
   ]);
 });
 
-/** Base simulée pour un passage complet : journal et classement inclus, toute requête comptée. */
-function fakeRunDb({ failSave = false, failLog = false } = {}) {
-  const db = { rows: [], logs: [], trends: 0, touched: 0 };
+/** Base simulée pour un passage complet : journal, classement et nettoyage inclus, toute requête comptée. */
+function fakeRunDb({ failSave = false, failLog = false, purge = { data: 4, error: null } } = {}) {
+  const db = { rows: [], logs: [], trends: 0, touched: 0, purges: [], steps: [] };
   const result = (data) => ({ data, error: null });
   db.from = (table) => {
     db.touched++;
     if (table === "job_collect_runs") {
-      return { insert: async (row) => (failLog ? { error: new Error("journal") } : (db.logs.push(row), { error: null })) };
+      return {
+        insert: (row) => ({
+          select: () => ({
+            single: async () => {
+              db.steps.push("journal");
+              if (failLog) return { data: null, error: new Error("journal") };
+              db.logs.push({ id: `log${db.logs.length}`, ...row });
+              return result({ id: `log${db.logs.length - 1}` });
+            },
+          }),
+        }),
+        update: (patch) => ({
+          eq: async (_column, id) => {
+            db.steps.push("journal complété");
+            Object.assign(db.logs.find((log) => log.id === id), patch);
+            return { error: null };
+          },
+        }),
+      };
     }
     if (table === "job_keywords") {
       const chain = { select: () => chain, eq: () => chain, order: () => chain, limit: async () => result([]) };
@@ -354,7 +402,13 @@ function fakeRunDb({ failSave = false, failLog = false } = {}) {
       upsert: (row) => ({ select: async () => (db.rows.push(row), result([{ id: row.external_id }])) }),
     };
   };
-  db.rpc = async () => ({ error: null });
+  db.rpc = async (name, args) => {
+    if (name !== "purge_stale_job_offers") return { error: null };
+    db.steps.push("nettoyage");
+    db.purges.push(args);
+    if (purge instanceof Error) throw purge;
+    return purge;
+  };
   return db;
 }
 const runCompanies = ["a", "b", "c"].map((slug) => ({ name: slug.toUpperCase(), platform: "ashby", slug }));
@@ -412,13 +466,84 @@ test("erreur de base : remontée et journalisée, passage marqué partiel, sans 
 });
 
 test("journal en panne : le passage reste réussi", async () => {
-  const original = console.error;
+  const original = { error: console.error, info: console.info };
   console.error = () => {};
+  console.info = () => {};
   try {
     const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: fakeRunDb({ failLog: true }), get: runGet(), matchKeywords: match });
     assert.equal(run.error, null);
   } finally {
-    console.error = original;
+    Object.assign(console, original);
+  }
+});
+
+test("nettoyage : 60 jours pour les offres collectées, 180 pour les offres collées", () => {
+  assert.equal(COLLECTED_OFFERS_MAX_DAYS, 60);
+  assert.equal(USER_OFFERS_MAX_DAYS, 180);
+  assert.deepEqual(purgeCutoffs(Date.parse("2026-11-08T03:00:00Z")), {
+    p_collected_before: "2026-09-09T03:00:00.000Z",
+    p_user_before: "2026-05-12T03:00:00.000Z",
+  });
+});
+
+test("nettoyage : lancé après le journal, compteur inscrit sur la même ligne", async () => {
+  const db = fakeRunDb();
+  const clock = Date.parse("2026-11-08T03:00:00Z");
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: runGet(), matchKeywords: match, now: () => clock });
+  assert.deepEqual(db.steps, ["journal", "nettoyage", "journal complété"]);
+  assert.deepEqual(db.purges, [{ p_sector: "tech", ...purgeCutoffs(clock) }]);
+  assert.deepEqual([run.offersDeleted, run.purgeError], [4, null]);
+  assert.deepEqual([db.logs[0].offers_deleted, db.logs[0].purge_error], [4, null]);
+});
+
+test("nettoyage : sauté après un passage en erreur, raison notée au journal", async () => {
+  const db = fakeRunDb({ failSave: true });
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: runGet(), matchKeywords: match });
+  assert.deepEqual(db.purges, []);
+  assert.deepEqual([run.offersDeleted, db.logs[0].offers_deleted, db.logs[0].purge_error], [null, null, "sauté : passage en erreur"]);
+});
+
+test("nettoyage : sauté s'il reste moins de 10 s avant les 240 s, passage non bloqué", async () => {
+  assert.equal(PURGE_MIN_REMAINING_MS, 10_000);
+  const db = fakeRunDb();
+  let clock = 0;
+  const get = async (url) => {
+    clock += 77_000; // 3 entreprises : 231 s, il reste 9 s
+    return runGet()(url);
+  };
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get, matchKeywords: match, now: () => clock });
+  assert.deepEqual([run.partial, run.error], [false, null]);
+  assert.deepEqual(db.purges, []);
+  assert.equal(db.logs[0].purge_error, "sauté : temps restant trop court");
+});
+
+test("nettoyage : une erreur (réponse ou exception) est notée, le passage reste réussi", async () => {
+  for (const purge of [{ data: null, error: { message: "délai dépassé" } }, new Error("réseau")]) {
+    const db = fakeRunDb({ purge });
+    const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: runGet(), matchKeywords: match });
+    assert.equal(run.error, null);
+    assert.equal(run.offersDeleted, null);
+    assert.match(db.logs[0].purge_error, /délai dépassé|réseau/);
+  }
+});
+
+test("nettoyage : essai à blanc, rien supprimé ni journalisé", async () => {
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: null, get: runGet(), matchKeywords: match });
+  assert.deepEqual([run.offersDeleted, run.purgeError], [null, "sauté : essai à blanc"]);
+});
+
+test("nettoyage : journal en panne, nettoyage lancé quand même et bilan dans la console", async () => {
+  const db = fakeRunDb({ failLog: true });
+  const original = { error: console.error, info: console.info };
+  const infos = [];
+  console.error = () => {};
+  console.info = (...args) => infos.push(args.join(" "));
+  try {
+    const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: runGet(), matchKeywords: match });
+    assert.equal(run.offersDeleted, 4);
+    assert.match(infos.join("\n"), /"offersDeleted":4/);
+  } finally {
+    Object.assign(console, original);
   }
 });
 

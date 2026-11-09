@@ -456,6 +456,23 @@ export const COLLECT_BUDGET_MS = 240_000;
 const COLLECT_SOURCE = "ats";
 const SAMPLE_SIZE = 5;
 
+/** Offre collectée non revue depuis ce délai : supprimée en fin de passage. */
+export const COLLECTED_OFFERS_MAX_DAYS = 60;
+/** Offre collée par un utilisateur (source « user ») : gardée plus longtemps. */
+export const USER_OFFERS_MAX_DAYS = 180;
+/** Nettoyage sauté s'il reste moins que ce temps avant la fin du budget du passage. */
+export const PURGE_MIN_REMAINING_MS = 10_000;
+
+const DAY_MS = 86_400_000;
+
+/** Dates limites du nettoyage (ISO) : une offre non revue depuis avant elles est supprimée. */
+export function purgeCutoffs(now: number) {
+  return {
+    p_collected_before: new Date(now - COLLECTED_OFFERS_MAX_DAYS * DAY_MS).toISOString(),
+    p_user_before: new Date(now - USER_OFFERS_MAX_DAYS * DAY_MS).toISOString(),
+  };
+}
+
 export type CollectRun = {
   sector: Sector;
   source: string;
@@ -470,6 +487,10 @@ export type CollectRun = {
   offersSeen: number;
   partial: boolean;
   error: string | null;
+  /** Offres supprimées par le nettoyage ; null s'il n'a pas tourné. */
+  offersDeleted: number | null;
+  /** Erreur du nettoyage, ou raison pour laquelle il a été sauté ; ne fait jamais échouer le passage. */
+  purgeError: string | null;
   /** Essai à blanc : quelques offres lues, pour contrôler le résultat. */
   sample?: { title: string; company: string | null; location: string | null }[];
 };
@@ -479,8 +500,8 @@ const errorMessage = (error: unknown) =>
 
 /**
  * Un passage sur un secteur : offres enregistrées entreprise par entreprise, pour qu'un arrêt ou une
- * erreur garde le travail déjà fait, puis classement et journal. `supabase` null : essai à blanc,
- * aucune lecture ni écriture en base.
+ * erreur garde le travail déjà fait, puis classement, journal et nettoyage des vieilles offres.
+ * `supabase` null : essai à blanc, aucune lecture ni écriture en base.
  */
 export async function runSectorCollection({
   sector,
@@ -550,12 +571,16 @@ export async function runSectorCollection({
     offersSeen: counters.offersSeen,
     partial: collection ? collection.partial : true,
     error,
+    offersDeleted: null,
+    purgeError: supabase ? null : "sauté : essai à blanc",
     ...(supabase ? {} : { sample }),
   };
+  if (!supabase) return run;
 
-  if (supabase) {
-    // Sans échec : le journal ne doit pas faire échouer un passage déjà enregistré.
-    const { error: logError } = await supabase.from("job_collect_runs").insert({
+  // Sans échec : le journal ne doit pas faire échouer un passage déjà enregistré.
+  const { data: logRow, error: logError } = await supabase
+    .from("job_collect_runs")
+    .insert({
       sector: run.sector,
       source: run.source,
       started_at: run.startedAt,
@@ -568,10 +593,47 @@ export async function runSectorCollection({
       offers_seen: run.offersSeen,
       partial: run.partial,
       error: run.error,
-    });
-    if (logError) console.error("[collecte] journal", logError.message);
+    })
+    .select("id")
+    .single();
+  if (logError) console.error("[collecte] journal", logError.message);
+
+  // Nettoyage après le journal : son résultat complète la même ligne.
+  await purgeStaleOffers(supabase, run, budgetMs - (now() - started), now());
+  const logId = (logRow as { id?: string } | null)?.id;
+  if (logId) {
+    const { error: updateError } = await supabase
+      .from("job_collect_runs")
+      .update({ offers_deleted: run.offersDeleted, purge_error: run.purgeError })
+      .eq("id", logId);
+    if (updateError) console.error("[collecte] journal du nettoyage", updateError.message);
+  } else {
+    console.info("[collecte] nettoyage", JSON.stringify({ sector, offersDeleted: run.offersDeleted, purgeError: run.purgeError }));
   }
   return run;
+}
+
+/**
+ * Supprime les offres du secteur non revues depuis 60 jours (180 pour les offres collées), jamais
+ * une offre liée à une candidature (fonction purge_stale_job_offers, migration 0037). Sauté après un
+ * passage en erreur ou faute de temps ; une erreur est notée dans `purgeError`, jamais levée.
+ */
+async function purgeStaleOffers(supabase: SupabaseClient, run: CollectRun, remainingMs: number, now: number) {
+  if (run.error) {
+    run.purgeError = "sauté : passage en erreur";
+    return;
+  }
+  if (remainingMs < PURGE_MIN_REMAINING_MS) {
+    run.purgeError = "sauté : temps restant trop court";
+    return;
+  }
+  try {
+    const { data, error } = await supabase.rpc("purge_stale_job_offers", { p_sector: run.sector, ...purgeCutoffs(now) });
+    if (error) throw error;
+    run.offersDeleted = typeof data === "number" ? data : Number(data ?? 0);
+  } catch (caught) {
+    run.purgeError = errorMessage(caught);
+  }
 }
 
 /** Recalcule le classement des mots-clés d'un secteur. */
