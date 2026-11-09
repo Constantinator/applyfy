@@ -152,7 +152,7 @@ export function detectOfferSector(title: string, description?: string | null): S
     .map((sector) => ({ sector, score: countMatches(titles, TITLE_KEYWORDS[sector]) }))
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score);
-  if (jobs.length) return uniqueTop(jobs);
+  if (jobs.length) return uniqueTop(jobs, titles);
   if (countMatches(titles, TITLE_KEYWORDS.etudiant) > 0) return "etudiant";
 
   const whole = normalize(`${title} | ${description ?? ""}`);
@@ -163,9 +163,25 @@ export function detectOfferSector(title: string, description?: string | null): S
   return byKeywords.length ? uniqueTop(byKeywords) : null;
 }
 
-/** Secteur en tête, ou null en cas d'égalité (cas ambigu : « Autre » plutôt qu'un secteur deviné). */
-function uniqueTop(sorted: { sector: Sector; score: number }[]): Sector | null {
-  return sorted.length > 1 && sorted[1].score === sorted[0].score ? null : sorted[0].sector;
+/**
+ * Départages d'une égalité au titre : un intitulé sans ambiguïté sur le métier l'emporte
+ * (« Software Engineer, Display and Video » → tech ; « Sales Strategy » → commercial).
+ */
+const TIE_BREAKERS: [Sector, string[]][] = [
+  ["tech", ["software engineer", "developer", "developpeur"]],
+  ["commercial", ["sales", "sdr", "account executive"]],
+];
+
+/**
+ * Secteur en tête, ou null en cas d'égalité (cas ambigu : « Autre » plutôt qu'un secteur deviné).
+ * Seuls départages : TIE_BREAKERS, et seulement si un seul des secteurs à égalité s'y prête.
+ */
+function uniqueTop(sorted: { sector: Sector; score: number }[], title?: string): Sector | null {
+  const tied = sorted.filter((s) => s.score === sorted[0].score).map((s) => s.sector);
+  if (tied.length === 1) return tied[0];
+  if (!title) return null;
+  const winners = TIE_BREAKERS.filter(([sector, words]) => tied.includes(sector) && countMatches(title, words) > 0);
+  return winners.length === 1 ? winners[0][0] : null;
 }
 
 /** Données du secteur dans la base de connaissance. */

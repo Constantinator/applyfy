@@ -61,7 +61,23 @@ test("égalité ou cas ambigu : null (pastille « Autre ») plutôt qu'un secteu
   assert.equal(detectOfferSector("Revenue Growth Stretegy Intern"), "marketing");
   assert.equal(detectOfferSector("Revenue Growth Strategy Intern"), null);
   assert.equal(detectOfferSector("Revenue Growth Strategist Intern"), null);
-  assert.equal(detectOfferSector("Sales Strategy & Operations Intern"), null);
+  // Pas de départage « consultant l'emporte sur le domaine ».
+  assert.equal(detectOfferSector("Finance & Strategy Intern"), null);
+  assert.equal(detectOfferSector("Stage - Consultant en analyse financière"), null);
+  assert.equal(detectOfferSector("Consultant(e) Stagiaire en Transaction Services"), null);
+});
+
+test("départages d'égalité : Software Engineer / developer → tech, Sales / SDR / Account Executive → commercial", () => {
+  assert.equal(detectOfferSector("Staff Software Engineer, Display and Video Ads"), "tech");
+  assert.equal(detectOfferSector("Video Developer"), "tech");
+  assert.equal(detectOfferSector("Sales Strategy & Operations Intern"), "commercial");
+  assert.equal(detectOfferSector("Senior Sales - Centres Hospitaliers"), "commercial");
+  assert.equal(detectOfferSector("Sales Development Representative - Comptabilité"), "commercial");
+  assert.equal(detectOfferSector("Account Executive - Fintech Strategy"), "commercial");
+  // Les deux départages à la fois : toujours ambigu.
+  assert.equal(detectOfferSector("Sales Developer"), null);
+  // Sans égalité, le départage ne change rien (le marketing l'emporte ici avec 2 mots-clés).
+  assert.equal(detectOfferSector("Developer Marketing & Communication Manager"), "marketing");
 });
 
 test("métier hors base sectorielle : null, jamais de faux secteur", () => {
