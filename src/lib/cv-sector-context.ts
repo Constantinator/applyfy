@@ -6,6 +6,7 @@ import { matchKeywords } from "./keyword-match";
 
 // Liste des secteurs : source unique dans sectors.ts (réexportée ici pour les appels existants).
 import { SECTORS, type Sector } from "./sectors";
+import { isSector } from "./sectors";
 export { SECTORS, type Sector };
 
 export type SectorContext = {
@@ -161,6 +162,42 @@ export function detectOfferSector(title: string, description?: string | null): S
     .filter((s) => s.score >= 3)
     .sort((a, b) => b.score - a.score);
   return byKeywords.length ? uniqueTop(byKeywords) : null;
+}
+
+/** Offre d'un CV lié à une candidature : son secteur fixe celui du score (cvScoringSector). */
+export type ScoringOffer = {
+  position: string;
+  company: string;
+  description: string | null;
+  /** Colonne applications.sector (migration 0038), sans contrainte en base : revalidée. */
+  sector: string | null;
+};
+
+/**
+ * Secteur du score d'un CV. CV lié à une candidature : secteur de l'offre (colonne
+ * applications.sector, sinon détecté sur le poste et la description) ; à défaut, et en mode
+ * libre (sans offre), secteur du CV (detectSector), comme avant.
+ */
+export function cvScoringSector(cvJson: string, targetJob: string | null | undefined, offer?: ScoringOffer | null): Sector {
+  if (offer) {
+    if (isSector(offer.sector)) return offer.sector;
+    const fromOffer = detectOfferSector(offer.position, offer.description);
+    if (fromOffer) return fromOffer;
+  }
+  return detectSector(cvJson, targetJob);
+}
+
+/**
+ * Titre du CV à aligner sur l'offre : son métier est reconnu et diffère du secteur de l'offre
+ * (« Stage Transaction Services » pour une offre tech). Titre vide, non reconnu ou seulement
+ * « étudiant » : rien à signaler.
+ */
+export function cvTitleMismatch(jobTitle: string, offerSector: Sector): boolean {
+  const title = jobTitle.trim();
+  // « Étudiant » n'est pas un métier : ni un titre « Stagiaire », ni une offre « Stage » sans métier reconnu.
+  if (!title || offerSector === "etudiant") return false;
+  const sector = detectOfferSector(title);
+  return sector !== null && sector !== "etudiant" && sector !== offerSector;
 }
 
 /**

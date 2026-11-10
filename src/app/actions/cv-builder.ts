@@ -1,7 +1,5 @@
 "use server";
 
-import { createHash } from "node:crypto";
-
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
@@ -32,7 +30,7 @@ import {
   type ImportedCvAnalysis,
 } from "@/lib/claude";
 import { closedOpening, coachReplyText, quotaBlockedText } from "@/lib/coach-outcome";
-import { isCvClosed } from "@/lib/coach-prompt";
+import { coachContentKey, isCvClosed } from "@/lib/coach-prompt";
 import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems } from "@/lib/coach-proposals";
 import {
   CvBuilderError,
@@ -66,10 +64,10 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { bannedPhrasesInCv, scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
-import { loadScoringContext } from "@/lib/cv-score-context";
+import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { htmlToText } from "@/lib/cv-html";
 import { matchCvKeywords } from "@/lib/cv-keyword-match";
-import type { Sector } from "@/lib/cv-sector-context";
+import { cvTitleMismatch, type Sector } from "@/lib/cv-sector-context";
 import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import { matchKeywords } from "@/lib/keyword-match";
 import { extractDocxText } from "@/lib/docx";
@@ -541,7 +539,7 @@ export async function extractCvImportAction(formData: FormData): Promise<ImportS
 /** CV de l'utilisateur et données de son secteur (étapes de l'import qui suivent l'extraction). */
 async function importedCv(id: unknown) {
   const cv = typeof id === "string" ? await getBuilderCv(id) : null;
-  return cv && { cv, scoring: await loadScoringContext(cv.data) };
+  return cv && { cv, scoring: await loadBuilderCvScoring(cv.data, cv.applicationId) };
 }
 
 const IMPORT_NOT_FOUND = { ok: false as const, error: "Ce CV n'existe plus. Recommence l'import." };
@@ -625,9 +623,11 @@ export async function analyseCvImportAction(id: string): Promise<ImportStepResul
 export async function scoringContextAction(id: string, rawData: unknown): Promise<ScoringContext | null> {
   if (typeof id !== "string") return null;
   const { data } = fittedCv(rawData, "score");
-  // Vérifie la connexion ET que le CV appartient bien à l'utilisateur.
-  if (!(await getBuilderCv(id))) return null;
-  return loadScoringContext(data);
+  // Vérifie la connexion ET que le CV appartient bien à l'utilisateur. Lien à la candidature relu
+  // en base (jamais envoyé par le navigateur) : même secteur que le score de la page.
+  const stored = await getBuilderCv(id);
+  if (!stored) return null;
+  return loadBuilderCvScoring(data, stored.applicationId);
 }
 
 /**
@@ -670,9 +670,8 @@ const COACH_OFFER_KEYWORDS_MAX = 25;
  * Mots-clés de l'offre encore absents du CV (recalculés à chaque échange), les plus importants
  * d'abord. Sans échec : le coach continue sans eux.
  */
-async function missingOfferKeywords(applicationId: string, data: CvData, sector: Sector): Promise<string[]> {
+function missingOfferKeywords(detail: ApplicationDetailResult | null, data: CvData, sector: Sector): string[] {
   try {
-    const detail = await getApplicationDetail(applicationId);
     const saved = readCvSuggestions(detail?.application.cv_suggestions);
     const missing =
       saved?.kind === "keywords"
@@ -700,16 +699,22 @@ async function coachContext(
 ): Promise<CoachContext & { contentKey: string; scoring: ScoringContext }> {
   const cvJson = JSON.stringify(chatContent(data));
   const a = data.analysis;
-  // Score calculé par le code, le même que celui affiché dans l'éditeur.
-  const scoring = await loadScoringContext(data);
+  // CV lié : la candidature est relue une seule fois, pour le secteur du score et les mots-clés.
+  const detail = applicationId ? await getApplicationDetail(applicationId) : null;
+  // Score calculé par le code, le même que celui affiché dans l'éditeur (secteur de l'offre pour un CV lié).
+  const scoring = await loadBuilderCvScoring(data, applicationId, detail);
   const score = scoreCv(data, scoring);
-  const offerKeywords = applicationId ? await missingOfferKeywords(applicationId, data, scoring.sector) : [];
+  const offerKeywords = detail ? missingOfferKeywords(detail, data, scoring.sector) : [];
+  const offer = scoring.offer ?? null;
   return {
     scoring,
     cvJson,
     offerKeywords,
-    // Mots-clés compris : le premier message est réécrit quand ils changent.
-    contentKey: createHash("sha256").update(cvJson + offerKeywords.join()).digest("hex").slice(0, 32),
+    sector: scoring.sector,
+    offer,
+    titleMismatch: offer ? cvTitleMismatch(data.personal.jobTitle, scoring.sector) : false,
+    // Mots-clés, secteur et offre compris : le premier message est réécrit quand ils changent.
+    contentKey: coachContentKey(cvJson, offerKeywords, scoring.sector, offer),
     score: {
       value: score.score,
       corrections: score.corrections.map((c) => `${c.message} (+${c.points} pts)`),

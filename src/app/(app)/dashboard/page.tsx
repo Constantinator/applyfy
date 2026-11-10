@@ -25,7 +25,7 @@ import { pendingBetaReport } from "@/lib/beta-rules";
 import { getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
-import { loadScoringContext } from "@/lib/cv-score-context";
+import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { buildStartSteps, isNewAccount } from "@/lib/dashboard-start";
 import { buildTodo, todayLabel, todoCountLabel } from "@/lib/dashboard-todo";
 import { buildPeriodStats } from "@/lib/dashboard-week";
@@ -49,7 +49,7 @@ async function loadLatestCv(): Promise<LatestCv | null | undefined> {
   try {
     const cv = await getLatestBuilderCv();
     if (!cv) return null;
-    const context = await loadScoringContext(cv.data);
+    const context = await loadBuilderCvScoring(cv.data, cv.applicationId);
     const score = scoreCv(cv.data, context);
     return {
       id: cv.id,

@@ -8,7 +8,7 @@ import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { getBuilderCv } from "@/lib/cv-builder";
-import { loadScoringContext } from "@/lib/cv-score-context";
+import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { readCvSuggestions } from "@/lib/cv-types";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
@@ -21,11 +21,10 @@ export default async function CvBuilderEditorPage({ params, searchParams }: Page
   const [{ id }, { onglet }] = await Promise.all([params, searchParams]);
   const [cv, usage] = await Promise.all([getBuilderCv(id), readAiUsage()]);
   if (!cv) notFound();
-  const [scoring, detail] = await Promise.all([
-    loadScoringContext(cv.data),
-    // CV ouvert depuis une fiche : mots-clés de l'analyse faite pour cette candidature.
-    cv.applicationId ? getApplicationDetail(cv.applicationId) : null,
-  ]);
+  // CV ouvert depuis une fiche : mots-clés de l'analyse faite pour cette candidature, et secteur
+  // du score pris dans l'offre (même calcul que le coach et scoringContextAction).
+  const detail = cv.applicationId ? await getApplicationDetail(cv.applicationId) : null;
+  const scoring = await loadBuilderCvScoring(cv.data, cv.applicationId, detail);
   const analysis = readCvSuggestions(detail?.application.cv_suggestions);
 
   return (

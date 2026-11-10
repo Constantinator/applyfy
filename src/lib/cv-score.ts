@@ -1,5 +1,6 @@
 import type { CvData, CvExperience } from "./cv-builder-types";
 import type { Sector } from "./cv-sector-context";
+import { SECTOR_LABELS } from "./sectors";
 import { hasPhrase, matchKeywords, normalizeText } from "./keyword-match";
 
 // Score du CV sur 100, calculé par le code à partir de son contenu (sans IA), dans l'éditeur du
@@ -16,6 +17,8 @@ export type ScoringContext = {
   avoid: string[];
   /** Mots-clés les plus fréquents des offres récentes du secteur (job_keywords), s'il y en a. */
   marketKeywords: string[];
+  /** CV lié à une candidature : offre dont le secteur fixe le score (ligne « Noté pour l'offre »). */
+  offer?: { position: string; company: string } | null;
 };
 
 export const SCORE_CATEGORIES = [
@@ -277,6 +280,20 @@ function experienceLabel(e: CvExperience) {
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
+
+/**
+ * Ligne sous le score d'un CV lié à une candidature : « Noté pour l'offre : Poste · Entreprise
+ * (Secteur) ». Null en mode libre. Texte affiché par React (échappé) ; caractères de contrôle
+ * retirés et longueurs bornées.
+ */
+export function offerScoreLabel(context: Pick<ScoringContext, "offer" | "sector">): string | null {
+  const offer = context.offer;
+  if (!offer) return null;
+  const clean = (text: string) => text.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+  const what = [clean(offer.position), clean(offer.company)].filter(Boolean).join(" · ");
+  if (!what) return null;
+  return `Noté pour l'offre : ${what} (${SECTOR_LABELS[context.sector]})`;
+}
 
 export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   const corrections: CvCorrection[] = [];

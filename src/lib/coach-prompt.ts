@@ -1,5 +1,8 @@
+import { createHash } from "node:crypto";
+
 import type { CoachMode, CoachSection } from "./coach-proposals";
 import { GENERIC_JARGON, READY_SCORE } from "./cv-score";
+import type { Sector } from "./sectors";
 
 // Prompt du coach du CV Builder (fonctions pures, sans appel au modèle) : règles, contexte du CV
 // et message du candidat. Tout ce qui vient du CV, de l'offre ou du candidat est une donnée,
@@ -27,6 +30,12 @@ export type CoachContext = {
   skipped?: string[];
   /** CV lié à une candidature : mots-clés de l'offre absents du CV, les plus importants d'abord. */
   offerKeywords?: string[];
+  /** Secteur du score (celui de l'offre pour un CV lié) : contexte sectoriel du coach. */
+  sector: Sector;
+  /** CV lié à une candidature : intitulé et entreprise de l'offre. */
+  offer?: { position: string; company: string } | null;
+  /** Titre du CV d'un autre métier que l'offre (cvTitleMismatch) : à proposer une fois, sans l'imposer. */
+  titleMismatch?: boolean;
   analysis: {
     criteria: Record<string, number>;
     improvements: string[];
@@ -85,7 +94,10 @@ Règles de modification (à chaque ajout ou reformulation) :
 const list = (items: string[]) => items.map((item) => `- ${n(item)}`).join("\n");
 
 /** Prompt système du coach : contexte sectoriel, règles, contenu du CV et analyse. */
-export function coachSystem({ cvJson, score, skipped = [], offerKeywords = [], analysis }: CoachContext, sectorContext: string) {
+export function coachSystem(
+  { cvJson, score, skipped = [], offerKeywords = [], offer = null, titleMismatch = false, analysis }: CoachContext,
+  sectorContext: string,
+) {
   const closed = isCvClosed(score.value);
   const parts = [
     sectorContext,
@@ -109,6 +121,22 @@ export function coachSystem({ cvJson, score, skipped = [], offerKeywords = [], a
       .filter(Boolean)
       .join("\n"),
   ];
+  if (offer && (offer.position.trim() || offer.company.trim())) {
+    parts.push(
+      [
+        "<offre>",
+        "Le CV est adapté à cette offre : elle fixe le poste visé, le secteur et le score.",
+        offer.position.trim() ? `Intitulé du poste : ${n(offer.position.trim())}` : null,
+        offer.company.trim() ? `Entreprise : ${n(offer.company.trim())}` : null,
+        titleMismatch && !closed
+          ? "Titre du CV (en tête du CV) d'un autre métier que cette offre : traite-le comme un point du parcours, à sa place (le titre vient en dernier). Propose une seule fois de l'aligner sur l'intitulé du poste, sans le modifier tant que le candidat ne l'a pas accepté. S'il refuse ou ne répond pas, ajoute-le à « skipped_points » et n'y reviens plus."
+          : null,
+        "</offre>",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
   if (offerKeywords.length) {
     const title = closed
       ? "Mots-clés de l'offre absents du CV (CV clos : n'en aborde aucun de ta propre initiative)"
@@ -134,6 +162,20 @@ export function coachSystem({ cvJson, score, skipped = [], offerKeywords = [], a
     );
   }
   return parts.join("\n\n");
+}
+
+/**
+ * Empreinte du premier message du coach : il est réécrit quand le contenu du CV, les mots-clés de
+ * l'offre, le secteur du score ou l'offre changent.
+ */
+export function coachContentKey(
+  cvJson: string,
+  offerKeywords: string[],
+  sector: Sector,
+  offer?: { position: string; company: string } | null,
+): string {
+  const parts = [cvJson, offerKeywords.join(), sector, offer ? `${offer.position}\n${offer.company}` : ""];
+  return createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 32);
 }
 
 /** Proposition refusée par la vérification du code : renvoyée au coach pour un nouvel essai. */

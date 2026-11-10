@@ -5,14 +5,14 @@ import { unstable_rethrow } from "next/navigation";
 import { getAccountName } from "@/lib/account";
 import { countAiUsageToday, checkAiRateLimit, readAiUsage, recordAiUsage } from "@/lib/ai-usage";
 import { isLimitReached } from "@/lib/ai-usage-limits";
-import { getApplicationDetail, getApplications } from "@/lib/applications";
+import { getApplicationDetail, getApplications, type ApplicationDetailResult } from "@/lib/applications";
 import { requireUser } from "@/lib/auth";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { answerLumeo, ClaudeRefusalError, isClaudeConfigured, type LumeoAnswer } from "@/lib/claude";
-import { getLatestBuilderCv } from "@/lib/cv-builder";
+import { getBuilderCvByApplication, getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
-import { loadScoringContext } from "@/lib/cv-score-context";
+import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { lumeoProposal } from "@/lib/lumeo-action-server";
 import { proposalFromModel, type LumeoRefusal } from "@/lib/lumeo-actions";
 import { LUMEO_APP_GUIDE, lumeoPlanKind, lumeoPlansBlock, lumeoUserPlanBlock } from "@/lib/lumeo-knowledge";
@@ -27,18 +27,22 @@ import {
   lumeoUserContent,
   parseLumeoLocation,
   type LumeoCvInput,
-  type LumeoLocation,
   type LumeoOfferInput,
 } from "@/lib/lumeo-panel";
 import { LUMEO_ACTION_TEXTS as A, LUMEO_PANEL_TEXTS as T } from "@/lib/lumeo-texts";
 import type { DocumentChatResult } from "@/lib/refine";
 
-/** Dernier CV du CV Builder, résumé pour Lumeo (sans contact ni photo) ; null sans CV ou en cas d'échec. */
-async function lumeoCv(): Promise<LumeoCvInput | null> {
+/**
+ * CV résumé pour Lumeo (sans contact ni photo) : sur une fiche, le CV lié à cette candidature, noté
+ * pour son offre (même score que dans l'éditeur) ; sinon, ou sans CV lié, le dernier CV du CV
+ * Builder, comme avant. Null sans CV ou en cas d'échec.
+ */
+async function lumeoCv(detail: ApplicationDetailResult | null): Promise<LumeoCvInput | null> {
   try {
-    const cv = await getLatestBuilderCv();
+    const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
+    const cv = linked ?? (await getLatestBuilderCv());
     if (!cv) return null;
-    const context = await loadScoringContext(cv.data);
+    const context = await loadBuilderCvScoring(cv.data, cv.applicationId, linked ? detail : undefined);
     const score = scoreCv(cv.data, context);
     const weakPoints = score.corrections.map((c) => c.message).slice(0, 3);
     const weakest = weakestCategory(score)?.label;
@@ -58,9 +62,7 @@ async function lumeoCv(): Promise<LumeoCvInput | null> {
 }
 
 /** Offre de la fiche ouverte, relue avec les droits de l'utilisateur (jamais envoyée par le navigateur). */
-async function lumeoOffer(location: LumeoLocation): Promise<LumeoOfferInput | null> {
-  if (location.page !== "fiche" || !location.applicationId) return null;
-  const detail = await getApplicationDetail(location.applicationId);
+async function lumeoOffer(detail: ApplicationDetailResult | null): Promise<LumeoOfferInput | null> {
   if (!detail) return null;
   const { company, position, location: city, status, applied_at, last_contact_at, is_example, sector, offer_summary, offer_description } =
     detail.application;
@@ -103,11 +105,13 @@ export async function askLumeoAction(where: string, _html: string, message: stri
       await new Promise((resolve) => setTimeout(resolve, 900)); // « il réfléchit » visible
       answer = mockLumeoReply(question, location);
     } else {
+      // Fiche ouverte : relue une seule fois avec les droits de l'utilisateur (offre et CV lié).
+      const detail = location.page === "fiche" && location.applicationId ? await getApplicationDetail(location.applicationId) : null;
       const [accountName, cv, applications, offer, beta] = await Promise.all([
         getAccountName().catch(() => null),
-        lumeoCv(),
+        lumeoCv(detail),
         getApplications().then((r) => r.applications),
-        lumeoOffer(location),
+        lumeoOffer(detail),
         getMyBeta(), // sans échec : null si indisponible
       ]);
       // Plan et quotas restants, cette question comprise (comptée dès qu'une réponse arrive).

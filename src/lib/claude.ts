@@ -8,7 +8,7 @@ import { coachSystem, coachUserText, neutralizeCoachData, type CoachContext, typ
 import { COACH_DATA_SCHEMAS, COACH_SECTIONS, type CoachMode, type CoachSection, type CoachUpdate } from "./coach-proposals";
 import type { CoverLetter, TranscribedLetter } from "./cover-letter";
 import type { ImprovedCv } from "./cv-html";
-import { detectSector, formatSectorContext, getSectorContext } from "./cv-sector-context";
+import { formatSectorContext, getSectorContext } from "./cv-sector-context";
 import { KEYWORD_GROUPS, type KeywordGroup } from "./cv-types";
 import { LUMEO_MODEL_ACTIONS, type LumeoModelAction } from "./lumeo-actions";
 import { LUMEO_RELANCE_SYSTEM, LUMEO_SYSTEM } from "./lumeo-system";
@@ -1018,11 +1018,11 @@ function toCoachReply(flat: CoachReplyFlat): CoachReply {
 }
 
 /**
- * Contexte sectoriel du coach : secteur détecté d'après le poste visé et le CV, et mots-clés
- * relevés dans les offres récentes du secteur quand il y en a.
+ * Contexte sectoriel du coach : secteur du score (celui de l'offre pour un CV lié, cf.
+ * loadScoringContext), jamais redétecté ici, et mots-clés relevés dans les offres récentes du
+ * secteur quand il y en a.
  */
-async function coachSectorContext({ cvJson, analysis }: CoachContext) {
-  const sector = detectSector(cvJson, analysis?.targetJob);
+async function coachSectorContext({ sector }: CoachContext) {
   return formatSectorContext(getSectorContext(sector), (await getKeywordsForSector(sector)).map(neutralizeCoachData));
 }
 

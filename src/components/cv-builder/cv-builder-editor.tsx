@@ -29,7 +29,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { matchCvKeywords } from "@/lib/cv-keyword-match";
-import { scoreCv, type ScoringContext } from "@/lib/cv-score";
+import { offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
 import type { OfferKeyword } from "@/lib/cv-types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -396,7 +396,7 @@ export function CvBuilderEditor({
         {/* Score (toujours visible), onglets, puis chat « coach » ou style, qui remplissent le reste de la hauteur. */}
         <div className="flex min-w-0 flex-col gap-4 lg:min-h-0">
           <div className="shrink-0">
-            <CvScorePanel score={score} />
+            <CvScorePanel score={score} offerLabel={offerScoreLabel(scoringContext)} />
           </div>
           <div role="tablist" aria-label="Panneau de l'éditeur" className="flex shrink-0 flex-wrap gap-1.5">
             {tabs.map(([id, label]) => (

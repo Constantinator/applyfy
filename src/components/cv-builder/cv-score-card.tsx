@@ -126,7 +126,7 @@ export function CvScoreDetail({ score }: { score: CvScore }) {
  * « 80 = prêt à postuler ». Un clic sur la jauge ouvre le détail par catégorie. Le coach traite
  * lui-même les points à corriger.
  */
-export function CvScorePanel({ score }: { score: CvScore }) {
+export function CvScorePanel({ score, offerLabel = null }: { score: CvScore; offerLabel?: string | null }) {
   const titleId = useId();
   const detailId = useId();
   const [open, setOpen] = useState(false);
@@ -185,6 +185,12 @@ export function CvScorePanel({ score }: { score: CvScore }) {
           </h2>
           <p className={`text-sm font-medium ${t.text}`}>{scoreLabel(score.score)}</p>
           <p className="text-xs text-muted dark:text-slate-400">{READY_SCORE} = prêt à postuler</p>
+          {offerLabel && (
+            // CV lié à une candidature : le score est calculé pour le métier de l'offre.
+            <p title={offerLabel} className="mt-1 line-clamp-2 text-xs break-words text-muted dark:text-slate-400">
+              {offerLabel}
+            </p>
+          )}
         </div>
       </div>
     </section>

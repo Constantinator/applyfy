@@ -85,7 +85,8 @@ export async function getLatestBuilderCv(): Promise<BuilderCv | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("cv_builder")
-    .select("id, title, template_id, data, created_at, updated_at")
+    // application_id : un CV lié est noté pour son offre (tableau de bord, Lumeo), comme dans l'éditeur.
+    .select("id, title, template_id, data, application_id, created_at, updated_at")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(1)
