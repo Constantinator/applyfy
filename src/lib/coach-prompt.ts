@@ -18,6 +18,9 @@ export function neutralizeCoachData(text: string): string {
 }
 const n = neutralizeCoachData;
 
+/** Texte d'une seule ligne : retours à la ligne et espaces multiples remplacés par une espace. */
+const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
+
 /**
  * Ce que le coach sait du CV : contenu actuel, score calculé par le code (cv-score.ts, affiché
  * dans l'éditeur) avec ses corrections prioritaires, et analyse de l'import (CV importé).
@@ -32,7 +35,7 @@ export type CoachContext = {
   offerKeywords?: string[];
   /** Secteur du score (celui de l'offre pour un CV lié) : contexte sectoriel du coach. */
   sector: Sector;
-  /** CV lié à une candidature : intitulé et entreprise de l'offre. */
+  /** CV lié à une candidature : offre (seul l'intitulé va au modèle ; l'entreprise sert à la clé du premier message). */
   offer?: { position: string; company: string } | null;
   /** Titre du CV d'un autre métier que l'offre (cvTitleMismatch) : à proposer une fois, sans l'imposer. */
   titleMismatch?: boolean;
@@ -121,13 +124,15 @@ export function coachSystem(
       .filter(Boolean)
       .join("\n"),
   ];
-  if (offer && (offer.position.trim() || offer.company.trim())) {
+  // Intitulé sur une seule ligne : un retour à la ligne ne peut pas ajouter une fausse consigne au bloc.
+  // L'entreprise n'est pas transmise : l'intitulé suffit au coach (elle reste dans la ligne sous le score).
+  const position = offer ? oneLine(offer.position) : "";
+  if (position) {
     parts.push(
       [
         "<offre>",
         "Le CV est adapté à cette offre : elle fixe le poste visé, le secteur et le score.",
-        offer.position.trim() ? `Intitulé du poste : ${n(offer.position.trim())}` : null,
-        offer.company.trim() ? `Entreprise : ${n(offer.company.trim())}` : null,
+        `Intitulé du poste : ${n(position)}`,
         titleMismatch && !closed
           ? "Titre du CV (en tête du CV) d'un autre métier que cette offre : traite-le comme un point du parcours, à sa place (le titre vient en dernier). Propose une seule fois de l'aligner sur l'intitulé du poste, sans le modifier tant que le candidat ne l'a pas accepté. S'il refuse ou ne répond pas, ajoute-le à « skipped_points » et n'y reviens plus."
           : null,

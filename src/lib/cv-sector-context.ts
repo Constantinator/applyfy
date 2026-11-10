@@ -187,6 +187,33 @@ export function cvScoringSector(cvJson: string, targetJob: string | null | undef
   return detectSector(cvJson, targetJob);
 }
 
+/** Candidature telle que lue en base (getApplicationDetail), réduite à ce qui sert au score. */
+type OfferDetail = {
+  application: {
+    id: string;
+    position?: string | null;
+    company?: string | null;
+    offer_description?: string | null;
+    offer_summary?: string | null;
+    sector?: string | null;
+  };
+};
+
+/**
+ * Offre qui fixe le secteur du score d'un CV : seulement la candidature à laquelle ce CV est lié.
+ * Sans lien, sans candidature, ou candidature différente (appel incohérent) : null, donc mode libre.
+ */
+export function scoringOfferFor(applicationId: string | null | undefined, detail: OfferDetail | null | undefined): ScoringOffer | null {
+  if (!applicationId || !detail || detail.application.id !== applicationId) return null;
+  const app = detail.application;
+  return {
+    position: app.position ?? "",
+    company: app.company ?? "",
+    description: app.offer_description ?? app.offer_summary ?? null,
+    sector: app.sector ?? null,
+  };
+}
+
 /**
  * Titre du CV à aligner sur l'offre : son métier est reconnu et diffère du secteur de l'offre
  * (« Stage Transaction Services » pour une offre tech). Titre vide, non reconnu ou seulement
