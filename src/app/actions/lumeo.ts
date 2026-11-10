@@ -17,6 +17,7 @@ import { lumeoProposal } from "@/lib/lumeo-action-server";
 import { proposalFromModel, type LumeoRefusal } from "@/lib/lumeo-actions";
 import { LUMEO_APP_GUIDE, lumeoPlanKind, lumeoPlansBlock, lumeoUserPlanBlock } from "@/lib/lumeo-knowledge";
 import { lumeoMockEnabled, mockLumeoReply } from "@/lib/lumeo-mock";
+import { relanceTicketKey, signRelanceTicket } from "@/lib/lumeo-relance-ticket";
 import {
   LUMEO_QUESTION_MAX,
   buildLumeoContext,
@@ -84,7 +85,7 @@ export async function askLumeoAction(where: string, _html: string, message: stri
   const mock = lumeoMockEnabled();
   if (!mock && !isClaudeConfigured()) return { ok: false, error: "Lumeo n'est pas activé (clé API Claude manquante)." };
 
-  await requireUser();
+  const user = await requireUser();
   const [usage, coachToday] = await Promise.all([readAiUsage(), countAiUsageToday("cvb_coach")]);
   const counter = { used: coachToday, limit: null };
   const sorry = (reply: string): DocumentChatResult => ({ ok: true, reply, html: null, usage: counter, sorry: true });
@@ -148,5 +149,9 @@ export async function askLumeoAction(where: string, _html: string, message: stri
     const link = proposal.link ? ` [${proposal.link.label}](${proposal.link.href})` : "";
     return { ok: true, reply: `${answer.reply}\n\n${proposal.message}${link}`, html: null, usage: usageAfter };
   }
-  return { ok: true, reply: answer.reply, html: null, usage: usageAfter, proposal: proposal.proposal };
+  // Relance : ticket signé « question déjà comptée » (la confirmation ne compte pas de question en
+  // plus). Sans clé, pas de ticket : la confirmation est comptée comme depuis la boîte.
+  const key = proposal.proposal.type === "relance" ? relanceTicketKey() : null;
+  const card = key ? { ...proposal.proposal, ticket: signRelanceTicket(key, user.id, proposal.proposal.applicationId) } : proposal.proposal;
+  return { ok: true, reply: answer.reply, html: null, usage: usageAfter, proposal: card };
 }

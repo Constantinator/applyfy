@@ -32,7 +32,7 @@ test("ce que reçoit Lumeo est listé, sans email, téléphone, contacts ni note
   assert.match(text, /Lumeo ne reçoit jamais ton email, ton téléphone, les contacts recruteurs ni tes notes/);
   assert.match(
     text,
-    /À ta demande et après ta confirmation, Lumeo peut lancer la rédaction d'une lettre, le résumé d'une offre ou l'adaptation de ton CV ; ces actions utilisent les mêmes données que les fonctions correspondantes\./,
+    /À ta demande et après ta confirmation, Lumeo peut lancer la rédaction d'une lettre, le résumé d'une offre, l'adaptation de ton CV ou la réécriture de ta relance ; ces actions utilisent les mêmes données que les fonctions correspondantes\./,
   );
 });
 

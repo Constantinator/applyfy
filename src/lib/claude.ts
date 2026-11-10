@@ -11,7 +11,7 @@ import { GENERIC_JARGON } from "./cv-score";
 import { detectSector, formatSectorContext, getSectorContext } from "./cv-sector-context";
 import { KEYWORD_GROUPS, type KeywordGroup } from "./cv-types";
 import { LUMEO_MODEL_ACTIONS, type LumeoModelAction } from "./lumeo-actions";
-import { LUMEO_SYSTEM } from "./lumeo-system";
+import { LUMEO_RELANCE_SYSTEM, LUMEO_SYSTEM } from "./lumeo-system";
 import { getKeywordsForSector } from "./job-scraper";
 import { extractPdfText } from "./pdf-text";
 
@@ -40,6 +40,8 @@ export const CLAUDE_FUNCTIONS = {
   coachBuilderCv: { tier: "standard", group: "COACH" },
   // Panneau global de Lumeo : conseils sans action (CLAUDE_MODEL_LUMEO pour changer de modèle).
   answerLumeo: { tier: "standard", group: "LUMEO" },
+  // « Améliorer ma relance » (lot 3a), même groupe que le panneau.
+  improveLumeoRelance: { tier: "standard", group: "LUMEO" },
   suggestCvAdaptations: { tier: "standard", group: "CV" },
   extractOfferKeywords: { tier: "standard", group: "CV" },
   transcribeCv: { tier: "standard", group: "CV" },
@@ -1194,4 +1196,22 @@ export async function answerLumeo(userContent: string): Promise<LumeoAnswer | nu
   const result = await parseStructured("answerLumeo", LumeoReplySchema, LUMEO_SYSTEM, userContent, { effort: "low", maxTokens: 4000 });
   const reply = result?.reply.trim();
   return reply ? { reply, action: result!.action } : null;
+}
+
+const LumeoRelanceSchema = z.object({
+  /** Relance réécrite, avec les repères {{…}} recopiés tels quels (contrôlée ensuite par le serveur). */
+  message: z.string(),
+});
+
+/**
+ * « Améliorer ma relance » : réécriture du message de la boîte « Relancer ». `userContent` est
+ * construit par relanceUserContent (données neutralisées, aucun nom de personne). Le texte rendu
+ * est contrôlé par checkRelanceOutput avant d'être montré.
+ */
+export async function improveLumeoRelance(userContent: string): Promise<string | null> {
+  const result = await parseStructured("improveLumeoRelance", LumeoRelanceSchema, LUMEO_RELANCE_SYSTEM, userContent, {
+    effort: "low",
+    maxTokens: 3000,
+  });
+  return result?.message.trim() || null;
 }

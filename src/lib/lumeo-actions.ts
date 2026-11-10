@@ -1,4 +1,4 @@
-// Actions que Lumeo peut proposer (lot 2), et leur exécution après confirmation de l'utilisateur.
+// Actions que Lumeo peut proposer (lots 2 et 3a), et leur exécution après confirmation de l'utilisateur.
 // Fonctions pures et exécution à dépendances injectées (testables sans base ni Claude) ; le
 // branchement serveur est dans app/actions/lumeo-actions.ts.
 //
@@ -8,14 +8,17 @@
 //   l'utilisateur (une candidature d'un autre utilisateur n'existe pas pour lui) ;
 // - rien ne s'exécute sans le clic sur « Confirmer » (seul appelant de executeLumeoAction) ;
 // - une seule exécution à la fois par (utilisateur, type, candidature), réservée en base ;
-// - la confirmation consomme le quota de l'action seulement, jamais une question à Lumeo.
+// - la confirmation consomme le quota de l'action seulement, jamais une question à Lumeo ;
+//   exception « relance » (lot 3a) : depuis la boîte « Relancer » (aucune question comptée), elle
+//   compte 1 question à Lumeo ; depuis le panneau (question déjà comptée, ticket signé), rien de plus.
 import { z } from "zod";
 
 import { AI_DAILY_LIMIT, type AiUsageCount, type AiUsageKind } from "./ai-usage-limits";
 import { SUMMARY_MIN_LENGTH } from "./offer-limits";
+import { RELANCE_SOURCE_MAX, RELANCE_STATUSES, cleanPosition, relanceAccounting, type RelanceOrigin } from "./lumeo-relance";
 import { LUMEO_ACTION_TEXTS as T } from "./lumeo-texts";
 
-export const LUMEO_ACTION_TYPES = ["lettre", "resume_offre", "adaptation_cv"] as const;
+export const LUMEO_ACTION_TYPES = ["lettre", "resume_offre", "adaptation_cv", "relance"] as const;
 export type LumeoActionType = (typeof LUMEO_ACTION_TYPES)[number];
 
 /** Choix du modèle dans sa réponse : une action de la liste, ou aucune. */
@@ -27,15 +30,32 @@ export const LUMEO_ACTION_QUOTA: Record<LumeoActionType, AiUsageKind> = {
   lettre: "lettre",
   resume_offre: "resume_offre",
   adaptation_cv: "cvb_adaptation",
+  // Relance : 1 question à Lumeo, seulement si aucune n'a été comptée (cf. relanceAccounting).
+  relance: "cvb_coach",
 };
 
 /** Demande d'action reçue du navigateur (clic sur « Confirmer ») : schéma strict. */
-export const LumeoActionRequestSchema = z
+const DocumentActionSchema = z
   .object({
-    type: z.enum(LUMEO_ACTION_TYPES),
+    type: z.enum(["lettre", "resume_offre", "adaptation_cv"]),
     applicationId: z.string().uuid(),
   })
   .strict();
+/**
+ * Relance : origine (panneau ou boîte), ticket signé par le serveur (panneau : question déjà
+ * comptée) et texte de départ de la boîte. Le texte est une donnée, jamais une consigne ; sa
+ * longueur est contrôlée à l'exécution (message clair plutôt que refus muet).
+ */
+const RelanceActionSchema = z
+  .object({
+    type: z.literal("relance"),
+    applicationId: z.string().uuid(),
+    origin: z.enum(["panel", "box"]),
+    ticket: z.string().max(200).optional(),
+    source: z.string().max(RELANCE_SOURCE_MAX * 5).optional(),
+  })
+  .strict();
+export const LumeoActionRequestSchema = z.union([DocumentActionSchema, RelanceActionSchema]);
 export type LumeoActionRequest = z.infer<typeof LumeoActionRequestSchema>;
 
 export function parseLumeoActionRequest(value: unknown): LumeoActionRequest | null {
@@ -49,7 +69,8 @@ export function parseLumeoActionRequest(value: unknown): LumeoActionRequest | nu
  */
 export function proposalFromModel(action: unknown, ficheId: string | null): LumeoActionRequest | null {
   if (!ficheId || typeof action !== "string" || !(LUMEO_ACTION_TYPES as readonly string[]).includes(action)) return null;
-  return parseLumeoActionRequest({ type: action, applicationId: ficheId });
+  // Relance proposée dans le panneau : origine « panel » (le ticket est ajouté par le serveur).
+  return parseLumeoActionRequest(action === "relance" ? { type: action, applicationId: ficheId, origin: "panel" } : { type: action, applicationId: ficheId });
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +87,8 @@ export type LumeoActionFacts = {
     offer_description: string | null;
     offer_summary?: string | null;
     cover_letter_html?: string | null;
+    status?: string;
+    applied_at?: string | null;
   } | null;
   /** Un CV du CV Builder est déjà lié à cette candidature. */
   linkedCv: boolean;
@@ -105,6 +128,10 @@ export function checkLumeoAction(type: LumeoActionType, facts: LumeoActionFacts)
     if (facts.cvLimitReached) return { ok: false, message: T.cvLimit, link: { href: "/cv-builder", label: T.cvBuilder } };
     if (!offerText(app) && !app.offer_summary?.trim()) return { ok: false, message: T.descriptionTooShort, link: { href: fiche, label: T.openFiche } };
   }
+  if (type === "relance") {
+    if (!(RELANCE_STATUSES as readonly string[]).includes(app.status ?? "")) return { ok: false, message: T.relanceStatus, link: { href: fiche, label: T.openFiche } };
+    if (!app.applied_at) return { ok: false, message: T.relanceNoDate, link: { href: fiche, label: T.openFiche } };
+  }
   return { ok: true };
 }
 
@@ -112,11 +139,23 @@ export function checkLumeoAction(type: LumeoActionType, facts: LumeoActionFacts)
 // Carte de confirmation (construite depuis la base, jamais depuis le texte du modèle)
 // ---------------------------------------------------------------------------
 
-export type LumeoQuotaState = { premium: boolean; count: AiUsageCount; usedToday: number };
+export type LumeoQuotaState = {
+  premium: boolean;
+  count: AiUsageCount;
+  usedToday: number;
+  /** Questions à Lumeo aujourd'hui (relance depuis la boîte : 1 question comptée). */
+  coachToday?: number;
+  /** Limite du jour des questions à Lumeo (plan gratuit). */
+  coachLimit?: number;
+};
 
 export type LumeoProposal = {
   type: LumeoActionType;
   applicationId: string;
+  /** Relance : d'où vient la proposition (panneau : question déjà comptée ; boîte : 1 question). */
+  origin?: RelanceOrigin;
+  /** Relance depuis le panneau : ticket signé par le serveur, renvoyé tel quel à la confirmation. */
+  ticket?: string;
   title: string;
   description: string;
   quota: string;
@@ -130,6 +169,7 @@ export function lumeoProposalCard(
   sourceCvTitle: string | null,
   quota: LumeoQuotaState,
 ): LumeoProposal {
+  if (request.type === "relance") return relanceCard(request, { position: cleanPosition(app.position) || app.position, company: app.company }, quota);
   const target = { position: app.position, company: app.company };
   const description =
     request.type === "lettre"
@@ -146,11 +186,46 @@ export function lumeoProposalCard(
   return { ...request, title: T.cardTitle, description, quota: quotaLine, blocked };
 }
 
+/** Carte de la relance : quota selon l'origine (panneau : rien de plus ; boîte : 1 question). */
+function relanceCard(
+  request: Extract<LumeoActionRequest, { type: "relance" }>,
+  target: { position: string; company: string },
+  quota: LumeoQuotaState,
+): LumeoProposal {
+  const dayLeft = Math.max(0, AI_DAILY_LIMIT - quota.usedToday);
+  const { origin, ticket } = request;
+  const coachLimit = quota.coachLimit ?? 0;
+  const coachLeft = Math.max(0, coachLimit - (quota.coachToday ?? 0));
+  const quotaLine =
+    origin === "panel"
+      ? T.relanceQuotaPanel(AI_DAILY_LIMIT)
+      : quota.premium
+        ? T.relanceQuotaBoxPremium(AI_DAILY_LIMIT)
+        : T.relanceQuotaBox(coachLeft, coachLimit);
+  const blocked = dayLeft === 0 ? T.dailyReached : origin === "box" && !quota.premium && coachLeft === 0 ? T.coachReached(coachLimit) : null;
+  return {
+    type: "relance",
+    applicationId: request.applicationId,
+    origin,
+    ...(ticket ? { ticket } : {}),
+    title: T.cardTitle,
+    description: T.cardRelance(target),
+    quota: quotaLine,
+    blocked,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Exécution après confirmation (dépendances injectées)
 // ---------------------------------------------------------------------------
 
-export type LumeoActionDone = { ok: true; message: string; link: { href: string; label: string } };
+export type LumeoActionDone = {
+  ok: true;
+  message: string;
+  link?: { href: string; label: string };
+  /** Relance : brouillon réécrit, affiché pour être copié (jamais enregistré, jamais envoyé). */
+  draft?: string;
+};
 export type LumeoActionOutcome = LumeoActionDone | (LumeoRefusal & { premium?: boolean });
 
 /** Réservation d'une exécution (une seule à la fois par utilisateur, type et candidature). */
@@ -158,8 +233,16 @@ export type LumeoClaim = { type: LumeoActionType; applicationId: string; token?:
 
 export type LumeoActionDeps = {
   loadFacts: (request: LumeoActionRequest) => Promise<LumeoActionFacts>;
-  /** Contrôle d'accès existant (quota du mois, 50 par jour, 10 par minute). */
-  gate: (kind: AiUsageKind) => Promise<{ ok: true } | { ok: false; message: string; limitReached: boolean }>;
+  /**
+   * Contrôle d'accès existant (quota du mois, 50 par jour, 10 par minute) ; `coachDaily` : en plus,
+   * la limite du jour des questions à Lumeo (plan gratuit), refus marqué `coachLimit`.
+   */
+  gate: (
+    kind: AiUsageKind,
+    options: { coachDaily: boolean },
+  ) => Promise<{ ok: true } | { ok: false; message: string; limitReached: boolean; coachLimit?: boolean }>;
+  /** Relance depuis le panneau : ticket signé valide pour cet utilisateur et cette candidature. */
+  verifyTicket: (request: LumeoActionRequest) => Promise<boolean>;
   /** Réserve l'exécution ; null si une autre est déjà en cours. */
   claim: (request: LumeoActionRequest) => Promise<LumeoClaim | null>;
   /** Appelle l'IA et enregistre le résultat (lettre, résumé, CV adapté). */
@@ -174,7 +257,7 @@ export type LumeoActionDeps = {
 /**
  * Exécute une action confirmée : schéma strict, préconditions relues en base, contrôle d'accès,
  * réservation, puis l'action. Le quota de l'action est compté une seule fois, après réussite ;
- * jamais de question à Lumeo. Une deuxième exécution simultanée est refusée sans rien compter.
+ * jamais de question à Lumeo (relance : 1 question seulement si aucune n'a été comptée). Une deuxième exécution simultanée est refusée sans rien compter.
  */
 export async function executeLumeoAction(input: unknown, deps: LumeoActionDeps): Promise<LumeoActionOutcome> {
   const request = parseLumeoActionRequest(input);
@@ -184,8 +267,16 @@ export async function executeLumeoAction(input: unknown, deps: LumeoActionDeps):
   if (!check.ok) return check;
 
   const kind = LUMEO_ACTION_QUOTA[request.type];
-  const gate = await deps.gate(kind);
+  // Relance : comptée seulement si aucune question ne l'a été (boîte, ou ticket invalide).
+  let accounting = { record: true, coachDaily: false };
+  if (request.type === "relance") {
+    if ((request.source ?? "").trim().length > RELANCE_SOURCE_MAX) return { ok: false, message: T.relanceTooLong(RELANCE_SOURCE_MAX) };
+    const ticketValid = request.origin === "panel" && (await deps.verifyTicket(request).catch(() => false));
+    accounting = relanceAccounting(request.origin, ticketValid);
+  }
+  const gate = await deps.gate(kind, { coachDaily: accounting.coachDaily });
   if (!gate.ok) {
+    if (gate.coachLimit) return { ok: false, message: gate.message, link: { href: "/premium", label: T.premium }, premium: true };
     return gate.limitReached
       ? { ok: false, message: T.monthReached(T.units[request.type]), link: { href: "/premium", label: T.premium }, premium: true }
       : { ok: false, message: gate.message };
@@ -211,7 +302,7 @@ export async function executeLumeoAction(input: unknown, deps: LumeoActionDeps):
     await deps.release(claim);
     return result;
   }
-  await deps.record(kind);
+  if (accounting.record) await deps.record(kind);
   return result;
 }
 

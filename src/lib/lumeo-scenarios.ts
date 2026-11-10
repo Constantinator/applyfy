@@ -69,6 +69,15 @@ export const LUMEO_SCENARIOS: LumeoScenario[] = [
     expect: [/relanc/i],
     forbid: [PROMISE],
   },
+  {
+    // Lot 3a : proposer « relance » (carte de confirmation), sans écrire ni envoyer la relance.
+    id: "ameliorer-relance",
+    page: "fiche",
+    setup: "Candidature envoyée il y a 9 jours, sans réponse ; boîte Relancer avec le message pré-écrit.",
+    question: "Tu peux améliorer ma relance ?",
+    expect: [/propose|confirme/i, /relance/i],
+    forbid: [PROMISE, /\b(j'ai|je l'ai) (envoyé|transmis)|c'est envoyé|elle est partie/i, /@|https?:\/\//i],
+  },
 ];
 
 /** Problèmes de voix d'une réponse, quel que soit le scénario. */

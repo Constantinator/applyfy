@@ -180,7 +180,8 @@ export default function PrivacyPolicyPage() {
           restants et, si tu es sur la fiche d&apos;une candidature,
           l&apos;offre correspondante. Lumeo ne reçoit jamais ton email, ton téléphone, les contacts
           recruteurs ni tes notes. À ta demande et après ta confirmation, Lumeo peut lancer la
-          rédaction d&apos;une lettre, le résumé d&apos;une offre ou l&apos;adaptation de ton CV ; ces
+          rédaction d&apos;une lettre, le résumé d&apos;une offre, l&apos;adaptation de ton CV ou la
+          réécriture de ta relance ; ces
           actions utilisent les mêmes données que les fonctions correspondantes. Selon ses conditions commerciales, Anthropic n&apos;utilise pas les
           données reçues via son API pour entraîner ses modèles.
         </p>

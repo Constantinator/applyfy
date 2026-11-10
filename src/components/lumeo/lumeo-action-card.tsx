@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { confirmLumeoActionAction } from "@/app/actions/lumeo-actions";
 import type { LumeoProposalState } from "@/lib/lumeo-actions";
 import { LUMEO_ACTION_TEXTS as T } from "@/lib/lumeo-texts";
+
+import type { RelanceBox } from "./lumeo-panel";
 
 /**
  * Carte de confirmation d'une action proposée par Lumeo : ce qui va être fait, sur quelle
@@ -17,12 +19,18 @@ import { LUMEO_ACTION_TEXTS as T } from "@/lib/lumeo-texts";
 export function LumeoActionCard({
   proposal,
   update,
+  relanceBox = null,
 }: {
   proposal: LumeoProposalState;
   update: (patch: Partial<LumeoProposalState>) => void;
+  /** Boîte « Relancer » de la fiche ouverte : texte de départ et destination du brouillon. */
+  relanceBox?: RelanceBox | null;
 }) {
   const router = useRouter();
   const clicked = useRef(false);
+  const [copied, setCopied] = useState(false);
+  const [put, setPut] = useState(false);
+  const box = proposal.type === "relance" && relanceBox?.applicationId === proposal.applicationId ? relanceBox : null;
   const status = proposal.status ?? "idle";
   const outcome = proposal.outcome;
 
@@ -31,9 +39,16 @@ export function LumeoActionCard({
     clicked.current = true;
     update({ status: "running" });
     try {
-      const result = await confirmLumeoActionAction({ type: proposal.type, applicationId: proposal.applicationId });
+      let request: Record<string, unknown> = { type: proposal.type, applicationId: proposal.applicationId };
+      if (proposal.type === "relance") {
+        // Texte de départ : celui de la boîte « Relancer » (modifications comprises), sinon le
+        // serveur part du message pré-écrit. Le ticket (panneau) est renvoyé tel quel.
+        const source = box?.read().trim();
+        request = { ...request, origin: proposal.origin ?? "box", ...(proposal.ticket ? { ticket: proposal.ticket } : {}), ...(source ? { source } : {}) };
+      }
+      const result = await confirmLumeoActionAction(request);
       update({ status: result.ok ? "done" : "failed", outcome: result });
-      if (result.ok) router.refresh(); // fiche à jour (résumé, lettre, CV lié)
+      if (result.ok && proposal.type !== "relance") router.refresh(); // fiche à jour (résumé, lettre, CV lié)
     } catch {
       update({ status: "failed", outcome: { ok: false, message: T.failed } });
     }
@@ -77,6 +92,49 @@ export function LumeoActionCard({
       )}
 
       {status === "cancelled" && <p className="mt-2 text-[13px] text-muted dark:text-slate-400">{T.cancelled}</p>}
+
+      {status === "done" && outcome?.ok && outcome.draft && (
+        <div className="mt-3">
+          <p className="text-[13px] font-medium text-ink dark:text-slate-100">{T.draftLabel}</p>
+          <p className="mt-1.5 rounded-xl border border-line bg-box p-3 leading-relaxed whitespace-pre-wrap text-ink dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            {outcome.draft}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(outcome.draft ?? "");
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                } catch {
+                  setCopied(false);
+                }
+              }}
+              className="ui-btn-secondary min-h-11"
+            >
+              {copied ? T.copied : T.copy}
+            </button>
+            {box && (
+              <button
+                type="button"
+                onClick={() => {
+                  box.write(outcome.draft ?? "");
+                  setPut(true);
+                }}
+                className="ui-btn-secondary min-h-11"
+              >
+                {T.putInBox}
+              </button>
+            )}
+          </div>
+          {put && (
+            <p role="status" className="mt-2 text-[13px] text-muted dark:text-slate-400">
+              {T.putDone}
+            </p>
+          )}
+        </div>
+      )}
 
       {(status === "done" || status === "failed") && outcome && (
         <p role="status" className="mt-2 text-[13px] text-ink dark:text-slate-200">

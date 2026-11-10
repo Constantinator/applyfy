@@ -39,6 +39,10 @@ const EXAMPLES = {
     good: "Ta candidature est partie il y a 10 jours sans réponse : c'est le bon moment pour relancer. Un message court et poli suffit. Tu le trouves sur la [fiche](/candidatures).",
     bad: "Relance maintenant, c'est garanti que ça marche !",
   },
+  "ameliorer-relance": {
+    good: "Oui, je te propose de retravailler ta relance pour qu'elle sonne plus naturelle. Confirme dans la carte si tu veux : tu la copieras ensuite.",
+    bad: "C'est envoyé au recruteur, il va te répondre, c'est garanti.",
+  },
 };
 
 test("chaque scénario a un exemple de bonne et de mauvaise réponse", () => {

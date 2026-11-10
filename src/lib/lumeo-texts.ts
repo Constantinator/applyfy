@@ -62,6 +62,8 @@ export const LUMEO_DASHBOARD_TEXTS = {
 /** Petite ligne de Lumeo sur la fiche d'une candidature envoyée (cf. lib/lumeo-fiche). */
 export const LUMEO_FICHE_TEXTS = {
   sent: "Elle est partie. Je te préviens quand il sera temps de relancer.",
+  /** Bouton de la boîte « Relancer » (lot 3a) : ouvre la carte de confirmation de Lumeo. */
+  improveRelance: "Améliorer avec Lumeo",
 } as const;
 
 /**
@@ -114,7 +116,24 @@ export const LUMEO_ACTION_TEXTS = {
   cardAdaptation: ({ position, company, cv }: Target & { cv: string }) =>
     `Créer une copie de ton CV « ${cv} » adaptée à l'offre « ${position} » chez ${company}. Ton CV d'origine ne change pas.`,
   yourCv: "ton CV",
-  units: { lettre: "lettre", resume_offre: "résumé d'offre", adaptation_cv: "adaptation à une offre" },
+  units: { lettre: "lettre", resume_offre: "résumé d'offre", adaptation_cv: "adaptation à une offre", relance: "question à Lumeo" },
+  // Relance (lot 3a) : réécriture du message de la boîte « Relancer », jamais envoyée.
+  cardRelance: ({ position, company }: Target) =>
+    `Rendre ta relance pour « ${position} » chez ${company} plus chaleureuse et plus personnelle, sans rien inventer. Rien n'est envoyé : tu copies le texte.`,
+  relanceQuotaPanel: (daily: number) => `Déjà comptée dans ta question à Lumeo ; compte dans les ${daily} actions IA du jour.`,
+  relanceQuotaBox: (left: number, limit: number) => `Utilise 1 question à Lumeo (il t'en reste ${left} sur ${limit} aujourd'hui).`,
+  relanceQuotaBoxPremium: (daily: number) => `Pas de limite de questions ; compte dans les ${daily} actions IA du jour.`,
+  coachReached: (limit: number) => `Tu as posé tes ${limit} questions à Lumeo aujourd'hui. Ça repart demain à minuit.`,
+  relanceStatus: "Une relance n'a de sens qu'une fois la candidature envoyée (statut Envoyée, En attente ou Relancée).",
+  relanceNoDate: "Indique d'abord la date d'envoi de la candidature sur sa fiche.",
+  relanceTooLong: (max: number) => `Ton message est trop long pour que je le retravaille (${max} caractères au plus). Raccourcis-le dans la boîte Relancer.`,
+  relanceIntro: "Je peux retravailler ta relance pour qu'elle sonne plus naturelle, sans rien inventer. Confirme si tu veux.",
+  relanceDone: "Voici ta relance retravaillée. Relis-la avant de l'envoyer toi-même.",
+  draftLabel: "Relance retravaillée",
+  copy: "Copier",
+  copied: "Copié ✓",
+  putInBox: "Mettre dans la boîte Relancer",
+  putDone: "C'est dans la boîte Relancer. « Réinitialiser » ramène le message d'origine.",
   quotaFree: (unit: string, left: number, limit: number) => `Utilise 1 ${unit} de ton quota du mois (il t'en reste ${left} sur ${limit}).`,
   quotaPremium: (daily: number) => `Pas de quota mensuel ; compte dans les ${daily} actions IA du jour.`,
   confirm: "Confirmer",

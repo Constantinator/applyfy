@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { followUpAction, type ActionState } from "@/app/actions/applications";
 import { IconBell } from "@/components/icons";
+import { useLumeo } from "@/components/lumeo/lumeo-panel";
+import { LUMEO_FICHE_TEXTS } from "@/lib/lumeo-texts";
 
 const initialState: ActionState = { status: "idle" };
 
@@ -13,14 +15,30 @@ export function FollowUpBox({
   contactEmail,
   subject,
   highlight,
+  canImprove = false,
 }: {
   applicationId: string;
   defaultMessage: string;
   contactEmail: string | null;
   subject: string;
   highlight: boolean;
+  /** « Améliorer avec Lumeo » : candidature envoyée (hors exemple) et IA disponible. */
+  canImprove?: boolean;
 }) {
   const [message, setMessage] = useState(defaultMessage);
+  const lumeo = useLumeo();
+
+  // Lumeo lit le texte de la boîte à la confirmation et peut y mettre son brouillon.
+  const messageRef = useRef(message);
+  useEffect(() => {
+    messageRef.current = message;
+  }, [message]);
+  const register = lumeo?.registerRelanceBox;
+  useEffect(() => {
+    if (!register) return;
+    return register({ applicationId, read: () => messageRef.current, write: setMessage });
+  }, [register, applicationId]);
+  const showImprove = canImprove && Boolean(lumeo?.aiEnabled);
   const [copied, setCopied] = useState(false);
   const [state, formAction, pending] = useActionState(followUpAction, initialState);
 
@@ -100,6 +118,16 @@ export function FollowUpBox({
             >
               Ouvrir dans ma messagerie
             </a>
+          )}
+          {showImprove && lumeo && (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              onClick={(e) => void lumeo.proposeRelance(applicationId, e.currentTarget)}
+              className="ui-btn-secondary"
+            >
+              {LUMEO_FICHE_TEXTS.improveRelance}
+            </button>
           )}
           <button
             type="submit"

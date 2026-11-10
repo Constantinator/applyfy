@@ -28,6 +28,7 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { showLumeoSentLine } from "@/lib/lumeo-fiche";
+import { RELANCE_STATUSES } from "@/lib/lumeo-relance";
 import { LUMEO_FICHE_TEXTS } from "@/lib/lumeo-texts";
 import { fullName } from "@/lib/person-name";
 import { getBuilderCvByApplication } from "@/lib/cv-builder";
@@ -99,6 +100,8 @@ export default async function ApplicationPage({
   // le dernier CV du profil importé dans l'éditeur.
   const hasCvForLetter = Boolean(hasEditorCv || latestProfileCvText);
   const toFollowUp = needsFollowUp(app);
+  // « Améliorer avec Lumeo » : mêmes conditions que la vérification du serveur (statut, date d'envoi).
+  const canImproveRelance = !app.is_example && Boolean(app.applied_at) && RELANCE_STATUSES.includes(app.status);
   const followUpBox = (
     <FollowUpBox
       applicationId={app.id}
@@ -106,6 +109,7 @@ export default async function ApplicationPage({
       contactEmail={app.contact_email}
       subject={`Relance — candidature ${app.position}`}
       highlight={toFollowUp}
+      canImprove={canImproveRelance}
     />
   );
 

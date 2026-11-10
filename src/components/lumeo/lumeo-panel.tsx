@@ -1,9 +1,10 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { askLumeoAction } from "@/app/actions/lumeo";
+import { proposeRelanceAction } from "@/app/actions/lumeo-actions";
 import { RefineChat, type ChatMessage, type ChatStore } from "@/components/application/refine-chat";
 import {
   LUMEO_PAGE_PATH,
@@ -14,7 +15,7 @@ import {
   safeLumeoHref,
   showsLumeoButton,
 } from "@/lib/lumeo-panel";
-import { LUMEO_PANEL_TEXTS as T } from "@/lib/lumeo-texts";
+import { LUMEO_ACTION_TEXTS as A, LUMEO_PANEL_TEXTS as T } from "@/lib/lumeo-texts";
 
 import { LumeoActionCard } from "./lumeo-action-card";
 import { LumeoAvatar } from "./lumeo-avatar";
@@ -22,6 +23,12 @@ import { LumeoAvatar } from "./lumeo-avatar";
 const NO_USAGE = { used: 0, limit: null };
 const noDocument = () => "";
 const noop = () => {};
+
+/**
+ * Boîte « Relancer » de la fiche ouverte (lot 3a) : Lumeo lit son texte au moment de la
+ * confirmation et peut y mettre le brouillon retravaillé. Rien n'est enregistré.
+ */
+export type RelanceBox = { applicationId: string; read: () => string; write: (text: string) => void };
 
 /** Lumeo partagé par le panneau, la page /lumeo et les boutons d'ouverture. */
 type LumeoState = {
@@ -36,6 +43,11 @@ type LumeoState = {
   store: ChatStore;
   /** Page /lumeo → page précédente, panneau rouvert. */
   reduce: () => void;
+  /** Boîte « Relancer » affichée (fiche ouverte), ou null. */
+  relanceBox: RelanceBox | null;
+  registerRelanceBox: (box: RelanceBox) => () => void;
+  /** Bouton « Améliorer avec Lumeo » : ouvre le panneau et y affiche la carte de confirmation. */
+  proposeRelance: (applicationId: string, opener: HTMLElement) => Promise<void>;
 };
 const LumeoContext = createContext<LumeoState | null>(null);
 
@@ -61,6 +73,12 @@ export function LumeoProvider({ aiEnabled, children }: { aiEnabled: boolean; chi
 
   // Dernière page hors de /lumeo : contexte des questions posées en pleine page, retour de « Réduire ».
   const [lastPath, setLastPath] = useState<string | null>(isLumeoPage(pathname) ? null : pathname);
+  const [relanceBox, setRelanceBox] = useState<RelanceBox | null>(null);
+  // Stable : la boîte s'enregistre une fois (pas de boucle de rendu).
+  const registerRelanceBox = useCallback((box: RelanceBox) => {
+    setRelanceBox(box);
+    return () => setRelanceBox((current) => (current === box ? null : current));
+  }, []);
   // « Réduire » : le panneau se rouvre à l'arrivée sur la page précédente.
   const [reopen, setReopen] = useState(false);
 
@@ -101,6 +119,26 @@ export function LumeoProvider({ aiEnabled, children }: { aiEnabled: boolean; chi
       openerRef.current = null;
       setReopen(true);
       router.push(lumeoReturnPath(lastPath));
+    },
+    relanceBox,
+    registerRelanceBox,
+    proposeRelance: async (applicationId, opener) => {
+      openerRef.current = opener;
+      setOpen(true);
+      if (pending) return;
+      // Carte construite par le serveur, sans appel au modèle ni décompte (rien ne s'exécute ici).
+      setPending(true);
+      const add = (message: Omit<ChatMessage, "id" | "role">) =>
+        setMessages((list) => [...list, { id: idRef.current++, role: "assistant", ...message }]);
+      try {
+        const result = await proposeRelanceAction(applicationId);
+        if (result.ok) add({ content: A.relanceIntro, proposal: result.proposal });
+        else add({ content: result.link ? `${result.message} [${result.link.label}](${result.link.href})` : result.message, sorry: true });
+      } catch {
+        add({ content: A.failed, sorry: true });
+      } finally {
+        setPending(false);
+      }
     },
   };
 
@@ -191,7 +229,7 @@ function LumeoChat({ state, layout }: { state: LumeoState; layout: "panel" | "pa
       tagline={T.tagline}
       links={safeLumeoHref}
       store={state.store}
-      renderProposal={(proposal, update) => <LumeoActionCard proposal={proposal} update={update} />}
+      renderProposal={(proposal, update) => <LumeoActionCard proposal={proposal} update={update} relanceBox={state.relanceBox} />}
     />
   );
 }
@@ -200,6 +238,11 @@ function LumeoChat({ state, layout }: { state: LumeoState; layout: "panel" | "pa
  * Mobile (< 1024 px) : bouton Lumeo dans la barre du haut, à gauche du menu, cible de 44 px.
  * Rien hors de l'espace connecté (pas de fournisseur), dans l'éditeur du CV Builder ni sur /lumeo.
  */
+/** Lumeo de l'espace connecté, ou null hors du fournisseur (boîte « Relancer »). */
+export function useLumeo() {
+  return useContext(LumeoContext);
+}
+
 export function LumeoTopbarButton() {
   const lumeo = useContext(LumeoContext);
   if (!lumeo?.visible) return null;

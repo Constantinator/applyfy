@@ -25,6 +25,9 @@ export function mockLumeoReply(question: string, location: LumeoLocation): { rep
   if (/lettre/.test(q)) return { reply: `${PREFIX} Je te propose d'écrire ta lettre pour cette candidature : confirme si tu veux.`, action: "lettre" };
   if (/résum|resum/.test(q)) return { reply: `${PREFIX} Je te propose de résumer cette offre : confirme si tu veux.`, action: "resume_offre" };
   if (/adapt/.test(q)) return { reply: `${PREFIX} Je te propose une copie de ton CV adaptée à cette offre : confirme si tu veux.`, action: "adaptation_cv" };
+  if (/relanc/.test(q) && /amélior|amelior|retravaill|réécri|reecri|rédige|redige|écri|aide/.test(q)) {
+    return { reply: `${PREFIX} Je te propose de retravailler ta relance : confirme si tu veux.`, action: "relance" };
+  }
   return { reply: mockText(q, location), action: "aucune" };
 }
 
@@ -42,4 +45,18 @@ function mockText(q: string, location: LumeoLocation): string {
     return `${PREFIX} Après 7 jours sans réponse, une relance courte est raisonnable. Tu vois celles en retard dans [À relancer](/candidatures?filtre=a_relancer).`;
   }
   return `${PREFIX} Bonne question. Je ne peux pas encore te répondre en local : la vraie réponse se teste sur la prévisualisation. En attendant, regarde tes [candidatures](/candidatures). Lien externe ignoré : [site](https://example.com).`;
+}
+
+/**
+ * Relance retravaillée simulée (lot 3a) : le texte masqué (repères {{…}} compris), avec deux
+ * formules plus naturelles. Passe les mêmes contrôles qu'une vraie réponse.
+ */
+export function mockLumeoRelance(masked: string): string {
+  const text = masked
+    .replace(/Je me permets de revenir (de nouveau )?vers vous au sujet de/, "Je reviens vers vous au sujet de")
+    .replace(/m'intéresse toujours vivement/, "m'intéresse toujours beaucoup")
+    .replace(/je serais ravi·e d'échanger/, "j'aimerais beaucoup échanger");
+  return `(Brouillon simulé, LUMEO_MOCK)
+
+${text}`;
 }
