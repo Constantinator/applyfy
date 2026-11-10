@@ -751,3 +751,14 @@ body {
     -webkit-print-color-adjust: exact;
   }
 }
+
+/*
+ * Bouton de Lumeo (espace connecté) : espace libre en bas de page pour qu'aucun élément, pied de
+ * page compris, ne reste sous le bouton une fois la page défilée jusqu'en bas. Sans bouton
+ * (landing, éditeur du CV Builder), rien ne change. L'impression remet le padding à zéro.
+ */
+@media screen {
+  body:has([data-lumeo-button]) {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}

@@ -63,3 +63,36 @@ export const LUMEO_DASHBOARD_TEXTS = {
 export const LUMEO_FICHE_TEXTS = {
   sent: "Elle est partie. Je te préviens quand il sera temps de relancer.",
 } as const;
+
+/**
+ * Panneau global de Lumeo (espace connecté, cf. lib/lumeo-panel et components/lumeo/lumeo-panel).
+ * Lumeo conseille et oriente ; dans ce lot, il ne déclenche aucune action.
+ */
+export const LUMEO_PANEL_TEXTS = {
+  open: "Ouvrir Lumeo",
+  close: "Fermer Lumeo",
+  dialog: "Lumeo",
+  tagline: "Je réponds à tes questions sur ta recherche d'emploi et sur l'appli.",
+  empty: "Pose-moi une question, ou choisis une des suggestions.",
+  pending: "Lumeo réfléchit…",
+  placeholder: "Ta question…",
+  privacy: "Je suis une IA : vérifie ce qui compte. Tes questions et le contexte utile (CV résumé, candidatures) sont transmis à Claude (Anthropic) et ne sont pas enregistrés par Applyfy.",
+  suggestions: {
+    fiche: ["Dois-je postuler à cette offre ?", "Quand relancer ?", "Comment préparer l'entretien ?"],
+    dashboard: ["Par quoi je commence aujourd'hui ?", "Qu'est-ce qui affaiblit mon CV ?", "Quelles candidatures relancer ?"],
+    candidatures: ["Quelles candidatures relancer ?", "Où en est ma recherche ?", "Combien de candidatures par semaine viser ?"],
+    "cv-builder": ["Qu'est-ce qui affaiblit mon CV ?", "Mon CV tient-il sur une page ?", "Comment parler d'un trou dans mon parcours ?"],
+    offres: ["Comment choisir une offre ?", "Cette recherche me correspond-elle ?", "Faut-il postuler à une offre où je n'ai pas tout ?"],
+    autre: ["Par quoi je commence ?", "Comment fonctionne Applyfy ?", "Comment relancer un recruteur ?"],
+  },
+  /** Quota du jour atteint (plan gratuit) : honnête, jamais sec. */
+  quota: (limit: number) =>
+    `Désolé, tu as posé tes ${limit} questions du jour. Ça repart demain à minuit, ou sans cette limite avec Premium.`,
+  /** Limite commune à tous les plans (actions IA du jour). */
+  daily: "Désolé, la limite d'actions IA du jour est atteinte. Ça repart demain à minuit.",
+  rate: "Désolé, trop de questions d'un coup. Attends quelques secondes et repose-la.",
+  error: "Désolé, je n'ai pas pu répondre. Réessaie dans un instant.",
+  refusal: "Désolé, je ne peux pas répondre à ça. Pose-moi une question sur ta recherche d'emploi.",
+  tooLong: "Ta question est trop longue : raccourcis-la un peu.",
+  empty_question: "Écris ta question.",
+} as const;

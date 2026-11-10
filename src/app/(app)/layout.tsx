@@ -1,11 +1,14 @@
 import { AppNavProvider } from "@/components/app-nav-context";
 import { AppTopbar } from "@/components/app-topbar";
 import { OnboardingModal } from "@/components/OnboardingModal";
+import { LumeoPanel } from "@/components/lumeo/lumeo-panel";
 import { WelcomePremiumModal } from "@/components/onboarding/welcome-premium-modal";
 import { getAccountName } from "@/lib/account";
 import { isAdminEmail } from "@/lib/admin-metrics";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyBeta } from "@/lib/beta";
+import { isClaudeConfigured } from "@/lib/claude";
+import { lumeoMockEnabled } from "@/lib/lumeo-mock";
 import { countMyUnreadBetaMessages, countUnreadForAdmin } from "@/lib/beta-messages";
 import { accountInitials } from "@/lib/person-name";
 import { isPremium } from "@/lib/subscription";
@@ -44,6 +47,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <OnboardingModal />
         {/* Prix de lancement du Premium, après la présentation (une seule fois). */}
         {!premium && <WelcomePremiumModal />}
+        {/* Lumeo : bouton rond et panneau, sur toutes les pages sauf l'éditeur du CV Builder. */}
+        {user && <LumeoPanel aiEnabled={isClaudeConfigured() || lumeoMockEnabled()} />}
       </div>
     </AppNavProvider>
   );

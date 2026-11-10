@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 
 import { PremiumButton, UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
-import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import { LUMEO_PANEL_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import type { DocumentChatResult } from "@/lib/refine";
 
 import { LumeoAvatar, type LumeoExpression } from "@/components/lumeo/lumeo-avatar";
 import { LumeoHeader } from "@/components/lumeo/lumeo-header";
 
-import { ChatMarkdown } from "./chat-markdown";
+import { ChatMarkdown, type ChatLinkFilter } from "./chat-markdown";
 
 /** Textes propres à chaque document (CV amélioré, lettre de motivation). */
 const DOCUMENTS = {
@@ -39,6 +39,17 @@ const DOCUMENTS = {
     privacy: "Le contenu de ton CV (sans la photo) est transmis à Claude (Anthropic).",
     save: "Seules les réponses qui modifient ton CV comptent. Les modifications sont enregistrées automatiquement.",
     units: { one: "adaptation IA", many: "adaptations IA", used: "utilisées" },
+    suggestions: [],
+  },
+  // Panneau global de Lumeo : questions sans document (suggestions passées par page).
+  lumeo: {
+    intro: LUMEO_PANEL_TEXTS.tagline,
+    empty: LUMEO_PANEL_TEXTS.empty,
+    pending: LUMEO_PANEL_TEXTS.pending,
+    placeholder: LUMEO_PANEL_TEXTS.placeholder,
+    privacy: LUMEO_PANEL_TEXTS.privacy,
+    save: "",
+    units: { one: "question", many: "questions", used: "posées" },
     suggestions: [],
   },
   lettre: {
@@ -78,11 +89,13 @@ type Message = {
   undone?: boolean;
   /** Message de limite : suivi du bouton « Passer au Premium ». */
   premium?: boolean;
+  /** Excuse de Lumeo (erreur, limite) : bulle normale, expression « désolé », hors historique. */
+  sorry?: boolean;
 };
 
 /** Expression de Lumeo à côté d'une réponse : désolé sur une erreur ou une limite atteinte. */
 function assistantExpression(message: Message): LumeoExpression {
-  return message.error || message.premium ? "desole" : "content";
+  return message.error || message.premium || message.sorry ? "desole" : "content";
 }
 
 /**
@@ -113,6 +126,10 @@ export function RefineChat({
   markdown = false,
   undoable = true,
   persona,
+  suggestions,
+  tagline,
+  links,
+  layout = "card",
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -157,8 +174,25 @@ export function RefineChat({
   undoable?: boolean;
   /** Assistant incarné (CV Builder) : bandeau et avatar de Lumeo à côté de ses messages. */
   persona?: "lumeo";
+  /** Suggestions propres au contexte (panneau global : selon la page), à la place de celles du document. */
+  suggestions?: readonly string[];
+  /** Accroche du bandeau de Lumeo, si elle diffère de celle du CV Builder. */
+  tagline?: string;
+  /** Liens markdown autorisés dans les réponses (sinon : texte seul). */
+  links?: ChatLinkFilter;
+  /**
+   * « panel » (panneau global) : sans carte, remplit la hauteur de son parent, suggestions
+   * seulement quand la conversation est vide (un clic envoie la question), sans bandeau de quota.
+   */
+  layout?: "card" | "panel";
 }) {
   const texts = DOCUMENTS[document];
+  const panel = layout === "panel";
+  const shownSuggestions = suggestions ?? texts.suggestions;
+  // Identifiants uniques : plusieurs chats peuvent cohabiter (fiche + panneau global).
+  const uid = useId();
+  const titleId = `refine-title-${uid}`;
+  const inputId = `refine-input-${uid}`;
   const units = texts.units;
   const [messages, setMessages] = useState<Message[]>(() =>
     initialMessages.map((m, id) => ({ id, role: m.role, content: m.content })),
@@ -207,7 +241,7 @@ export function RefineChat({
   async function send(text: string = input) {
     const request = text.trim();
     if (!request || pending || disabled) return;
-    const history = messages.filter((m) => !m.error).map(({ role, content }) => ({ role, content }));
+    const history = messages.filter((m) => !m.error && !m.sorry).map(({ role, content }) => ({ role, content }));
     add({ role: "user", content: request });
     setInput("");
     setPending(true);
@@ -223,7 +257,7 @@ export function RefineChat({
           setLimitHit(true);
           add({ role: "assistant", content: result.limitNotice, premium: true });
         }
-        if (result.reply) add({ role: "assistant", content: result.reply, previousHtml });
+        if (result.reply) add({ role: "assistant", content: result.reply, previousHtml, sorry: result.sorry });
       } else {
         if (result.limitReached) setLimitHit(true);
         add({ role: "assistant", content: result.error, error: true });
@@ -273,19 +307,23 @@ export function RefineChat({
 
   return (
     <section
-      aria-labelledby="refine-title"
-      className={`ui-card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`}
+      aria-labelledby={titleId}
+      className={
+        panel
+          ? "flex min-h-0 flex-1 flex-col gap-4 print:hidden"
+          : `ui-card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`
+      }
     >
       {persona === "lumeo" ? (
-        <LumeoHeader id="refine-title" expression={messages.length === 0 && !openingPending ? "salue" : "neutre"} />
+        <LumeoHeader id={titleId} tagline={tagline} expression={messages.length === 0 && !openingPending ? "salue" : "neutre"} />
       ) : minimal ? (
-        <h2 id="refine-title" className="sr-only">
+        <h2 id={titleId} className="sr-only">
           Coach
         </h2>
       ) : (
         <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
           <div>
-            <h2 id="refine-title" className="font-semibold text-ink dark:text-white">
+            <h2 id={titleId} className="font-semibold text-ink dark:text-white">
               Affiner avec l&apos;IA
             </h2>
             <p className="mt-1 text-sm text-muted dark:text-slate-400">{texts.intro}</p>
@@ -305,7 +343,7 @@ export function RefineChat({
         role="log"
         aria-live="polite"
         aria-label={persona === "lumeo" ? LUMEO_TEXTS.log : "Conversation avec l'assistant"}
-        className={`${fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-block border border-line bg-surface p-3 dark:border-slate-700 dark:bg-slate-800/60`}
+        className={`${panel ? "min-h-0 flex-1" : fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-block border border-line bg-surface p-3 dark:border-slate-700 dark:bg-slate-800/60`}
       >
         {messages.length === 0 && !pending && !openingPending && (
           <p className="py-6 text-center text-sm text-muted dark:text-slate-400">{texts.empty}</p>
@@ -346,7 +384,7 @@ export function RefineChat({
                     : "px-3.5 py-2 text-sm whitespace-pre-wrap"
                 }`}
               >
-                {markdown && !message.error ? <ChatMarkdown text={message.content} /> : message.content}
+                {markdown && !message.error ? <ChatMarkdown text={message.content} links={links} /> : message.content}
               </div>
               {message.premium && <PremiumButton />}
               {message.undone ? (
@@ -384,16 +422,21 @@ export function RefineChat({
 
       {minimal ? null : !aiEnabled ? (
         <p className="text-xs text-muted dark:text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
-      ) : limitReached ? (
+      ) : limitReached && !panel ? (
         <UsageLimitBanner resetLabel={resetLabel} message={limitMessage} premiumBadge={limitMessage !== undefined} />
-      ) : texts.suggestions.length === 0 ? null : (
+      ) : shownSuggestions.length === 0 || (panel && (messages.length > 0 || pending)) ? null : (
         <div className="flex flex-wrap gap-2">
-          {texts.suggestions.map((suggestion) => (
+          {shownSuggestions.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
               disabled={pending}
               onClick={() => {
+                // Panneau : la suggestion est posée telle quelle ; ailleurs, elle remplit le champ.
+                if (panel) {
+                  void send(suggestion);
+                  return;
+                }
                 setInput(suggestion);
                 inputRef.current?.focus();
               }}
@@ -412,11 +455,11 @@ export function RefineChat({
         }}
         className="flex flex-col gap-2 sm:flex-row sm:items-end"
       >
-        <label htmlFor="refine-input" className="sr-only">
-          Ta demande
+        <label htmlFor={inputId} className="sr-only">
+          {panel ? "Ta question" : "Ta demande"}
         </label>
         <textarea
-          id="refine-input"
+          id={inputId}
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}

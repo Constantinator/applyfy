@@ -38,6 +38,8 @@ export type DocumentChatResult =
       limitNotice?: string;
       /** Coach du CV Builder : points abandonnés dans cette réponse (gardés par l'éditeur pour la session). */
       skippedPoints?: string[];
+      /** Lumeo : réponse d'excuse (erreur, limite) affichée avec l'expression « désolé », sans bulle d'erreur. */
+      sorry?: boolean;
     }
   | { ok: false; error: string; limitReached?: boolean };
 

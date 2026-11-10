@@ -75,7 +75,7 @@ test("carte 3 mois : la landing lit sa liste dans la source unique", () => {
 
 test("les quotas gratuits viennent de la source des quotas", () => {
   assert.deepEqual(FREE_FEATURES.slice(0, 3), [
-    `Chat IA (coach) : ${CVB_COACH_DAILY_LIMIT} questions par jour`,
+    `Lumeo : ${CVB_COACH_DAILY_LIMIT} questions par jour`,
     `Adaptation de CV : ${AI_MONTHLY_LIMITS.cvb_chat} par mois`,
     `Import de CV : ${AI_MONTHLY_LIMITS.cvb_import} par mois`,
   ]);
@@ -98,8 +98,8 @@ test("plus de limite inventée ni de fonctionnalité sans interface", () => {
   assert.doesNotMatch(all, /CV ouvert|analyses? de CV|éditeur/i);
 });
 
-test("Premium annonce la levée de la limite du Chat IA", () => {
-  assert.equal(PREMIUM_FEATURES[1], `Chat IA : plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour`);
+test("Premium annonce la levée de la limite de Lumeo", () => {
+  assert.equal(PREMIUM_FEATURES[1], `Lumeo : plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour`);
 });
 
 test("vocabulaire : « Chat IA » dans la carte du plan, le message du jour et la bienvenue Premium", () => {
@@ -120,7 +120,7 @@ test("source unique : /premium et la landing affichent les mêmes listes et les 
 });
 
 test("FAQ de la landing : mêmes quotas, sans fonctionnalité disparue", () => {
-  assert.ok(LANDING_FREE_ANSWER.includes(`${CVB_COACH_DAILY_LIMIT} questions par jour au Chat IA`));
+  assert.ok(LANDING_FREE_ANSWER.includes(`${CVB_COACH_DAILY_LIMIT} questions par jour à Lumeo`));
   assert.ok(LANDING_FREE_ANSWER.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations et ${AI_MONTHLY_LIMITS.cvb_import} import de CV par mois`));
   assert.doesNotMatch(LANDING_FREE_ANSWER, /analyses? de CV|action IA par type/i);
 });
@@ -135,7 +135,7 @@ test("messages de limite : nombres lus aux constantes, limite commune rappelée"
   assert.doesNotMatch(LIMIT_REACHED_LABEL, /essai/i);
 });
 
-test("remises à zéro : le Chat IA par jour, le reste par mois", () => {
-  assert.match(RESET_NOTE, /Chat IA.*chaque jour.*minuit/);
+test("remises à zéro : Lumeo par jour, le reste par mois", () => {
+  assert.match(RESET_NOTE, /Lumeo.*chaque jour.*minuit/);
   assert.match(RESET_NOTE, /1er de chaque mois/);
 });
