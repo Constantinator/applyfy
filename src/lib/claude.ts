@@ -10,6 +10,7 @@ import type { ImprovedCv } from "./cv-html";
 import { GENERIC_JARGON } from "./cv-score";
 import { detectSector, formatSectorContext, getSectorContext } from "./cv-sector-context";
 import { KEYWORD_GROUPS, type KeywordGroup } from "./cv-types";
+import { LUMEO_MODEL_ACTIONS, type LumeoModelAction } from "./lumeo-actions";
 import { LUMEO_SYSTEM } from "./lumeo-system";
 import { getKeywordsForSector } from "./job-scraper";
 import { extractPdfText } from "./pdf-text";
@@ -1175,14 +1176,22 @@ export async function coachBuilderCv(
 const LumeoReplySchema = z.object({
   /** Réponse affichée à l'utilisateur (markdown minimal, liens internes seulement). */
   reply: z.string(),
+  /**
+   * Action proposée (jamais exécutée ici) : une valeur de la liste seulement, sans identifiant ;
+   * le serveur décide de la carte à afficher et l'utilisateur confirme.
+   */
+  action: z.enum(LUMEO_MODEL_ACTIONS),
 });
 
+export type LumeoAnswer = { reply: string; action: LumeoModelAction };
+
 /**
- * Réponse de Lumeo à une question : prompt système fixe (lib/lumeo-panel), contexte et question
+ * Réponse de Lumeo à une question : prompt système fixe (lib/lumeo-system), contexte et question
  * déjà neutralisés dans `userContent`. Effort bas : réponses courtes ; la limite de tokens compte
  * aussi la réflexion du modèle.
  */
-export async function answerLumeo(userContent: string): Promise<string | null> {
+export async function answerLumeo(userContent: string): Promise<LumeoAnswer | null> {
   const result = await parseStructured("answerLumeo", LumeoReplySchema, LUMEO_SYSTEM, userContent, { effort: "low", maxTokens: 4000 });
-  return result?.reply.trim() || null;
+  const reply = result?.reply.trim();
+  return reply ? { reply, action: result!.action } : null;
 }

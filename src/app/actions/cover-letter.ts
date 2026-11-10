@@ -6,14 +6,9 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { getAccountName } from "@/lib/account";
 import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
 import { getApplicationDetail, MissingMigrationError, saveEditedDocument } from "@/lib/applications";
-import {
-  claudeErrorMessage,
-  generateCoverLetter,
-  isClaudeConfigured,
-  transcribeLetter,
-  type CandidateProfile,
-} from "@/lib/claude";
-import { coverLetterToHtml, transcribedLetterToHtml } from "@/lib/cover-letter";
+import { claudeErrorMessage, isClaudeConfigured, transcribeLetter, type CandidateProfile } from "@/lib/claude";
+import { transcribedLetterToHtml } from "@/lib/cover-letter";
+import { writeCoverLetterHtml } from "@/lib/cover-letter-writer";
 import { readPdfUpload } from "@/lib/cv-file";
 import { CV_HTML_MAX_LENGTH, sanitizeCvHtml } from "@/lib/cv-html";
 import { DEFAULT_LETTER_STYLE, readCvStyle } from "@/lib/cv-style";
@@ -87,22 +82,11 @@ export async function generateCoverLetterAction(
 
   let html: string;
   try {
-    const letter = await generateCoverLetter(
-      candidate,
-      {
-        position: app.position,
-        company: app.company,
-        location: app.location,
-        summary: app.offer_summary ?? null,
-        description: app.offer_description,
-      },
-      signer,
-    );
-    if (!letter) return { status: "error", message: "La lettre n'a pas pu être rédigée. Réessaie." };
-    await recordAiUsage("lettre");
     // Le nom du compte fait foi (en-tête, objet et signature), même si le CV en indique un autre.
-    if (signer) letter.nom = signer;
-    html = sanitizeCvHtml(coverLetterToHtml(letter, app.position));
+    const written = await writeCoverLetterHtml(candidate, app, signer);
+    if (!written) return { status: "error", message: "La lettre n'a pas pu être rédigée. Réessaie." };
+    await recordAiUsage("lettre");
+    html = written;
   } catch (error) {
     return { status: "error", message: claudeErrorMessage(error, "generateCoverLetter") };
   }

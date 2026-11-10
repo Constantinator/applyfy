@@ -2,6 +2,7 @@ import "server-only";
 
 import { checkAiAccess, recordAiUsage } from "./ai-usage";
 import { type AiUsageCount } from "./ai-usage-limits";
+import type { LumeoProposal } from "./lumeo-actions";
 import { getApplicationDetail, type ApplicationDetailResult } from "./applications";
 import {
   claudeErrorMessage,
@@ -40,6 +41,8 @@ export type DocumentChatResult =
       skippedPoints?: string[];
       /** Lumeo : réponse d'excuse (erreur, limite) affichée avec l'expression « désolé », sans bulle d'erreur. */
       sorry?: boolean;
+      /** Lumeo : action proposée (carte de confirmation) ; rien n'est exécuté sans le clic. */
+      proposal?: LumeoProposal;
     }
   | { ok: false; error: string; limitReached?: boolean };
 

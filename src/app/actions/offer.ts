@@ -5,7 +5,8 @@ import { refresh } from "next/cache";
 
 import { checkAiAccess, recordAiUsage } from "@/lib/ai-usage";
 import { requireUser } from "@/lib/auth";
-import { isClaudeConfigured, summarizeOffer, type OfferSummary } from "@/lib/claude";
+import { isClaudeConfigured, summarizeOffer } from "@/lib/claude";
+import { formatOfferSummary } from "@/lib/offer-summary";
 import {
   OfferImportError,
   importOfferFromPage,
@@ -101,18 +102,6 @@ export type SummarizeResult =
   | { ok: true; summary: string }
   | { ok: false; error: string; limitReached?: boolean };
 
-function formatSummary({ missions, profil, avantages }: OfferSummary) {
-  const section = (title: string, items: string[]) =>
-    items.length ? `${title}\n${items.map((item) => `• ${item}`).join("\n")}` : "";
-  return [
-    section("Missions", missions),
-    section("Profil recherché", profil),
-    section("Avantages", avantages),
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 export async function summarizeOfferAction(description: string): Promise<SummarizeResult> {
   await ensureAllowed();
   if (!isClaudeConfigured()) {
@@ -135,7 +124,7 @@ export async function summarizeOfferAction(description: string): Promise<Summari
     if (!summary) return { ok: false, error: "Le résumé n'a pas pu être généré pour cette offre." };
     await recordAiUsage("resume_offre");
     refresh(); // compteur à jour dans la page
-    return { ok: true, summary: formatSummary(summary) };
+    return { ok: true, summary: formatOfferSummary(summary) };
   } catch (error) {
     if (error instanceof Anthropic.RateLimitError) {
       return { ok: false, error: "Trop de demandes en ce moment. Réessaie dans une minute." };

@@ -31,6 +31,23 @@ export function applicationCvTitle(name: AccountName | null, company: string) {
 }
 
 /**
+ * CV d'une candidature : contenu avec le poste de la candidature pour poste visé (à défaut, celui
+ * du CV) et nom « CV Prénom Nom - Entreprise ». Partagé par le CV Builder et l'adaptation de Lumeo.
+ */
+export function applicationCvDraft<T extends { targetJob: string; personal: { jobTitle: string } }>(
+  data: T,
+  application: { company: string; position: string },
+  name: AccountName | null,
+): { data: T; title: string } {
+  const targetJob = application.position.trim().slice(0, 120) || data.targetJob;
+  const jobTitle = data.personal.jobTitle.trim() || targetJob;
+  return {
+    data: { ...data, targetJob, personal: { ...data.personal, jobTitle } },
+    title: applicationCvTitle(name, application.company),
+  };
+}
+
+/**
  * Mots-clés de l'offre, générés une seule fois par candidature : onglet « Mots-clés » du CV Builder
  * et coach. Hors quota et sans échec : sans eux, le CV est quand même créé. Sans texte d'offre,
  * rien à comparer : pas d'appel à l'IA.

@@ -5,6 +5,7 @@ import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { PremiumButton, UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
+import type { LumeoProposalState } from "@/lib/lumeo-actions";
 import { isNearBottom, lumeoScrollAction } from "@/lib/lumeo-panel";
 import { LUMEO_PANEL_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import type { DocumentChatResult } from "@/lib/refine";
@@ -107,6 +108,8 @@ type Message = {
   premium?: boolean;
   /** Excuse de Lumeo (erreur, limite) : bulle normale, expression « désolé », hors historique. */
   sorry?: boolean;
+  /** Lumeo : action proposée et sa suite (carte de confirmation, cf. renderProposal). */
+  proposal?: LumeoProposalState;
 };
 
 /** Expression de Lumeo à côté d'une réponse : désolé sur une erreur ou une limite atteinte. */
@@ -147,6 +150,7 @@ export function RefineChat({
   links,
   layout = "card",
   store,
+  renderProposal,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -206,6 +210,8 @@ export function RefineChat({
   layout?: "card" | "panel" | "page";
   /** Conversation tenue hors du chat (partagée entre le panneau et la page de Lumeo). */
   store?: ChatStore;
+  /** Lumeo : carte de confirmation d'une action proposée ; update met à jour son état dans la conversation. */
+  renderProposal?: (proposal: LumeoProposalState, update: (patch: Partial<LumeoProposalState>) => void) => React.ReactNode;
 }) {
   const texts = DOCUMENTS[document];
   const page = layout === "page";
@@ -301,7 +307,7 @@ export function RefineChat({
           setLimitHit(true);
           add({ role: "assistant", content: result.limitNotice, premium: true });
         }
-        if (result.reply) add({ role: "assistant", content: result.reply, previousHtml, sorry: result.sorry });
+        if (result.reply) add({ role: "assistant", content: result.reply, previousHtml, sorry: result.sorry, proposal: result.proposal });
       } else {
         if (result.limitReached) setLimitHit(true);
         add({ role: "assistant", content: result.error, error: true });
@@ -446,6 +452,10 @@ export function RefineChat({
                 )}
               </div>
               {message.premium && <PremiumButton />}
+              {message.proposal &&
+                renderProposal?.(message.proposal, (patch) =>
+                  setMessages((list) => list.map((m) => (m.id === message.id && m.proposal ? { ...m, proposal: { ...m.proposal, ...patch } } : m))),
+                )}
               {message.undone ? (
                 <span className="pl-1 text-xs text-muted dark:text-slate-500">Modification annulée.</span>
               ) : (

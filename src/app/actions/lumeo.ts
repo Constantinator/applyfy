@@ -8,11 +8,13 @@ import { isLimitReached } from "@/lib/ai-usage-limits";
 import { getApplicationDetail, getApplications } from "@/lib/applications";
 import { requireUser } from "@/lib/auth";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
-import { answerLumeo, ClaudeRefusalError, isClaudeConfigured } from "@/lib/claude";
+import { answerLumeo, ClaudeRefusalError, isClaudeConfigured, type LumeoAnswer } from "@/lib/claude";
 import { getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
 import { loadScoringContext } from "@/lib/cv-score-context";
+import { lumeoProposal } from "@/lib/lumeo-action-server";
+import { proposalFromModel, type LumeoRefusal } from "@/lib/lumeo-actions";
 import { LUMEO_APP_GUIDE, lumeoPlanKind, lumeoPlansBlock, lumeoUserPlanBlock } from "@/lib/lumeo-knowledge";
 import { lumeoMockEnabled, mockLumeoReply } from "@/lib/lumeo-mock";
 import {
@@ -27,7 +29,7 @@ import {
   type LumeoLocation,
   type LumeoOfferInput,
 } from "@/lib/lumeo-panel";
-import { LUMEO_PANEL_TEXTS as T } from "@/lib/lumeo-texts";
+import { LUMEO_ACTION_TEXTS as A, LUMEO_PANEL_TEXTS as T } from "@/lib/lumeo-texts";
 import type { DocumentChatResult } from "@/lib/refine";
 
 /** Dernier CV du CV Builder, résumé pour Lumeo (sans contact ni photo) ; null sans CV ou en cas d'échec. */
@@ -94,11 +96,11 @@ export async function askLumeoAction(where: string, _html: string, message: stri
   const rate = await checkAiRateLimit();
   if (!rate.ok) return sorry(T.rate);
 
-  let reply: string | null;
+  let answer: LumeoAnswer | null;
   try {
     if (mock) {
       await new Promise((resolve) => setTimeout(resolve, 900)); // « il réfléchit » visible
-      reply = mockLumeoReply(question, location);
+      answer = mockLumeoReply(question, location);
     } else {
       const [accountName, cv, applications, offer, beta] = await Promise.all([
         getAccountName().catch(() => null),
@@ -116,7 +118,7 @@ export async function askLumeoAction(where: string, _html: string, message: stri
       });
       const knowledge = { plans: lumeoPlansBlock(), userPlan, guide: LUMEO_APP_GUIDE };
       const context = buildLumeoContext({ location, firstName: accountName?.firstName ?? null, cv, applications, offer, now: new Date(), knowledge });
-      reply = await answerLumeo(lumeoUserContent(context, lumeoTurns(history), question));
+      answer = await answerLumeo(lumeoUserContent(context, lumeoTurns(history), question));
     }
   } catch (error) {
     unstable_rethrow(error);
@@ -125,8 +127,26 @@ export async function askLumeoAction(where: string, _html: string, message: stri
     console.error("[lumeo] réponse", error instanceof Error ? `${error.name}: ${error.message}` : "erreur inconnue");
     return sorry(T.error);
   }
-  if (!reply) return sorry(T.error);
+  if (!answer) return sorry(T.error);
 
+  // Une question = un décompte, une seule fois, proposition comprise.
   await recordAiUsage("cvb_coach");
-  return { ok: true, reply, html: null, usage: { used: coachToday + 1, limit: null } };
+  const usageAfter = { used: coachToday + 1, limit: null };
+  if (answer.action === "aucune") return { ok: true, reply: answer.reply, html: null, usage: usageAfter };
+
+  // Proposition : seulement sur la fiche ouverte (id de l'emplacement, jamais du modèle), vérifiée
+  // en base ; elle n'exécute rien, l'utilisateur confirme dans la carte.
+  const request = proposalFromModel(answer.action, location.page === "fiche" ? location.applicationId : null);
+  if (!request) return { ok: true, reply: `${answer.reply}\n\n${A.noFiche}`, html: null, usage: usageAfter };
+  const proposal = await lumeoProposal(request, { premium: usage.premium, counts: usage.counts, usedToday: usage.usedToday + 1 }).catch(
+    (error: unknown) => {
+      console.error("[lumeo] proposition", error instanceof Error ? error.message : "erreur inconnue");
+      return { ok: false, message: A.failed } as LumeoRefusal;
+    },
+  );
+  if (!proposal.ok) {
+    const link = proposal.link ? ` [${proposal.link.label}](${proposal.link.href})` : "";
+    return { ok: true, reply: `${answer.reply}\n\n${proposal.message}${link}`, html: null, usage: usageAfter };
+  }
+  return { ok: true, reply: answer.reply, html: null, usage: usageAfter, proposal: proposal.proposal };
 }

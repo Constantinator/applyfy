@@ -1,6 +1,7 @@
 // Réponses simulées de Lumeo, pour tester l'interface en local sans appeler Claude
 // (LUMEO_MOCK=1 sur la ligne de commande de `next dev`). Jamais actif en production ni sur Vercel.
 // Le quota reste réellement consommé : la limite du jour se teste aussi en local.
+import type { LumeoModelAction } from "./lumeo-actions";
 import type { LumeoLocation } from "./lumeo-panel";
 
 type Env = Record<string, string | undefined>;
@@ -11,9 +12,23 @@ export function lumeoMockEnabled(env: Env = process.env): boolean {
 
 const PREFIX = "(Réponse simulée, LUMEO_MOCK)";
 
-/** Réponse simulée, choisie par mots-clés : le contenu réel est contrôlé sur la prévisualisation. */
-export function mockLumeoReply(question: string, location: LumeoLocation): string {
+/**
+ * Réponse simulée, choisie par mots-clés : le contenu réel est contrôlé sur la prévisualisation.
+ * Les mots « lettre », « résume » et « adapte » simulent une proposition d'action (lot 2) : le
+ * serveur la vérifie et affiche la carte comme pour une vraie réponse ; rien n'est exécuté.
+ */
+export function mockLumeoReply(question: string, location: LumeoLocation): { reply: string; action: LumeoModelAction } {
   const q = question.toLowerCase();
+  if (/supprim|envoie|e-?mail/.test(q)) {
+    return { reply: `${PREFIX} Je ne peux ni supprimer, ni envoyer quoi que ce soit : fais-le toi-même depuis la fiche.`, action: "aucune" };
+  }
+  if (/lettre/.test(q)) return { reply: `${PREFIX} Je te propose d'écrire ta lettre pour cette candidature : confirme si tu veux.`, action: "lettre" };
+  if (/résum|resum/.test(q)) return { reply: `${PREFIX} Je te propose de résumer cette offre : confirme si tu veux.`, action: "resume_offre" };
+  if (/adapt/.test(q)) return { reply: `${PREFIX} Je te propose une copie de ton CV adaptée à cette offre : confirme si tu veux.`, action: "adaptation_cv" };
+  return { reply: mockText(q, location), action: "aucune" };
+}
+
+function mockText(q: string, location: LumeoLocation): string {
   if (/recette|lasagne|météo|football|blague/.test(q)) {
     return `${PREFIX} Je ne peux pas t'aider pour ça. Je suis là pour ta recherche d'emploi, ton CV et tes candidatures.`;
   }

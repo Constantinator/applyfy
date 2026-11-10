@@ -160,6 +160,33 @@ export async function linkBuilderCvToApplication(id: string, applicationId: stri
   if (error) throw new Error(`Liaison du CV impossible : ${error.message}`);
 }
 
+/**
+ * Lie un CV à une candidature seulement si aucun autre n'y est lié (sans le détacher, au contraire
+ * de linkBuilderCvToApplication) : l'index unique cv_builder(application_id) fait foi. False : un
+ * CV est déjà lié (y compris par une requête simultanée). Sert de réservation à Lumeo.
+ */
+export async function linkBuilderCvIfFree(id: string, applicationId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    if (demoCvs.some((c) => c.applicationId === applicationId)) return false;
+    const cv = demoCvs.find((c) => c.id === id);
+    if (!cv) throw new CvBuilderError("Ce CV n'existe plus.");
+    cv.applicationId = applicationId;
+    return true;
+  }
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cv_builder")
+    .update({ application_id: applicationId })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .is("application_id", null)
+    .select("id");
+  if (error?.code === "23505") return false; // un autre CV est déjà lié à cette candidature
+  if (error) throw new Error(`Liaison du CV impossible : ${error.message}`);
+  return (data?.length ?? 0) === 1;
+}
+
 /** Nouveau CV pré-rempli (nom, email, ou CV importé) ; renvoie son identifiant. */
 export async function createBuilderCv(
   initial: CvData,

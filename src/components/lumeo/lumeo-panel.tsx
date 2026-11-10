@@ -16,6 +16,7 @@ import {
 } from "@/lib/lumeo-panel";
 import { LUMEO_PANEL_TEXTS as T } from "@/lib/lumeo-texts";
 
+import { LumeoActionCard } from "./lumeo-action-card";
 import { LumeoAvatar } from "./lumeo-avatar";
 
 const NO_USAGE = { used: 0, limit: null };
@@ -190,6 +191,7 @@ function LumeoChat({ state, layout }: { state: LumeoState; layout: "panel" | "pa
       tagline={T.tagline}
       links={safeLumeoHref}
       store={state.store}
+      renderProposal={(proposal, update) => <LumeoActionCard proposal={proposal} update={update} />}
     />
   );
 }

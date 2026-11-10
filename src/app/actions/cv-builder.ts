@@ -14,7 +14,7 @@ import {
   isLimitReached,
   type AiUsageKind,
 } from "@/lib/ai-usage-limits";
-import { applicationCvTitle, ensureOfferKeywords } from "@/lib/application-cv";
+import { applicationCvDraft, applicationCvTitle, ensureOfferKeywords } from "@/lib/application-cv";
 import { getApplicationDetail, type ApplicationDetailResult } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -492,14 +492,9 @@ export async function checkCvImportAction(formData: FormData): Promise<ImportSte
  * pour poste visé (à défaut, celui du CV), et le lie à cette candidature.
  */
 async function createApplicationCv(data: CvData, detail: ApplicationDetailResult, templateId?: CvTemplateId): Promise<string> {
-  const { id: applicationId, company, position } = detail.application;
-  const targetJob = position.trim().slice(0, 120) || data.targetJob;
-  const jobTitle = data.personal.jobTitle.trim() || targetJob;
-  const id = await createBuilderCv(
-    { ...data, targetJob, personal: { ...data.personal, jobTitle } },
-    applicationCvTitle(await getAccountName().catch(() => null), company),
-    templateId,
-  );
+  const applicationId = detail.application.id;
+  const draft = applicationCvDraft(data, detail.application, await getAccountName().catch(() => null));
+  const id = await createBuilderCv(draft.data, draft.title, templateId);
   await linkOrDiscard(id, applicationId);
   return id;
 }

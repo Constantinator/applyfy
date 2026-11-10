@@ -311,8 +311,8 @@ test("prompt système : périmètre, honnêteté, voix et aucune action", () => 
     /Pas d'emoji\. Un seul point d'exclamation/,
     /Jamais culpabilisant/,
     /« Bien joué » seulement si c'est mérité/,
-    /tu ne fais aucune action dans l'appli/,
-    /n'envoies rien à la place de l'utilisateur/,
+    /Tu ne fais toi-même aucune action dans l'appli/,
+    /n'envoies jamais rien à la place de l'utilisateur/,
     /120 mots au maximum/,
     /jamais de lien externe/,
   ];
@@ -329,7 +329,9 @@ test("LUMEO_MOCK : actif seulement en local, jamais en production ni sur Vercel"
   assert.equal(lumeoMockEnabled({ LUMEO_MOCK: "1", NODE_ENV: "development", VERCEL: "1" }), false);
   assert.equal(lumeoMockEnabled({ LUMEO_MOCK: "1", NODE_ENV: "development", VERCEL_ENV: "preview" }), false);
   assert.equal(lumeoMockEnabled({ NODE_ENV: "development" }), false);
-  assert.match(mockLumeoReply("Une recette ?", { page: "dashboard", applicationId: null }), /^\(Réponse simulée/);
+  const mock = mockLumeoReply("Une recette ?", { page: "dashboard", applicationId: null });
+  assert.match(mock.reply, /^\(Réponse simulée/);
+  assert.equal(mock.action, "aucune");
 });
 
 test("prompt système : jamais importé par le code envoyé au navigateur", async () => {
