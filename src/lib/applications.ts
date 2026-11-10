@@ -537,34 +537,8 @@ async function applyUpdate(
 // Utilitaires
 // ---------------------------------------------------------------------------
 
-const longDate = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC", // date sans heure, cf. applications-list.tsx
-});
-
-/**
- * Message de relance pré-rempli, modifiable par l'utilisateur. `signer` : prénom et nom du
- * compte (Mon profil) ; sans eux, un repère « [Prénom Nom] » est laissé à compléter.
- */
-export function buildFollowUpMessage(app: Application, signer?: string | null): string {
-  const greeting = app.contact_name ? `Bonjour ${app.contact_name},` : "Bonjour,";
-  const sentOn = app.applied_at ? `, envoyée le ${longDate.format(new Date(app.applied_at))}` : "";
-  const again = app.status === "relancee" ? "de nouveau " : "";
-
-  return [
-    greeting,
-    "",
-    `Je me permets de revenir ${again}vers vous au sujet de ma candidature au poste de ${app.position} chez ${app.company}${sentOn}.`,
-    "",
-    `Ce poste m'intéresse toujours vivement et je serais ravi·e d'échanger avec vous pour vous présenter ma motivation et ce que je pourrais apporter à ${app.company}.`,
-    "",
-    "Je reste disponible pour un appel ou un entretien à votre convenance.",
-    "",
-    "Bien cordialement,",
-    signer?.trim() || "[Prénom Nom]",
-  ].join("\n");
-}
+// Message et objet de relance pré-écrits (lot 3b) : module pur, testable sans serveur.
+export { buildFollowUpMessage, buildFollowUpSubject } from "./follow-up-message";
 
 const isoDateInParis = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" });
 

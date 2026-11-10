@@ -8,6 +8,7 @@
 //   « boîte » : aucune question comptée, la confirmation compte 1 question (cvb_coach).
 import { daysSince } from "./follow-up";
 import { neutralizeData } from "./lumeo-panel";
+import { cleanPosition } from "./position-title";
 import type { ApplicationStatus } from "./types";
 
 /** Statuts où une relance a un sens (comme FOLLOW_UP_STATUSES). */
@@ -157,16 +158,8 @@ export function unmaskRelance(text: string, placeholders: Map<string, string>): 
 // Données envoyées au modèle
 // ---------------------------------------------------------------------------
 
-/** Titre du poste sans « H/F », « (F/H) », « H/F/X »… ni tirets en trop. */
-export function cleanPosition(position: string): string {
-  return position
-    .replace(/\(?\b[HFX]\s*\/\s*[HFX](?:\s*\/\s*[HFX])?\b\)?/gi, "")
-    .replace(/\s*[-–—|]\s*$/g, "")
-    .replace(/^\s*[-–—|]\s*/g, "")
-    .replace(/\s+[-–—|]\s+[-–—|]\s+/g, " - ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
+// Même nettoyage du titre que le message pré-écrit (lib/position-title).
+export { cleanPosition };
 
 export type RelanceFacts = {
   position: string;

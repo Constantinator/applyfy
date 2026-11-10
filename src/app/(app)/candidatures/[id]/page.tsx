@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { MarkAsSent } from "@/components/application/mark-as-sent";
 import {
   buildFollowUpMessage,
+  buildFollowUpSubject,
   getApplicationDetail,
   needsFollowUp,
   today,
@@ -107,7 +108,7 @@ export default async function ApplicationPage({
       applicationId={app.id}
       defaultMessage={buildFollowUpMessage(app, accountName ? fullName(accountName) : null)}
       contactEmail={app.contact_email}
-      subject={`Relance — candidature ${app.position}`}
+      subject={buildFollowUpSubject(app)}
       highlight={toFollowUp}
       canImprove={canImproveRelance}
     />

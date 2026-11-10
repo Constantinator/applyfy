@@ -204,7 +204,7 @@ export async function runLumeoAdaptation(copyId: string, applicationId: string) 
 
 /**
  * Relance retravaillée (lot 3a) : part du texte de la boîte « Relancer », sinon du message
- * pré-écrit (buildFollowUpMessage, inchangé). Le nom du contact, la signature et les coordonnées
+ * pré-écrit (buildFollowUpMessage, sans IA). Le nom du contact, la signature et les coordonnées
  * sont masqués avant l'appel et remis après contrôle. Rien n'est enregistré, rien n'est envoyé.
  */
 export async function runLumeoRelance(applicationId: string, source: string | undefined): Promise<LumeoActionDone | LumeoRefusal> {
