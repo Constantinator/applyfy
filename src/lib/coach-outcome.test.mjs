@@ -14,6 +14,7 @@ const { PROBLEM_BANNED_PREFIX, PROBLEM_NO_FIGURE, PROBLEM_NO_VERB } = await impo
 const { READY_SCORE } = await import("./cv-score.ts");
 
 const base = {
+  mode: "parcours",
   section: "experience",
   applied: 0,
   stale: 0,

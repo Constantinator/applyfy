@@ -21,6 +21,12 @@ export const COACH_SECTIONS = [
 ] as const;
 export type CoachSection = (typeof COACH_SECTIONS)[number];
 
+/**
+ * Mode d'une réponse du coach, déclaré par le modèle : « demande » (il exécute une demande
+ * explicite du candidat) ou « parcours » (il suit ses points à corriger).
+ */
+export type CoachMode = "demande" | "parcours";
+
 const optional = z.string().optional();
 const LEVELS = ["", "debutant", "intermediaire", "avance", "expert"] as const;
 
@@ -322,6 +328,10 @@ function newItemChange(target: ItemTarget, data: Record<string, unknown>, makeId
 export const PROBLEM_NO_VERB = "ne commence pas par un verbe ou un nom d'action";
 export const PROBLEM_NO_FIGURE = "ne contient ni chiffre ni ordre de grandeur";
 export const PROBLEM_BANNED_PREFIX = "contient la formule à éviter « ";
+/** Mode demande : régression par rapport au texte d'origine, et nombre absent des sources. */
+export const PROBLEM_LOST_VERB = "ne commence plus par un verbe ou un nom d'action, contrairement à la puce d'origine";
+export const PROBLEM_LOST_FIGURE = "a perdu le chiffre ou l'ordre de grandeur de la puce d'origine";
+export const PROBLEM_NEW_NUMBER_PREFIX = "contient un nombre absent du CV et des messages du candidat : ";
 
 /** Textes refusés d'un changement et leurs défauts. */
 export type ChangeProblem = {
@@ -334,15 +344,32 @@ export type ChangeProblem = {
   path?: string;
 };
 
+/** Mode de la réponse et messages du candidat (source autorisée des nombres, avec le CV). */
+export type CheckOptions = { mode?: CoachMode; candidateMessages?: string[] };
+
 /**
- * Défauts des textes proposés : une puce d'expérience doit commencer par un verbe ou un nom
- * d'action, contenir un chiffre ou un ordre de grandeur, et n'utiliser aucune formule de la liste
- * noire ; les autres textes, seulement la liste noire. Une réorganisation n'ajoute rien : une puce
- * déplacée n'est pas vérifiée, et une liste n'est refusée que pour une formule qu'elle n'avait pas.
- * Tout changement qui rendrait le CV invalide (limite dépassée) est refusé aussi, avec le champ en cause.
+ * Défauts des textes proposés.
+ * - Mode « parcours » (par défaut) : une puce d'expérience doit commencer par un verbe ou un nom
+ *   d'action, contenir un chiffre ou un ordre de grandeur, et n'utiliser aucune formule de la liste
+ *   noire ; les autres textes, seulement la liste noire.
+ * - Mode « demande » : règle de non-régression. Une puce modifiée ne doit pas être moins bonne
+ *   qu'avant (elle garde son chiffre et son verbe d'action si elle en avait, aucune formule de la
+ *   liste noire ajoutée) ; une puce nouvelle doit commencer par un verbe d'action, sans chiffre
+ *   exigé ; et aucun texte ne contient un nombre absent du CV et des messages du candidat.
+ * Dans les deux modes, une réorganisation n'ajoute rien : une puce déplacée n'est pas vérifiée, et
+ * une liste n'est refusée que pour une formule qu'elle n'avait pas. Tout changement qui rendrait le
+ * CV invalide (limite dépassée) est refusé aussi, avec le champ en cause.
  */
-export function checkProposal(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">, current: CvData): ChangeProblem[] {
-  const problems = textProblems(proposal, context);
+export function checkProposal(
+  proposal: CoachProposal,
+  context: Pick<ScoringContext, "actionVerbs" | "avoid">,
+  current: CvData,
+  options: CheckOptions = {},
+): ChangeProblem[] {
+  const problems =
+    options.mode === "demande"
+      ? requestProblems(proposal, context, numberSources([...cvStrings(current), ...(options.candidateMessages ?? [])]))
+      : textProblems(proposal, context);
   let state = current;
   for (const change of proposal.changes) {
     if (problems.some((p) => p.changeId === change.id)) continue;
@@ -356,6 +383,15 @@ export function checkProposal(proposal: CoachProposal, context: Pick<ScoringCont
     }
   }
   return problems;
+}
+
+/** Textes d'un changement : puces d'une expérience ajoutée, ou le texte « après ». */
+function changeTexts(change: CoachChange): { text: string; bullet: boolean }[] {
+  if (change.kind === "bullet") return [{ text: change.after, bullet: true }];
+  if (change.kind === "item" && change.target === "experience") {
+    return (change.value.bullets as string[]).map((text) => ({ text, bullet: true }));
+  }
+  return [{ text: change.after, bullet: false }];
 }
 
 function textProblems(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">): ChangeProblem[] {
@@ -377,17 +413,114 @@ function textProblems(proposal: CoachProposal, context: Pick<ScoringContext, "ac
         ? [{ changeId: change.id, text: change.after, problems: added.map((phrase) => `${PROBLEM_BANNED_PREFIX}${phrase} »`) }]
         : [];
     }
-    const texts =
-      change.kind === "bullet"
-        ? [{ text: change.after, bullet: true }]
-        : change.kind === "item" && change.target === "experience"
-          ? (change.value.bullets as string[]).map((text) => ({ text, bullet: true }))
-          : [{ text: change.after, bullet: false }];
-    return texts.flatMap(({ text, bullet }) => {
+    return changeTexts(change).flatMap(({ text, bullet }) => {
       const problems = check(text, bullet);
       return problems.length ? [{ changeId: change.id, text, problems }] : [];
     });
   });
+}
+
+/** Mode demande : non-régression des textes modifiés, verbe d'action des puces nouvelles, nombres inventés. */
+function requestProblems(
+  proposal: CoachProposal,
+  context: Pick<ScoringContext, "actionVerbs" | "avoid">,
+  allowed: Set<string>,
+): ChangeProblem[] {
+  const isAction = actionDetector(context.actionVerbs);
+  const banned = bannedPhrases(context.avoid);
+
+  return proposal.changes.flatMap((change) => {
+    if (change.kind === "removeBullet" || change.kind === "removeItem") return [];
+    if (change.kind === "bullet" && change.moved) return [];
+    const before = change.before ?? "";
+    const existing = findBannedPhrases(before, banned);
+    return changeTexts(change).flatMap(({ text, bullet }) => {
+      const problems: string[] = [];
+      if (bullet && !isAction(text)) {
+        // Puce nouvelle : verbe exigé ; puce modifiée : seulement si elle en avait un.
+        if (change.before === null) problems.push(PROBLEM_NO_VERB);
+        else if (isAction(before)) problems.push(PROBLEM_LOST_VERB);
+      }
+      if (bullet && change.before !== null && hasFigure(before) && !hasFigure(text)) problems.push(PROBLEM_LOST_FIGURE);
+      for (const phrase of findBannedPhrases(text, banned)) {
+        if (!existing.includes(phrase)) problems.push(`${PROBLEM_BANNED_PREFIX}${phrase} »`);
+      }
+      // Sources : le contenu du CV, les messages du candidat et le texte d'origine du passage.
+      const invented = sameDigits(before, text) ? [] : inventedNumbers(text, new Set([...allowed, ...numberSources([before])]));
+      if (invented.length) problems.push(`${PROBLEM_NEW_NUMBER_PREFIX}${invented.join(", ")}`);
+      return problems.length ? [{ changeId: change.id, text, problems }] : [];
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Nombres inventés (mode demande) : tout nombre écrit doit venir du CV ou du candidat
+// ---------------------------------------------------------------------------
+
+/** Nombres écrits en lettres (français et anglais), avec leur valeur. */
+const NUMBER_WORDS: Record<string, string> = {
+  deux: "2", trois: "3", quatre: "4", cinq: "5", six: "6", sept: "7", huit: "8", neuf: "9", dix: "10",
+  onze: "11", douze: "12", treize: "13", quatorze: "14", quinze: "15", seize: "16", vingt: "20", trente: "30",
+  quarante: "40", cinquante: "50", soixante: "60", cent: "100", mille: "1000",
+  two: "2", three: "3", four: "4", five: "5", seven: "7", eight: "8", nine: "9", ten: "10", eleven: "11",
+  twelve: "12", thirteen: "13", fourteen: "14", fifteen: "15", sixteen: "16", twenty: "20", thirty: "30",
+  forty: "40", fifty: "50", sixty: "60",
+};
+/** Ordres de grandeur : vérifiés aussi dans le texte proposé (« une centaine » sans source est refusé). */
+const MAGNITUDE_WORDS: Record<string, string> = {
+  dizaine: "10", douzaine: "12", quinzaine: "15", vingtaine: "20", trentaine: "30", quarantaine: "40",
+  cinquantaine: "50", centaine: "100", millier: "1000", million: "1000000", milliard: "1000000000",
+  dozen: "12", hundred: "100", thousand: "1000", billion: "1000000000",
+};
+
+const THOUSANDS = /\d{1,3}(?:[ \u00a0\u202f.,]\d{3})+(?!\d)/g;
+const wordsOf = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().match(/\p{L}+/gu) ?? [];
+const singular = (word: string) => (word.length > 4 && word.endsWith("s") ? word.slice(0, -1) : word);
+
+/**
+ * Textes du CV qui peuvent justifier un nombre. Exclus : identifiants, photo, réglages et analyse
+ * (pas des faits du candidat), et coordonnées (les chiffres d'un téléphone ne justifient pas
+ * « 12 clients » ; une coordonnée modifiée est comparée à son propre texte d'origine).
+ */
+const NOT_CONTENT = new Set(["id", "photo", "style", "coach", "analysis", "phone", "email", "linkedin", "website", "github"]);
+/** Mêmes chiffres dans le même ordre (« 0612345678 » remis en « 06 12 34 56 78 ») : rien d'inventé. */
+const sameDigits = (before: string, after: string) => /\d/.test(after) && before.replace(/\D/g, "") === after.replace(/\D/g, "");
+function cvStrings(value: unknown, key = ""): string[] {
+  if (NOT_CONTENT.has(key)) return [];
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap((v) => cvStrings(v));
+  if (value && typeof value === "object") return Object.entries(value).flatMap(([k, v]) => cvStrings(v, k));
+  return [];
+}
+
+/**
+ * Nombres autorisés : ceux des textes sources, tels qu'écrits (« 1 200 » donne aussi 1200), et la
+ * valeur des nombres en lettres (« quinze », « une vingtaine »).
+ */
+export function numberSources(texts: string[]): Set<string> {
+  const allowed = new Set<string>();
+  for (const text of texts) {
+    for (const group of text.match(THOUSANDS) ?? []) allowed.add(group.replace(/\D/g, ""));
+    for (const run of text.match(/\d+/g) ?? []) allowed.add(run);
+    for (const word of wordsOf(text)) {
+      const value = NUMBER_WORDS[word] ?? MAGNITUDE_WORDS[singular(word)];
+      if (value) allowed.add(value);
+    }
+  }
+  return allowed;
+}
+
+/** Nombres et ordres de grandeur d'un texte qui ne figurent pas dans les sources autorisées. */
+export function inventedNumbers(text: string, allowed: Set<string>): string[] {
+  const invented = new Set<string>();
+  // Milliers groupés (« 1 200 », « 1,200 ») : acceptés si le nombre entier est connu.
+  const rest = text.replace(THOUSANDS, (group) => (allowed.has(group.replace(/\D/g, "")) ? " " : group));
+  for (const run of rest.match(/\d+/g) ?? []) if (!allowed.has(run)) invented.add(run);
+  for (const word of wordsOf(text)) {
+    const value = MAGNITUDE_WORDS[singular(word)];
+    if (value && !allowed.has(value)) invented.add(word);
+  }
+  return [...invented];
 }
 
 /**

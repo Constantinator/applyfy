@@ -1,4 +1,13 @@
-import { PROBLEM_BANNED_PREFIX, PROBLEM_NO_FIGURE, PROBLEM_NO_VERB, type ChangeProblem } from "./coach-proposals";
+import {
+  PROBLEM_BANNED_PREFIX,
+  PROBLEM_LOST_FIGURE,
+  PROBLEM_LOST_VERB,
+  PROBLEM_NEW_NUMBER_PREFIX,
+  PROBLEM_NO_FIGURE,
+  PROBLEM_NO_VERB,
+  type ChangeProblem,
+  type CoachMode,
+} from "./coach-proposals";
 import { CV_LIMITS } from "./cv-builder-types";
 import { READY_SCORE } from "./cv-score";
 
@@ -13,7 +22,12 @@ const DEFAULT_SUMMARY = "C'est fait : j'ai mis à jour ton CV.";
 const FORMAT_CAUSE = "la réponse que j'avais préparée avait un format invalide.";
 const STALE_CAUSE = "ce passage a changé entre-temps. Redemande-moi la modification.";
 
+/** Fin d'un échec en mode demande : pas de question de parcours, pas de demande de chiffre. */
+const REQUEST_FAILED_END = "Tu peux reformuler ta demande, ou modifier ce texte directement dans l'aperçu.";
+
 export type CoachOutcomeInput = {
+  /** Mode de la première réponse : « demande » (demande explicite du candidat) ou « parcours ». */
+  mode: CoachMode;
   /** Section que le coach voulait modifier (null : aucune modification voulue). */
   section: string | null;
   /** Changements appliqués, et changements dont le passage a disparu entre-temps. */
@@ -38,10 +52,10 @@ export type CoachOutcomeInput = {
   offerKeywords: string[];
 };
 
-type Kind = "format" | "limit" | "verb" | "banned" | "stale" | "noop" | "figure" | "unknown";
+type Kind = "format" | "limit" | "verb" | "banned" | "regression" | "invented" | "stale" | "noop" | "figure" | "unknown";
 type Cause = { kind: Kind; text: string };
 /** Ordre d'affichage : le chiffre manquant vient en dernier. */
-const RANK: Kind[] = ["format", "limit", "verb", "banned", "stale", "noop", "figure", "unknown"];
+const RANK: Kind[] = ["format", "limit", "verb", "banned", "regression", "invented", "stale", "noop", "figure", "unknown"];
 
 const upperFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
@@ -64,6 +78,16 @@ function problemCauses(problem: ChangeProblem): Cause[] {
       return [{ kind: "figure", text: "il me manque un chiffre ou un ordre de grandeur pour écrire cette puce." }];
     }
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) return [{ kind: "banned", text: `le texte proposé ${p}.` }];
+    if (p === PROBLEM_LOST_VERB) {
+      return [{ kind: "verb", text: "la nouvelle version ne commençait plus par un verbe d'action, contrairement à ta puce d'origine." }];
+    }
+    if (p === PROBLEM_LOST_FIGURE) {
+      return [{ kind: "regression", text: "la nouvelle version perdait le chiffre de ta puce d'origine." }];
+    }
+    if (p.startsWith(PROBLEM_NEW_NUMBER_PREFIX)) {
+      const numbers = p.slice(PROBLEM_NEW_NUMBER_PREFIX.length);
+      return [{ kind: "invented", text: `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).` }];
+    }
     return [];
   });
 }
@@ -92,9 +116,42 @@ export function closureMessage(score: number, corrections: string[], offerKeywor
     .join(" ");
 }
 
+/** Premier message du coach quand le CV est déjà clos : écrit par le serveur, sans appel au modèle. */
+export function closedOpening(score: number) {
+  return `Ton CV est prêt : il atteint ${score}/100 (seuil de ${READY_SCORE}). Je n'ai plus de question à te poser. Si tu veux une modification précise (raccourcir, reformuler, réorganiser…), demande-la-moi.`;
+}
+
+/** Sections telles que nommées au candidat. */
+const SECTION_NAMES: Record<string, string> = {
+  personal: "tes coordonnées ou ton titre",
+  summary: "ton accroche",
+  experience: "une expérience",
+  education: "une formation",
+  skills: "tes compétences",
+  languages: "tes langues",
+  certifications: "tes certifications",
+  projects: "un projet",
+  interests: "tes centres d'intérêt",
+};
+
+/**
+ * Modification bloquée par le quota d'adaptations du mois (et non par son contenu) : le texte le
+ * dit clairement, avec ce qui reste à faire. En mode parcours, la question du coach suit ; en mode
+ * demande, non (elle parlerait d'autre chose que la demande restée en attente).
+ */
+export function quotaBlockedText({ mode, section, message }: { mode: CoachMode; section: string; message: string }) {
+  const where = SECTION_NAMES[section] ?? "ton CV";
+  if (mode === "demande") {
+    return `Je n'ai pas modifié ton CV : c'est ton quota d'adaptations du mois qui bloque, il est épuisé. Reste à faire : la modification demandée sur ${where}. Tu peux la faire toi-même en cliquant sur le texte dans l'aperçu.`;
+  }
+  const blocked = `Je n'ai pas modifié ton CV : c'est ton quota d'adaptations du mois qui bloque, il est épuisé. Reste à faire : la modification prévue sur ${where}.`;
+  return message.includes("?") ? `${blocked} ${message}` : blocked;
+}
+
 /** Texte de la réponse du coach affiché au candidat. */
 export function coachReplyText(i: CoachOutcomeInput): string {
   if (i.section === null) return i.message;
+  const request = i.mode === "demande";
   const experience = i.section === "experience";
   const asked = i.message.includes("?") ? i.message : "";
   const fromProblems = (i.problems.length ? i.problems : i.firstProblems).flatMap(problemCauses);
@@ -112,6 +169,7 @@ export function coachReplyText(i: CoachOutcomeInput): string {
       );
     }
     const sorted = sortedCauses(causes);
+    if (request) return `Je n'ai pas pu faire cette modification : ${sentences(sorted, true)} ${REQUEST_FAILED_END}`;
     if (!experience) {
       return `Je n'ai pas pu appliquer cette modification à ton CV. ${sentences(sorted, false)} Peux-tu reformuler ta demande ?`;
     }
@@ -124,7 +182,7 @@ export function coachReplyText(i: CoachOutcomeInput): string {
   if (i.stale) partial.push({ kind: "stale", text: STALE_CAUSE });
   const sorted = sortedCauses(partial);
   const partialText = sorted.length
-    ? `${experience ? "Certaines puces n'ont pas été ajoutées" : "Une partie de la modification n'a pas été appliquée"} : ${sentences(sorted, true)}`
+    ? `${experience && !request ? "Certaines puces n'ont pas été ajoutées" : "Une partie de la modification n'a pas été appliquée"} : ${sentences(sorted, true)}`
     : null;
   const summary = i.changeSummary || DEFAULT_SUMMARY;
 
@@ -132,7 +190,9 @@ export function coachReplyText(i: CoachOutcomeInput): string {
     // Passage du seuil : clôture complète ; déjà au-dessus avant : une ligne courte, sans nouvelle clôture.
     const end =
       i.scoreBefore < READY_SCORE ? closureMessage(i.scoreAfter, i.corrections, i.offerKeywords) : `Ton CV est à ${i.scoreAfter}/100.`;
-    return [summary, partialText, end].filter(Boolean).join(" ");
+    // CV déjà clos et demande explicite : la suite proposée par le coach (« Je continue avec … ? ») est gardée.
+    const next = request && i.scoreBefore >= READY_SCORE ? i.message : null;
+    return [summary, partialText, end, next].filter(Boolean).join(" ");
   }
   const needsFigure = sorted.some((c) => c.kind === "figure");
   const question = needsFigure ? asked || MISSING_FIGURE_QUESTION : partialText ? asked : i.message;

@@ -31,7 +31,8 @@ import {
   type CoachContext,
   type ImportedCvAnalysis,
 } from "@/lib/claude";
-import { coachReplyText, MISSING_FIGURE_QUESTION } from "@/lib/coach-outcome";
+import { closedOpening, coachReplyText, quotaBlockedText } from "@/lib/coach-outcome";
+import { isCvClosed } from "@/lib/coach-prompt";
 import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems } from "@/lib/coach-proposals";
 import {
   CvBuilderError,
@@ -743,9 +744,14 @@ export async function coachOpeningAction(
     const context = await coachContext(cv.data, cv.applicationId);
     if (cv.data.coach?.contentKey === context.contentKey) return { ok: true, coach: cv.data.coach };
 
-    const rate = await checkAiRateLimit();
-    if (!rate.ok) return { ok: false };
-    const message = (await coachOpening(context))?.slice(0, 2000);
+    // CV clos : texte fixe écrit par le serveur, sans appel au modèle (aucune question de parcours).
+    let message: string | undefined;
+    if (isCvClosed(context.score.value)) message = closedOpening(context.score.value);
+    else {
+      const rate = await checkAiRateLimit();
+      if (!rate.ok) return { ok: false };
+      message = (await coachOpening(context))?.slice(0, 2000);
+    }
     if (!message) return { ok: false };
     const coach = { opening: message, contentKey: context.contentKey };
     await saveBuilderCv(cv.id, { title: cv.title, templateId: cv.templateId, data: { ...cv.data, coach } });
@@ -882,7 +888,11 @@ export async function refineBuilderCvAction(
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
   // Proposition telle que construite : null alors que le coach a bien proposé quelque chose = « ne change rien ».
   let built = proposal;
-  let problems = proposal ? checkProposal(proposal, context.scoring, current) : [];
+  // Le mode est celui de la première réponse : le nouvel essai ne peut pas en changer pour passer
+  // la vérification. Nombres autorisés en mode demande : ceux du CV et des messages du candidat.
+  const mode = reply.mode;
+  const check = { mode, candidateMessages: [request, ...turns.filter((t) => t.role === "user").map((t) => t.content)] };
+  let problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
   const firstProblems = problems;
   const firstRefused = problems.length;
   let retried = false;
@@ -892,6 +902,7 @@ export async function refineBuilderCvAction(
       ? await coachBuilderCv(context, turns, request, {
           previous: reply.raw,
           problems: problems.map(({ text, problems }) => ({ text, problems })),
+          mode,
         }).catch((error) => {
           claudeErrorMessage(error, "cv-builder coach : nouvel essai"); // journalisation
           return null;
@@ -902,7 +913,7 @@ export async function refineBuilderCvAction(
       answer = second;
       proposal = second.update ? buildProposal(current, second.update) : null;
       built = proposal;
-      problems = proposal ? checkProposal(proposal, context.scoring, current) : [];
+      problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
     }
   }
   // Textes encore refusés : retirés, jamais écrits dans le CV.
@@ -931,7 +942,7 @@ export async function refineBuilderCvAction(
     await recordAiUsage("cvb_coach");
     return {
       ok: true,
-      reply: reply.message || MISSING_FIGURE_QUESTION,
+      reply: quotaBlockedText({ mode, section: reply.raw.section, message: reply.message }),
       html: null,
       usage: gate.chat,
       limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
@@ -940,7 +951,7 @@ export async function refineBuilderCvAction(
   }
 
   console.warn(
-    `[cv-builder coach] réponse : section=${reply.raw?.section ?? "aucune"}, changements appliqués=${applied}, ` +
+    `[cv-builder coach] réponse : mode=${mode}, section=${reply.raw?.section ?? "aucune"}, changements appliqués=${applied}, ` +
       `textes refusés=${firstRefused} (après le second essai : ${problems.length}), second essai=${retried ? "oui" : "non"}, ` +
       `passages introuvables=${stale}, contenu invalide=${reply.invalid ? "oui" : "non"}, réorganisation=${reorganized ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
   );
@@ -951,6 +962,7 @@ export async function refineBuilderCvAction(
   const offerKeywords = context.offerKeywords ?? [];
   const present = scored && offerKeywords.length ? new Set(matchKeywords(cvDataToText(updated), offerKeywords, context.scoring.sector)) : null;
   const text = coachReplyText({
+    mode,
     section: reply.raw?.section ?? null,
     applied,
     stale,
