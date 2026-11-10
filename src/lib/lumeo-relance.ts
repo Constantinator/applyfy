@@ -19,8 +19,9 @@ export const RELANCE_OUTPUT_MIN = 60;
 export const RELANCE_OUTPUT_MAX = 2500;
 /** Résumé de l'offre transmis (un élément concret au plus). */
 export const RELANCE_SUMMARY_MAX = 1500;
-/** Durée de validité du ticket « question déjà comptée » (origine panneau). */
-export const RELANCE_TICKET_TTL_MS = 10 * 60 * 1000;
+/** Durée de validité du ticket « question déjà comptée » (origine panneau) : rejouable pendant
+ * ce délai (pas de stockage, pas de migration), borné par 10 actions IA par minute. */
+export const RELANCE_TICKET_TTL_MS = 3 * 60 * 1000;
 
 export type RelanceOrigin = "panel" | "box";
 

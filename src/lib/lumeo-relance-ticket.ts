@@ -14,7 +14,7 @@ export function signRelanceTicket(key: string, userId: string, applicationId: st
   return `${issuedAt}.${mac}`;
 }
 
-/** Ticket valide : même utilisateur, même candidature, signé avec la clé, émis il y a moins de 10 min. */
+/** Ticket valide : même utilisateur, même candidature, signé avec la clé, émis il y a moins de 3 min (RELANCE_TICKET_TTL_MS). */
 export function verifyRelanceTicket(
   key: string | null,
   ticket: unknown,

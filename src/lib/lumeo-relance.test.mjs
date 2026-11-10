@@ -12,6 +12,7 @@ registerHooks({
 });
 const {
   RELANCE_SOURCE_MAX,
+  RELANCE_TICKET_TTL_MS,
   checkRelanceOutput,
   cleanPosition,
   maskRelance,
@@ -167,14 +168,17 @@ test("texte de la boîte trop long : message clair, sans IA ni décompte", async
 
 // --- ticket signé ---------------------------------------------------------------------
 
-test("ticket : valide pour le même utilisateur et la même candidature, moins de 10 min", () => {
+test("ticket : valide pour le même utilisateur et la même candidature, moins de 3 min", () => {
   const now = Date.now();
   const ticket = signRelanceTicket(KEY, USER, ID, now);
   assert.equal(verifyRelanceTicket(KEY, ticket, USER, ID, now + 60_000), true);
   assert.equal(verifyRelanceTicket(KEY, ticket, USER, ID.toUpperCase(), now), true);
   assert.equal(verifyRelanceTicket(KEY, ticket, OTHER, ID, now), false); // autre utilisateur
   assert.equal(verifyRelanceTicket(KEY, ticket, USER, OTHER, now), false); // autre candidature
-  assert.equal(verifyRelanceTicket(KEY, ticket, USER, ID, now + 11 * 60_000), false); // périmé
+  assert.equal(RELANCE_TICKET_TTL_MS, 3 * 60_000);
+  assert.equal(verifyRelanceTicket(KEY, ticket, USER, ID, now + RELANCE_TICKET_TTL_MS), true); // limite incluse
+  assert.equal(verifyRelanceTicket(KEY, ticket, USER, ID, now + RELANCE_TICKET_TTL_MS + 1), false); // périmé après 3 min
+  assert.equal(verifyRelanceTicket(KEY, ticket, USER, ID, now + 4 * 60_000), false);
   assert.equal(verifyRelanceTicket("autre-cle-".repeat(5), ticket, USER, ID, now), false);
   assert.equal(verifyRelanceTicket(null, ticket, USER, ID, now), false); // pas de clé
   const [at, mac] = ticket.split(".");
