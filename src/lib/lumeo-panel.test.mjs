@@ -262,3 +262,55 @@ test("prompt système : jamais importé par le code envoyé au navigateur", asyn
     assert.doesNotMatch(readFileSync(new URL(path, import.meta.url), "utf8"), /lumeo-system/, path);
   }
 });
+
+// --- pleine page (/lumeo) -----------------------------------------------------
+
+const { isLumeoPage, isNearBottom, lumeoReturnPath, lumeoScrollAction, LUMEO_PAGE_PATH } = await import("./lumeo-panel.ts");
+
+test("/lumeo : page de Lumeo, sans bouton d'ouverture (inutile)", () => {
+  assert.equal(LUMEO_PAGE_PATH, "/lumeo");
+  assert.equal(isLumeoPage("/lumeo"), true);
+  assert.equal(isLumeoPage("/lumeo/"), true);
+  assert.equal(isLumeoPage("/lumeo-x"), false);
+  assert.equal(showsLumeoButton("/lumeo"), false);
+  assert.equal(showsLumeoButton("/dashboard"), true);
+});
+
+test("Réduire : retour à la page d'origine, sinon au Tableau de bord, jamais à /lumeo", () => {
+  assert.equal(lumeoReturnPath(`/candidatures/${ID}`), `/candidatures/${ID}`);
+  assert.equal(lumeoReturnPath(null), "/dashboard");
+  assert.equal(lumeoReturnPath("/lumeo"), "/dashboard");
+  assert.equal(lumeoReturnPath("//evil.example"), "/dashboard");
+  assert.equal(lumeoReturnPath("https://evil.example"), "/dashboard");
+});
+
+test("défilement automatique : jamais de saut pendant la lecture", () => {
+  assert.equal(isNearBottom({ scrollTop: 900, clientHeight: 100, scrollHeight: 1000 }), true);
+  assert.equal(isNearBottom({ scrollTop: 0, clientHeight: 100, scrollHeight: 1000 }), false);
+  // Question envoyée : toujours en bas.
+  assert.equal(lumeoScrollAction({ lastRole: "user", pending: true, nearBottom: false }), "bottom");
+  // « Il réfléchit » ou réponse, l'utilisateur lisait la fin : on suit.
+  assert.equal(lumeoScrollAction({ lastRole: "user", pending: false, nearBottom: true }), "bottom");
+  assert.equal(lumeoScrollAction({ lastRole: "assistant", pending: true, nearBottom: true }), "bottom");
+  assert.equal(lumeoScrollAction({ lastRole: "assistant", pending: false, nearBottom: true }), "reply");
+  // L'utilisateur relit plus haut : rien ne bouge.
+  assert.equal(lumeoScrollAction({ lastRole: "assistant", pending: false, nearBottom: false }), "none");
+  assert.equal(lumeoScrollAction({ lastRole: "assistant", pending: true, nearBottom: false }), "none");
+  assert.equal(lumeoScrollAction({ lastRole: null, pending: false, nearBottom: true }), "none");
+});
+
+test("lien « Lumeo » après « CV Builder » dans la barre et le menu, actif sur /lumeo", async () => {
+  const { readFileSync } = await import("node:fs");
+  const topbar = readFileSync(new URL("../components/app-topbar.tsx", import.meta.url), "utf8");
+  const links = topbar.slice(topbar.indexOf("const BAR_LINKS"), topbar.indexOf("];", topbar.indexOf("const BAR_LINKS")));
+  assert.ok(links.indexOf('href: "/cv-builder"') < links.indexOf("href: LUMEO_PAGE_PATH"), "Lumeo après CV Builder");
+  assert.match(links, /isActive: isLumeoPage/);
+});
+
+test("/lumeo est protégée : sans connexion, le proxy redirige vers /login", async () => {
+  const { readFileSync } = await import("node:fs");
+  const proxy = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
+  const prefixes = JSON.parse(/const PROTECTED_PREFIXES = (\[[^\]]*\])/.exec(proxy)[1]);
+  assert.ok(prefixes.includes("/lumeo"));
+  assert.match(proxy, /!isLoggedIn && matches\(pathname, PROTECTED_PREFIXES\)\) \{\s*const loginUrl = new URL\("\/login"/);
+});

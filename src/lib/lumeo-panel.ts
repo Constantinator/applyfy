@@ -32,13 +32,57 @@ export function lumeoLocation(pathname: string): LumeoLocation {
   return { page: "autre", applicationId: null };
 }
 
+/** Page de Lumeo en pleine page. */
+export const LUMEO_PAGE_PATH = "/lumeo";
+
+export function isLumeoPage(pathname: string): boolean {
+  const path = cleanPath(pathname);
+  return path === LUMEO_PAGE_PATH || path.startsWith(`${LUMEO_PAGE_PATH}/`);
+}
+
 /**
  * Bouton global affiché partout dans l'espace connecté, sauf dans l'éditeur plein écran du CV
- * Builder (/cv-builder/[id]), qui a déjà son onglet Lumeo.
+ * Builder (/cv-builder/[id]), qui a déjà son onglet Lumeo, et sur la page /lumeo elle-même.
  */
 export function showsLumeoButton(pathname: string): boolean {
+  if (isLumeoPage(pathname)) return false;
   const editor = /^\/cv-builder\/([^/]+)/.exec(cleanPath(pathname));
   return !editor || editor[1] === "importer";
+}
+
+/**
+ * « Réduire » : retour à la page d'où Lumeo a été agrandi (chemin interne, jamais /lumeo) ;
+ * le Tableau de bord si /lumeo a été ouverte directement.
+ */
+export function lumeoReturnPath(lastPath: string | null): string {
+  if (!lastPath || !lastPath.startsWith("/") || lastPath.startsWith("//") || isLumeoPage(lastPath)) return "/dashboard";
+  return lastPath;
+}
+
+/** Zone de conversation lue « en bas » : à moins de `threshold` px de la fin. */
+export function isNearBottom({ scrollTop, clientHeight, scrollHeight }: { scrollTop: number; clientHeight: number; scrollHeight: number }, threshold = 80): boolean {
+  return scrollHeight - scrollTop - clientHeight <= threshold;
+}
+
+/**
+ * Défilement automatique de la page /lumeo, sans saut pendant la lecture :
+ * - « bottom » : question envoyée par l'utilisateur, ou « il réfléchit » alors qu'on était en bas ;
+ * - « reply » : nouvelle réponse alors qu'on était en bas → son début est amené en haut ;
+ * - « none » : l'utilisateur a remonté la conversation pour relire, on ne bouge pas.
+ */
+export function lumeoScrollAction({
+  lastRole,
+  pending,
+  nearBottom,
+}: {
+  lastRole: "user" | "assistant" | null;
+  pending: boolean;
+  nearBottom: boolean;
+}): "bottom" | "reply" | "none" {
+  if (lastRole === "user") return "bottom";
+  if (!nearBottom) return "none";
+  if (pending) return "bottom";
+  return lastRole === "assistant" ? "reply" : "none";
 }
 
 /** Emplacement envoyé par le navigateur : revalidé côté serveur (jamais de confiance). */

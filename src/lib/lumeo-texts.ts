@@ -71,6 +71,14 @@ export const LUMEO_FICHE_TEXTS = {
 export const LUMEO_PANEL_TEXTS = {
   open: "Ouvrir Lumeo",
   close: "Fermer Lumeo",
+  /** Pleine page (/lumeo) : même conversation que le panneau. */
+  expand: "Agrandir",
+  expandLabel: "Agrandir : ouvrir Lumeo en pleine page",
+  reduce: "Réduire",
+  reduceLabel: "Réduire : revenir à la page précédente avec le panneau Lumeo",
+  nav: "Lumeo",
+  pageTitle: "Lumeo — Applyfy",
+  pageDescription: "Pose tes questions à Lumeo sur ta recherche d'emploi, en pleine page.",
   dialog: "Lumeo",
   tagline: "Je réponds à tes questions sur ta recherche d'emploi et sur l'appli.",
   empty: "Pose-moi une question, ou choisis une des suggestions.",

@@ -5,6 +5,7 @@ import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { PremiumButton, UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
+import { isNearBottom, lumeoScrollAction } from "@/lib/lumeo-panel";
 import { LUMEO_PANEL_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import type { DocumentChatResult } from "@/lib/refine";
 
@@ -78,6 +79,21 @@ export type RefineChatHandle = {
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 const NO_MESSAGES: ChatTurn[] = [];
 
+export type ChatMessage = Message;
+
+/**
+ * État d'une conversation tenu hors du chat (Lumeo : panneau et page /lumeo partagent la même
+ * conversation). Sans `store`, le chat garde son état interne.
+ */
+export type ChatStore = {
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  pending: boolean;
+  setPending: (pending: boolean) => void;
+  /** Identifiant du prochain message (unique dans la conversation). */
+  nextId: () => number;
+};
+
 type Message = {
   id: number;
   role: "user" | "assistant";
@@ -130,6 +146,7 @@ export function RefineChat({
   tagline,
   links,
   layout = "card",
+  store,
 }: {
   document: keyof typeof DOCUMENTS;
   applicationId: string;
@@ -183,28 +200,41 @@ export function RefineChat({
   /**
    * « panel » (panneau global) : sans carte, remplit la hauteur de son parent, suggestions
    * seulement quand la conversation est vide (un clic envoie la question), sans bandeau de quota.
+   * « page » (/lumeo) : comme « panel », en lecture confortable (texte 16 px, paragraphes aérés),
+   * avec un défilement automatique qui ne bouge pas pendant la lecture.
    */
-  layout?: "card" | "panel";
+  layout?: "card" | "panel" | "page";
+  /** Conversation tenue hors du chat (partagée entre le panneau et la page de Lumeo). */
+  store?: ChatStore;
 }) {
   const texts = DOCUMENTS[document];
-  const panel = layout === "panel";
+  const page = layout === "page";
+  // « page » reprend tout le comportement du panneau (suggestions, pas de carte ni de bandeau).
+  const panel = layout === "panel" || page;
   const shownSuggestions = suggestions ?? texts.suggestions;
   // Identifiants uniques : plusieurs chats peuvent cohabiter (fiche + panneau global).
   const uid = useId();
   const titleId = `refine-title-${uid}`;
   const inputId = `refine-input-${uid}`;
   const units = texts.units;
-  const [messages, setMessages] = useState<Message[]>(() =>
+  const [localMessages, setLocalMessages] = useState<Message[]>(() =>
     initialMessages.map((m, id) => ({ id, role: m.role, content: m.content })),
   );
   const [openingPending, setOpeningPending] = useState(Boolean(opening && aiEnabled));
   const [input, setInput] = useState("");
-  const [pending, setPending] = useState(false);
+  const [localPending, setLocalPending] = useState(false);
   const [used, setUsed] = useState(usage.used);
   // Limite signalée par le serveur (compteur de la page éventuellement périmé).
   const [limitHit, setLimitHit] = useState(false);
-  const nextId = useRef(initialMessages.length);
+  const localNextId = useRef(initialMessages.length);
+  // Conversation partagée (store) ou propre à ce chat.
+  const messages = store ? store.messages : localMessages;
+  const setMessages = store ? store.setMessages : setLocalMessages;
+  const pending = store ? store.pending : localPending;
+  const setPending = store ? store.setPending : setLocalPending;
   const listRef = useRef<HTMLDivElement>(null);
+  // Page /lumeo : l'utilisateur lisait-il la fin de la conversation avant ce rendu ?
+  const nearBottomRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const limitReached = limitHit || isLimitReached({ used, limit: usage.limit });
@@ -227,14 +257,28 @@ export function RefineChat({
     ? [...messages].reverse().find((m) => m.previousHtml !== undefined && !m.undone)
     : undefined;
 
-  // Fait défiler l'historique jusqu'au dernier message.
+  // Fait défiler l'historique jusqu'au dernier message. Page /lumeo : vers le début de la dernière
+  // réponse, et seulement si l'utilisateur lisait la fin (jamais de saut pendant la lecture).
   useEffect(() => {
     const list = listRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, [messages, pending]);
+    if (!list) return;
+    if (!page) {
+      list.scrollTop = list.scrollHeight;
+      return;
+    }
+    const last = messages.at(-1);
+    const action = lumeoScrollAction({ lastRole: last?.role ?? null, pending, nearBottom: nearBottomRef.current });
+    const behavior: ScrollBehavior = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    if (action === "bottom") list.scrollTo({ top: list.scrollHeight, behavior });
+    if (action === "reply") {
+      const reply = list.querySelector<HTMLElement>(`[data-message-id="${last?.id}"]`);
+      // La zone est « relative » : offsetTop est mesuré depuis son début.
+      if (reply) list.scrollTo({ top: reply.offsetTop - 8, behavior });
+    }
+  }, [messages, pending, page]);
 
   function add(message: Omit<Message, "id">) {
-    const id = nextId.current++;
+    const id = store ? store.nextId() : localNextId.current++;
     setMessages((list) => [...list, { ...message, id }]);
   }
 
@@ -282,7 +326,7 @@ export function RefineChat({
       })
       .catch(() => {})
       .finally(() => setOpeningPending(false));
-  }, [opening, aiEnabled]);
+  }, [opening, aiEnabled, setMessages]);
 
   // Demande initiale : envoyée une seule fois, juste après l'ouverture de l'éditeur.
   const initialSent = useRef(false);
@@ -343,7 +387,12 @@ export function RefineChat({
         role="log"
         aria-live="polite"
         aria-label={persona === "lumeo" ? LUMEO_TEXTS.log : "Conversation avec l'assistant"}
-        className={`${panel ? "min-h-0 flex-1" : fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-block border border-line bg-surface p-3 dark:border-slate-700 dark:bg-slate-800/60`}
+        onScroll={page ? (e) => (nearBottomRef.current = isNearBottom(e.currentTarget)) : undefined}
+        className={
+          page
+            ? "relative min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-2"
+            : `${panel ? "min-h-0 flex-1" : fill ? "max-h-[75vh] min-h-[50vh] lg:max-h-none lg:min-h-0 lg:flex-1" : tall ? "max-h-[55vh] min-h-48" : "max-h-96 min-h-28"} space-y-3 overflow-y-auto rounded-block border border-line bg-surface p-3 dark:border-slate-700 dark:bg-slate-800/60`
+        }
       >
         {messages.length === 0 && !pending && !openingPending && (
           <p className="py-6 text-center text-sm text-muted dark:text-slate-400">{texts.empty}</p>
@@ -363,28 +412,38 @@ export function RefineChat({
         )}
         {messages.map((message) =>
           message.role === "user" ? (
-            <div key={message.id} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-ink px-3.5 py-2 text-sm whitespace-pre-wrap text-white dark:bg-blue-600">
+            <div key={message.id} data-message-id={message.id} className="flex justify-end">
+              <p
+                className={`max-w-[85%] bg-ink whitespace-pre-wrap text-white dark:bg-blue-600 ${
+                  page ? "rounded-3xl rounded-br-md px-4 py-3 text-base leading-7" : "rounded-2xl rounded-br-sm px-3.5 py-2 text-sm"
+                }`}
+              >
                 {message.content}
               </p>
             </div>
           ) : (
-            <div key={message.id} className="flex items-start gap-2">
+            <div key={message.id} data-message-id={message.id} className={`flex items-start ${page ? "gap-3" : "gap-2"}`}>
               {persona === "lumeo" && <LumeoAvatar size={36} expression={assistantExpression(message)} />}
               <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
               <div
-                className={`${persona === "lumeo" ? "max-w-[92%]" : "max-w-[85%]"} rounded-2xl rounded-bl-sm ring-1 ${
+                className={`${persona === "lumeo" ? "max-w-[92%]" : "max-w-[85%]"} ${page ? "rounded-3xl rounded-tl-md" : "rounded-2xl rounded-bl-sm"} ring-1 ${
                   message.error
                     ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-400/30"
                     : "bg-white text-ink ring-line dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
                 } ${
                   // Coach du CV Builder (markdown) : texte plus grand et bulle plus aérée.
-                  markdown && !message.error
-                    ? "px-4 py-3 text-[15px] leading-relaxed"
-                    : "px-3.5 py-2 text-sm whitespace-pre-wrap"
+                  page
+                    ? "px-5 py-4 text-base leading-7"
+                    : markdown && !message.error
+                      ? "px-4 py-3 text-[15px] leading-relaxed"
+                      : "px-3.5 py-2 text-sm whitespace-pre-wrap"
                 }`}
               >
-                {markdown && !message.error ? <ChatMarkdown text={message.content} links={links} /> : message.content}
+                {markdown && !message.error ? (
+                  <ChatMarkdown text={message.content} links={links} spacious={page} />
+                ) : (
+                  message.content
+                )}
               </div>
               {message.premium && <PremiumButton />}
               {message.undone ? (

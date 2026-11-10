@@ -9,6 +9,7 @@ import { logoutAction } from "@/app/actions/auth";
 import {
   IconActivity,
   IconBriefcase,
+  IconChat,
   IconDocument,
   IconGrid,
   IconHome,
@@ -24,6 +25,8 @@ import {
 } from "@/components/icons";
 import { FeedbackDialog, type FeedbackDialogHandle } from "@/components/feedback/feedback-dialog";
 import { LumeoTopbarButton } from "@/components/lumeo/lumeo-panel";
+import { LUMEO_PAGE_PATH, isLumeoPage } from "@/lib/lumeo-panel";
+import { LUMEO_PANEL_TEXTS } from "@/lib/lumeo-texts";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { DARK_MODE_ENABLED } from "@/lib/theme";
 import { BrandLogo } from "@/components/logo";
@@ -92,6 +95,13 @@ const BAR_LINKS: NavItem[] = [
     label: "CV Builder",
     icon: IconDocument,
     isActive: (p) => p.startsWith("/cv-builder"),
+  },
+  {
+    href: LUMEO_PAGE_PATH,
+    label: LUMEO_PANEL_TEXTS.nav,
+    icon: IconChat,
+    // Lumeo en pleine page (même conversation que le panneau).
+    isActive: isLumeoPage,
   },
 ];
 

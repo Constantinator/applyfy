@@ -66,20 +66,29 @@ function toBlocks(text: string): Block[] {
   return blocks.filter((b) => b.lines.length);
 }
 
-export function ChatMarkdown({ text, links }: { text: string; links?: ChatLinkFilter }) {
+export function ChatMarkdown({
+  text,
+  links,
+  spacious = false,
+}: {
+  text: string;
+  links?: ChatLinkFilter;
+  /** Lecture en pleine page (/lumeo) : paragraphes et puces plus espacés. */
+  spacious?: boolean;
+}) {
   return (
     <div>
       {toBlocks(text).map((block, index) =>
         block.kind === "list" ? (
-          <ul key={index} className="mb-3 list-disc pl-5 last:mb-0">
+          <ul key={index} className={`${spacious ? "mb-4 space-y-2" : "mb-3"} list-disc pl-5 last:mb-0`}>
             {block.lines.map((line, i) => (
-              <li key={i} className="mb-1.5 last:mb-0">
+              <li key={i} className={spacious ? "pl-1" : "mb-1.5 last:mb-0"}>
                 {inline(line, links)}
               </li>
             ))}
           </ul>
         ) : (
-          <p key={index} className="mb-3 last:mb-0">
+          <p key={index} className={`${spacious ? "mb-4" : "mb-3"} last:mb-0`}>
             {block.lines.map((line, i) => (
               <Fragment key={i}>
                 {i > 0 && <br />}
