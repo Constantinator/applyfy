@@ -44,6 +44,7 @@ const PROMISE_FILES = [
   "components/usage/usage-limit-banner.tsx",
   "components/cv-builder/cv-import-flow.tsx",
   "app/(legal)/cgu/page.tsx",
+  "lib/lumeo-knowledge.ts",
 ];
 
 test("aucune promesse « illimité » ou « sans limite » hors commentaires", () => {

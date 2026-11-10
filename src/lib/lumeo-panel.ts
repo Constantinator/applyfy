@@ -188,6 +188,11 @@ export type LumeoContextInput = {
   applications: Application[];
   offer: LumeoOfferInput | null;
   now: Date;
+  /**
+   * Connaissance d'Applyfy, construite côté serveur (lib/lumeo-knowledge) : offre et prix, plan et
+   * quotas restants de l'utilisateur, fiche des fonctions. Textes d'Applyfy, pas de l'utilisateur.
+   */
+  knowledge?: { plans: string; userPlan: string | null; guide: string };
 };
 
 const PAGE_LABELS: Record<LumeoPage, string> = {
@@ -331,8 +336,11 @@ function offerBlock(offer: LumeoOfferInput, now: Date): string {
 }
 
 /** Contexte envoyé à Claude : seulement l'utile, jamais d'e-mail, de téléphone, de contact ni de notes. */
-export function buildLumeoContext({ location, firstName, cv, applications, offer, now }: LumeoContextInput): string {
+export function buildLumeoContext({ location, firstName, cv, applications, offer, now, knowledge }: LumeoContextInput): string {
   const blocks = [
+    knowledge ? `<offre_applyfy>\n${knowledge.plans}\n</offre_applyfy>` : null,
+    knowledge?.userPlan ? `<ton_plan>\n${knowledge.userPlan}\n</ton_plan>` : null,
+    knowledge ? `<fonctions_applyfy>\n${knowledge.guide}\n</fonctions_applyfy>` : null,
     `<page>\nL'utilisateur est sur ${PAGE_LABELS[location.page]}.\n</page>`,
     firstName ? `<prenom>${neutralizeData(firstName, 40)}</prenom>` : null,
     `<cv>\n${cv ? cvBlock(cv, now) : "Aucun CV dans le CV Builder."}\n</cv>`,

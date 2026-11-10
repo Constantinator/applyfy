@@ -176,7 +176,8 @@ export default function PrivacyPolicyPage() {
           question, les derniers échanges de la conversation, ton prénom, un résumé de ton CV (score,
           points faibles, secteur, poste visé, intitulés de postes, années d&apos;expérience,
           compétences), un résumé de tes candidatures (entreprise, poste, statut, délais depuis
-          l&apos;envoi, relances en retard) et, si tu es sur la fiche d&apos;une candidature,
+          l&apos;envoi, relances en retard), ton plan (gratuit, Premium ou beta) et tes quotas
+          restants et, si tu es sur la fiche d&apos;une candidature,
           l&apos;offre correspondante. Lumeo ne reçoit jamais ton email, ton téléphone, les contacts
           recruteurs ni tes notes. Selon ses conditions commerciales, Anthropic n&apos;utilise pas les
           données reçues via son API pour entraîner ses modèles.

@@ -8,8 +8,20 @@ import {
   AI_MONTHLY_LIMITS as L,
   AI_RATE_LIMIT_PER_MINUTE,
   CVB_COACH_DAILY_LIMIT,
+  PREMIUM_PRICE_MONTHLY,
+  PREMIUM_PRICE_MONTHLY_EQUIVALENT_QUARTERLY,
+  PREMIUM_PRICE_QUARTERLY,
 } from "./ai-usage-limits";
+import { BETA_PREMIUM_UNTIL_LABEL } from "./beta-rules";
 import { CV_BUILDER_MAX } from "./cv-builder-types";
+
+/** Prix du Premium (euros TTC) et fin du Premium offert aux beta testeurs, lus aux constantes. */
+export const PLAN_PRICES = {
+  monthly: PREMIUM_PRICE_MONTHLY,
+  quarterly: PREMIUM_PRICE_QUARTERLY,
+  quarterlyPerMonth: PREMIUM_PRICE_MONTHLY_EQUIVALENT_QUARTERLY,
+  betaUntil: BETA_PREMIUM_UNTIL_LABEL,
+} as const;
 
 /** « 1 résumé », « 2 résumés ». */
 export const countLabel = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;

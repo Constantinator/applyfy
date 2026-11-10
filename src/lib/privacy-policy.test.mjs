@@ -19,7 +19,14 @@ test("les conversations avec Lumeo ne sont pas conservées", () => {
 });
 
 test("ce que reçoit Lumeo est listé, sans email, téléphone, contacts ni notes", () => {
-  for (const part of ["ta question", "ton prénom", "un résumé de ton CV", "un résumé de tes candidatures", "l'offre correspondante"]) {
+  for (const part of [
+    "ta question",
+    "ton prénom",
+    "un résumé de ton CV",
+    "un résumé de tes candidatures",
+    "ton plan (gratuit, Premium ou beta) et tes quotas restants",
+    "l'offre correspondante",
+  ]) {
     assert.ok(text.includes(part), part);
   }
   assert.match(text, /Lumeo ne reçoit jamais ton email, ton téléphone, les contacts recruteurs ni tes notes/);

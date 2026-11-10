@@ -7,11 +7,13 @@ import { countAiUsageToday, checkAiRateLimit, readAiUsage, recordAiUsage } from 
 import { isLimitReached } from "@/lib/ai-usage-limits";
 import { getApplicationDetail, getApplications } from "@/lib/applications";
 import { requireUser } from "@/lib/auth";
+import { getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { answerLumeo, ClaudeRefusalError, isClaudeConfigured } from "@/lib/claude";
 import { getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
 import { loadScoringContext } from "@/lib/cv-score-context";
+import { LUMEO_APP_GUIDE, lumeoPlanKind, lumeoPlansBlock, lumeoUserPlanBlock } from "@/lib/lumeo-knowledge";
 import { lumeoMockEnabled, mockLumeoReply } from "@/lib/lumeo-mock";
 import {
   LUMEO_QUESTION_MAX,
@@ -98,13 +100,22 @@ export async function askLumeoAction(where: string, _html: string, message: stri
       await new Promise((resolve) => setTimeout(resolve, 900)); // « il réfléchit » visible
       reply = mockLumeoReply(question, location);
     } else {
-      const [accountName, cv, applications, offer] = await Promise.all([
+      const [accountName, cv, applications, offer, beta] = await Promise.all([
         getAccountName().catch(() => null),
         lumeoCv(),
         getApplications().then((r) => r.applications),
         lumeoOffer(location),
+        getMyBeta(), // sans échec : null si indisponible
       ]);
-      const context = buildLumeoContext({ location, firstName: accountName?.firstName ?? null, cv, applications, offer, now: new Date() });
+      // Plan et quotas restants, cette question comprise (comptée dès qu'une réponse arrive).
+      const userPlan = lumeoUserPlanBlock({
+        kind: lumeoPlanKind({ premium: usage.premium, betaActive: hasBetaPremium(beta) }),
+        counts: usage.counts,
+        usedToday: usage.usedToday + 1,
+        coachToday: coachToday + 1,
+      });
+      const knowledge = { plans: lumeoPlansBlock(), userPlan, guide: LUMEO_APP_GUIDE };
+      const context = buildLumeoContext({ location, firstName: accountName?.firstName ?? null, cv, applications, offer, now: new Date(), knowledge });
       reply = await answerLumeo(lumeoUserContent(context, lumeoTurns(history), question));
     }
   } catch (error) {
