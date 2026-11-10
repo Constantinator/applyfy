@@ -17,7 +17,7 @@ const PROCESSORS = [
   },
   {
     name: "Anthropic",
-    role: "Intelligence artificielle (Claude) : résumés d'offres, analyse et adaptation de CV, lettres de motivation",
+    role: "Intelligence artificielle (Claude) : résumés d'offres, analyse et adaptation de CV, lettres de motivation, coach du CV Builder et réponses de Lumeo à tes questions",
     url: "https://www.anthropic.com/legal/privacy",
   },
   {
@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Politique de confidentialité"
-      updatedOn="25 octobre 2026"
+      updatedOn="10 novembre 2026"
       intro="Applyfy t'aide à suivre ta recherche d'emploi. Cette page explique quelles données sont collectées, pourquoi, combien de temps elles sont conservées et comment exercer tes droits, conformément au Règlement général sur la protection des données (RGPD)."
     >
       <LegalSection title="Responsable du traitement">
@@ -79,6 +79,11 @@ export default function PrivacyPolicyPage() {
           <li>
             <strong>Candidatures :</strong> entreprises, postes, offres, statuts, historique, notes,
             contacts recruteurs, CV adaptés et lettres de motivation générés.
+          </li>
+          <li>
+            <strong>Conversations avec le coach du CV Builder :</strong> tes messages et ses réponses (les
+            60 derniers), enregistrés avec le CV concerné pour que tu les retrouves d&apos;une session à
+            l&apos;autre.
           </li>
           <li>
             <strong>Préférences :</strong> réglages des rappels de relance.
@@ -106,7 +111,8 @@ export default function PrivacyPolicyPage() {
           <li>Suivi de tes candidatures, rappels de relance, email de bienvenue à l&apos;inscription et email de relance J+2 si aucune candidature ajoutée, par email ;</li>
           <li>
             Génération de documents par intelligence artificielle (résumé d&apos;offre, analyse et
-            adaptation de CV, lettre de motivation), uniquement à ta demande ;
+            adaptation de CV, lettre de motivation) et réponses de Lumeo à tes questions, uniquement à
+            ta demande ;
           </li>
           <li>Gestion de l&apos;abonnement Premium et de son paiement, si tu y souscris.</li>
         </ul>
@@ -121,6 +127,11 @@ export default function PrivacyPolicyPage() {
           Tes données sont conservées <strong>jusqu&apos;à la suppression de ton compte</strong>. La
           suppression efface définitivement ton compte, tes candidatures, tes CV et tous tes
           documents.
+        </p>
+        <p>
+          Les échanges avec le coach du CV Builder sont supprimés avec le CV concerné ou avec ton
+          compte. Les conversations avec Lumeo ne sont pas conservées par Applyfy : elles restent
+          seulement dans la page ouverte et disparaissent quand tu la recharges ou la fermes.
         </p>
       </LegalSection>
 
@@ -159,10 +170,16 @@ export default function PrivacyPolicyPage() {
           ))}
         </ul>
         <p>
-          Lorsque tu utilises une fonctionnalité d&apos;IA, les informations nécessaires (CV, texte de
-          l&apos;offre, résumé de profil) sont transmises à Anthropic pour cette seule requête. Selon ses
-          conditions commerciales, Anthropic n&apos;utilise pas les données reçues via son API pour
-          entraîner ses modèles.
+          Lorsque tu utilises une fonctionnalité d&apos;IA, les informations nécessaires sont transmises
+          à Anthropic pour cette seule requête : ton CV, le texte de l&apos;offre ou ton résumé de
+          profil, selon la fonctionnalité. Quand tu poses une question à Lumeo, Anthropic reçoit ta
+          question, les derniers échanges de la conversation, ton prénom, un résumé de ton CV (score,
+          points faibles, secteur, poste visé, intitulés de postes, années d&apos;expérience,
+          compétences), un résumé de tes candidatures (entreprise, poste, statut, délais depuis
+          l&apos;envoi, relances en retard) et, si tu es sur la fiche d&apos;une candidature,
+          l&apos;offre correspondante. Lumeo ne reçoit jamais ton email, ton téléphone, les contacts
+          recruteurs ni tes notes. Selon ses conditions commerciales, Anthropic n&apos;utilise pas les
+          données reçues via son API pour entraîner ses modèles.
         </p>
         <p>
           Certains de ces prestataires sont établis aux États-Unis. Les transferts de données hors de
@@ -175,7 +192,8 @@ export default function PrivacyPolicyPage() {
         <p>
           Sans ton accord, Applyfy n&apos;utilise que des cookies strictement nécessaires (maintien de ta
           connexion) et le stockage local de ton navigateur, pour mémoriser les bulles d&apos;aide déjà
-          vues et ton choix concernant les cookies.
+          vues, ton choix concernant les cookies et les messages de Lumeo déjà vus ou remis à plus
+          tard.
         </p>
         <p>
           <strong>Recherches récentes :</strong> uniquement si tu actives les « Recommandations
