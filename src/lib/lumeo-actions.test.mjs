@@ -216,7 +216,8 @@ test("réservation impossible (erreur) : refus sans IA ni décompte", async () =
 
 test("réservations en base : conditionnelles (atomiques), sans détacher un CV déjà lié", () => {
   const store = read("./lumeo-action-store.ts");
-  assert.match(store, /\.is\("cover_letter_html", null\)/);
+  assert.match(store, /\.or\(letterClaimCondition\(staleBefore\(\)\)\)/);
+  assert.match(store, /\.or\(letterEmptyCondition\(\)\)/);
   assert.match(store, /offer_summary\.is\.null/);
   assert.match(store, /\.eq\("offer_summary", ""\)/);
   const cv = read("./cv-builder.ts");
@@ -288,4 +289,130 @@ test("prompt système : proposer sans lancer, liste fermée, jamais d'autre acti
   assert.match(LUMEO_SYSTEM, /« adaptation_cv »/);
   assert.match(LUMEO_SYSTEM, /Aucune autre action n'existe/);
   assert.match(LUMEO_SYSTEM, /Ne dis jamais que c'est fait/);
+});
+
+// --- correctifs de la relecture du lot 2 -------------------------------------------------
+
+const {
+  LETTER_EMPTY_FILTERS,
+  claimAdaptationCopy,
+  isEmptyLetterHtml,
+  letterClaimCondition,
+  letterEmptyCondition,
+  writeLetterIfEmpty,
+} = await import("./lumeo-actions.ts");
+const { safeLumeoHref } = await import("./lumeo-panel.ts");
+
+test("lettre vide : null", () => assert.equal(isEmptyLetterHtml(null), true));
+test("lettre vide : chaîne vide", () => assert.equal(isEmptyLetterHtml(""), true));
+test("lettre vide : texte blanc seulement (espaces, tabulations, sauts de ligne)", () => {
+  assert.equal(isEmptyLetterHtml("   \n\t  "), true);
+  assert.equal(isEmptyLetterHtml(undefined), true);
+});
+test("lettre vide : une vraie lettre n'est jamais vide", () => {
+  assert.equal(isEmptyLetterHtml("<p>Madame, Monsieur,</p>"), false);
+  assert.equal(isEmptyLetterHtml("  x  "), false);
+});
+
+test("condition en base : null, chaîne vide et blanc couverts, en une seule condition `or`", () => {
+  assert.deepEqual([...LETTER_EMPTY_FILTERS], ["cover_letter_html.is.null", 'cover_letter_html.match."^[[:space:]]*$"']);
+  assert.equal(letterEmptyCondition(), 'cover_letter_html.is.null,cover_letter_html.match."^[[:space:]]*$"');
+  const claim = letterClaimCondition("2026-11-10T00:00:00.000Z");
+  assert.equal((claim.match(/and\(/g) ?? []).length, 4);
+  assert.ok(claim.includes('and(cover_letter_html.is.null,cover_letter_at.is.null)'));
+  assert.ok(claim.includes('and(cover_letter_html.match."^[[:space:]]*$",cover_letter_at.lt."2026-11-10T00:00:00.000Z")'));
+  // L'expression régulière de la base accepte exactement les mêmes textes que isEmptyLetterHtml.
+  const regex = /^[\s]*$/;
+  for (const html of ["", "  ", "\n\t", "<p>x</p>"]) assert.equal(regex.test(html), isEmptyLetterHtml(html), JSON.stringify(html));
+});
+
+test("lettre apparue entre-temps : rien d'écrasé, refus avec « Ouvrir la lettre », aucun décompte", async () => {
+  let saved = false;
+  const outcome = await writeLetterIfEmpty(ID, { generate: async () => "<p>Lettre</p>", saveIfEmpty: async () => false });
+  assert.deepEqual(outcome, { ok: false, message: T.letterExists, link: { href: `/candidatures/${ID}/lettre`, label: T.openLetter } });
+  // Dans l'exécution complète : réservation libérée, quota non décompté.
+  const { deps, calls } = fakeDeps({
+    run: () => writeLetterIfEmpty(ID, { generate: async () => "<p>Lettre</p>", saveIfEmpty: async () => saved }),
+  });
+  const full = await executeLumeoAction({ type: "lettre", applicationId: ID }, deps);
+  assert.equal(full.ok, false);
+  assert.equal(full.message, T.letterExists);
+  assert.equal(calls.release, 1);
+  assert.deepEqual(calls.record, []);
+  // Lettre enregistrée : décomptée une fois, lien vers la lettre.
+  saved = true;
+  const ok = fakeDeps({ run: () => writeLetterIfEmpty(ID, { generate: async () => "<p>Lettre</p>", saveIfEmpty: async () => saved }) });
+  const done = await executeLumeoAction({ type: "lettre", applicationId: ID }, ok.deps);
+  assert.equal(done.ok, true);
+  assert.deepEqual(ok.calls.record, ["lettre"]);
+});
+
+test("lettre de Lumeo : enregistrée par saveClaimedLetter (conditionnelle), jamais saveEditedDocument", () => {
+  const server = read("./lumeo-action-server.ts");
+  assert.ok(!server.includes("saveEditedDocument"));
+  assert.match(server, /saveIfEmpty: \(html\) => saveClaimedLetter\(app\.id, html\)/);
+  const store = read("./lumeo-action-store.ts");
+  const save = store.slice(store.indexOf("export async function saveClaimedLetter"), store.indexOf("export async function releaseLetter"));
+  assert.match(save, /\.update\(\{ cover_letter_html: html, cover_letter_at: at \}\)/);
+  assert.match(save, /\.or\(letterEmptyCondition\(\)\)/);
+});
+
+test("adaptation : liaison en erreur inattendue → copie supprimée, erreur remontée, ni IA ni décompte", async () => {
+  const deleted = [];
+  await assert.rejects(
+    claimAdaptationCopy({
+      createCopy: async () => "copie-1",
+      link: async () => {
+        throw new Error("base indisponible");
+      },
+      deleteCopy: async (id) => {
+        deleted.push(id);
+      },
+    }),
+    /base indisponible/,
+  );
+  assert.deepEqual(deleted, ["copie-1"]);
+  // Dans l'exécution complète : réservation impossible → refus, rien lancé ni décompté.
+  const { deps, calls } = fakeDeps();
+  deps.claim = () =>
+    claimAdaptationCopy({ createCopy: async () => "copie-2", link: async () => { throw new Error("x"); }, deleteCopy: async (id) => { deleted.push(id); } });
+  const outcome = await executeLumeoAction({ type: "adaptation_cv", applicationId: ID }, deps);
+  assert.deepEqual(outcome, { ok: false, message: T.failed });
+  assert.deepEqual(deleted, ["copie-1", "copie-2"]);
+  assert.deepEqual(calls.run, []);
+  assert.deepEqual(calls.record, []);
+});
+
+test("adaptation : CV déjà lié → copie supprimée, réservation à null ; liaison réussie → copie gardée", async () => {
+  const deleted = [];
+  const ops = (linked) => ({ createCopy: async () => "copie", link: async () => linked, deleteCopy: async (id) => { deleted.push(id); } });
+  assert.equal(await claimAdaptationCopy(ops(false)), null);
+  assert.deepEqual(deleted, ["copie"]);
+  assert.equal(await claimAdaptationCopy(ops(true)), "copie");
+  assert.deepEqual(deleted, ["copie"]);
+  // Même si la suppression échoue, l'erreur d'origine reste visible (pas masquée).
+  await assert.rejects(
+    claimAdaptationCopy({ createCopy: async () => "c", link: async () => { throw new Error("origine"); }, deleteCopy: async () => { throw new Error("suppression"); } }),
+    /origine/,
+  );
+});
+
+test("liens de refus cliquables : « Ouvrir la lettre » et « Ouvrir le CV lié »", () => {
+  assert.equal(safeLumeoHref(`/candidatures/${ID}/lettre`), `/candidatures/${ID}/lettre`);
+  assert.equal(safeLumeoHref(`/cv-builder?applicationId=${ID}`), `/cv-builder?applicationId=${ID}`);
+  for (const bad of [
+    `/candidatures/${ID}/lettre/../admin`,
+    `/candidatures/${ID}/documents`,
+    `/cv-builder?applicationId=${ID}&next=https://evil.example`,
+    "/cv-builder?applicationId=../../admin",
+    `/cv-builder?id=${ID}`,
+    "https://evil.example/candidatures/x/lettre",
+  ]) {
+    assert.equal(safeLumeoHref(bad), null, bad);
+  }
+  // Les liens produits par les refus passent la liste blanche.
+  const refusal = checkLumeoAction("adaptation_cv", facts({ linkedCv: true }));
+  assert.equal(safeLumeoHref(refusal.link.href), refusal.link.href);
+  const letter = checkLumeoAction("lettre", facts({ app: { ...facts().app, cover_letter_html: "<p>x</p>" } }));
+  assert.equal(safeLumeoHref(letter.link.href), letter.link.href);
 });

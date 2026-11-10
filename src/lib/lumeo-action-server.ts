@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getAccountName } from "./account";
 import { checkAiAccess, recordAiUsage } from "./ai-usage";
 import { applicationCvDraft, ensureOfferKeywords } from "./application-cv";
-import { getApplicationDetail, saveEditedDocument } from "./applications";
+import { getApplicationDetail } from "./applications";
 import { adaptCvToOffer, summarizeOffer } from "./claude";
 import { writeCoverLetterHtml } from "./cover-letter-writer";
 import {
@@ -20,10 +20,12 @@ import {
 } from "./cv-builder";
 import { CV_BUILDER_MAX, cvDataToText, type CvData } from "./cv-builder-types";
 import { PROFILE_SUMMARY_MAX, PROFILE_SUMMARY_MIN } from "./cv-types";
-import { claimLetter, claimSummary, releaseLetter, releaseSummary, saveClaimedSummary } from "./lumeo-action-store";
+import { claimLetter, claimSummary, releaseLetter, releaseSummary, saveClaimedLetter, saveClaimedSummary } from "./lumeo-action-store";
 import {
   LUMEO_ACTION_QUOTA,
   checkLumeoAction,
+  claimAdaptationCopy,
+  writeLetterIfEmpty,
   lumeoProposalCard,
   type LumeoActionDeps,
   type LumeoActionFacts,
@@ -103,12 +105,13 @@ export function lumeoActionDeps(): LumeoActionDeps {
       const detail = await getApplicationDetail(request.applicationId);
       if (!source || !detail) return null;
       const draft = applicationCvDraft({ ...source.data, coach: null }, detail.application, await getAccountName().catch(() => null));
-      const copyId = await createBuilderCv(draft.data, draft.title, source.templateId);
-      if (!(await linkBuilderCvIfFree(copyId, request.applicationId))) {
-        await deleteBuilderCv(copyId).catch((e) => console.error("[lumeo] suppression de la copie", e));
-        return null;
-      }
-      return { ...request, token: copyId };
+      // Copie toujours supprimée si la liaison échoue (CV déjà lié ou erreur inattendue).
+      const copyId = await claimAdaptationCopy({
+        createCopy: () => createBuilderCv(draft.data, draft.title, source.templateId),
+        link: (id) => linkBuilderCvIfFree(id, request.applicationId),
+        deleteCopy: (id) => deleteBuilderCv(id),
+      });
+      return copyId ? { ...request, token: copyId } : null;
     },
     run: async (request, facts, claim) => {
       const app = facts.app!;
@@ -120,11 +123,13 @@ export function lumeoActionDeps(): LumeoActionDeps {
         if (!name) return { ok: false, message: T.noName, link: { href: "/profil", label: T.profile } };
         const detail = await getApplicationDetail(app.id);
         if (!detail) return { ok: false, message: T.notFound };
-        const html = await writeCoverLetterHtml({ kind: "resume", summary }, detail.application, fullName(name));
-        if (!html) return { ok: false, message: T.failed };
-        await saveEditedDocument("lettre", app.id, html);
+        // Enregistrée seulement si aucune lettre n'existe au moment de l'écriture : jamais d'écrasement.
+        const result = await writeLetterIfEmpty(app.id, {
+          generate: () => writeCoverLetterHtml({ kind: "resume", summary }, detail.application, fullName(name)),
+          saveIfEmpty: (html) => saveClaimedLetter(app.id, html),
+        });
         revalidatePath(fiche);
-        return { ok: true, message: T.done, link: { href: `${fiche}/lettre`, label: T.openLetter } };
+        return result;
       }
       if (request.type === "resume_offre") {
         const summary = await summarizeOffer((app.offer_description ?? "").trim().slice(0, OFFER_DESCRIPTION_MAX_LENGTH));

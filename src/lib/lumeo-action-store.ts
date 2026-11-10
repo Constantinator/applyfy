@@ -2,6 +2,7 @@ import "server-only";
 
 import { requireUser } from "./auth";
 import { demoStore } from "./demo-data";
+import { isEmptyLetterHtml, letterClaimCondition, letterEmptyCondition } from "./lumeo-actions";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 // Réservations des actions de Lumeo, sans nouvelle table ni migration : une seule exécution à la
@@ -20,11 +21,15 @@ async function scoped() {
 }
 
 // --- Lettre : cover_letter_at posé tant qu'aucune lettre n'est enregistrée ----------------------
+// « Aucune lettre » : cover_letter_html null, vide ou blanc (LETTER_EMPTY_FILTERS).
+
+type DemoLetter = { cover_letter_html?: string | null; cover_letter_at?: string | null };
+const demoLetter = (id: string) => demoStore.applications.find((a) => a.id === id) as DemoLetter | undefined;
 
 export async function claimLetter(applicationId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    const app = demoStore.applications.find((a) => a.id === applicationId) as { cover_letter_html?: string | null; cover_letter_at?: string | null } | undefined;
-    if (!app || app.cover_letter_html || (app.cover_letter_at && app.cover_letter_at > staleBefore())) return false;
+    const app = demoLetter(applicationId);
+    if (!app || !isEmptyLetterHtml(app.cover_letter_html) || (app.cover_letter_at && app.cover_letter_at > staleBefore())) return false;
     app.cover_letter_at = new Date().toISOString();
     return true;
   }
@@ -34,18 +39,41 @@ export async function claimLetter(applicationId: string): Promise<boolean> {
     .update({ cover_letter_at: new Date().toISOString() })
     .eq("id", applicationId)
     .eq("user_id", user.id)
-    .is("cover_letter_html", null)
-    .or(`cover_letter_at.is.null,cover_letter_at.lt."${staleBefore()}"`)
+    .or(letterClaimCondition(staleBefore()))
     .select("id");
   if (error) throw new Error(`Réservation de la lettre impossible : ${error.message}`);
   return (data?.length ?? 0) === 1;
 }
 
-/** Échec : la lettre n'a pas été enregistrée, la réservation est retirée. */
+/**
+ * Enregistre la lettre de Lumeo seulement si aucune lettre n'existe au moment de l'écriture
+ * (mise à jour conditionnelle atomique). False : une lettre est apparue entre-temps, rien écrasé.
+ */
+export async function saveClaimedLetter(applicationId: string, html: string): Promise<boolean> {
+  const at = new Date().toISOString();
+  if (!isSupabaseConfigured()) {
+    const app = demoLetter(applicationId);
+    if (!app || !isEmptyLetterHtml(app.cover_letter_html)) return false;
+    Object.assign(app, { cover_letter_html: html, cover_letter_at: at });
+    return true;
+  }
+  const { user, supabase } = await scoped();
+  const { data, error } = await supabase
+    .from("applications")
+    .update({ cover_letter_html: html, cover_letter_at: at })
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+    .or(letterEmptyCondition())
+    .select("id");
+  if (error) throw new Error(`Enregistrement de la lettre impossible : ${error.message}`);
+  return (data?.length ?? 0) === 1;
+}
+
+/** Échec : la lettre n'a pas été enregistrée, la réservation est retirée (jamais sur une lettre réelle). */
 export async function releaseLetter(applicationId: string): Promise<void> {
   if (!isSupabaseConfigured()) {
-    const app = demoStore.applications.find((a) => a.id === applicationId) as { cover_letter_html?: string | null; cover_letter_at?: string | null } | undefined;
-    if (app && !app.cover_letter_html) app.cover_letter_at = null;
+    const app = demoLetter(applicationId);
+    if (app && isEmptyLetterHtml(app.cover_letter_html)) app.cover_letter_at = null;
     return;
   }
   const { user, supabase } = await scoped();
@@ -54,7 +82,7 @@ export async function releaseLetter(applicationId: string): Promise<void> {
     .update({ cover_letter_at: null })
     .eq("id", applicationId)
     .eq("user_id", user.id)
-    .is("cover_letter_html", null);
+    .or(letterEmptyCondition());
 }
 
 // --- Résumé : offer_summary vide ('') pendant la génération, seulement s'il était absent --------

@@ -378,6 +378,9 @@ const INTERNAL_LINKS = [
   /^\/candidatures\?filtre=a_relancer$/,
   /^\/candidatures\/nouvelle$/,
   /^\/candidatures\/[0-9a-f-]{36}(#relance)?$/i,
+  // Refus d'une action de Lumeo : « Ouvrir la lettre » et « Ouvrir le CV lié ».
+  /^\/candidatures\/[0-9a-f-]{36}\/lettre$/i,
+  /^\/cv-builder\?applicationId=[0-9a-f-]{36}$/i,
   /^\/cv-builder$/,
   /^\/cv-builder\/importer$/,
   /^\/offres$/,

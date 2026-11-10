@@ -90,7 +90,7 @@ export function checkLumeoAction(type: LumeoActionType, facts: LumeoActionFacts)
   if (app.is_example) return { ok: false, message: T.example };
   const fiche = `/candidatures/${app.id}`;
   if (type === "lettre") {
-    if (app.cover_letter_html?.trim()) return { ok: false, message: T.letterExists, link: { href: `${fiche}/lettre`, label: T.openLetter } };
+    if (!isEmptyLetterHtml(app.cover_letter_html)) return { ok: false, message: T.letterExists, link: { href: `${fiche}/lettre`, label: T.openLetter } };
     if (!facts.letterCv) return { ok: false, message: T.noCv, link: { href: "/cv-builder", label: T.cvBuilder } };
     if (!facts.signer) return { ok: false, message: T.noName, link: { href: "/profil", label: T.profile } };
   }
@@ -220,3 +220,58 @@ export type LumeoProposalState = LumeoProposal & {
   status?: "idle" | "running" | "done" | "failed" | "cancelled";
   outcome?: LumeoActionOutcome;
 };
+
+// ---------------------------------------------------------------------------
+// Lettre « vide » (aucune lettre) : null, chaîne vide ou texte blanc seulement
+// ---------------------------------------------------------------------------
+
+/** Filtres PostgREST d'une lettre vide (ou logique) ; [[:space:]] : espaces, tabulations, sauts de ligne. */
+export const LETTER_EMPTY_FILTERS = ["cover_letter_html.is.null", 'cover_letter_html.match."^[[:space:]]*$"'] as const;
+
+/** Équivalent en JS des filtres ci-dessus (préconditions, mode démo, tests). */
+export function isEmptyLetterHtml(html: string | null | undefined): boolean {
+  return html == null || html.trim() === "";
+}
+
+/** Condition « lettre vide » seule (enregistrement, libération). */
+export const letterEmptyCondition = () => LETTER_EMPTY_FILTERS.join(",");
+
+/** Réservation : lettre vide ET (pas de réservation, ou réservation périmée). Une seule condition `or`. */
+export const letterClaimCondition = (staleBeforeIso: string) =>
+  LETTER_EMPTY_FILTERS.flatMap((empty) => [`and(${empty},cover_letter_at.is.null)`, `and(${empty},cover_letter_at.lt."${staleBeforeIso}")`]).join(",");
+
+/**
+ * Lettre de Lumeo : rédigée, puis enregistrée seulement si aucune lettre n'existe au moment de
+ * l'écriture (condition atomique côté base). Sinon : refus avec lien, rien n'est écrasé ; le
+ * refus fait libérer la réservation et ne décompte rien (executeLumeoAction).
+ */
+export async function writeLetterIfEmpty(
+  applicationId: string,
+  ops: { generate: () => Promise<string | null>; saveIfEmpty: (html: string) => Promise<boolean> },
+): Promise<LumeoActionDone | LumeoRefusal> {
+  const fiche = `/candidatures/${applicationId}`;
+  const html = await ops.generate();
+  if (!html) return { ok: false, message: T.failed };
+  if (!(await ops.saveIfEmpty(html))) return { ok: false, message: T.letterExists, link: { href: `${fiche}/lettre`, label: T.openLetter } };
+  return { ok: true, message: T.done, link: { href: `${fiche}/lettre`, label: T.openLetter } };
+}
+
+/**
+ * Adaptation : copie du CV créée puis liée à la candidature (réservation par l'index unique).
+ * Si la liaison échoue (CV déjà lié, ou erreur inattendue), la copie est toujours supprimée ;
+ * une erreur inattendue est ensuite remontée (l'action s'arrête sans IA ni décompte).
+ */
+export async function claimAdaptationCopy(ops: {
+  createCopy: () => Promise<string>;
+  link: (copyId: string) => Promise<boolean>;
+  deleteCopy: (copyId: string) => Promise<void>;
+}): Promise<string | null> {
+  const copyId = await ops.createCopy();
+  let linked = false;
+  try {
+    linked = await ops.link(copyId);
+  } finally {
+    if (!linked) await ops.deleteCopy(copyId).catch(() => {});
+  }
+  return linked ? copyId : null;
+}
