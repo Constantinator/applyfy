@@ -753,11 +753,12 @@ body {
 }
 
 /*
- * Bouton de Lumeo (espace connecté) : espace libre en bas de page pour qu'aucun élément, pied de
- * page compris, ne reste sous le bouton une fois la page défilée jusqu'en bas. Sans bouton
- * (landing, éditeur du CV Builder), rien ne change. L'impression remet le padding à zéro.
+ * Bouton rond de Lumeo (espace connecté, ordinateur ≥ 1024 px) : espace libre en bas de page pour
+ * qu'aucun élément, pied de page compris, ne reste sous le bouton une fois la page défilée jusqu'en
+ * bas. Mobile : le bouton est dans la barre du haut, rien ne change. Sans bouton (landing, éditeur
+ * du CV Builder), rien ne change non plus.
  */
-@media screen {
+@media screen and (min-width: 1024px) {
   body:has([data-lumeo-button]) {
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }

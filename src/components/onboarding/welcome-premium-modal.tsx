@@ -100,7 +100,7 @@ export function WelcomePremiumModal() {
           Bienvenue sur Applyfy
         </h2>
         <p id="welcome-premium-description" className="mt-2 text-[15px] text-muted dark:text-slate-300">
-          Passe au Premium pour lever les quotas mensuels et la limite du Chat IA.
+          Passe au Premium pour lever les quotas mensuels et la limite de Lumeo.
         </p>
 
         <p className="mt-5 text-[28px] font-bold tracking-[-0.03em] text-ink dark:text-slate-200">

@@ -56,7 +56,7 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
         <div>
           <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink">Passe au Premium</h1>
           <p className="mt-2 text-muted">
-            Lève les quotas mensuels et la limite du Chat IA, {PREMIUM_PRICE_FROM_LABEL}.
+            Lève les quotas mensuels et la limite de Lumeo, {PREMIUM_PRICE_FROM_LABEL}.
           </p>
         </div>
 

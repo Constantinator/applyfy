@@ -102,11 +102,16 @@ test("Premium annonce la levée de la limite de Lumeo", () => {
   assert.equal(PREMIUM_FEATURES[1], `Lumeo : plus de limite de ${CVB_COACH_DAILY_LIMIT} questions par jour`);
 });
 
-test("vocabulaire : « Chat IA » dans la carte du plan, le message du jour et la bienvenue Premium", () => {
+test("vocabulaire : « Lumeo » dans la carte du plan, le message du jour, /premium et la bienvenue Premium", () => {
   const labels = buildFreePlanLines({ adaptations: 0, coachToday: 0, imports: 0 }).map((line) => line.label);
-  assert.ok(labels.includes("Questions au Chat IA aujourd'hui"));
-  assert.ok(CVB_COACH_DAILY_MESSAGE.includes(`tes ${CVB_COACH_DAILY_LIMIT} questions au Chat IA`));
-  assert.match(read("app/(app)/dashboard/page.tsx"), /la limite du Chat IA sont levés/);
+  assert.ok(labels.includes("Questions à Lumeo aujourd'hui"));
+  assert.ok(CVB_COACH_DAILY_MESSAGE.includes(`tes ${CVB_COACH_DAILY_LIMIT} questions à Lumeo`));
+  assert.match(read("app/(app)/dashboard/page.tsx"), /la limite de Lumeo sont levés/);
+  assert.match(read("app/(app)/premium/page.tsx"), /la limite de Lumeo, /);
+  assert.match(read("components/onboarding/welcome-premium-modal.tsx"), /la limite de Lumeo\./);
+  for (const path of ["app/(app)/dashboard/page.tsx", "app/(app)/premium/page.tsx", "components/onboarding/welcome-premium-modal.tsx"]) {
+    assert.doesNotMatch(read(path), /Chat IA/, path);
+  }
   assert.doesNotMatch(labels.join("\n") + CVB_COACH_DAILY_MESSAGE, /coach/);
 });
 

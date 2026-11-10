@@ -100,7 +100,7 @@ export const LIMIT_REACHED_MESSAGE = `Tu as utilisé ton quota gratuit du mois. 
  * limités par jour avec le plan gratuit.
  */
 export const CVB_COACH_DAILY_LIMIT = 5;
-export const CVB_COACH_DAILY_MESSAGE = `Tu as posé tes ${CVB_COACH_DAILY_LIMIT} questions au Chat IA aujourd'hui. Le compteur repart à zéro à minuit. ${PREMIUM_LIFTS("cette limite")}`;
+export const CVB_COACH_DAILY_MESSAGE = `Tu as posé tes ${CVB_COACH_DAILY_LIMIT} questions à Lumeo aujourd'hui. Le compteur repart à zéro à minuit. ${PREMIUM_LIFTS("cette limite")}`;
 
 /** Chat du CV Builder : plusieurs adaptations gratuites par mois. */
 export const CVB_CHAT_LIMIT_MESSAGE = `Tu as utilisé tes ${AI_MONTHLY_LIMITS.cvb_chat} adaptations de CV gratuites du mois. ${PREMIUM_LIFTS("ce quota")}`;

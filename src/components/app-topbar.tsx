@@ -23,6 +23,7 @@ import {
   IconUsers,
 } from "@/components/icons";
 import { FeedbackDialog, type FeedbackDialogHandle } from "@/components/feedback/feedback-dialog";
+import { LumeoTopbarButton } from "@/components/lumeo/lumeo-panel";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { DARK_MODE_ENABLED } from "@/lib/theme";
 import { BrandLogo } from "@/components/logo";
@@ -432,17 +433,20 @@ export function AppTopbar({
             </NavDropdown>
           </div>
 
-          {/* Mobile : burger, tous les liens sont dans le panneau. */}
-          <button
-            type="button"
-            onClick={() => setPanelOpen(true)}
-            aria-label="Ouvrir le menu"
-            aria-haspopup="dialog"
-            aria-expanded={panelOpen}
-            className={`-mr-2 ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-ink hover:bg-pill lg:hidden dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`}
-          >
-            <IconMenu className="h-6 w-6" />
-          </button>
+          {/* Mobile : Lumeo puis burger (tous les liens sont dans le panneau). */}
+          <div className="ml-auto flex items-center gap-2 lg:hidden">
+            <LumeoTopbarButton />
+            <button
+              type="button"
+              onClick={() => setPanelOpen(true)}
+              aria-label="Ouvrir le menu"
+              aria-haspopup="dialog"
+              aria-expanded={panelOpen}
+              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-ink hover:bg-pill dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white ${FOCUS}`}
+            >
+              <IconMenu className="h-6 w-6" />
+            </button>
+          </div>
         </div>
       </header>
 

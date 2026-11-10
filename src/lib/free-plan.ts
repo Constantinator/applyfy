@@ -32,7 +32,7 @@ function line(label: string, count: number, limit: number): FreePlanLine {
 export function buildFreePlanLines(counts: FreePlanCounts): FreePlanLine[] {
   return [
     line("Adaptations de CV ce mois", counts.adaptations, AI_MONTHLY_LIMITS.cvb_chat),
-    line("Questions au Chat IA aujourd'hui", counts.coachToday, CVB_COACH_DAILY_LIMIT),
+    line("Questions à Lumeo aujourd'hui", counts.coachToday, CVB_COACH_DAILY_LIMIT),
     line("Import de CV ce mois", counts.imports, AI_MONTHLY_LIMITS.cvb_import),
   ];
 }

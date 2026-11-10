@@ -1,7 +1,7 @@
 import { AppNavProvider } from "@/components/app-nav-context";
 import { AppTopbar } from "@/components/app-topbar";
 import { OnboardingModal } from "@/components/OnboardingModal";
-import { LumeoPanel } from "@/components/lumeo/lumeo-panel";
+import { LumeoProvider } from "@/components/lumeo/lumeo-panel";
 import { WelcomePremiumModal } from "@/components/onboarding/welcome-premium-modal";
 import { getAccountName } from "@/lib/account";
 import { isAdminEmail } from "@/lib/admin-metrics";
@@ -29,26 +29,35 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     user ? getAccountName().catch(() => null) : null,
   ]);
 
+  const content = (
+    <>
+      <AppTopbar
+        email={user?.email ?? null}
+        initials={accountInitials(accountName, user?.email ?? null)}
+        isAdmin={isAdmin}
+        isBetaTester={beta?.status === "active"}
+        unreadBeta={unreadBeta}
+        unreadAdmin={unreadAdmin}
+      />
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      {/* Présentation animée à la première connexion (mémorisée dans le navigateur). */}
+      <OnboardingModal />
+      {/* Prix de lancement du Premium, après la présentation (une seule fois). */}
+      {!premium && <WelcomePremiumModal />}
+    </>
+  );
+
   return (
     // AppNavProvider : panneau Menu et garde de sortie des pages en plein écran (éditeur du CV Builder).
     <AppNavProvider>
       {/* data-theme-scope : zone concernée par le mode sombre (cf. globals.css). */}
       <div data-theme-scope className="flex flex-1 flex-col print:block">
-        <AppTopbar
-          email={user?.email ?? null}
-          initials={accountInitials(accountName, user?.email ?? null)}
-          isAdmin={isAdmin}
-          isBetaTester={beta?.status === "active"}
-          unreadBeta={unreadBeta}
-          unreadAdmin={unreadAdmin}
-        />
-        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-        {/* Présentation animée à la première connexion (mémorisée dans le navigateur). */}
-        <OnboardingModal />
-        {/* Prix de lancement du Premium, après la présentation (une seule fois). */}
-        {!premium && <WelcomePremiumModal />}
-        {/* Lumeo : bouton rond et panneau, sur toutes les pages sauf l'éditeur du CV Builder. */}
-        {user && <LumeoPanel aiEnabled={isClaudeConfigured() || lumeoMockEnabled()} />}
+        {user ? (
+          // Lumeo : panneau et boutons (barre du haut sur mobile, rond en bas à droite sur ordinateur).
+          <LumeoProvider aiEnabled={isClaudeConfigured() || lumeoMockEnabled()}>{content}</LumeoProvider>
+        ) : (
+          content
+        )}
       </div>
     </AppNavProvider>
   );
