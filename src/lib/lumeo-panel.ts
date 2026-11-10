@@ -128,7 +128,10 @@ export const LUMEO_QUESTION_MAX = 1000;
 export const LUMEO_HISTORY_MAX_TURNS = 12; // 6 échanges
 export const LUMEO_TURN_MAX_CHARS = 1000;
 export const LUMEO_OFFER_MAX_CHARS = 4000;
+/** Candidatures les plus récentes envoyées en détail à Lumeo. */
 export const LUMEO_APPLICATIONS_MAX = 15;
+/** Plafond de sécurité : candidatures listées au total (détail + lignes courtes). */
+export const LUMEO_APPLICATIONS_TOTAL_MAX = 150;
 
 /**
  * Texte de l'utilisateur, d'une offre ou d'un CV, placé entre balises : les chevrons deviennent
@@ -248,17 +251,63 @@ function applicationLine(app: Application, now: Date): string {
   ].join("");
 }
 
-function applicationsBlock(applications: Application[], now: Date): string {
-  const real = applications.filter((app) => !app.is_example);
-  if (real.length === 0) return "Aucune candidature enregistrée.";
-  const counts = new Map<ApplicationStatus, number>();
-  for (const app of real) counts.set(app.status, (counts.get(app.status) ?? 0) + 1);
-  const late = real.filter((app) => needsFollowUp(app, now)).length;
-  const recent = [...real].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, LUMEO_APPLICATIONS_MAX);
+/** Ligne courte d'une candidature plus ancienne : entreprise, poste, statut, délai, relance. */
+function compactApplicationLine(app: Application, now: Date): string {
+  const sent = daysSince(app.applied_at, now);
   return [
-    `Total : ${real.length} (${[...counts].map(([status, n]) => `${STATUS_LABELS[status]} ${n}`).join(", ")}) ; relances en retard : ${late}`,
-    `Les plus récentes :`,
+    `- ${neutralizeData(app.company, 80)} · ${neutralizeData(app.position, 60)} · ${STATUS_LABELS[app.status]}`,
+    sent !== null ? ` · ${sent} j` : "",
+    needsFollowUp(app, now) ? " · relance en retard" : "",
+  ].join("");
+}
+
+export type LumeoApplicationsSplit = {
+  /** Candidatures réelles (hors exemple), toutes. */
+  total: number;
+  /** Les plus récentes, en détail. */
+  recent: Application[];
+  /** Les autres, en ligne courte, triées par entreprise. */
+  others: Application[];
+  /** Plus anciennes non listées (au-delà du plafond). */
+  omitted: number;
+};
+
+/**
+ * Candidatures envoyées à Lumeo : les LUMEO_APPLICATIONS_MAX plus récentes en détail, toutes les
+ * autres en ligne courte (triées par entreprise pour les retrouver), dans la limite de
+ * LUMEO_APPLICATIONS_TOTAL_MAX au total ; au-delà, les plus anciennes sont comptées, pas listées.
+ * La candidature exemple n'est jamais comptée.
+ */
+export function splitLumeoApplications(applications: Application[]): LumeoApplicationsSplit {
+  const real = applications.filter((app) => !app.is_example);
+  const byDate = [...real].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const recent = byDate.slice(0, LUMEO_APPLICATIONS_MAX);
+  const rest = byDate.slice(LUMEO_APPLICATIONS_MAX);
+  const kept = rest.slice(0, Math.max(0, LUMEO_APPLICATIONS_TOTAL_MAX - recent.length));
+  const others = [...kept].sort(
+    (a, b) => a.company.localeCompare(b.company, "fr", { sensitivity: "base" }) || b.created_at.localeCompare(a.created_at),
+  );
+  return { total: real.length, recent, others, omitted: rest.length - kept.length };
+}
+
+function applicationsBlock(applications: Application[], now: Date): string {
+  const { total, recent, others, omitted } = splitLumeoApplications(applications);
+  if (total === 0) return "Aucune candidature enregistrée.";
+  const listed = recent.length + others.length;
+  const counts = new Map<ApplicationStatus, number>();
+  for (const app of applications) if (!app.is_example) counts.set(app.status, (counts.get(app.status) ?? 0) + 1);
+  const late = applications.filter((app) => !app.is_example && needsFollowUp(app, now)).length;
+  return [
+    `Total : ${total} (${[...counts].map(([status, n]) => `${STATUS_LABELS[status]} ${n}`).join(", ")}) ; relances en retard : ${late}`,
+    omitted > 0
+      ? `Liste tronquée : ${listed} candidatures listées sur ${total}, ${omitted} candidatures non listées (les plus anciennes).`
+      : `Liste complète : les ${total} candidatures sont listées ci-dessous.`,
+    `Les plus récentes (en détail) :`,
     ...recent.map((app) => applicationLine(app, now)),
+    ...(others.length
+      ? [`Toutes les autres (triées par entreprise : entreprise · poste · statut · jours depuis l'envoi) :`, ...others.map((app) => compactApplicationLine(app, now))]
+      : []),
+    ...(omitted > 0 ? [`Liste tronquée : ${omitted} candidatures non listées.`] : []),
   ].join("\n");
 }
 
