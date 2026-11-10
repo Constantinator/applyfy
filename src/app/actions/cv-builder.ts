@@ -31,6 +31,7 @@ import {
   type CoachContext,
   type ImportedCvAnalysis,
 } from "@/lib/claude";
+import { coachReplyText, MISSING_FIGURE_QUESTION } from "@/lib/coach-outcome";
 import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems } from "@/lib/coach-proposals";
 import {
   CvBuilderError,
@@ -770,17 +771,6 @@ async function coachGate() {
   return { ok: true as const, chat: gate.usage.counts.cvb_chat };
 }
 
-/** Question posée quand une modification attendue manque un fait et que le coach n'en pose pas. */
-const MISSING_FIGURE_QUESTION =
-  "Peux-tu me donner un ordre de grandeur (nombre, %, durée, budget) pour que je puisse l'écrire ?";
-/** Le coach voulait modifier le CV, mais rien n'a pu être appliqué (texte refusé, contenu invalide). */
-const NOT_APPLIED_MESSAGE = "Je n'ai pas pu modifier ton CV : il me manque une information précise (un chiffre, un résultat).";
-/** Hors puces d'expérience : aucun chiffre n'est en cause, et le coach ne change pas de sujet. */
-const sectionNotAppliedMessage = (reason: string | null) =>
-  ["Je n'ai pas pu appliquer cette modification à ton CV.", reason, "Peux-tu reformuler ta demande ?"].filter(Boolean).join(" ");
-/** Une partie seulement de la modification a été appliquée. */
-const PARTIAL_MESSAGE = "Pour certaines puces, il me manque encore un chiffre.";
-
 /** Points abandonnés pendant la session, renvoyés par l'éditeur : revalidés et bornés. */
 const SKIPPED_MAX = 50;
 function skippedPoints(value: unknown): string[] {
@@ -890,6 +880,8 @@ export async function refineBuilderCvAction(
   // invisible pour le candidat (sauf si les adaptations du mois sont épuisées).
   let answer = reply;
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
+  // Proposition telle que construite : null alors que le coach a bien proposé quelque chose = « ne change rien ».
+  let built = proposal;
   let problems = proposal ? checkProposal(proposal, context.scoring, current) : [];
   const firstProblems = problems;
   const firstRefused = problems.length;
@@ -909,6 +901,7 @@ export async function refineBuilderCvAction(
       retried = true;
       answer = second;
       proposal = second.update ? buildProposal(current, second.update) : null;
+      built = proposal;
       problems = proposal ? checkProposal(proposal, context.scoring, current) : [];
     }
   }
@@ -917,12 +910,16 @@ export async function refineBuilderCvAction(
   // Modification appliquée directement, changement par changement (un passage introuvable est ignoré).
   let updated = current;
   let applied = 0;
+  let stale = 0;
   for (const change of proposal?.changes ?? []) {
     const next = applyCoachChange(updated, change);
     if (next) {
       updated = next;
       applied++;
-    } else console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
+    } else {
+      stale++;
+      console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
+    }
   }
   const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints])];
   // Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées.
@@ -945,27 +942,30 @@ export async function refineBuilderCvAction(
   console.warn(
     `[cv-builder coach] réponse : section=${reply.raw?.section ?? "aucune"}, changements appliqués=${applied}, ` +
       `textes refusés=${firstRefused} (après le second essai : ${problems.length}), second essai=${retried ? "oui" : "non"}, ` +
-      `contenu invalide=${reply.invalid ? "oui" : "non"}, réorganisation=${reorganized ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
+      `passages introuvables=${stale}, contenu invalide=${reply.invalid ? "oui" : "non"}, réorganisation=${reorganized ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
   );
 
-  // Texte affiché, décidé par le code : l'annonce de l'IA seulement si un changement a vraiment
-  // été appliqué ; sinon une phrase honnête, puis la question.
-  const intended = Boolean(reply.raw);
-  const missing = intended && (!applied || problems.length > 0);
-  const question = answer.message && (!missing || answer.message.includes("?")) ? answer.message : MISSING_FIGURE_QUESTION;
-  // Motif du refus : une limite, quelle que soit la section, n'a rien à voir avec un chiffre manquant.
-  const refusal = problems[0] ?? firstProblems[0];
-  const text =
-    intended && !applied && (reply.raw?.section !== "experience" || refusal?.limit)
-      ? sectionNotAppliedMessage(refusal ? (refusal.limit ? refusal.problems[0] : `Le texte proposé ${refusal.problems[0]}.`) : null)
-      : [
-          applied ? answer.changeSummary || "C'est fait : j'ai mis à jour ton CV." : null,
-          intended && !applied ? NOT_APPLIED_MESSAGE : null,
-          applied && problems.length ? PARTIAL_MESSAGE : null,
-          question,
-        ]
-          .filter(Boolean)
-          .join(" ");
+  // Texte affiché, décidé par le code : cause exacte d'un échec, clôture au seuil « prêt à postuler ».
+  const scored =
+    applied > 0 ? { before: scoreCv(current, context.scoring).score, after: scoreCv(updated, context.scoring) } : null;
+  const offerKeywords = context.offerKeywords ?? [];
+  const present = scored && offerKeywords.length ? new Set(matchKeywords(cvDataToText(updated), offerKeywords, context.scoring.sector)) : null;
+  const text = coachReplyText({
+    section: reply.raw?.section ?? null,
+    applied,
+    stale,
+    invalid: answer.invalid,
+    firstInvalid: reply.invalid,
+    noChange: Boolean(answer.update) && !built,
+    problems,
+    firstProblems,
+    message: answer.message,
+    changeSummary: answer.changeSummary,
+    scoreBefore: scored?.before ?? 0,
+    scoreAfter: scored?.after.score ?? null,
+    corrections: scored?.after.corrections.map((c) => c.message) ?? [],
+    offerKeywords: present ? offerKeywords.filter((k) => !present.has(k)) : [],
+  });
 
   if (applied) {
     await recordAiUsage(reorganized ? "cvb_coach" : "cvb_chat");

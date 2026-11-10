@@ -318,6 +318,11 @@ function newItemChange(target: ItemTarget, data: Record<string, unknown>, makeId
 // Vérification par le code (côté serveur, avant d'afficher la proposition)
 // ---------------------------------------------------------------------------
 
+/** Défauts d'un texte refusé (aussi envoyés au modèle lors du nouvel essai : ne pas en changer le texte). */
+export const PROBLEM_NO_VERB = "ne commence pas par un verbe ou un nom d'action";
+export const PROBLEM_NO_FIGURE = "ne contient ni chiffre ni ordre de grandeur";
+export const PROBLEM_BANNED_PREFIX = "contient la formule à éviter « ";
+
 /** Textes refusés d'un changement et leurs défauts. */
 export type ChangeProblem = {
   changeId: string;
@@ -325,6 +330,8 @@ export type ChangeProblem = {
   problems: string[];
   /** Refus lié à une limite du CV (longueur, nombre d'éléments), et non au contenu du texte. */
   limit?: boolean;
+  /** Avec `limit` : chemin du champ en cause (ex. « experiences.0.bullets »). */
+  path?: string;
 };
 
 /**
@@ -343,7 +350,10 @@ export function checkProposal(proposal: CoachProposal, context: Pick<ScoringCont
     if (!next) continue; // passage introuvable : ignoré à l'application
     const parsed = CvDataSchema.safeParse(next);
     if (parsed.success) state = parsed.data;
-    else problems.push({ changeId: change.id, text: change.after.slice(0, 120), problems: [invalidCvField(parsed.error).message], limit: true });
+    else {
+      const field = invalidCvField(parsed.error);
+      problems.push({ changeId: change.id, text: change.after.slice(0, 120), problems: [field.message], limit: true, path: field.path });
+    }
   }
   return problems;
 }
@@ -352,9 +362,9 @@ function textProblems(proposal: CoachProposal, context: Pick<ScoringContext, "ac
   const isAction = actionDetector(context.actionVerbs);
   const banned = bannedPhrases(context.avoid);
   const check = (text: string, bullet: boolean) => [
-    ...(bullet && !isAction(text) ? ["ne commence pas par un verbe ou un nom d'action"] : []),
-    ...(bullet && !hasFigure(text) ? ["ne contient ni chiffre ni ordre de grandeur"] : []),
-    ...findBannedPhrases(text, banned).map((phrase) => `contient la formule à éviter « ${phrase} »`),
+    ...(bullet && !isAction(text) ? [PROBLEM_NO_VERB] : []),
+    ...(bullet && !hasFigure(text) ? [PROBLEM_NO_FIGURE] : []),
+    ...findBannedPhrases(text, banned).map((phrase) => `${PROBLEM_BANNED_PREFIX}${phrase} »`),
   ];
 
   return proposal.changes.flatMap((change) => {
@@ -364,7 +374,7 @@ function textProblems(proposal: CoachProposal, context: Pick<ScoringContext, "ac
       const existing = findBannedPhrases(change.before ?? "", banned);
       const added = findBannedPhrases(change.after, banned).filter((phrase) => !existing.includes(phrase));
       return added.length
-        ? [{ changeId: change.id, text: change.after, problems: added.map((phrase) => `contient la formule à éviter « ${phrase} »`) }]
+        ? [{ changeId: change.id, text: change.after, problems: added.map((phrase) => `${PROBLEM_BANNED_PREFIX}${phrase} »`) }]
         : [];
     }
     const texts =
