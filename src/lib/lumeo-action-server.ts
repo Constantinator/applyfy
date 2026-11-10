@@ -37,7 +37,7 @@ import {
   type LumeoRefusal,
 } from "./lumeo-actions";
 import { lumeoMockEnabled, mockLumeoRelance } from "./lumeo-mock";
-import { checkRelanceOutput, maskRelance, relanceUserContent, unmaskRelance } from "./lumeo-relance";
+import { checkRelanceOutput, prepareRelanceCall, unmaskRelance } from "./lumeo-relance";
 import { relanceTicketKey, verifyRelanceTicket } from "./lumeo-relance-ticket";
 import { LUMEO_ACTION_TEXTS as T } from "./lumeo-texts";
 import { OFFER_DESCRIPTION_MAX_LENGTH } from "./offer-limits";
@@ -213,8 +213,8 @@ export async function runLumeoRelance(applicationId: string, source: string | un
   const app = detail.application;
   const signer = name ? fullName(name) : null;
   const start = source?.trim() || buildFollowUpMessage(app, signer);
-  const mask = maskRelance(start, { contactName: app.contact_name, signer });
-  const content = relanceUserContent(app, mask.text, name?.firstName ?? null);
+  // Aucun nom en clair vers le modèle : contact et compte masqués dans le texte et dans le résumé.
+  const { mask, content } = prepareRelanceCall({ facts: app, offerSummary: app.offer_summary, contactName: app.contact_name, signer, source: start });
   const output = lumeoMockEnabled() ? mockLumeoRelance(mask.text) : await improveLumeoRelance(content);
   const check = checkRelanceOutput(output, mask, content);
   if (!check.ok) {
