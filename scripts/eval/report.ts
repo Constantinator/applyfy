@@ -1,12 +1,13 @@
 // Rapport du banc d'essai : Markdown (lecture) et JSON (comparaison). Deux rapports séparés, CV
 // libre et CV lié ; pires conversations en entier ; jeu tenu à l'écart en agrégats seulement (ni
-// transcription ni CV) ; comparaison avec le dernier run sur les mêmes fixtures. Les pistes sont
-// des propositions : rien n'est modifié automatiquement.
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+// transcription ni CV) ; comparaison avec un run de référence sur les scénarios communs (compare.ts).
+// Les pistes sont des propositions : rien n'est modifié automatiquement.
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { chatContent } from "../../src/lib/cv-builder-types.ts";
 import type { BudgetState } from "./budget.ts";
+import { findReference, splitScenarios, type ReferenceRun } from "./compare.ts";
 import type { ConversationRecord } from "./conversation.ts";
 import type { Estimate } from "./estimate.ts";
 import { JUDGE_CRITERIA, judgeMean } from "./judge.ts";
@@ -26,6 +27,10 @@ export type RunMeta = {
   maxTurns: number;
   holdout: boolean;
   interrupted: string | null;
+  /** Empreinte des fixtures de chaque scénario lancé (comparaison scénario par scénario). */
+  scenarioHashes: Record<string, string>;
+  /** Run de référence demandé avec --compare (null : le dernier run complet du même mode). */
+  compareTo: string | null;
 };
 
 const median = (values: number[]) => {
@@ -409,44 +414,41 @@ function holdoutSection(results: Result[]) {
   return lines.join("\n") + "\n";
 }
 
-/** Dernier run complet précédent sur les mêmes fixtures (même empreinte), pour la comparaison. */
-function previousRun(outRoot: string, meta: RunMeta): { meta: RunMeta; aggregates: ScenarioAggregate[] } | null {
-  if (!existsSync(outRoot)) return null;
-  const dirs = readdirSync(outRoot).filter((d) => d !== meta.runId).sort().reverse();
-  for (const dir of dirs) {
-    const file = join(outRoot, dir, "report.json");
-    if (!existsSync(file)) continue;
-    try {
-      const json = JSON.parse(readFileSync(file, "utf8"));
-      // Même fixtures, même mode, run complet (un run interrompu ne sert pas de référence).
-      if (json.meta?.fixturesHash === meta.fixturesHash && json.meta?.dry === meta.dry && !json.meta?.interrupted) {
-        return { meta: json.meta, aggregates: json.aggregates };
-      }
-    } catch {
-      // rapport illisible : ignoré
-    }
-  }
-  return null;
-}
-
-function comparison(previous: ReturnType<typeof previousRun>, rows: ScenarioAggregate[]) {
-  if (!previous) return "## Comparaison avec le run précédent\n\nAucun run précédent sur les mêmes fixtures.\n";
-  const before = new Map(previous.aggregates.map((r) => [r.scenarioId, r]));
+/** Section de comparaison : run de référence, scénarios comparés et exclus, puis tableau. */
+function comparison(reference: ReferenceRun<ScenarioAggregate> | null, meta: RunMeta, rows: ScenarioAggregate[]) {
+  const title = "## Comparaison avec un run de référence";
+  if (!reference) return `${title}\n\nAucun run de référence${meta.compareTo ? "" : " (même mode, run complet)"}.\n`;
+  const split = splitScenarios({ ids: rows.map((r) => r.scenarioId), hashes: meta.scenarioHashes }, reference);
+  const before = new Map(reference.aggregates.map((r) => [r.scenarioId, r]));
+  const compared = rows.filter((r) => split.compared.includes(r.scenarioId));
+  const previous = compared.map((r) => before.get(r.scenarioId)!);
+  const modeNote = reference.meta.dry === meta.dry ? "" : ` — **mode différent** (${reference.meta.dry ? "--dry" : "vrai run"} contre ${meta.dry ? "--dry" : "vrai run"}) : comparaison du script seulement`;
   const lines = [
-    "## Comparaison avec le run précédent",
+    title,
     "",
-    `Run ${previous.meta.runId} (commit ${previous.meta.commit}, règles du coach ${previous.meta.coachRulesHash}).`,
+    `Référence : run ${reference.meta.runId} (${reference.meta.dry ? "--dry" : "vrai run"}, commit ${reference.meta.commit}, règles du coach ${reference.meta.coachRulesHash}, ${reference.meta.repeat} lancement(s) par scénario)${meta.compareTo ? ", choisi avec --compare" : ""}${modeNote}.`,
     "",
-    "Scénarios en commun seulement ; proportions et moyennes par lancement (les deux runs peuvent avoir un nombre de lancements différent).",
+    `Comparaison sur les scénarios communs seulement : même identifiant et mêmes fixtures (scénario, profil, offre, persona, mots-clés du marché ; ${split.source}).`,
     "",
-    "| Scénario | Δ score avant → maintenant | Juge avant → maintenant | Questions après 80 (par lancement) | Lancements avec nombres inventés | Demande exécutée |",
-    "|---|---|---|---|---|---|",
+    `**Comparés (${split.compared.length})** : ${split.compared.join(", ") || "aucun"}.`,
+    "",
+    `**Exclus (${split.excluded.length})** : ${split.excluded.map((e) => `${e.id} (${e.reason})`).join(", ") || "aucun"}.`,
+    "",
   ];
-  for (const r of rows) {
-    const p = before.get(r.scenarioId);
-    if (!p) continue;
+  if (!compared.length) return lines.join("\n") + "\n";
+  const med = (values: (number | null)[]) => median(values.filter((v): v is number => v !== null));
+  lines.push(
+    `Sur ces ${compared.length} scénarios : Δ de score médian ${fmt(med(previous.map((p) => p.delta)))} → ${fmt(med(compared.map((r) => r.delta)))} ; juge médian ${fmt(med(previous.map((p) => p.judgeMean)), 1)} → ${fmt(med(compared.map((r) => r.judgeMean)), 1)} ; questions après 80 ${sum(previous.map((p) => p.closureViolations))} → ${sum(compared.map((r) => r.closureViolations))} ; lancements avec nombres inventés ${sum(previous.map((p) => p.inventedRuns))} → ${sum(compared.map((r) => r.inventedRuns))}.`,
+    "",
+    "Proportions et moyennes par lancement (les deux runs peuvent avoir un nombre de lancements différent).",
+    "",
+    "| Scénario | Δ score avant → maintenant | Juge avant → maintenant | Questions après 80 (par lancement) | Lancements avec nombres inventés | Demande exécutée | Titre proposé (max) | Écart dit |",
+    "|---|---|---|---|---|---|---|---|",
+  );
+  for (const r of compared) {
+    const p = before.get(r.scenarioId)!;
     lines.push(
-      `| ${r.scenarioId} | ${fmt(p.delta)} → ${fmt(r.delta)} | ${fmt(p.judgeMean, 1)} → ${fmt(r.judgeMean, 1)} | ${fmt(p.closureViolations / p.runs, 1)} → ${fmt(r.closureViolations / r.runs, 1)} | ${p.inventedRuns}/${p.runs} → ${r.inventedRuns}/${r.runs} | ${p.requestDone} → ${r.requestDone} |`,
+      `| ${r.scenarioId} | ${fmt(p.delta)} → ${fmt(r.delta)} | ${fmt(p.judgeMean, 1)} → ${fmt(r.judgeMean, 1)} | ${fmt(p.closureViolations / p.runs, 1)} → ${fmt(r.closureViolations / r.runs, 1)} | ${p.inventedRuns}/${p.runs} → ${r.inventedRuns}/${r.runs} | ${p.requestDone} → ${r.requestDone} | ${fmt(p.titleProposalsMax)} → ${fmt(r.titleProposalsMax)} | ${p.gapStated} → ${r.gapStated} |`,
     );
   }
   return lines.join("\n") + "\n";
@@ -458,7 +460,7 @@ export function writeReport(outRoot: string, meta: RunMeta, results: Result[], b
   const dev = results.filter((r) => r.record.set === "dev");
   const holdout = results.filter((r) => r.record.set === "holdout");
   const devRows = aggregate(dev);
-  const previous = previousRun(outRoot, meta);
+  const reference = findReference<ScenarioAggregate>(outRoot, meta, meta.compareTo);
 
   const cost = [
     `## Coût ${meta.dry ? "(simulé : mode --dry, aucun appel)" : "réel"}`,
@@ -484,7 +486,7 @@ export function writeReport(outRoot: string, meta: RunMeta, results: Result[], b
     caseSection("CV libre (poste visé déduit avec le candidat)", dev.filter((r) => r.record.case === "libre"), false),
     caseSection("CV lié à une offre (poste imposé par l'offre)", dev.filter((r) => r.record.case === "lie"), true),
     holdoutSection(holdout),
-    comparison(previous, devRows),
+    comparison(reference, meta, devRows),
   ]
     .filter((s) => s !== null)
     .join("\n");

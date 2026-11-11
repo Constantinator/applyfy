@@ -4,6 +4,7 @@
 //   npm run eval:coach -- --dry                 réponses simulées, aucun appel, 0 €
 //   npm run eval:coach -- --repeat 1 --only L01-parcours-finance,O02-finance-vers-tech
 //   npm run eval:coach -- --holdout             ajoute le jeu tenu à l'écart (agrégats seulement)
+//   npm run eval:coach -- --compare 2026-11-11T00-54-01   compare à ce run (scénarios communs seulement)
 //
 // Vrai run : EVAL_ANTHROPIC_API_KEY et EVAL_MAX_COST_EUR dans l'environnement local (rien d'autre
 // n'est lu), estimation affichée, confirmation demandée, arrêt dès que le plafond serait dépassé.
@@ -15,6 +16,7 @@ import { createInterface } from "node:readline/promises";
 import { COACH_RULES } from "../../src/lib/coach-prompt.ts";
 import { BudgetExceeded, meteredClient, newBudget, type ParseClient } from "./budget.ts";
 import { DEFAULTS, MODELS } from "./config.ts";
+import { findReference, fsFixtureReader, scenarioFingerprints } from "./compare.ts";
 import { runConversation, type Clients } from "./conversation.ts";
 import { dryClients } from "./dry.ts";
 import { estimateRun } from "./estimate.ts";
@@ -30,10 +32,11 @@ type Options = {
   repeat: number;
   maxTurns: number;
   concurrency: number;
+  compare: string | null;
 };
 
 function parseArgs(argv: string[]): Options {
-  const options: Options = { dry: false, holdout: false, only: null, case: null, repeat: DEFAULTS.repeat, maxTurns: DEFAULTS.maxTurns, concurrency: 4 };
+  const options: Options = { dry: false, holdout: false, only: null, case: null, repeat: DEFAULTS.repeat, maxTurns: DEFAULTS.maxTurns, concurrency: 4, compare: null };
   const int = (value: string | undefined, name: string, min: number, max: number) => {
     const n = Number(value);
     if (!Number.isInteger(n) || n < min || n > max) throw new Error(`--${name} : entier entre ${min} et ${max} attendu`);
@@ -51,6 +54,11 @@ function parseArgs(argv: string[]): Options {
     } else if (arg === "--repeat") options.repeat = int(argv[++i], "repeat", 1, 10);
     else if (arg === "--max-turns") options.maxTurns = int(argv[++i], "max-turns", 1, 20);
     else if (arg === "--concurrency") options.concurrency = int(argv[++i], "concurrency", 1, 8);
+    else if (arg === "--compare") {
+      const value = argv[++i] ?? "";
+      if (!/^[\w-]+$/.test(value)) throw new Error("--compare : identifiant de run attendu (nom du dossier dans eval-runs, ex. 2026-11-11T00-54-01)");
+      options.compare = value;
+    }
     else throw new Error(`Option inconnue : ${arg}`);
   }
   return options;
@@ -66,6 +74,9 @@ function select(scenarios: Scenario[], options: Options) {
   }
   return list;
 }
+
+/** Dossier des rapports (gitignoré). */
+const OUT_ROOT = fileURLToPath(new URL("../../eval-runs/", import.meta.url));
 
 const hash = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 12);
 const commit = () => {
@@ -104,6 +115,9 @@ async function main() {
   const fx = loadFixtures();
   const scenarios = select(fx.scenarios, options);
   if (!scenarios.length) throw new Error("Aucun scénario sélectionné.");
+
+  // Run de référence demandé : vérifié avant tout appel (une faute de frappe ne coûte rien).
+  if (options.compare) findReference(OUT_ROOT, { runId: "", dry: options.dry }, options.compare);
 
   const cap = Number(process.env.EVAL_MAX_COST_EUR);
   if (!options.dry && !(cap > 0)) throw new Error("EVAL_MAX_COST_EUR absent ou invalide (plafond en euros, ex. 35).");
@@ -144,6 +158,8 @@ async function main() {
     maxTurns: options.maxTurns,
     holdout: options.holdout,
     interrupted: null,
+    scenarioHashes: Object.fromEntries(Object.entries(scenarioFingerprints(fsFixtureReader)).filter(([id]) => scenarios.some((s) => s.id === id))),
+    compareTo: options.compare,
   };
 
   // Conversations en parallèle (pool) ; arrêt de toutes dès que le plafond est atteint.
@@ -180,9 +196,8 @@ async function main() {
   }
   meta.interrupted = stopped;
 
-  const outRoot = fileURLToPath(new URL("../../eval-runs/", import.meta.url));
   results.sort((a, b) => a.record.scenarioId.localeCompare(b.record.scenarioId) || a.record.repeat - b.record.repeat);
-  const dir = writeReport(outRoot, meta, results, budget, estimate);
+  const dir = writeReport(OUT_ROOT, meta, results, budget, estimate);
   console.log(`\nRapport : ${dir}\\report.md (et report.json)${stopped ? `\nInterrompu : ${stopped}` : ""}`);
 }
 

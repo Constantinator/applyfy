@@ -14,7 +14,7 @@ node --import ./scripts/eval/register.mjs scripts/eval/calibrate.ts --detail   #
 ```
 
 Options : `--only id1,id2`, `--case libre|lie`, `--repeat N` (3 par défaut), `--max-turns N`
-(10 par défaut), `--concurrency N` (4 par défaut), `--holdout`.
+(10 par défaut), `--concurrency N` (4 par défaut), `--holdout`, `--compare <runId>`.
 
 ### Vrai run (payant)
 
@@ -65,7 +65,12 @@ faux candidat = Claude Haiku 5.5 (`EVAL_SIMULATOR_MODEL`) ; juge = Claude Opus 5
 - `report.md` : coût, puis **deux rapports séparés** (CV libre, CV lié) avec un tableau par
   scénario (médiane sur les lancements, ⚠ instable si l'écart est grand), les causes de refus,
   les pistes et les 3 pires conversations en entier ; jeu tenu à l'écart en agrégats seulement ;
-  comparaison avec le dernier run complet sur les mêmes fixtures.
+  comparaison avec un run de référence : celui donné par `--compare <runId>` (nom du dossier dans
+  `eval-runs/`, vérifié avant tout appel), sinon le dernier run complet du même mode. Seuls les
+  scénarios communs sont comparés : même identifiant et même empreinte de fixtures (scénario,
+  profil, offre, persona, mots-clés du marché ; `scripts/eval/compare.ts`). Pour un ancien run sans
+  empreintes enregistrées, elles sont recalculées sur les fixtures de son commit (`git show`). Le
+  rapport liste les scénarios comparés et les exclus, avec la raison.
 - `report.json` : tout pour le jeu de développement ; seulement des agrégats pour le jeu tenu à
   l'écart.
 
