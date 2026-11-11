@@ -63,6 +63,8 @@ export type CoachTurnResult =
       section: string | null;
       scoreBefore: number | null;
       scoreAfter: number | null;
+      /** CV lié : écart avec l'offre affiché dans cet échange (vide sinon) ; absent en mode libre. */
+      offerGap?: string;
     };
 
 /** Réponse sans changement du titre du CV (refusé par le candidat) ; telle quelle sinon. */
@@ -235,5 +237,6 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     section: reply.raw?.section ?? null,
     scoreBefore: scored?.before ?? null,
     scoreAfter: scored?.after.score ?? null,
+    ...(context.offerSteps ? { offerGap: gap } : {}),
   };
 }

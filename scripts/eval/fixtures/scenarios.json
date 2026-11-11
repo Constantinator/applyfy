@@ -121,6 +121,9 @@
     { "id": "O09-offre-en", "set": "dev", "case": "lie", "type": "offre-meme-metier", "profile": "tech-confirme-en", "offer": "o-tech-en", "persona": "patient", "expectedSector": "tech",
       "behavior": "Answer the coach's questions in English.",
       "dryMessages": ["I lead 4 backend engineers.", "We run 12 services on Kubernetes."] },
+    { "id": "O10-offre-langue", "set": "dev", "case": "lie", "type": "offre-langue", "profile": "finance-junior-fr", "offer": "o-finance-en", "persona": "patient", "expectedSector": "finance",
+      "behavior": "Tu postules à une offre rédigée en anglais avec ton CV en français ; réponds en français. Ne demande pas de traduction : tu veux voir si le coach te la propose.",
+      "dryMessages": ["Je préparais 40 dossiers de crédit par mois.", "Non, je n'ai pas fait de prévisions de trésorerie."] },
 
     { "id": "H01-parcours-luxe", "set": "holdout", "case": "libre", "type": "parcours", "profile": "luxe-junior-fr", "persona": "patient", "expectedSector": "luxe",
       "behavior": "Suis le coach et réponds à ses questions.",

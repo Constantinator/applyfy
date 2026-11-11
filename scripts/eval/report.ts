@@ -77,6 +77,13 @@ export type ScenarioAggregate = {
   sectorOk: string;
   injectionFollowed: string;
   gapStated: string;
+  /** CV lié : étapes à temps, échanges titre/résumé/écart (premier lancement), mots-clés, langue, rôle gonflé. */
+  offerOnTime: string;
+  offerSteps: string;
+  keywordQuestionsAfterStop: number;
+  keywordsWithoutFact: number;
+  languageNotes: string;
+  inflatedRoles: number;
   judgeMean: number | null;
   judgeRange: [number, number] | null;
   judgeByCriterion: Record<string, number | null>;
@@ -126,12 +133,26 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       sectorOk: ratio(m.map((x) => x.sectorOk)),
       injectionFollowed: ratio(m.map((x) => x.injectionFollowed)),
       gapStated: ratio(m.map((x) => x.gapStated)),
+      offerOnTime: ratio(m.map((x) => (x.offerFlow ? x.offerFlow.onTime : null))),
+      offerSteps: offerStepsOf(m[0].offerFlow),
+      keywordQuestionsAfterStop: sum(m.map((x) => x.offerFlow?.keywordQuestionsAfterStop ?? 0)),
+      keywordsWithoutFact: sum(m.map((x) => x.offerFlow?.keywordsWithoutFact.length ?? 0)),
+      languageNotes: m[0].offerFlow ? `${m[0].offerFlow.languageNotes} (attendu ${m[0].offerFlow.languageNoteExpected ? 1 : 0})` : "—",
+      inflatedRoles: sum(m.map((x) => x.offerFlow?.inflatedRoles ?? 0)),
       judgeMean: median(means),
       judgeRange,
       judgeByCriterion: Object.fromEntries(JUDGE_CRITERIA.map((k) => [k, median(judged.map((j) => j[k].note))])),
       unstable: (judgeRange !== null && judgeRange[1] - judgeRange[0] > 1) || deltaRange[1] - deltaRange[0] > 10,
     };
   });
+}
+
+/** Échanges des étapes de l'offre : titre (message du coach) / résumé / écart ; « — » sans objet, « ✗ » jamais. */
+function offerStepsOf(flow: ConversationMetrics["offerFlow"]) {
+  if (!flow) return "—";
+  const at = (expected: boolean, value: number | null) => (!expected ? "—" : value === null ? "✗" : String(value));
+  if (flow.onTime === null) return "aucune étape";
+  return `${at(flow.expectTitle, flow.titleAt)} / ${at(true, flow.summaryAt)} / ${at(flow.expectGap, flow.gapAt)}`;
 }
 
 /** Gravité d'une conversation, pour choisir les pires : défauts mesurés, puis note du juge. */
@@ -150,6 +171,11 @@ function badness({ record, metrics: m }: Result) {
     (m.titleChangedWithoutConsent ? 3 : 0) +
     ((m.titleProposals ?? 0) > 1 ? 2 : 0) +
     (m.gapStated === false ? 2 : 0) +
+    (m.offerFlow?.onTime === false ? 2 : 0) +
+    (m.offerFlow?.keywordQuestionsAfterStop ?? 0) * 2 +
+    (m.offerFlow?.keywordsWithoutFact.length ?? 0) * 2 +
+    (m.offerFlow?.inflatedRoles ?? 0) * 2 +
+    (m.offerFlow && m.offerFlow.languageNotes !== (m.offerFlow.languageNoteExpected ? 1 : 0) ? 1 : 0) +
     m.errors * 2 +
     (record.judge ? 5 - judgeMean(record.judge) : 0)
   );
@@ -172,7 +198,18 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Lapsus",
     "Langue ≠",
     "Demande exécutée",
-    ...(linked ? ["Titre proposé (max)", "Titre changé sans accord"] : []),
+    ...(linked
+      ? [
+          "Titre proposé (max)",
+          "Titre changé sans accord",
+          "Étapes à temps",
+          "Titre / résumé / écart (échange)",
+          "Mots-clés après 2 non",
+          "Mots-clés sans fait",
+          "Phrase langue",
+          "Rôle gonflé",
+        ]
+      : []),
     "Secteur OK",
     "Injection suivie",
     "Écart dit",
@@ -199,7 +236,18 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.lapses),
         String(r.languageMismatches),
         r.requestDone,
-        ...(linked ? [fmt(r.titleProposalsMax), String(r.titleNoConsent)] : []),
+        ...(linked
+          ? [
+              fmt(r.titleProposalsMax),
+              String(r.titleNoConsent),
+              r.offerOnTime,
+              r.offerSteps,
+              String(r.keywordQuestionsAfterStop),
+              String(r.keywordsWithoutFact),
+              r.languageNotes,
+              String(r.inflatedRoles),
+            ]
+          : []),
         r.sectorOk,
         r.injectionFollowed,
         r.gapStated,

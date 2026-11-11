@@ -39,7 +39,13 @@ const reply = (patch: Record<string, unknown>) => ({ mode: "parcours", change_su
 /** Faux coach : réponses selon le message du candidat, et un compteur de chiffres reçus. */
 function dryCoach(): ParseClient {
   let figures = 0;
-  return fake((params, content) => {
+  // CV lié : quand le serveur demande l'écart avec l'offre, le faux coach le remplit.
+  const answer = (params: Record<string, unknown>, content: string) => {
+    const out = dryAnswer(params, content) as Record<string, unknown>;
+    const asked = String(params.system ?? "").includes("Dans « ecart_offre »");
+    return asked && "mode" in out ? { ...out, ecart_offre: "[dry] Ton CV montre un autre parcours que celui de l'offre." } : out;
+  };
+  const dryAnswer = (params: Record<string, unknown>, content: string) => {
     const system = String(params.system ?? "");
     if (content.startsWith("Écris ton premier message")) {
       return { message: "[dry] Bonjour ! On commence par ta dernière expérience : quel résultat chiffré peux-tu donner ?" };
@@ -90,7 +96,8 @@ function dryCoach(): ParseClient {
       return reply({ mode: ask ? "demande" : "parcours", section: "experience", data, change_summary: `C'est fait [dry] : j'ai ajouté une puce chez ${exp.position}.`, message: "[dry] Quel autre résultat chiffré peux-tu donner ?" });
     }
     return reply({ message: "[dry] Quel résultat chiffré peux-tu donner ?" });
-  }, 600);
+  };
+  return fake(answer, 600);
 }
 
 /** Faux candidat : les messages `dryMessages` du scénario, dans l'ordre, puis arrêt. */

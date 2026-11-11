@@ -65,6 +65,15 @@
       "keywords": ["prospection", "négociation", "fidélisation", "CRM", "chiffre d'affaires"]
     },
     {
+      "id": "o-finance-en",
+      "set": "dev",
+      "position": "Junior Financial Analyst",
+      "company": "Fictional Holdings Ltd",
+      "sector": "finance",
+      "offer_description": "You will prepare the monthly reporting, budgets and cash flow forecasts for the finance team. Strong Excel skills and financial modelling are required, and some experience in audit or banking is a plus.",
+      "keywords": ["reporting", "budget", "cash flow forecasting", "financial modelling", "Excel", "variance analysis"]
+    },
+    {
       "id": "o-luxe-advisor",
       "set": "holdout",
       "position": "Client advisor boutique",

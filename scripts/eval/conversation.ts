@@ -39,6 +39,8 @@ export type RefusedText = { label: string | null; original: string | null; propo
 export type TurnRecord = {
   user: string;
   coachText: string;
+  /** CV lié : écart avec l'offre affiché dans cet échange (vide sinon). */
+  offerGap: string;
   /** Réponse affichée comme erreur : absente de l'historique envoyé au coach. */
   error: "refus" | "sans-reponse" | "erreur" | null;
   mode: CoachReply["mode"] | null;
@@ -77,6 +79,8 @@ export type ConversationRecord = {
   startCv: CvData;
   endCv: CvData;
   opening: string | null;
+  /** CV lié : étapes de l'offre décidées au départ, mots-clés absents, phrase de langue attendue ; null en mode libre. */
+  offer: { steps: string[]; keywords: string[]; languageNote: boolean } | null;
   turns: TurnRecord[];
   endReason: "candidat" | "max-tours" | "cloture" | "erreur" | "plafond";
   error: string | null;
@@ -155,6 +159,13 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
     startCv,
     endCv: startCv,
     opening: null,
+    offer: start.offerSteps
+      ? {
+          steps: [...start.offerSteps],
+          keywords: [...(start.offerKeywords ?? [])],
+          languageNote: Boolean(start.offerLanguage && start.offerLanguage !== start.cvLanguage),
+        }
+      : null,
     turns: [],
     endReason: "max-tours",
     error: null,
@@ -235,6 +246,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         unchangedQuoted: [],
         scoreBefore,
         scoreAfter: scoreBefore,
+        offerGap: "",
       };
       let reply: CoachReply | null = null;
       try {
@@ -279,6 +291,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
           turn.claim = claimOf(turn.coachText);
           turn.unchangedQuoted = unchangedQuoted(turn.claim, current, result.updated);
           turn.skipped = result.skippedPoints;
+          turn.offerGap = result.offerGap ?? "";
           if (result.applied) cv = { ...result.updated, coach: null };
         } else {
           turn.coachText = result.text;

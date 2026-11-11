@@ -368,6 +368,8 @@ export const PROBLEM_INFLATED_TITLE_PREFIX = "annonce un niveau absent du CV : "
 /** Début d'une puce qui dit un rôle partiel (français, anglais). */
 const PARTIAL_ROLE =
   /^\s*(participation|contribution|appui|aide|soutien|support|assistance|particip[ée]|contribu[ée]|aid[ée]|assist[ée]|accompagn[ée]|participated|participating|contributed|contributing|assisted|assisting|helped|helping|supported|supporting)\b/i;
+/** Puce qui commence par un rôle partiel (« Participation à… », « participated in… »). */
+export const isPartialRole = (text: string) => PARTIAL_ROLE.test(text);
 /** Mots de niveau d'un titre (ancienneté ou encadrement). */
 const SENIORITY = ["senior", "sénior", "lead", "staff", "principal", "manager", "head", "chef", "directeur", "directrice", "director", "responsable", "confirmé", "confirmée", "expert", "experte", "vp"];
 const levelWords = (text: string) => {
