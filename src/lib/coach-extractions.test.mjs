@@ -313,7 +313,14 @@ test("coach : un refus du modèle lève ClaudeRefusalError", async () => {
 
 const SRC = fileURLToPath(new URL("../", import.meta.url));
 /** Modules du coach (consignes, appels au modèle, vérification) : serveur seulement. */
-const COACH_SERVER_MODULES = ["lib/coach-prompt.ts", "lib/coach-llm.ts", "lib/coach-context.ts", "lib/coach-turn.ts"];
+const COACH_SERVER_MODULES = [
+  "lib/coach-prompt.ts",
+  "lib/coach-llm.ts",
+  "lib/coach-context.ts",
+  "lib/coach-turn.ts",
+  "lib/coach-intent.ts",
+  "lib/coach-language.ts",
+];
 
 /** Fichier de src/ visé par un import (alias @/ ou chemin relatif), null pour un paquet. */
 function resolveImport(spec, fromFile) {

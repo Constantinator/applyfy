@@ -29,6 +29,7 @@ import {
   type ImportedCvAnalysis,
 } from "@/lib/claude";
 import { buildCoachContext, type BuiltCoachContext } from "@/lib/coach-context";
+import { listeningState } from "@/lib/coach-intent";
 import { closedOpening } from "@/lib/coach-outcome";
 import { isCvClosed } from "@/lib/coach-prompt";
 import { runCoachTurn } from "@/lib/coach-turn";
@@ -812,7 +813,11 @@ export async function refineBuilderCvAction(
   let context: BuiltCoachContext;
   let reply;
   try {
-    context = { ...(await coachContext(current, shown.applicationId, request)), skipped: skippedPoints(skipped) };
+    context = {
+      ...(await coachContext(current, shown.applicationId, request)),
+      skipped: skippedPoints(skipped),
+      listening: listeningState(turns, request),
+    };
     reply = await coachBuilderCv(context, turns, request);
   } catch (error) {
     return { ok: false, error: claudeErrorMessage(error, "cv-builder coach") };

@@ -1,4 +1,5 @@
 import type { CoachReply } from "./coach-llm";
+import { listenText, type Listening } from "./coach-intent";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
@@ -16,7 +17,7 @@ export type CoachTurnInput = {
   /** CV affiché, modifications non enregistrées comprises (sans lignes vides). */
   current: CvData;
   /** Contexte du coach (coach-context.ts) : contexte du score et mots-clés de l'offre manquants. */
-  context: { scoring: ScoringContext; offerKeywords?: string[]; language?: CoachLang };
+  context: { scoring: ScoringContext; offerKeywords?: string[]; language?: CoachLang; listening?: Listening };
   /** Échanges précédents et dernier message du candidat. */
   turns: CoachTurn[];
   request: string;
@@ -163,9 +164,26 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     lang: context.language,
   });
 
+  // Le coach écoute : arrêt des questions, pas de relance après un refus, clôture jamais redite,
+  // réponse directe à « c'est prêt ? » (coach-intent.ts).
+  const before = scoreCv(current, context.scoring);
+  const final = scored?.after ?? before;
+  const shown = context.listening
+    ? listenText({
+        text,
+        mode,
+        lang: context.language ?? "fr",
+        listening: context.listening,
+        score: final.score,
+        scoreBefore: before.score,
+        corrections: final.corrections.map((c) => c.message),
+        previousCoach: turns.filter((t) => t.role === "assistant").map((t) => t.content),
+      })
+    : text;
+
   return {
     kind: "done",
-    text,
+    text: shown,
     mode,
     updated,
     applied,

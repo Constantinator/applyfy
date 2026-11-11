@@ -7,6 +7,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import { ClaudeRefusalError } from "../../src/lib/claude-structured.ts";
 import { buildCoachContext } from "../../src/lib/coach-context.ts";
+import { listeningState } from "../../src/lib/coach-intent.ts";
 import { coachBuilderCv, coachOpening, type CoachReply } from "../../src/lib/coach-llm.ts";
 import { closedOpening } from "../../src/lib/coach-outcome.ts";
 import { isCvClosed, type CoachTurn } from "../../src/lib/coach-prompt.ts";
@@ -209,8 +210,8 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         origin: cv.origin,
         coach: null,
       };
-      const context = contextFor(current, request);
       const turns = history.slice(-HISTORY_MAX).map(({ role, content }) => ({ role, content: content.slice(0, 2000) }));
+      const context = { ...contextFor(current, request), listening: listeningState(turns, request) };
       const scoreBefore = context.score.value;
 
       const turn: TurnRecord = {

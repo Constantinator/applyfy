@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import type { Listening } from "./coach-intent";
 import type { CoachLang } from "./coach-outcome";
 import type { CoachMode, CoachSection } from "./coach-proposals";
 import { GENERIC_JARGON, READY_SCORE } from "./cv-score";
@@ -45,6 +46,8 @@ export type CoachContext = {
   /** Langue du candidat (messages) et langue du contenu du CV (coach-language.ts). */
   language?: CoachLang;
   cvLanguage?: CoachLang;
+  /** Ce que le serveur a compris des messages du candidat (coach-intent.ts) : consignes fixes. */
+  listening?: Listening;
   analysis: {
     criteria: Record<string, number>;
     improvements: string[];
@@ -57,6 +60,24 @@ export type CoachContext = {
 /** CV clos : le score calculé par le serveur atteint le seuil « prêt à postuler ». */
 export const isCvClosed = (score: number) => score >= READY_SCORE;
 
+/** Consignes fixes du bloc « situation », selon ce que le serveur a compris (coach-intent.ts). */
+const SITUATION: [keyof Listening, string][] = [
+  [
+    "stopAll",
+    "Le candidat a demandé d'arrêter les questions : le parcours est terminé. Ne pose plus aucune question ; réponds seulement à ses demandes explicites. Sans demande explicite, résume en une phrase ce qui reste (facultatif) et propose de conclure.",
+  ],
+  [
+    "stopFigures",
+    "Le candidat a répondu deux fois de suite qu'il n'avait pas l'information demandée : ne demande plus aucun chiffre ni ordre de grandeur dans cette session. Passe aux points qui n'en demandent pas, ou propose de conclure.",
+  ],
+  [
+    "readiness",
+    "Le candidat demande si son CV est prêt : le serveur lui répond avec le score. Dans « message », dis en une phrase ce qui reste de plus important, sans redonner le score et sans poser de question avant.",
+  ],
+  ["confirmation", "Le candidat te demande une confirmation : commence « message » par une réponse directe (oui ou non, et pourquoi), avant toute autre phrase."],
+  ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
+];
+
 export const COACH_RULES = `Tu es un coach CV expert. C'est toi qui mènes : tu traites un par un les points à corriger du CV, tu poses tes questions, puis tu modifies directement le CV dès que tu as les informations nécessaires. Le candidat ne valide rien : ce que tu écris va directement dans son CV. Mais une demande explicite du candidat passe toujours avant ton parcours.
 
 Demande explicite du candidat (prioritaire) :
@@ -65,7 +86,7 @@ Demande explicite du candidat (prioritaire) :
 - Fais ce qui est demandé, rien de plus. Garde les chiffres, les faits et la mise en forme existants ; n'ajoute aucun chiffre ni aucun fait qui ne figure pas déjà dans le CV ou dans les messages du candidat. Une puce qui contenait un chiffre le garde, une puce qui commençait par un verbe ou un nom d'action commence toujours par un verbe ou un nom d'action. Une puce sans chiffre peut rester sans chiffre.
 - Nouvelle puce demandée par le candidat : elle commence par un verbe ou un nom d'action ; le chiffre n'est pas exigé et tu ne le demandes pas avant de l'écrire.
 - Une fois la demande exécutée, « message » contient une seule question de parcours : le point suivant dans ton ordre de traitement. Exception : si le CV est clos, aucune question de parcours.
-- Demande qui touche plusieurs sections ou plusieurs expériences (« raccourcis tout », « traduis tout le CV ») : une réponse ne modifie qu'une seule section, et une seule expérience à la fois. Fais la première partie dans l'ordre du CV. Dans « message », à la place de la question de parcours, dis honnêtement ce qui est fait, liste ce qui reste et propose de continuer avec la partie suivante (une seule question, du type « Je continue avec … ? »). Ne dis jamais que tout est fait tant qu'il reste une partie, ne promets jamais de tout traiter en une seule fois, et ne demande aucun chiffre.
+- Demande qui touche plusieurs sections ou plusieurs expériences (« raccourcis tout », « traduis tout le CV ») : une réponse ne modifie qu'une seule section, et une seule expérience à la fois. Fais la première partie dans l'ordre du CV. Dans « message », à la place de la question de parcours, dis honnêtement ce qui est fait, liste ce qui reste et propose de continuer avec la partie suivante (une seule question, du type « Je continue avec … ? »). Ne dis jamais que tout est fait tant qu'il reste une partie, ne promets jamais de tout traiter en une seule fois, et ne demande aucun chiffre. Si le candidat refuse de continuer, ne le propose plus.
 - Traduction : seulement si le candidat la demande explicitement. Traduis fidèlement les textes de la section, sans rien ajouter ni retirer, et garde les nombres. Précise une fois que les titres des rubriques et le format des dates restent en français pour l'instant ; n'annonce aucune fonction à venir.
 
 Méthode du parcours :
@@ -84,7 +105,7 @@ Méthode du parcours :
 - Ne reviens jamais sur un point de la liste « Points abandonnés ». Si un point abandonné porte sur un élément (ex. « heures de tutorat »), ne pose plus aucune question sur cet élément, même reformulée, même sous un autre angle, et ne l'ajoute pas au CV.
 - « Mots-clés de l'offre absents du CV » (si cette liste existe et que le CV n'est pas clos) : traite-en 4 au maximum sur toute la session, après les « Points à corriger ». Choisis toi-même les plus importants pour le poste visé, quel que soit leur ordre dans la liste : privilégie les compétences techniques ou métier spécifiques à l'offre et ignore les mots-clés génériques (soft skills comme « organisation » ou « travail en équipe »). S'il reste moins de 4 mots-clés spécifiques, traite seulement ceux-là. Pour chacun, demande si le candidat a une expérience réelle de ce mot-clé et laquelle. S'il confirme, intègre le mot-clé au CV (compétences, ou puce avec ses faits). Sinon, ajoute-le à « skipped_points » et passe au suivant. N'ajoute jamais un mot-clé que le candidat n'a pas confirmé.
 - La liste des mots-clés est recalculée à chaque échange : un mot-clé intégré au CV en disparaît et d'autres peuvent y apparaître. Relis la conversation et compte ceux que tu as déjà traités ou abandonnés. Une fois ta sélection terminée, n'en aborde aucun autre de ta propre initiative, même s'il en reste dans la liste. Un mot-clé que le candidat te demande lui-même d'ajouter ne compte pas dans ces 4.
-- CV clos : quand le bloc « score » contient la ligne « CV clos », le parcours est terminé. Ne pose plus aucune question de parcours, n'aborde plus aucun point à corriger ni aucun mot-clé de l'offre de ta propre initiative. Tu réponds toujours aux demandes explicites du candidat (mode demande), sans les faire suivre d'une question de parcours. Sans demande explicite, « message » est une phrase courte, sans émoji et sans question, du type : « Ton CV est prêt. Dis-moi si tu veux une modification précise. »
+- CV clos : quand le bloc « score » contient la ligne « CV clos », le parcours est terminé. Ne pose plus aucune question de parcours, n'aborde plus aucun point à corriger ni aucun mot-clé de l'offre de ta propre initiative. Tu réponds toujours aux demandes explicites du candidat (mode demande), sans les faire suivre d'une question de parcours. Sans demande explicite, « message » est une phrase courte, sans émoji et sans question, du type : « Dis-moi si tu veux une modification précise. » Ne redis pas que le CV est prêt : le serveur l'a déjà dit.
 - CV pas encore clos : si tous les points listés dans « Points à corriger » et les mots-clés de l'offre que tu as choisis ont été traités ou abandonnés, envoie un message de clôture, sans émoji et sans question, du type : « J'ai fait le tour des points à corriger. Tu peux encore modifier ton CV directement en cliquant sur n'importe quel texte dans l'aperçu, ou me demander une modification précise. »
 - Tu peux supprimer une puce existante : renvoie son index dans bullets_to_remove. Si l'utilisateur demande une suppression et que tu peux l'exécuter, fais-le directement sans demander de confirmation.
 - Tu peux supprimer un élément entier (expérience, formation, projet) : renvoie "remove": true dans la modification de cet élément. Fais-le directement si l'utilisateur le demande.
@@ -104,7 +125,7 @@ const list = (items: string[]) => items.map((item) => `- ${n(item)}`).join("\n")
 
 /** Prompt système du coach : contexte sectoriel, règles, contenu du CV et analyse. */
 export function coachSystem(
-  { cvJson, score, skipped = [], offerKeywords = [], offer = null, titleMismatch = false, analysis, language, cvLanguage }: CoachContext,
+  { cvJson, score, skipped = [], offerKeywords = [], offer = null, titleMismatch = false, analysis, language, cvLanguage, listening }: CoachContext,
   sectorContext: string,
 ) {
   const closed = isCvClosed(score.value);
@@ -166,6 +187,9 @@ export function coachSystem(
       ].join("\n"),
     );
   }
+  // Consignes du serveur selon les messages du candidat : phrases fixes, aucune donnée du candidat.
+  const situation = listening ? SITUATION.filter(([key]) => listening[key]).map(([, sentence]) => sentence) : [];
+  if (situation.length) parts.push(["<situation>", ...situation, "</situation>"].join("\n"));
   if (analysis) {
     const criteria = Object.entries(analysis.criteria)
       .map(([name, note]) => `${name} ${note}/10`)
