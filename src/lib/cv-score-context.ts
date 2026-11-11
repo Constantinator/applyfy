@@ -3,7 +3,8 @@ import "server-only";
 import { getApplicationDetail, type ApplicationDetailResult } from "./applications";
 import { chatContent, targetJobOf, type CvData } from "./cv-builder-types";
 import type { ScoringContext } from "./cv-score";
-import { cvScoringSector, getSectorContext, scoringOfferFor, type ScoringOffer } from "./cv-sector-context";
+import { cvScoringSector, scoringOfferFor, type ScoringOffer } from "./cv-sector-context";
+import { scoringContextForSector } from "./cv-scoring-context";
 import { getKeywordsForSector } from "./job-scraper";
 
 /**
@@ -28,15 +29,7 @@ export async function loadBuilderCvScoring(
  * expériences (mode libre). Léger : transmis tel quel à l'éditeur.
  */
 export async function loadScoringContext(data: CvData, offer?: ScoringOffer | null): Promise<ScoringContext> {
+  // Secteur d'abord : les mots-clés des offres récentes sont ceux de ce secteur.
   const sector = cvScoringSector(JSON.stringify(chatContent(data)), targetJobOf(data), offer);
-  const context = getSectorContext(sector);
-  return {
-    sector,
-    sectorName: context.name,
-    atsKeywords: context.ats_keywords,
-    actionVerbs: context.strong_action_verbs,
-    avoid: context.avoid,
-    marketKeywords: await getKeywordsForSector(sector),
-    offer: offer ? { position: offer.position.trim().slice(0, 120), company: offer.company.trim().slice(0, 120) } : null,
-  };
+  return scoringContextForSector(sector, offer, await getKeywordsForSector(sector));
 }

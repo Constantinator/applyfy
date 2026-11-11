@@ -35,6 +35,8 @@ export type CoachContext = {
   offerKeywords?: string[];
   /** Secteur du score (celui de l'offre pour un CV lié) : contexte sectoriel du coach. */
   sector: Sector;
+  /** Mots-clés relevés dans les offres récentes de ce secteur (ceux du score) : en bonus dans le contexte sectoriel. */
+  marketKeywords: string[];
   /** CV lié à une candidature : offre (seul l'intitulé va au modèle ; l'entreprise sert à la clé du premier message). */
   offer?: { position: string; company: string } | null;
   /** Titre du CV d'un autre métier que l'offre (cvTitleMismatch) : à proposer une fois, sans l'imposer. */

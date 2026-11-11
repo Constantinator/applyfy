@@ -26,12 +26,12 @@ import {
   isClaudeConfigured,
   coachBuilderCv,
   coachOpening,
-  type CoachContext,
   type ImportedCvAnalysis,
 } from "@/lib/claude";
-import { closedOpening, coachReplyText, quotaBlockedText } from "@/lib/coach-outcome";
-import { coachContentKey, isCvClosed } from "@/lib/coach-prompt";
-import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems } from "@/lib/coach-proposals";
+import { buildCoachContext, type BuiltCoachContext } from "@/lib/coach-context";
+import { closedOpening } from "@/lib/coach-outcome";
+import { isCvClosed } from "@/lib/coach-prompt";
+import { runCoachTurn } from "@/lib/coach-turn";
 import {
   CvBuilderError,
   createBuilderCv,
@@ -50,12 +50,9 @@ import {
   fitCvData,
   withoutEmptyLines,
   chatContent,
-  cvDataToText,
   CvAnalysisSchema,
-  CV_CRITERIA,
   CvDataSchema,
   dateRange,
-  targetJobOf,
   fullName,
   interestList,
   isTemplateId,
@@ -63,12 +60,10 @@ import {
   type CvData,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { bannedPhrasesInCv, scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
+import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { htmlToText } from "@/lib/cv-html";
-import { matchCvKeywords } from "@/lib/cv-keyword-match";
-import { cvTitleMismatch, type Sector } from "@/lib/cv-sector-context";
-import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
+import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import { matchKeywords } from "@/lib/keyword-match";
 import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
@@ -663,76 +658,15 @@ export async function completeCvImportAction(
 /** Échanges précédents transmis au coach (un coaching s'étale sur plusieurs messages). */
 const COACH_HISTORY_MAX = 30;
 
-/** Mots-clés de l'offre parmi lesquels le coach choisit les 4 qu'il traite (règle dans COACH_RULES). */
-const COACH_OFFER_KEYWORDS_MAX = 25;
-
 /**
- * Mots-clés de l'offre encore absents du CV (recalculés à chaque échange), les plus importants
- * d'abord. Sans échec : le coach continue sans eux.
+ * Contexte du coach (coach-context.ts) : la candidature liée est relue une seule fois, avec les
+ * droits de l'utilisateur, pour le secteur du score et les mots-clés de l'offre.
  */
-function missingOfferKeywords(detail: ApplicationDetailResult | null, data: CvData, sector: Sector): string[] {
-  try {
-    const saved = readCvSuggestions(detail?.application.cv_suggestions);
-    const missing =
-      saved?.kind === "keywords"
-        ? matchCvKeywords(saved, cvDataToText(data), sector)
-            .rows.filter((r) => !r.present && !r.ignored)
-            .map((r) => r.keyword)
-        : (saved?.ce_qui_manque ?? []);
-    return missing.slice(0, COACH_OFFER_KEYWORDS_MAX);
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("[cv-builder coach] mots-clés de l'offre", error);
-    return [];
-  }
-}
-
-/**
- * Contenu du CV transmis au coach, son empreinte (cache du premier message) et les données du
- * secteur (vérification des modifications). Le coach reçoit à chaque échange la liste à jour
- * des points à corriger : toutes les corrections du score, de la plus rentable à la moins
- * rentable, et les formules à éviter présentes dans le CV.
- */
-async function coachContext(
-  data: CvData,
-  applicationId: string | null,
-): Promise<CoachContext & { contentKey: string; scoring: ScoringContext }> {
-  const cvJson = JSON.stringify(chatContent(data));
-  const a = data.analysis;
-  // CV lié : la candidature est relue une seule fois, pour le secteur du score et les mots-clés.
+async function coachContext(data: CvData, applicationId: string | null): Promise<BuiltCoachContext> {
   const detail = applicationId ? await getApplicationDetail(applicationId) : null;
   // Score calculé par le code, le même que celui affiché dans l'éditeur (secteur de l'offre pour un CV lié).
   const scoring = await loadBuilderCvScoring(data, applicationId, detail);
-  const score = scoreCv(data, scoring);
-  const offerKeywords = detail ? missingOfferKeywords(detail, data, scoring.sector) : [];
-  const offer = scoring.offer ?? null;
-  return {
-    scoring,
-    cvJson,
-    offerKeywords,
-    sector: scoring.sector,
-    offer,
-    titleMismatch: offer ? cvTitleMismatch(data.personal.jobTitle, scoring.sector) : false,
-    // Mots-clés, secteur et offre compris : le premier message est réécrit quand ils changent.
-    contentKey: coachContentKey(cvJson, offerKeywords, scoring.sector, offer),
-    score: {
-      value: score.score,
-      corrections: score.corrections.map((c) => `${c.message} (+${c.points} pts)`),
-      banned: bannedPhrasesInCv(data, scoring).map((b) => `« ${b.phrase} » dans ${b.where}`),
-    },
-    // CV importé : son analyse ; CV créé depuis zéro : seulement le poste visé.
-    analysis: a
-      ? {
-          criteria: Object.fromEntries(CV_CRITERIA.map((c) => [c.label, a.criteria[c.id]])),
-          improvements: a.improvements,
-          optimizations: a.optimizations.map((o) => o.title),
-          targetJob: targetJobOf(data),
-          suggestedJobs: a.suggestedJobs,
-        }
-      : targetJobOf(data)
-        ? { criteria: {}, improvements: [], optimizations: [], targetJob: targetJobOf(data), suggestedJobs: [] }
-        : null,
-  };
+  return buildCoachContext(data, scoring, detail);
 }
 
 /**
@@ -875,7 +809,7 @@ export async function refineBuilderCvAction(
   if (!gate.ok) return gate;
   const turns = coachTurns(history);
 
-  let context;
+  let context: BuiltCoachContext;
   let reply;
   try {
     context = { ...(await coachContext(current, shown.applicationId)), skipped: skippedPoints(skipped) };
@@ -886,114 +820,49 @@ export async function refineBuilderCvAction(
   if (!reply) return { ok: false, error: "Le coach n'a pas pu répondre. Reformule ton message." };
 
   const limitReached = isLimitReached(gate.chat);
-
-  // Modification vérifiée par le code ; textes refusés (ou contenu invalide) : un nouvel essai,
-  // invisible pour le candidat (sauf si les adaptations du mois sont épuisées).
-  let answer = reply;
-  let proposal = reply.update ? buildProposal(current, reply.update) : null;
-  // Proposition telle que construite : null alors que le coach a bien proposé quelque chose = « ne change rien ».
-  let built = proposal;
-  // Le mode est celui de la première réponse : le nouvel essai ne peut pas en changer pour passer
-  // la vérification. Nombres autorisés en mode demande : ceux du CV et des messages du candidat.
-  const mode = reply.mode;
-  const check = { mode, candidateMessages: [request, ...turns.filter((t) => t.role === "user").map((t) => t.content)] };
-  let problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
-  const firstProblems = problems;
-  const firstRefused = problems.length;
-  let retried = false;
-  if (reply.raw && !limitReached && (reply.invalid || problems.length)) {
-    const rate = await checkAiRateLimit();
-    const second = rate.ok
-      ? await coachBuilderCv(context, turns, request, {
-          previous: reply.raw,
-          problems: problems.map(({ text, problems }) => ({ text, problems })),
-          mode,
-        }).catch((error) => {
-          claudeErrorMessage(error, "cv-builder coach : nouvel essai"); // journalisation
-          return null;
-        })
-      : null;
-    if (second) {
-      retried = true;
-      answer = second;
-      proposal = second.update ? buildProposal(current, second.update) : null;
-      built = proposal;
-      problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
-    }
-  }
-  // Textes encore refusés : retirés, jamais écrits dans le CV.
-  if (proposal && problems.length) proposal = withoutProblems(proposal, problems);
-  // Modification appliquée directement, changement par changement (un passage introuvable est ignoré).
-  let updated = current;
-  let applied = 0;
-  let stale = 0;
-  for (const change of proposal?.changes ?? []) {
-    const next = applyCoachChange(updated, change);
-    if (next) {
-      updated = next;
-      applied++;
-    } else {
-      stale++;
-      console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
-    }
-  }
-  const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints])];
-  // Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées.
-  const reorganized = applied > 0 && isReorganization(current, updated);
+  // Vérification, second essai (contrôle de débit compris), application et texte : coach-turn.ts.
+  const turn = await runCoachTurn({
+    current,
+    context,
+    turns,
+    request,
+    reply,
+    limitReached,
+    retry: async (retry) => {
+      const rate = await checkAiRateLimit();
+      return rate.ok
+        ? await coachBuilderCv(context, turns, request, retry).catch((error) => {
+            claudeErrorMessage(error, "cv-builder coach : nouvel essai"); // journalisation
+            return null;
+          })
+        : null;
+    },
+  });
 
   // Adaptations du mois épuisées : pas de modification, le coach continue avec sa question.
   // L'appel compte comme un échange (cvb_coach).
-  if (reply.raw && limitReached && !reorganized) {
+  if (turn.kind === "quotaBlocked") {
     await recordAiUsage("cvb_coach");
     return {
       ok: true,
-      reply: quotaBlockedText({ mode, section: reply.raw.section, message: reply.message }),
+      reply: turn.text,
       html: null,
       usage: gate.chat,
       limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
-      skippedPoints: reply.skippedPoints,
+      skippedPoints: turn.skippedPoints,
     };
   }
 
-  console.warn(
-    `[cv-builder coach] réponse : mode=${mode}, section=${reply.raw?.section ?? "aucune"}, changements appliqués=${applied}, ` +
-      `textes refusés=${firstRefused} (après le second essai : ${problems.length}), second essai=${retried ? "oui" : "non"}, ` +
-      `passages introuvables=${stale}, contenu invalide=${reply.invalid ? "oui" : "non"}, réorganisation=${reorganized ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
-  );
-
-  // Texte affiché, décidé par le code : cause exacte d'un échec, clôture au seuil « prêt à postuler ».
-  const scored =
-    applied > 0 ? { before: scoreCv(current, context.scoring).score, after: scoreCv(updated, context.scoring) } : null;
-  const offerKeywords = context.offerKeywords ?? [];
-  const present = scored && offerKeywords.length ? new Set(matchKeywords(cvDataToText(updated), offerKeywords, context.scoring.sector)) : null;
-  const text = coachReplyText({
-    mode,
-    section: reply.raw?.section ?? null,
-    applied,
-    stale,
-    invalid: answer.invalid,
-    firstInvalid: reply.invalid,
-    noChange: Boolean(answer.update) && !built,
-    problems,
-    firstProblems,
-    message: answer.message,
-    changeSummary: answer.changeSummary,
-    scoreBefore: scored?.before ?? 0,
-    scoreAfter: scored?.after.score ?? null,
-    corrections: scored?.after.corrections.map((c) => c.message) ?? [],
-    offerKeywords: present ? offerKeywords.filter((k) => !present.has(k)) : [],
-  });
-
-  if (applied) {
-    await recordAiUsage(reorganized ? "cvb_coach" : "cvb_chat");
+  if (turn.applied) {
+    await recordAiUsage(turn.reorganized ? "cvb_coach" : "cvb_chat");
     return {
       ok: true,
-      reply: shown.notice ? `${shown.notice} ${text}` : text,
-      html: JSON.stringify(chatContent(updated)),
-      usage: reorganized ? gate.chat : { used: gate.chat.used + 1, limit: gate.chat.limit },
-      skippedPoints: skippedNow,
+      reply: shown.notice ? `${shown.notice} ${turn.text}` : turn.text,
+      html: JSON.stringify(chatContent(turn.updated)),
+      usage: turn.reorganized ? gate.chat : { used: gate.chat.used + 1, limit: gate.chat.limit },
+      skippedPoints: turn.skippedPoints,
     };
   }
   await recordAiUsage("cvb_coach");
-  return { ok: true, reply: text, html: null, usage: gate.chat, skippedPoints: skippedNow };
+  return { ok: true, reply: turn.text, html: null, usage: gate.chat, skippedPoints: turn.skippedPoints };
 }

@@ -151,9 +151,15 @@ test("cohérence : une seule fonction de secteur, et toutes les voies passent pa
   const latest = store.slice(store.indexOf("export async function getLatestBuilderCv"), store.indexOf("export async function getBuilderCv("));
   assert.match(latest, /\.select\("[^"]*\bapplication_id\b[^"]*"\)/, "getLatestBuilderCv lit application_id");
   // Le coach ne redétecte plus le secteur : il prend celui du score.
+  // (appels du coach dans coach-llm.ts ; secteur et mots-clés du marché pris dans le contexte du score par coach-context.ts)
   const claude = source("lib/claude.ts");
   assert.doesNotMatch(claude, /detectSector\(/);
-  assert.match(claude, /async function coachSectorContext\(\{ sector \}: CoachContext\)/);
+  const coachLlm = source("lib/coach-llm.ts");
+  assert.doesNotMatch(coachLlm, /detectSector\(/);
+  assert.match(coachLlm, /function coachSectorContext\(\{ sector, marketKeywords \}: CoachContext\)/);
+  const coachCtx = source("lib/coach-context.ts");
+  assert.match(coachCtx, /sector: scoring\.sector,/);
+  assert.match(coachCtx, /marketKeywords: scoring\.marketKeywords,/);
   // Le navigateur recalcule le score avec le contexte du serveur (page puis scoringContextAction, lien relu en base).
   const actions = source("app/actions/cv-builder.ts");
   assert.match(actions, /const stored = await getBuilderCv\(id\);\s+if \(!stored\) return null;\s+return loadBuilderCvScoring\(data, stored\.applicationId\);/);
