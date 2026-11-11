@@ -262,3 +262,31 @@ test("arrêt conditionnel : réponse sur le score, aucune nouvelle question à c
   assert.ok(!text.includes("?"), text);
   assert.ok(text.endsWith("Tu peux t'arrêter là, ou me dire si tu veux continuer."), text);
 });
+
+// --- 3. Questions directes « c'est prêt ? » ---
+
+test("question « prêt ? » : formulations réelles du run (L15, O03, L06, L14) et anglais, sans faux positif", () => {
+  for (const message of [
+    "Est-ce que ton CV est maintenant prêt pour un poste de commercial terrain ?",
+    "Est-ce que ça suffit pour finaliser le CV ?",
+    "Est-ce que ton CV est maintenant prêt, ou il reste des points à corriger ?",
+    "Merci, tu peux me dire si mon CV est prêt pour une candidature commerciale.",
+    "Super, tu peux me dire si le CV est prêt ?",
+    "Ok, dis-moi si le CV est prêt.",
+    "Mon CV est-il prêt ?",
+    "Is my CV ready now?",
+    "Is that enough to apply?",
+    "Can you tell me if my CV is ready?",
+  ]) {
+    assert.equal(intent.isReadinessQuestion(message), true, message);
+  }
+  for (const message of [
+    "Est-ce que le résumé est assez court ?",
+    "non pas LinkedIn",
+    "Je suis prêt à te donner mes chiffres.",
+    "Mon CV est en français.",
+    "Is the summary in English?",
+  ]) {
+    assert.equal(intent.isReadinessQuestion(message), false, message);
+  }
+});
