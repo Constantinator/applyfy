@@ -212,7 +212,8 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         coach: null,
       };
       const turns = history.slice(-HISTORY_MAX).map(({ role, content }) => ({ role, content: content.slice(0, 2000) }));
-      const context = { ...contextFor(current, request), listening: listeningState(turns, request) };
+      const built = contextFor(current, request);
+      const context = { ...built, listening: listeningState(turns, request, built.offerSteps ? { keywords: built.offerKeywords ?? [] } : undefined) };
       const scoreBefore = context.score.value;
 
       const turn: TurnRecord = {

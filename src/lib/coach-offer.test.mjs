@@ -334,3 +334,42 @@ test("prompt : règle du niveau de responsabilité pour un CV lié seulement", (
   assert.ok(linked.includes("Niveau de responsabilité : garde celui du CV."));
   assert.ok(!coachSystem(contextFor(financeCv, null, { history: opening, request: "oui" }), "").includes("Niveau de responsabilité"));
 });
+
+// --- Mots-clés de l'offre ---
+
+test("mots-clés : arrêt après deux « non » de suite à des questions de mots-clés, jamais en mode libre", () => {
+  const keywords = ["Node.js", "PostgreSQL", "Docker"];
+  const history = [
+    { role: "assistant", content: "As-tu une expérience réelle de Node.js, en projet ou en stage ?" },
+    { role: "user", content: "Non, je n'ai pas fait de Node.js." },
+    { role: "assistant", content: "As-tu déjà utilisé PostgreSQL ?" },
+  ];
+  assert.equal(listeningState(history, "Non, jamais.", { keywords }).stopKeywords, true);
+  assert.equal(listeningState(history, "Oui, en cours.", { keywords }).stopKeywords, false);
+  // Deux refus, mais à des questions de chiffres : pas d'arrêt des mots-clés.
+  const figures = [
+    { role: "assistant", content: "Combien de dossiers par mois ?" },
+    { role: "user", content: "je sais pas" },
+    { role: "assistant", content: "Et combien de clients ?" },
+  ];
+  assert.equal(listeningState(figures, "non", { keywords }).stopKeywords, false);
+  assert.equal("stopKeywords" in listeningState(history, "Non, jamais."), false);
+});
+
+test("mots-clés : consigne d'arrêt et question retirée du texte affiché", async () => {
+  const history = [
+    { role: "assistant", content: "As-tu une expérience réelle de Node.js ?" },
+    { role: "user", content: "Non." },
+    { role: "assistant", content: "As-tu déjà utilisé PostgreSQL ?" },
+  ];
+  const request = "Non, jamais.";
+  const skipped = ["offre:titre", "offre:resume", "offre:ecart"];
+  const base = contextFor(financeCv, backend, { history, request, skipped });
+  const ctx = { ...base, listening: listeningState(history, request, { keywords: base.offerKeywords }) };
+  const system = coachSystem(ctx, "");
+  assert.ok(system.includes("n'en propose plus aucun dans cette session"));
+  assert.ok(system.includes("Ne propose un mot-clé que s'il se rattache à un fait réel du CV ou des messages du candidat"));
+  const reply = await coachBuilderCv(fakeClient(flat({ message: "Compris. As-tu une expérience de Docker ?" })), ctx, history, request);
+  const result = await quiet(() => runCoachTurn({ current: financeCv, context: ctx, turns: history, request, reply, limitReached: false, retry: async () => null }));
+  assert.ok(!result.text.includes("Docker"));
+});

@@ -69,7 +69,7 @@ export const isCvClosed = (score: number) => score >= READY_SCORE;
 
 /** Règles des mots-clés de l'offre : dans le bloc « mots_cles_offre », qui n'existe que pour un CV lié. */
 const OFFER_KEYWORD_RULES = [
-  "« Mots-clés de l'offre absents du CV » (si cette liste existe et que le CV n'est pas clos) : traite-en 4 au maximum sur toute la session, après les « Points à corriger ». Choisis toi-même les plus importants pour le poste visé, quel que soit leur ordre dans la liste : privilégie les compétences techniques ou métier spécifiques à l'offre et ignore les mots-clés génériques (soft skills comme « organisation » ou « travail en équipe »). S'il reste moins de 4 mots-clés spécifiques, traite seulement ceux-là. Pour chacun, demande si le candidat a une expérience réelle de ce mot-clé et laquelle. S'il confirme, intègre le mot-clé au CV (compétences, ou puce avec ses faits). Sinon, ajoute-le à « skipped_points » et passe au suivant. N'ajoute jamais un mot-clé que le candidat n'a pas confirmé.",
+  "« Mots-clés de l'offre absents du CV » (si cette liste existe et que le CV n'est pas clos) : traite-en 4 au maximum sur toute la session, après les « Points à corriger ». Ne propose un mot-clé que s'il se rattache à un fait réel du CV ou des messages du candidat (un outil, une tâche, un projet proche) : cite ce fait dans ta question. Un mot-clé sans lien avec le CV ni avec les messages relève de l'écart avec l'offre : n'en parle pas de ta propre initiative. Parmi ceux qui se rattachent à un fait, choisis les plus importants pour le poste, quel que soit leur ordre dans la liste, et ignore les mots-clés génériques (soft skills comme « organisation » ou « travail en équipe »). Un mot-clé que le candidat a déjà cité dans ses messages comme une expérience réelle, intègre-le au CV sans reposer la question. Pour les autres, demande si le candidat en a une expérience réelle et laquelle. S'il confirme, intègre le mot-clé au CV (compétences, ou puce avec ses faits). Sinon, ajoute-le à « skipped_points » et passe au suivant. N'ajoute jamais un mot-clé que le candidat n'a pas confirmé.",
   "La liste des mots-clés est recalculée à chaque échange : un mot-clé intégré au CV en disparaît et d'autres peuvent y apparaître. Relis la conversation et compte ceux que tu as déjà traités ou abandonnés. Une fois ta sélection terminée, n'en aborde aucun autre de ta propre initiative, même s'il en reste dans la liste. Un mot-clé que le candidat te demande lui-même d'ajouter ne compte pas dans ces 4.",
 ];
 
@@ -145,6 +145,10 @@ const SITUATION: [keyof Listening, string][] = [
   [
     "shorten",
     "Le candidat demande de raccourcir : le texte visé doit perdre au moins 20 % de ses mots, en gardant ses chiffres et ses faits. Si c'est impossible sans retirer une information, dis-le honnêtement et demande ce qu'il accepte d'enlever.",
+  ],
+  [
+    "stopKeywords",
+    "Le candidat a répondu non deux fois de suite à des questions sur des mots-clés de l'offre : n'en propose plus aucun dans cette session. Passe aux points qui restent, ou propose de conclure.",
   ],
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];

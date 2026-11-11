@@ -214,6 +214,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
         scoreBefore: before.score,
         corrections: final.corrections.map((c) => c.message),
         previousCoach: turns.filter((t) => t.role === "assistant").map((t) => t.content),
+        ...(context.offerSteps ? { offerKeywords: context.offerKeywords ?? [] } : {}),
       })
     : text;
 

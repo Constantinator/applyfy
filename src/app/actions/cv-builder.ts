@@ -817,10 +817,12 @@ export async function refineBuilderCvAction(
   let context: BuiltCoachContext;
   let reply;
   try {
+    const built = await coachContext(current, shown.applicationId, request);
     context = {
-      ...(await coachContext(current, shown.applicationId, request)),
+      ...built,
       skipped: skippedPoints(skipped),
-      listening: listeningState(turns, request),
+      // CV lié : mots-clés de l'offre encore absents (arrêt des questions après deux refus).
+      listening: listeningState(turns, request, built.offerSteps ? { keywords: built.offerKeywords ?? [] } : undefined),
     };
     reply = await coachBuilderCv(context, turns, request);
   } catch (error) {

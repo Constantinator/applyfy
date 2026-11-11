@@ -20,6 +20,28 @@ const STOP =
 /** Demande de raccourcir un texte. */
 const SHORTEN = /raccourci|plus court|moins long|r[ée]dui[st] (la longueur|mon|ma|mes|le|la|les)|condense|all[ée]ge|shorten|shorter|trim|cut down|make it short|more concise/i;
 
+/** Question sur une expérience d'un mot-clé (CV lié : ce que deux refus de suite arrêtent). */
+const KEYWORD_QUESTION =
+  /exp[ée]rience|as-tu (d[ée]j[àa] )?(utilis|travaill|pratiqu|fait|men[ée])|connais-tu|ma[îi]trises-tu|t'es-tu servi|have you (ever )?(used|worked|done)|experience (with|in)|familiar with|do you know/i;
+
+/** Mot-clé de l'offre cité dans un texte (mot entier, sans tenir compte de la casse). */
+function mentionsKeyword(text: string, keywords: string[]) {
+  const lower = text.toLowerCase();
+  return keywords.some((k) => {
+    const key = k.trim().toLowerCase();
+    if (!key) return false;
+    const at = lower.indexOf(key);
+    if (at < 0) return false;
+    const before = lower[at - 1] ?? " ";
+    const after = lower[at + key.length] ?? " ";
+    return !/[\p{L}\d]/u.test(before) && !/[\p{L}\d]/u.test(after);
+  });
+}
+
+/** Question du coach sur un mot-clé de l'offre. */
+export const isKeywordQuestion = (text: string, keywords: string[]) =>
+  /\?/.test(text) && KEYWORD_QUESTION.test(text) && mentionsKeyword(text, keywords);
+
 /** Question de chiffre (ce que deux refus de suite arrêtent). */
 const FIGURE_QUESTION = /combien|chiffre|nombre|ordre de grandeur|pourcentage|%|budget|how many|how much|number|figure|percentage|amount/i;
 /** Proposition de continuer une demande en plusieurs parties. */
@@ -45,13 +67,22 @@ export type Listening = {
   refusal: boolean;
   /** Le dernier message demande de raccourcir (au moins 20 % de mots en moins sur le texte visé). */
   shorten: boolean;
+  /** CV lié : deux refus de suite à des questions sur des mots-clés de l'offre (absent en mode libre). */
+  stopKeywords?: boolean;
 };
 
-/** État de la session tiré des messages du candidat (historique, puis dernier message). */
-export function listeningState(history: { role: "user" | "assistant"; content: string }[], request: string): Listening {
+/**
+ * État de la session tiré des messages du candidat (historique, puis dernier message). `offer` :
+ * CV lié, mots-clés de l'offre encore absents du CV (arrêt des questions sur les mots-clés).
+ */
+export function listeningState(
+  history: { role: "user" | "assistant"; content: string }[],
+  request: string,
+  offer?: { keywords: string[] },
+): Listening {
   const messages = [...history.filter((t) => t.role === "user").map((t) => t.content), request];
   const stopFigures = messages.some((m, i) => i > 0 && isNegative(m) && isNegative(messages[i - 1]));
-  return {
+  const listening: Listening = {
     stopAll: messages.some(asksToStop),
     stopFigures,
     readiness: isReadinessQuestion(request),
@@ -59,6 +90,19 @@ export function listeningState(history: { role: "user" | "assistant"; content: s
     refusal: isNegative(request),
     shorten: asksToShorten(request),
   };
+  if (!offer) return listening;
+  // Chaque message du candidat avec la question du coach qui le précède.
+  const answers: { question: string; answer: string }[] = [];
+  let question = "";
+  for (const turn of [...history, { role: "user" as const, content: request }]) {
+    if (turn.role === "assistant") question = turn.content;
+    else {
+      answers.push({ question, answer: turn.content });
+      question = "";
+    }
+  }
+  const refusedKeyword = (a: { question: string; answer: string }) => isNegative(a.answer) && isKeywordQuestion(a.question, offer.keywords);
+  return { ...listening, stopKeywords: answers.some((a, i) => i > 0 && refusedKeyword(a) && refusedKeyword(answers[i - 1])) };
 }
 
 /** Phrases d'un texte (une majuscule ou un guillemet ouvre la suivante). */
@@ -99,6 +143,8 @@ export type ListenInput = {
   corrections: string[];
   /** Messages du coach déjà affichés (historique). */
   previousCoach: string[];
+  /** CV lié : mots-clés de l'offre encore absents (questions retirées après deux refus). */
+  offerKeywords?: string[];
 };
 
 /**
@@ -120,7 +166,10 @@ export function listenText(i: ListenInput): string {
 
   // Arrêt des questions : toutes (parcours) après « plus de questions », celles de chiffre après deux refus.
   const dropQuestion = (s: string) =>
-    isQuestion(s) && ((i.listening.stopAll && i.mode === "parcours") || (i.listening.stopFigures && FIGURE_QUESTION.test(s)));
+    isQuestion(s) &&
+    ((i.listening.stopAll && i.mode === "parcours") ||
+      (i.listening.stopFigures && FIGURE_QUESTION.test(s)) ||
+      (i.listening.stopKeywords === true && isKeywordQuestion(s, i.offerKeywords ?? [])));
   const hadQuestion = sentences.some(dropQuestion);
   sentences = sentences.filter((s) => !dropQuestion(s));
 
