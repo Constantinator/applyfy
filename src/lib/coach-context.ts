@@ -1,5 +1,5 @@
 import { candidateLanguage, cvLanguage } from "./coach-language";
-import { offerGap, offerSteps } from "./coach-offer";
+import { offerGap, offerLanguage, offerSteps } from "./coach-offer";
 import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
 import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "./cv-score";
@@ -14,8 +14,10 @@ import { readCvSuggestions } from "./cv-types";
 /** Mots-clés de l'offre parmi lesquels le coach choisit les 4 qu'il traite (règle dans COACH_RULES). */
 const COACH_OFFER_KEYWORDS_MAX = 25;
 
-/** Candidature liée, réduite à ce que lit le coach : les mots-clés enregistrés de son offre. */
-export type CoachOfferDetail = { application: { cv_suggestions?: unknown } };
+/** Candidature liée, réduite à ce que lit le coach : les mots-clés enregistrés de son offre, et son texte (langue). */
+export type CoachOfferDetail = {
+  application: { cv_suggestions?: unknown; position?: string | null; offer_description?: string | null; offer_summary?: string | null };
+};
 
 /**
  * Mots-clés de l'offre encore absents du CV (recalculés à chaque échange), les plus importants
@@ -45,7 +47,11 @@ function missingKeywordRows(detail: CoachOfferDetail | null, data: CvData, secto
 /** CV lié : écart principal avec l'offre et étapes nécessaires (aucune une fois le CV clos). */
 function linkedSteps(data: CvData, sector: Sector, detail: CoachOfferDetail | null, closed: boolean) {
   const gap = offerGap(data, sector, missingKeywordRows(detail, data, sector).filter((r) => r.specific).length);
-  return { offerGap: gap, offerSteps: closed ? [] : offerSteps(data, sector, gap) };
+  return {
+    offerGap: gap,
+    offerSteps: closed ? [] : offerSteps(data, sector, gap),
+    offerLanguage: detail ? offerLanguage(detail.application) : null,
+  };
 }
 
 export type BuiltCoachContext = CoachContext & { contentKey: string; scoring: ScoringContext };

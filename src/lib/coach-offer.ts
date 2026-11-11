@@ -1,3 +1,5 @@
+import { detectLanguage } from "./coach-language";
+import type { CoachLang } from "./coach-outcome";
 import type { CvData } from "./cv-builder-types";
 import { cvTitleMismatch, detectOfferSector } from "./cv-sector-context";
 import type { Sector } from "./sectors";
@@ -80,6 +82,34 @@ export function offerStage(steps: OfferStep[], done: Set<OfferStep>, { opening, 
   if (opening) return { resolve: null, propose: first, sayGap: false };
   const next = remaining[1] ?? null;
   return { resolve: first, propose: next === "ecart" ? null : next, sayGap: next === "ecart" };
+}
+
+/** Langue de l'offre (intitulé et description) ; null si elle ne peut pas être décidée. */
+export function offerLanguage(application: { position?: string | null; offer_description?: string | null; offer_summary?: string | null }): CoachLang | null {
+  return detectLanguage([application.position ?? "", application.offer_description ?? application.offer_summary ?? ""].join(" "));
+}
+
+const LANGUAGE_NAMES: Record<CoachLang, Record<CoachLang, string>> = {
+  fr: { fr: "français", en: "anglais" },
+  en: { fr: "French", en: "English" },
+};
+
+/**
+ * Offre et CV dans deux langues différentes : une phrase fixe du serveur, dans la langue du
+ * candidat, qui propose la traduction sans la faire ; null sinon.
+ */
+export function offerLanguageNote(offer: CoachLang | null | undefined, cv: CoachLang | undefined, lang: CoachLang = "fr"): string | null {
+  if (!offer || !cv || offer === cv) return null;
+  const name = LANGUAGE_NAMES[lang];
+  return lang === "en"
+    ? `The job offer is in ${name[offer]} while your CV is in ${name[cv]}: if you like, I can translate your CV, just ask.`
+    : `L'offre est en ${name[offer]} alors que ton CV est en ${name[cv]} : si tu veux, je peux traduire ton CV, il suffit de me le demander.`;
+}
+
+/** Premier message du coach précédé, s'il y a lieu, de la phrase sur la langue de l'offre (dite une seule fois). */
+export function withOfferLanguageNote(message: string, context: { offerLanguage?: CoachLang | null; cvLanguage?: CoachLang; language?: CoachLang }): string {
+  const note = offerLanguageNote(context.offerLanguage, context.cvLanguage, context.language);
+  return note ? `${note} ${message}` : message;
 }
 
 /** Contexte du coach réduit à ce qui décide l'étape (coach-prompt.ts, coach-turn.ts). */

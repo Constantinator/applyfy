@@ -373,3 +373,24 @@ test("mots-clés : consigne d'arrêt et question retirée du texte affiché", as
   const result = await quiet(() => runCoachTurn({ current: financeCv, context: ctx, turns: history, request, reply, limitReached: false, retry: async () => null }));
   assert.ok(!result.text.includes("Docker"));
 });
+
+// --- Langue de l'offre ---
+
+test("langue : offre et CV dans deux langues, signalé une fois par le serveur, sans traduire", async () => {
+  const english = detailOf("o-tech-en");
+  const ctx = contextFor(financeCv, english);
+  assert.equal(ctx.offerLanguage, "en");
+  assert.equal(ctx.cvLanguage, "fr");
+  const note = "L'offre est en anglais alors que ton CV est en français : si tu veux, je peux traduire ton CV, il suffit de me le demander.";
+  assert.equal(offer.withOfferLanguageNote("Je te propose un titre ?", ctx), `${note} Je te propose un titre ?`);
+  assert.equal(offer.offerLanguageNote("fr", "en", "en"), "The job offer is in French while your CV is in English: if you like, I can translate your CV, just ask.");
+  // Même langue, langue inconnue ou CV libre : rien.
+  assert.equal(offer.withOfferLanguageNote("Bonjour.", contextFor(financeCv, backend)), "Bonjour.");
+  assert.equal(offer.offerLanguageNote(null, "fr"), null);
+  assert.equal(offer.withOfferLanguageNote("Bonjour.", contextFor(financeCv, null)), "Bonjour.");
+
+  const system = coachSystem(ctx, "");
+  assert.ok(system.includes("Langue de l'offre : anglais. L'application a déjà signalé"));
+  assert.ok(!coachSystem(contextFor(financeCv, backend), "").includes("Langue de l'offre"));
+  assert.equal(offer.offerLanguage({ position: "Analyste", offer_description: null }), null);
+});

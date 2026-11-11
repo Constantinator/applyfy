@@ -46,6 +46,8 @@ export type CoachContext = {
   titleMismatch?: boolean;
   /** CV lié : étapes d'adaptation à l'offre nécessaires, dans l'ordre (coach-offer.ts) ; absent en mode libre. */
   offerSteps?: OfferStep[];
+  /** CV lié : langue de l'offre (null si elle ne peut pas être décidée). */
+  offerLanguage?: CoachLang | null;
   /** CV lié : écart principal avec l'offre, décidé par le serveur (null : écart faible). */
   offerGap?: OfferGap | null;
   /** Premier message du coach (rien n'a encore été proposé au candidat). */
@@ -263,8 +265,13 @@ export function coachSystem(
         "<langue>",
         `Langue du candidat : ${name(language)}. Écris « message » et « change_summary » en ${name(language)}.`,
         `Langue du CV : ${name(cvLanguage)}. Le contenu du CV reste en ${name(cvLanguage)}, sauf traduction demandée explicitement par le candidat.`,
+        context.offerLanguage && context.offerLanguage !== cvLanguage
+          ? `Langue de l'offre : ${name(context.offerLanguage)}. L'application a déjà signalé au candidat que l'offre et le CV sont dans deux langues différentes et proposé la traduction : n'en reparle pas, et ne traduis rien sans demande explicite.`
+          : null,
         "</langue>",
-      ].join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
     );
   }
   // Consignes du serveur selon les messages du candidat : phrases fixes, aucune donnée du candidat.

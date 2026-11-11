@@ -8,7 +8,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { ClaudeRefusalError } from "../../src/lib/claude-structured.ts";
 import { buildCoachContext } from "../../src/lib/coach-context.ts";
 import { listeningState } from "../../src/lib/coach-intent.ts";
-import { boundSkipped } from "../../src/lib/coach-offer.ts";
+import { boundSkipped, withOfferLanguageNote } from "../../src/lib/coach-offer.ts";
 import { coachBuilderCv, coachOpening, type CoachReply } from "../../src/lib/coach-llm.ts";
 import { closedOpening } from "../../src/lib/coach-outcome.ts";
 import { isCvClosed, type CoachTurn } from "../../src/lib/coach-prompt.ts";
@@ -166,6 +166,8 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
   try {
     // Premier message (coachOpeningAction) : texte fixe si le CV est déjà clos.
     record.opening = isCvClosed(start.score.value) ? closedOpening(start.score.value, start.language) : ((await coachOpening(coach, start))?.slice(0, 2000) ?? null);
+    // CV lié : phrase du serveur sur la langue de l'offre, comme coachOpeningAction.
+    if (record.opening) record.opening = withOfferLanguageNote(record.opening, start);
     if (record.opening) {
       history.push({ role: "assistant", content: record.opening });
       transcript.push({ role: "coach", text: record.opening });
