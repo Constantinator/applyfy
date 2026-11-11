@@ -143,3 +143,122 @@ test("écart « métier » : consigne fixe, titre de l'offre refusé, titre de r
   const notAsked = await run("oui", title("parcours", "Commercial terrain, en reconversion vers le développement Java"));
   assert.equal(notAsked.updated.personal.jobTitle, cv.personal.jobTitle);
 });
+
+// --- 4. Refus : comptés même avec un autre fait chiffré ; arrêt par type de question ---
+
+test("refus : réponse « je ne sais pas » suivie d'un autre fait chiffré (L15, O02, O03)", () => {
+  for (const message of [
+    "Je ne connais pas le montant moyen ou total de mes contrats en euros, donc je ne peux pas te donner ce chiffre. Par contre, je peux te dire que je gère un portefeuille de 80 clients actifs.",
+    "Je ne sais pas exactement combien de clients j'accueillais par jour ou par semaine à la boutique, donc je préfère ne pas inventer de chiffre. Par contre, j'y ai travaillé pendant 1 an, de 2022 à 2023.",
+    "Je ne sais pas exactement le mois de début, je dirais que j'ai commencé en 2023, mais je n'ai pas la date précise en tête.",
+    "Non, je n'ai pas de résultat chiffré précis pour l'analyse des dossiers, donc je préfère ne rien inventer. En revanche, tu peux citer le modèle Excel qui a réduit la clôture de 2 jours.",
+    "Je ne sais pas combien de prospects je contacte exactement par mois, mais je signe en moyenne 12 nouveaux contrats par mois.",
+    "Je ne me souviens plus des mois exacts, je sais seulement que j'ai été vendeur en boutique pendant 1 an, entre 2022 et 2023.",
+    "I don't know the exact number, but I lead 4 engineers.",
+  ]) {
+    assert.equal(intent.isNegative(message), true, message);
+  }
+  for (const message of ["Non, environ 40 par mois.", "Ah si : 12 clients", "Je ne sais pas exactement, environ 40 par mois.", "Oui, 6 missions."]) {
+    assert.equal(intent.isNegative(message), false, message);
+  }
+});
+
+test("type de question : mois, outil, chiffre, détail (questions réelles du run)", () => {
+  assert.equal(intent.questionType("Pas de souci. Pour ton poste chez Société Fictive, à quel mois as-tu commencé ce poste ?"), "mois");
+  assert.equal(intent.questionType("Pour ton poste de Vendeur, quels sont les mois de début et de fin ?"), "mois");
+  assert.equal(intent.questionType("Utilises-tu un outil CRM (Salesforce, HubSpot, Pipedrive…) pour suivre tes clients ?"), "outil");
+  assert.equal(intent.questionType("Combien de clients accueillais-tu par jour ?"), "chiffre");
+  assert.equal(intent.questionType("Combien de dossiers traites-tu par mois ?"), "chiffre");
+  assert.equal(intent.questionType("Quels types de produits conseillais-tu en boutique ?"), "detail");
+  assert.equal(intent.questionType("C'est fait."), null);
+});
+
+/** Historique L15 réel, réduit aux questions du coach et aux refus. */
+const L15 = [
+  ["Pour la puce « Négociation des contrats », quel est le montant moyen des contrats que tu négocies ?", "Je ne connais pas le montant moyen ou total de mes contrats en euros. Par contre, je gère 80 clients actifs."],
+  ["Combien de clients accueillais-tu en moyenne par jour ?", "Je ne sais pas exactement combien de clients j'accueillais par jour. Par contre, j'y ai travaillé pendant 1 an, de 2022 à 2023."],
+  ["Quels types de produits conseillais-tu ?", "Je ne sais pas précisément quels produits je conseillais ni la gamme de prix."],
+];
+const history = (pairs) => pairs.flatMap(([q, a]) => [{ role: "assistant", content: q }, { role: "user", content: a }]);
+
+test("arrêt : deux refus de suite, quel que soit le type ; mois arrêtés après un seul refus", () => {
+  const h = history(L15.slice(0, 2));
+  const state = intent.listeningState(h.slice(0, -1), h.at(-1).content);
+  assert.deepEqual(state.stopTypes, ["chiffre"]);
+  const all = history(L15);
+  const later = intent.listeningState(all.slice(0, -1), all.at(-1).content);
+  assert.deepEqual(later.stopTypes, ["chiffre", "detail"]);
+  // Mois : un seul refus suffit.
+  const months = [{ role: "assistant", content: "À quel mois as-tu commencé ce poste ?" }];
+  const once = intent.listeningState(months, "Je ne sais pas exactement le mois de début, j'ai commencé en 2023.");
+  assert.equal(once.stopMonths, true);
+  assert.equal(once.stopTypes, undefined);
+  // Pas de refus : aucune de ces clés.
+  const none = intent.listeningState([{ role: "assistant", content: "Combien ?" }], "40 par mois.");
+  assert.ok(!("stopTypes" in none) && !("stopMonths" in none) && !("stopIfReady" in none));
+});
+
+test("arrêt : questions des types refusés retirées du texte affiché, sinon on n'insiste pas", () => {
+  const base = { mode: "parcours", lang: "fr", score: 62, scoreBefore: 62, corrections: [], previousCoach: [] };
+  const listening = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: true, shorten: false };
+  const months = intent.listenText({ ...base, listening: { ...listening, stopMonths: true }, text: "Pas de souci. Pour ton poste de Vendeur, à quels mois as-tu commencé et terminé ?" });
+  assert.ok(!months.includes("mois"), months);
+  const crm = intent.listenText({
+    ...base,
+    listening: { ...listening, stopTypes: ["chiffre", "detail"] },
+    text: "Pas de souci, je laisse ce point de côté. Utilises-tu un outil CRM pour suivre tes clients ?",
+  });
+  assert.ok(crm.includes("CRM"), "un outil n'a pas encore été refusé");
+  const detail = intent.listenText({
+    ...base,
+    listening: { ...listening, stopTypes: ["chiffre", "detail"] },
+    text: "As-tu déjà reçu un retour de clients ou de ton responsable pendant cette année ?",
+  });
+  assert.equal(detail, "Pas de souci, je n'insiste pas. Ton CV est à 62/100 : tu peux t'arrêter là, ou me demander une modification précise.");
+});
+
+// --- 7. Demandes d'arrêt indirectes ---
+
+test("arrêt : demandes réelles d'O03 et O02, sans faux positif", () => {
+  assert.equal(intent.asksToStop("Si on peut finir là-dessus, je te remercie."), true);
+  assert.equal(intent.asksToStop("Je m'arrête là, merci pour ton aide."), true);
+  assert.equal(intent.asksToStop("Merci pour le travail sur le résumé : de mon côté, le CV me convient, tu peux le finaliser."), true);
+  assert.equal(intent.asksToStop("Thanks, I'm done."), true);
+  for (const conditional of ["Tu peux l'indiquer dans la puce, et on pourra s'arrêter là si ton CV est prêt.", "Est-ce que ton CV est prêt pour une candidature commerciale ? Si oui, on peut s'arrêter là.", "If it's ready, we can stop there."]) {
+    assert.equal(intent.asksToStop(conditional), false, conditional);
+    assert.equal(intent.asksToStopIfReady(conditional), true, conditional);
+    assert.equal(intent.listeningState([], conditional).readiness, true, conditional);
+  }
+  for (const message of [
+    "non pas LinkedIn",
+    "je me suis arrêté en 2022",
+    "arrête de mettre des émojis",
+    "ne t'arrête pas, continue",
+    "on peut s'arrêter sur ce point ?",
+    "le stage s'est fini là-bas en 2023",
+    "just do both now in french. then im done",
+    "ok so languages still left?? just do it now. then im done. too slow",
+  ]) {
+    assert.equal(intent.asksToStop(message), false, message);
+    assert.equal(intent.asksToStopIfReady(message), false, message);
+  }
+});
+
+
+test("arrêt conditionnel : réponse sur le score, aucune nouvelle question à ce message", () => {
+  const listening = { stopAll: false, stopFigures: false, readiness: true, confirmation: false, refusal: false, shorten: false, stopIfReady: true };
+  const text = intent.listenText({
+    mode: "parcours",
+    lang: "fr",
+    score: 54,
+    scoreBefore: 54,
+    corrections: ["2 puces sans chiffre — Vendeur chez Boutique Exemple (+6 pts)"],
+    previousCoach: [],
+    listening,
+    text: "C'est fait : j'ai ajouté tes 80 clients actifs. Passons à ton poste de Vendeur : combien de clients accueillais-tu par jour ?",
+  });
+  assert.ok(text.startsWith("Pas encore : ton CV est à 54/100"), text);
+  assert.ok(text.includes("C'est fait : j'ai ajouté tes 80 clients actifs."));
+  assert.ok(!text.includes("?"), text);
+  assert.ok(text.endsWith("Tu peux t'arrêter là, ou me dire si tu veux continuer."), text);
+});

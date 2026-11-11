@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { Listening } from "./coach-intent";
+import type { Listening, QuestionType } from "./coach-intent";
 import { offerStageOf, withoutOfferMarkers, type OfferGap, type OfferStage, type OfferStep, type ProposedStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import type { CoachMode, CoachSection } from "./coach-proposals";
@@ -160,8 +160,21 @@ const SITUATION: [keyof Listening, string][] = [
     "stopKeywords",
     "Le candidat a répondu non deux fois de suite à des questions sur des mots-clés de l'offre : n'en propose plus aucun dans cette session. Passe aux points qui restent, ou propose de conclure.",
   ],
+  [
+    "stopMonths",
+    "Le candidat ne connaît pas les mois de ses dates : ne pose plus aucune question sur les mois ou les dates exactes, pour aucun poste.",
+  ],
+  [
+    "stopIfReady",
+    "Le candidat veut s'arrêter si le CV est prêt : le serveur lui répond avec le score. Ne pose aucune question dans « message » ; dis en une phrase ce qui reste de plus important, s'il reste quelque chose.",
+  ],
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];
+
+/** Étiquettes des types de questions (coach-intent.ts). */
+const QUESTION_TYPE_LABELS: Record<QuestionType, string> = { mois: "dates et mois", outil: "outils", chiffre: "chiffres", detail: "détails" };
+const stopTypesSentence = (types: QuestionType[]) =>
+  `Le candidat a répondu deux fois de suite qu'il n'avait pas l'information demandée : propose de conclure (résume en une phrase ce qui reste), ou passe à un autre élément du CV sans reposer de question sur : ${types.map((t) => QUESTION_TYPE_LABELS[t]).join(", ")}.`;
 
 export const COACH_RULES = `Tu es un coach CV expert. C'est toi qui mènes : tu traites un par un les points à corriger du CV, tu poses tes questions, puis tu modifies directement le CV dès que tu as les informations nécessaires. Le candidat ne valide rien : ce que tu écris va directement dans son CV. Mais une demande explicite du candidat passe toujours avant ton parcours.
 
@@ -286,6 +299,8 @@ export function coachSystem(
   }
   // Consignes du serveur selon les messages du candidat : phrases fixes, aucune donnée du candidat.
   const situation = listening ? SITUATION.filter(([key]) => listening[key]).map(([, sentence]) => sentence) : [];
+  // Deux refus de suite : types de questions refusés, étiquettes fixes du serveur.
+  if (listening?.stopTypes?.length) situation.push(stopTypesSentence(listening.stopTypes));
   if (situation.length) parts.push(["<situation>", ...situation, "</situation>"].join("\n"));
   if (analysis) {
     const criteria = Object.entries(analysis.criteria)
