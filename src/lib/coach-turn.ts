@@ -4,7 +4,7 @@ import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
-import { detectLanguage } from "./coach-language";
+import { announcementLanguage } from "./coach-language";
 import { plainCoachText } from "./coach-plain";
 import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
@@ -80,6 +80,12 @@ export function withoutTitle(reply: CoachReply): CoachReply {
   return Object.keys(rest).length
     ? { ...reply, update: { section: "personal", data: rest } }
     : { ...reply, update: null, raw: null, invalid: false, changeSummary: "" };
+}
+
+/** Le résumé du modèle est-il dans la langue retenue ? null si sa langue ne peut pas être décidée. */
+function sameLanguage(summary: string, lang: "fr" | "en"): boolean | null {
+  const detected = announcementLanguage(summary);
+  return detected === null ? null : detected === lang;
 }
 
 /** Nombre de mots annoncé (« de 12 à 9 mots », « 30 words ») : jamais repris du modèle. */
@@ -216,8 +222,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     summaryFaithful:
       !quotesUnchangedBullet(answer.changeSummary, current, updated) &&
       !WORD_COUNT.test(answer.changeSummary) &&
-      // Résumé du modèle dans une autre langue que celle du candidat (L17) : annonce du serveur.
-      !(context.language && detectLanguage(answer.changeSummary) !== null && detectLanguage(answer.changeSummary) !== context.language),
+      // Résumé du modèle dans une autre langue que celle retenue pour le candidat (L17, ou langue
+      // tirée du seul CV) : annonce du serveur, dans cette langue, seule.
+      !(context.language && sameLanguage(answer.changeSummary, context.language) === false),
     wordCounts: check.shorten && applied > 0 ? wordCounts(appliedTexts) : undefined,
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,

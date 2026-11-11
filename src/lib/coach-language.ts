@@ -30,6 +30,18 @@ export function detectLanguage(text: string): CoachLang | null {
   return fr > en ? "fr" : "en";
 }
 
+/** Début d'une annonce de modification (« C'est fait », « Done ») : sa langue, même pour une phrase courte. */
+const ANNOUNCE_FR = /^\s*(c['’]est fait|j['’]ai (ajouté|modifié|réécrit|raccourci|traduit|supprimé|reformulé|regroupé|déplacé|mis)|voilà)\b/i;
+const ANNOUNCE_EN = /^\s*(done\b|i['’]ve\b|i have (added|updated|rewritten|shortened|translated|removed|rephrased|grouped|moved)\b|here you go\b)/i;
+
+/**
+ * Langue d'une annonce de modification écrite par le modèle : mots outils, sinon son début
+ * (« C'est fait : accroche raccourcie. » n'a qu'un mot outil) ; null si rien ne permet de décider.
+ */
+export function announcementLanguage(text: string): CoachLang | null {
+  return detectLanguage(text) ?? (ANNOUNCE_FR.test(text) ? "fr" : ANNOUNCE_EN.test(text) ? "en" : null);
+}
+
 /** Langue du contenu du CV (accroche, puces, intitulés) ; français par défaut. */
 export function cvLanguage(data: Pick<CvData, "summary" | "experiences" | "personal">): CoachLang {
   const text = [data.personal.jobTitle, data.summary, ...data.experiences.flatMap((e) => [e.position, ...e.bullets])].join(" ");

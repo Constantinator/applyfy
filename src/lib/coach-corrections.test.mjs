@@ -409,3 +409,77 @@ test("jargon : jamais appliqué au contenu du CV ni au texte proposé", async ()
   assert.ok(result.text.includes(`« ${bullet} »`), result.text);
   assert.ok(result.text.includes("Ta puce suivante ne dit pas ce que tu as fait concrètement"), result.text);
 });
+
+// --- Langue tirée du seul CV : l'annonce du modèle dans l'autre langue n'est jamais affichée ---
+
+test("langue tirée du CV : annonce du serveur seule, dans cette langue (anglais et français)", async () => {
+  const history = [{ role: "assistant", content: "Hello." }];
+  // CV anglais, message indécidable (« Raccourcis mon accroche. ») : langue anglaise, tirée du CV.
+  const en = profile("tech-confirme-en");
+  const enRequest = "Raccourcis mon accroche.";
+  const enContext = contextFor(en, null, { history: [], request: enRequest });
+  assert.equal(enContext.language, "en");
+  const enResult = await turn(
+    en,
+    enContext,
+    history,
+    enRequest,
+    flat({ mode: "demande", section: "summary", data: "Backend engineer, payments", change_summary: "C'est fait : accroche raccourcie." }),
+  );
+  assert.ok(!enResult.text.includes("C'est fait"), enResult.text);
+  assert.match(enResult.text, /^Done, I've updated: [^.]+\. The text goes from \d+ to 3 words\.$/);
+
+  // CV français, message indécidable (« Shorten it. ») : langue française, tirée du CV.
+  const fr = profile("rh-stage-fr");
+  const frRequest = "Shorten it.";
+  const frContext = contextFor(fr, null, { history: [], request: frRequest });
+  assert.equal(frContext.language, "fr");
+  const frResult = await turn(
+    fr,
+    frContext,
+    history,
+    frRequest,
+    flat({ mode: "demande", section: "summary", data: "Diplômée RH, premier poste en recrutement.", change_summary: "Done: summary shortened." }),
+  );
+  assert.ok(!frResult.text.includes("Done"), frResult.text);
+  assert.equal(frResult.text, "C'est fait, j'ai modifié : Accroche. Le texte passe de 12 à 6 mots.");
+
+  // Annonce dans la bonne langue : gardée.
+  const kept = await turn(
+    fr,
+    frContext,
+    history,
+    frRequest,
+    flat({ mode: "demande", section: "summary", data: "Diplômée RH, premier poste en recrutement.", change_summary: "C'est fait : accroche raccourcie." }),
+  );
+  assert.equal(kept.text, "C'est fait : accroche raccourcie. Le texte passe de 12 à 6 mots.");
+});
+
+// --- Nombre de mots : calculé sur les textes avant et après ---
+
+const { wordCounts } = await import("./coach-turn.ts");
+
+test("nombre de mots : 40 mots devenant 28, les deux nombres viennent des textes", async () => {
+  const words = Array.from({ length: 40 }, (_, i) => `mot${String.fromCharCode(97 + (i % 26))}`);
+  const before = words.join(" ");
+  const after = words.slice(0, 28).join(" ");
+  assert.deepEqual(wordCounts([{ before, after }]), { before: 40, after: 28 });
+  // Ponctuation et tirets isolés ne comptent pas comme des mots ; un ajout (avant null) n'entre pas dans le calcul.
+  assert.deepEqual(wordCounts([{ before: "Un — deux, trois !", after: "Un : deux" }, { before: null, after: "nouvelle puce de cinq mots" }]), { before: 3, after: 2 });
+  assert.equal(wordCounts([{ before: null, after: "ajout seul" }]), undefined);
+
+  // Échange complet : accroche de 40 mots raccourcie à 28 mots.
+  const summary40 =
+    "Analyste crédit junior chez Banque Fictive depuis deux ans, je prépare chaque mois les dossiers de crédit des PME, je suis le portefeuille clients et je prépare les comités de crédit avec les équipes commerciales et risques de l'agence régionale.";
+  const summary28 =
+    "Analyste crédit junior chez Banque Fictive depuis deux ans : préparation mensuelle des dossiers de crédit des PME, suivi du portefeuille clients et préparation des comités de crédit mensuels.";
+  const count = (text) => text.split(/\s+/).filter((w) => /[\p{L}\d]/u.test(w)).length;
+  assert.equal(count(summary40), 40);
+  assert.equal(count(summary28), 28);
+  const cv = { ...profile("finance-junior-fr"), summary: summary40 };
+  const history = [{ role: "assistant", content: "Bonjour." }];
+  const request = "Raccourcis mon accroche.";
+  const result = await turn(cv, contextFor(cv, null, { history, request }), history, request, flat({ mode: "demande", section: "summary", data: summary28, change_summary: "C'est fait : j'ai raccourci ton accroche." }));
+  assert.equal(result.updated.summary, summary28);
+  assert.equal(result.text, "C'est fait : j'ai raccourci ton accroche. Le texte passe de 40 à 28 mots.");
+});
