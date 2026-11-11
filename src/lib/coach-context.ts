@@ -1,5 +1,6 @@
 import { candidateLanguage, cvLanguage } from "./coach-language";
-import { coachContentKey, type CoachContext } from "./coach-prompt";
+import { offerSteps } from "./coach-offer";
+import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
 import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "./cv-score";
 import { matchCvKeywords } from "./cv-keyword-match";
@@ -62,6 +63,8 @@ export function buildCoachContext(data: CvData, scoring: ScoringContext, detail:
     marketKeywords: scoring.marketKeywords,
     offer,
     titleMismatch: offer ? cvTitleMismatch(data.personal.jobTitle, scoring.sector) : false,
+    // CV lié : étapes d'adaptation à l'offre (titre…), aucune une fois le CV clos. Absent en mode libre.
+    ...(offer ? { offerSteps: isCvClosed(score.score) ? [] : offerSteps(data, scoring.sector) } : {}),
     language: candidateLanguage(request, data),
     cvLanguage: cvLanguage(data),
     // Mots-clés, secteur et offre compris : le premier message est réécrit quand ils changent.

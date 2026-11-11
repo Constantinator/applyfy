@@ -339,6 +339,7 @@ const COACH_SERVER_MODULES = [
   "lib/coach-turn.ts",
   "lib/coach-intent.ts",
   "lib/coach-language.ts",
+  "lib/coach-offer.ts",
 ];
 
 /** Fichier de src/ visé par un import (alias @/ ou chemin relatif), null pour un paquet. */

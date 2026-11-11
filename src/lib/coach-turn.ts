@@ -1,5 +1,6 @@
 import type { CoachReply } from "./coach-llm";
 import { listenText, type Listening } from "./coach-intent";
+import { offerMarkersAfter, offerStageOf, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
@@ -17,7 +18,15 @@ export type CoachTurnInput = {
   /** CV affiché, modifications non enregistrées comprises (sans lignes vides). */
   current: CvData;
   /** Contexte du coach (coach-context.ts) : contexte du score et mots-clés de l'offre manquants. */
-  context: { scoring: ScoringContext; offerKeywords?: string[]; language?: CoachLang; listening?: Listening };
+  context: {
+    scoring: ScoringContext;
+    offerKeywords?: string[];
+    language?: CoachLang;
+    listening?: Listening;
+    /** CV lié : étapes de l'offre (coach-offer.ts) et points abandonnés, marqueurs des étapes faites compris. */
+    offerSteps?: OfferStep[];
+    skipped?: string[];
+  };
   /** Échanges précédents et dernier message du candidat. */
   turns: CoachTurn[];
   request: string;
@@ -56,6 +65,18 @@ export type CoachTurnResult =
       scoreAfter: number | null;
     };
 
+/** Réponse sans changement du titre du CV (refusé par le candidat) ; telle quelle sinon. */
+export function withoutTitle(reply: CoachReply): CoachReply {
+  const update = reply.update;
+  if (update?.section !== "personal" || !("jobTitle" in update.data)) return reply;
+  const rest = { ...update.data };
+  delete rest.jobTitle;
+  console.warn("[cv-builder coach] changement de titre retiré : le candidat l'a refusé");
+  return Object.keys(rest).length
+    ? { ...reply, update: { section: "personal", data: rest } }
+    : { ...reply, update: null, raw: null, invalid: false, changeSummary: "" };
+}
+
 /** Le résumé cite entre « » une puce d'expérience restée identique (présente avant et après). */
 export function quotesUnchangedBullet(summary: string, before: CvData, after: CvData) {
   const bullets = (cv: CvData) => new Set(cv.experiences.flatMap((e) => e.bullets.map((b) => b.trim())));
@@ -71,6 +92,11 @@ export function quotesUnchangedBullet(summary: string, before: CvData, after: Cv
  * CV ; puis texte affiché.
  */
 export async function runCoachTurn({ current, context, turns, request, reply, limitReached, retry }: CoachTurnInput): Promise<CoachTurnResult> {
+  // CV lié : étape de l'offre de cet échange (null en mode libre). Le candidat vient de refuser
+  // le titre proposé : un changement de titre est retiré de la réponse, sans autre effet.
+  const stage = offerStageOf(context, !turns.some((t) => t.role === "assistant"));
+  const titleLocked = stage?.resolve === "titre" && (context.listening?.refusal ?? false);
+  if (titleLocked) reply = withoutTitle(reply);
   let answer = reply;
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
   // Proposition telle que construite : null alors que le coach a bien proposé quelque chose = « ne change rien ».
@@ -95,8 +121,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     });
     if (second) {
       retried = true;
-      answer = second;
-      proposal = second.update ? buildProposal(current, second.update) : null;
+      answer = titleLocked ? withoutTitle(second) : second;
+      proposal = answer.update ? buildProposal(current, answer.update) : null;
       built = proposal;
       problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
     }
@@ -119,7 +145,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
     }
   }
-  const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints])];
+  // Étape de l'offre résolue : marqueur renvoyé avec les points abandonnés (rien en mode libre).
+  const markers = offerMarkersAfter(stage, mode);
+  const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints, ...markers])];
   // Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées.
   const reorganized = applied > 0 && isReorganization(current, updated);
 
@@ -129,7 +157,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       kind: "quotaBlocked",
       text: quotaBlockedText({ mode, section: reply.raw.section, message: reply.message, lang: context.language }),
       mode,
-      skippedPoints: reply.skippedPoints,
+      skippedPoints: markers.length ? [...new Set([...reply.skippedPoints, ...markers])] : reply.skippedPoints,
     };
   }
 

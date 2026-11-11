@@ -30,6 +30,7 @@ import {
 } from "@/lib/claude";
 import { buildCoachContext, type BuiltCoachContext } from "@/lib/coach-context";
 import { listeningState } from "@/lib/coach-intent";
+import { boundSkipped } from "@/lib/coach-offer";
 import { closedOpening } from "@/lib/coach-outcome";
 import { isCvClosed } from "@/lib/coach-prompt";
 import { runCoachTurn } from "@/lib/coach-turn";
@@ -717,14 +718,17 @@ async function coachGate() {
   return { ok: true as const, chat: gate.usage.counts.cvb_chat };
 }
 
-/** Points abandonnés pendant la session, renvoyés par l'éditeur : revalidés et bornés. */
+/**
+ * Points abandonnés pendant la session, renvoyés par l'éditeur : revalidés et bornés (les
+ * marqueurs des étapes de l'offre, coach-offer.ts, sont gardés à part).
+ */
 const SKIPPED_MAX = 50;
 function skippedPoints(value: unknown): string[] {
   return Array.isArray(value)
-    ? value
-        .filter((p): p is string => typeof p === "string" && p.trim() !== "")
-        .slice(-SKIPPED_MAX)
-        .map((p) => p.trim().slice(0, 200))
+    ? boundSkipped(
+        value.filter((p): p is string => typeof p === "string" && p.trim() !== ""),
+        SKIPPED_MAX,
+      ).map((p) => p.trim().slice(0, 200))
     : [];
 }
 

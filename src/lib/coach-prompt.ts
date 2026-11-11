@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Listening } from "./coach-intent";
+import { offerStageOf, withoutOfferMarkers, type OfferStage, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import type { CoachMode, CoachSection } from "./coach-proposals";
 import { GENERIC_JARGON, READY_SCORE } from "./cv-score";
@@ -41,8 +42,12 @@ export type CoachContext = {
   marketKeywords: string[];
   /** CV lié à une candidature : offre (seul l'intitulé va au modèle ; l'entreprise sert à la clé du premier message). */
   offer?: { position: string; company: string } | null;
-  /** Titre du CV d'un autre métier que l'offre (cvTitleMismatch) : à proposer une fois, sans l'imposer. */
+  /** Titre du CV d'un autre métier que l'offre (cvTitleMismatch). */
   titleMismatch?: boolean;
+  /** CV lié : étapes d'adaptation à l'offre nécessaires, dans l'ordre (coach-offer.ts) ; absent en mode libre. */
+  offerSteps?: OfferStep[];
+  /** Premier message du coach (rien n'a encore été proposé au candidat). */
+  opening?: boolean;
   /** Langue du candidat (messages) et langue du contenu du CV (coach-language.ts). */
   language?: CoachLang;
   cvLanguage?: CoachLang;
@@ -65,6 +70,40 @@ const OFFER_KEYWORD_RULES = [
   "« Mots-clés de l'offre absents du CV » (si cette liste existe et que le CV n'est pas clos) : traite-en 4 au maximum sur toute la session, après les « Points à corriger ». Choisis toi-même les plus importants pour le poste visé, quel que soit leur ordre dans la liste : privilégie les compétences techniques ou métier spécifiques à l'offre et ignore les mots-clés génériques (soft skills comme « organisation » ou « travail en équipe »). S'il reste moins de 4 mots-clés spécifiques, traite seulement ceux-là. Pour chacun, demande si le candidat a une expérience réelle de ce mot-clé et laquelle. S'il confirme, intègre le mot-clé au CV (compétences, ou puce avec ses faits). Sinon, ajoute-le à « skipped_points » et passe au suivant. N'ajoute jamais un mot-clé que le candidat n'a pas confirmé.",
   "La liste des mots-clés est recalculée à chaque échange : un mot-clé intégré au CV en disparaît et d'autres peuvent y apparaître. Relis la conversation et compte ceux que tu as déjà traités ou abandonnés. Une fois ta sélection terminée, n'en aborde aucun autre de ta propre initiative, même s'il en reste dans la liste. Un mot-clé que le candidat te demande lui-même d'ajouter ne compte pas dans ces 4.",
 ];
+
+/** Consignes fixes du bloc « etape_offre » (CV lié) : seule l'étape, décidée par le serveur, varie. */
+const OFFER_STAGE_INTRO =
+  "Adaptation du CV à l'offre, décidée par l'application : traite cette étape avant les « Points à corriger » et les mots-clés de l'offre, une seule étape à la fois.";
+const OFFER_RESOLVE: Record<OfferStep, string> = {
+  titre:
+    "Étape en cours : le titre. Le candidat répond à ta proposition d'aligner le titre du CV sur l'offre. S'il l'accepte, applique-la dans cette réponse (section personal, champ jobTitle). S'il la refuse ou n'y répond pas, ne touche pas au titre et ne le repropose jamais.",
+};
+const OFFER_PROPOSE: Record<OfferStep, string> = {
+  titre:
+    "Étape à proposer dans « message » : le titre. Propose un titre aligné sur l'intitulé du poste de l'offre, sans niveau d'ancienneté (senior, lead, manager, responsable…) que le CV ne montre pas, cite-le entre « », et demande seulement si le candidat l'accepte. Ne modifie pas encore le titre.",
+};
+const OFFER_REFUSED = "Le dernier message du candidat est un refus : ne fais pas l'étape en cours et ne la repropose jamais.";
+const OFFER_DEMANDE =
+  "Si le dernier message du candidat est une demande explicite (mode demande), exécute-la d'abord ; l'étape en cours attend : dans « message », repose sa proposition à la place de la question de parcours.";
+const OFFER_THEN = "Dans « message », pose ensuite la question de parcours habituelle (le premier point dans ton ordre de traitement).";
+const OFFER_OPENING = "Premier message : dis en une phrase que tu adaptes le CV à cette offre, puis fais cette proposition, avec une seule question.";
+
+/** Bloc « etape_offre » : phrases fixes choisies par le serveur, aucune donnée du CV ou de l'offre. */
+function offerStageBlock(stage: OfferStage, { opening, refusal }: { opening: boolean; refusal: boolean }): string {
+  return [
+    "<etape_offre>",
+    OFFER_STAGE_INTRO,
+    stage.resolve ? OFFER_RESOLVE[stage.resolve] : null,
+    stage.resolve && refusal ? OFFER_REFUSED : null,
+    stage.propose ? OFFER_PROPOSE[stage.propose] : null,
+    opening && stage.propose ? OFFER_OPENING : null,
+    !opening && !stage.propose ? OFFER_THEN : null,
+    !opening && stage.resolve ? OFFER_DEMANDE : null,
+    "</etape_offre>",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 /** Consignes fixes du bloc « situation », selon ce que le serveur a compris (coach-intent.ts). */
 const SITUATION: [keyof Listening, string][] = [
@@ -134,9 +173,12 @@ const list = (items: string[]) => items.map((item) => `- ${n(item)}`).join("\n")
 
 /** Prompt système du coach : contexte sectoriel, règles, contenu du CV et analyse. */
 export function coachSystem(
-  { cvJson, score, skipped = [], offerKeywords = [], offer = null, titleMismatch = false, analysis, language, cvLanguage, listening }: CoachContext,
+  context: CoachContext,
   sectorContext: string,
 ) {
+  const { cvJson, score, offerKeywords = [], offer = null, analysis, language, cvLanguage, listening } = context;
+  // Marqueurs des étapes de l'offre : lus par le serveur, jamais montrés comme points abandonnés.
+  const skipped = withoutOfferMarkers(context.skipped ?? []);
   const closed = isCvClosed(score.value);
   const parts = [
     sectorContext,
@@ -169,15 +211,16 @@ export function coachSystem(
         "<offre>",
         "Le CV est adapté à cette offre : elle fixe le poste visé, le secteur et le score.",
         `Intitulé du poste : ${n(position)}`,
-        titleMismatch && !closed
-          ? "Titre du CV (en tête du CV) d'un autre métier que cette offre : traite-le comme un point du parcours, à sa place (le titre vient en dernier). Propose une seule fois de l'aligner sur l'intitulé du poste, sans le modifier tant que le candidat ne l'a pas accepté. S'il refuse ou ne répond pas, ajoute-le à « skipped_points » et n'y reviens plus."
-          : null,
         "</offre>",
       ]
         .filter(Boolean)
         .join("\n"),
     );
   }
+  // Étape d'adaptation à l'offre, décidée par le serveur (coach-offer.ts) ; CV lié pas encore clos.
+  const opening = context.opening ?? false;
+  const stage = !closed ? offerStageOf(context, opening) : null;
+  if (stage) parts.push(offerStageBlock(stage, { opening, refusal: listening?.refusal ?? false }));
   if (offerKeywords.length) {
     const title = closed
       ? "Mots-clés de l'offre absents du CV (CV clos : n'en aborde aucun de ta propre initiative)"
@@ -220,6 +263,9 @@ export function coachSystem(
   return parts.join("\n\n");
 }
 
+/** Version du premier message d'un CV lié (étapes de l'offre). */
+const OFFER_OPENING_VERSION = "offre-v2";
+
 /**
  * Empreinte du premier message du coach : il est réécrit quand le contenu du CV, les mots-clés de
  * l'offre, le secteur du score ou l'offre changent.
@@ -230,7 +276,8 @@ export function coachContentKey(
   sector: Sector,
   offer?: { position: string; company: string } | null,
 ): string {
-  const parts = [cvJson, offerKeywords.join(), sector, offer ? `${offer.position}\n${offer.company}` : ""];
+  // CV lié : version des étapes de l'offre, pour réécrire les premiers messages d'avant ce lot.
+  const parts = [cvJson, offerKeywords.join(), sector, offer ? `${offer.position}\n${offer.company}\n${OFFER_OPENING_VERSION}` : ""];
   return createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 32);
 }
 

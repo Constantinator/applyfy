@@ -8,6 +8,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { ClaudeRefusalError } from "../../src/lib/claude-structured.ts";
 import { buildCoachContext } from "../../src/lib/coach-context.ts";
 import { listeningState } from "../../src/lib/coach-intent.ts";
+import { boundSkipped } from "../../src/lib/coach-offer.ts";
 import { coachBuilderCv, coachOpening, type CoachReply } from "../../src/lib/coach-llm.ts";
 import { closedOpening } from "../../src/lib/coach-outcome.ts";
 import { isCvClosed, type CoachTurn } from "../../src/lib/coach-prompt.ts";
@@ -133,7 +134,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
     return scoringContextForSector(sector, scoringOffer, fx.marketKeywords[sector] ?? []);
   };
   let skipped: string[] = [];
-  const contextFor = (data: CvData, request: string | null = null) => ({ ...buildCoachContext(data, scoringFor(data), detail, request), skipped: skipped.slice(-SKIPPED_MAX) });
+  const contextFor = (data: CvData, request: string | null = null) => ({ ...buildCoachContext(data, scoringFor(data), detail, request), skipped: boundSkipped(skipped, SKIPPED_MAX) });
 
   const start = contextFor(cv);
   const record: ConversationRecord = {

@@ -2,7 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 
 import { parseStructured } from "./claude-structured";
-import { coachSystem, coachUserText, neutralizeCoachData, type CoachContext, type CoachRetry, type CoachTurn } from "./coach-prompt";
+import { offerStageOf } from "./coach-offer";
+import { coachSystem, coachUserText, isCvClosed, neutralizeCoachData, type CoachContext, type CoachRetry, type CoachTurn } from "./coach-prompt";
 import { COACH_DATA_SCHEMAS, COACH_SECTIONS, type CoachMode, type CoachSection, type CoachUpdate } from "./coach-proposals";
 import { formatSectorContext, getSectorContext } from "./cv-sector-context";
 
@@ -117,14 +118,30 @@ function coachSectorContext({ sector, marketKeywords }: CoachContext) {
   return formatSectorContext(getSectorContext(sector), marketKeywords.map(neutralizeCoachData));
 }
 
-/** Premier message du coach : le premier point dans l'ordre de traitement et une première question. */
+const OPENING_INSTRUCTION =
+  "Écris ton premier message au candidat : annonce que tu vas l'aider à corriger les points de son CV un par un, en commençant par le premier dans l'ordre de traitement fixé par tes règles, et pose une seule question précise pour obtenir les informations qui te manquent sur ce point. Ne modifie rien.";
+/** CV lié avec une étape de l'offre à proposer : le premier message commence par elle. */
+const OFFER_OPENING_INSTRUCTION =
+  "Écris ton premier message au candidat : dis en une phrase que tu vas adapter son CV à cette offre, puis fais la proposition de l'étape indiquée dans « etape_offre », avec une seule question. Ne modifie rien.";
+
+/**
+ * Contexte d'un CV lié pour cet échange : premier message du coach ou non (l'étape de l'offre en
+ * dépend). Mode libre : le contexte tel quel.
+ */
+function withOpening(context: CoachContext, opening: boolean): CoachContext {
+  return context.offerSteps ? { ...context, opening } : context;
+}
+
+/** Premier message du coach : le premier point dans l'ordre de traitement (ou l'étape de l'offre) et une première question. */
 export async function coachOpening(client: Anthropic, context: CoachContext): Promise<string | null> {
+  const ctx = withOpening(context, true);
+  const offerFirst = !isCvClosed(ctx.score.value) && Boolean(offerStageOf(ctx, true)?.propose);
   const result = await parseStructured(
     client,
     "coachOpening",
     z.object({ message: z.string().describe("Le premier message, 4 phrases maximum") }),
-    coachSystem(context, coachSectorContext(context)),
-    "Écris ton premier message au candidat : annonce que tu vas l'aider à corriger les points de son CV un par un, en commençant par le premier dans l'ordre de traitement fixé par tes règles, et pose une seule question précise pour obtenir les informations qui te manquent sur ce point. Ne modifie rien.",
+    coachSystem(ctx, coachSectorContext(ctx)),
+    offerFirst ? OFFER_OPENING_INSTRUCTION : OPENING_INSTRUCTION,
     { effort: "low", maxTokens: 4000 },
   );
   return result?.message.trim() || null;
@@ -139,7 +156,9 @@ export async function coachBuilderCv(
   retry?: CoachRetry,
 ): Promise<CoachReply | null> {
   const text = coachUserText(history, message, retry);
-  const system = coachSystem(context, coachSectorContext(context));
+  // Sans message du coach dans l'historique, rien n'a encore été proposé (étape de l'offre).
+  const ctx = withOpening(context, !history.some((turn) => turn.role === "assistant"));
+  const system = coachSystem(ctx, coachSectorContext(ctx));
   // 16 000 tokens : la réflexion du modèle compte dans la limite.
   const options = { effort: "low", maxTokens: 16000 } as const;
   if (process.env.COACH_MODE_BOOLEAN === "1") {
