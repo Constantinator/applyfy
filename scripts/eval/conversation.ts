@@ -138,7 +138,10 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
     return scoringContextForSector(sector, scoringOffer, fx.marketKeywords[sector] ?? []);
   };
   let skipped: string[] = [];
-  const contextFor = (data: CvData, request: string | null = null) => ({ ...buildCoachContext(data, scoringFor(data), detail, request), skipped: boundSkipped(skipped, SKIPPED_MAX) });
+  const contextFor = (data: CvData, request: string | null = null, turns: CoachTurn[] = []) => ({
+    ...buildCoachContext(data, scoringFor(data), detail, request, turns),
+    skipped: boundSkipped(skipped, SKIPPED_MAX),
+  });
 
   const start = contextFor(cv);
   const record: ConversationRecord = {
@@ -225,7 +228,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         coach: null,
       };
       const turns = history.slice(-HISTORY_MAX).map(({ role, content }) => ({ role, content: content.slice(0, 2000) }));
-      const built = contextFor(current, request);
+      const built = contextFor(current, request, turns);
       const context = { ...built, listening: listeningState(turns, request, built.offerSteps ? { keywords: built.offerKeywords ?? [] } : undefined) };
       const scoreBefore = context.score.value;
 

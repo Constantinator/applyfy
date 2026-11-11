@@ -664,11 +664,16 @@ const COACH_HISTORY_MAX = 30;
  * Contexte du coach (coach-context.ts) : la candidature liée est relue une seule fois, avec les
  * droits de l'utilisateur, pour le secteur du score et les mots-clés de l'offre.
  */
-async function coachContext(data: CvData, applicationId: string | null, request: string | null = null): Promise<BuiltCoachContext> {
+async function coachContext(
+  data: CvData,
+  applicationId: string | null,
+  request: string | null = null,
+  history: { role: "user" | "assistant"; content: string }[] = [],
+): Promise<BuiltCoachContext> {
   const detail = applicationId ? await getApplicationDetail(applicationId) : null;
   // Score calculé par le code, le même que celui affiché dans l'éditeur (secteur de l'offre pour un CV lié).
   const scoring = await loadBuilderCvScoring(data, applicationId, detail);
-  return buildCoachContext(data, scoring, detail, request);
+  return buildCoachContext(data, scoring, detail, request, history);
 }
 
 /**
@@ -819,7 +824,7 @@ export async function refineBuilderCvAction(
   let context: BuiltCoachContext;
   let reply;
   try {
-    const built = await coachContext(current, shown.applicationId, request);
+    const built = await coachContext(current, shown.applicationId, request, turns);
     context = {
       ...built,
       skipped: skippedPoints(skipped),

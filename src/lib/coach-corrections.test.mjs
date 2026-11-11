@@ -325,3 +325,42 @@ test("améliorer, CV clos : jamais « Dis-moi si… » ni « prêt » redit ; pi
   const answered = intent.listenText({ ...base, corrections: [], text: "Ton CV est prêt. Tu pourrais ajouter le budget de ta mission chez Cabinet Conseil Fictif, si tu le connais." });
   assert.equal(answered, "Tu pourrais ajouter le budget de ta mission chez Cabinet Conseil Fictif, si tu le connais.");
 });
+
+// --- 5. Langue : celle de rédaction du candidat, jamais celle du CV traduit (L17) ---
+
+const lang = await import("./coach-language.ts");
+
+test("langue : demande de traduction rédigée en anglais, message court, CV devenu français", async () => {
+  const cv = profile("tech-confirme-en");
+  // Les noms de langue cités ne trompent pas la détection.
+  assert.equal(lang.detectLanguage("Translate my whole CV into French please."), "en");
+  assert.equal(lang.detectLanguage("Peux-tu traduire tout mon CV en anglais ?"), "fr");
+  // L17 [6] : message court, CV traduit en français entre-temps.
+  const french = { ...cv, summary: "Ingénieur backend senior avec 8 ans d'expérience dans les plateformes de paiement et les API pour les équipes produit." };
+  const history = [
+    { role: "user", content: "ok so skills and languages still left?? just do both now in french. no more one section at a time. then im done" },
+    { role: "assistant", content: "Done: I translated your skills." },
+  ];
+  const request = "ok so languages still left?? just do it now. then im done. too slow";
+  assert.equal(lang.candidateLanguage(request, french, ["ok so still not done??"]), "en");
+  const context = contextFor(french, null, { history, request });
+  assert.equal(context.language, "en");
+  // Résumé du modèle en français pour un candidat anglais (L17 [1]) : annonce du serveur en anglais.
+  const reply = flat({
+    mode: "demande",
+    section: "summary",
+    data: "Ingénieur backend senior, 8 ans d'expérience, plateformes de paiement",
+    change_summary: "C'est fait : j'ai traduit ton accroche en français.",
+    message: "Shall I continue with your experience at Fictional Software Ltd?",
+  });
+  const result = await turn(french, context, history, request, reply);
+  assert.ok(!result.text.includes("C'est fait"), result.text);
+  assert.ok(result.text.startsWith("Done, I've updated:"), result.text);
+});
+
+test("langue : message indécidable, repli sur le message précédent du candidat avant le CV", () => {
+  const french = { ...profile("tech-confirme-en"), summary: "Ingénieur backend senior avec 8 ans d'expérience dans les plateformes de paiement." };
+  assert.equal(lang.detectLanguage("ok"), null);
+  assert.equal(lang.candidateLanguage("ok", french, ["Translate my whole CV into French please."]), "en");
+  assert.equal(lang.candidateLanguage("ok", french, []), lang.cvLanguage(french));
+});

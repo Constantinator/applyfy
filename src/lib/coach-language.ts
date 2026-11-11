@@ -8,7 +8,9 @@ import type { CvData } from "./cv-builder-types";
 const FR = new Set(
   "le la les des du de et est une un pour tu ton ta tes avec dans que qui pas sur ce cette mon ma mes je j'ai c'est oui non merci peux veux".split(" "),
 );
-const EN = new Set("the and is you your to of for with in that it are this on my i was have yes no thanks can want please what how".split(" "));
+const EN = new Set(
+  "the and is you your to of for with in that it are this on my i was have yes no thanks can want please what how so just do now then done im i'm it's not but too still left all only".split(" "),
+);
 /** Mots outils nécessaires pour décider. */
 const MIN_HITS = 2;
 
@@ -34,7 +36,19 @@ export function cvLanguage(data: Pick<CvData, "summary" | "experiences" | "perso
   return detectLanguage(text) ?? "fr";
 }
 
-/** Langue du candidat : celle de son dernier message, sinon (doute) celle du CV. */
-export function candidateLanguage(lastMessage: string | null, data: Pick<CvData, "summary" | "experiences" | "personal">): CoachLang {
-  return (lastMessage ? detectLanguage(lastMessage) : null) ?? cvLanguage(data);
+/**
+ * Langue du candidat : celle de son dernier message ; en cas de doute (« ok so languages still
+ * left?? »), celle de son message précédent le plus récent qui permet de décider ; sinon celle du
+ * CV. Le CV seul ne suffit pas : après une traduction, il n'est plus dans la langue du candidat.
+ */
+export function candidateLanguage(
+  lastMessage: string | null,
+  data: Pick<CvData, "summary" | "experiences" | "personal">,
+  previousMessages: string[] = [],
+): CoachLang {
+  for (const message of [lastMessage, ...[...previousMessages].reverse()]) {
+    const lang = message ? detectLanguage(message) : null;
+    if (lang) return lang;
+  }
+  return cvLanguage(data);
 }

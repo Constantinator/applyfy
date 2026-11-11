@@ -65,7 +65,13 @@ export type BuiltCoachContext = CoachContext & { contentKey: string; scoring: Sc
  * de l'offre pour un CV lié) ; `detail` : candidature liée, null en mode libre ; `request` : dernier
  * message du candidat (langue des messages ; sans message, celle du CV).
  */
-export function buildCoachContext(data: CvData, scoring: ScoringContext, detail: CoachOfferDetail | null, request: string | null = null): BuiltCoachContext {
+export function buildCoachContext(
+  data: CvData,
+  scoring: ScoringContext,
+  detail: CoachOfferDetail | null,
+  request: string | null = null,
+  history: { role: "user" | "assistant"; content: string }[] = [],
+): BuiltCoachContext {
   const cvJson = JSON.stringify(chatContent(data));
   const a = data.analysis;
   // Score calculé par le code, le même que celui affiché dans l'éditeur (secteur de l'offre pour un CV lié).
@@ -83,7 +89,8 @@ export function buildCoachContext(data: CvData, scoring: ScoringContext, detail:
     titleMismatch: offer ? cvTitleMismatch(data.personal.jobTitle, scoring.sector) : false,
     // CV lié : étapes d'adaptation à l'offre (titre…), aucune une fois le CV clos. Absent en mode libre.
     ...(offer ? linkedSteps(data, scoring.sector, detail, isCvClosed(score.score)) : {}),
-    language: candidateLanguage(request, data),
+    // Langue du candidat : son dernier message, sinon ses messages précédents, sinon le CV.
+    language: candidateLanguage(request, data, history.filter((t) => t.role === "user").map((t) => t.content)),
     cvLanguage: cvLanguage(data),
     // Mots-clés, secteur et offre compris : le premier message est réécrit quand ils changent.
     contentKey: coachContentKey(cvJson, offerKeywords, scoring.sector, offer),

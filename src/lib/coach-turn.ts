@@ -4,6 +4,7 @@ import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
+import { detectLanguage } from "./coach-language";
 import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
 import { scoreCv, type ScoringContext } from "./cv-score";
@@ -211,7 +212,11 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     appliedLabels,
     refusedLabels: Object.fromEntries((built?.changes ?? []).map((c) => [c.id, c.label])),
     // Un nombre de mots annoncé par le modèle n'est jamais repris : le serveur le calcule.
-    summaryFaithful: !quotesUnchangedBullet(answer.changeSummary, current, updated) && !WORD_COUNT.test(answer.changeSummary),
+    summaryFaithful:
+      !quotesUnchangedBullet(answer.changeSummary, current, updated) &&
+      !WORD_COUNT.test(answer.changeSummary) &&
+      // Résumé du modèle dans une autre langue que celle du candidat (L17) : annonce du serveur.
+      !(context.language && detectLanguage(answer.changeSummary) !== null && detectLanguage(answer.changeSummary) !== context.language),
     wordCounts: check.shorten && applied > 0 ? wordCounts(appliedTexts) : undefined,
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
