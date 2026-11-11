@@ -81,6 +81,10 @@ const SITUATION: [keyof Listening, string][] = [
     "Le candidat demande si son CV est prêt : le serveur lui répond avec le score. Dans « message », dis en une phrase ce qui reste de plus important, sans redonner le score et sans poser de question avant.",
   ],
   ["confirmation", "Le candidat te demande une confirmation : commence « message » par une réponse directe (oui ou non, et pourquoi), avant toute autre phrase."],
+  [
+    "shorten",
+    "Le candidat demande de raccourcir : le texte visé doit perdre au moins 20 % de ses mots, en gardant ses chiffres et ses faits. Si c'est impossible sans retirer une information, dis-le honnêtement et demande ce qu'il accepte d'enlever.",
+  ],
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];
 

@@ -78,7 +78,11 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   // Le mode est celui de la première réponse : le nouvel essai ne peut pas en changer pour passer
   // la vérification. Nombres autorisés en mode demande : ceux du CV et des messages du candidat.
   const mode = reply.mode;
-  const check = { mode, candidateMessages: [request, ...turns.filter((t) => t.role === "user").map((t) => t.content)] };
+  const check = {
+    mode,
+    candidateMessages: [request, ...turns.filter((t) => t.role === "user").map((t) => t.content)],
+    shorten: context.listening?.shorten ?? false,
+  };
   let problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
   const firstProblems = problems;
   const firstRefused = problems.length;

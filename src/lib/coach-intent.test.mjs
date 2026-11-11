@@ -46,10 +46,12 @@ test("intention : état de la session tiré de l'historique", () => {
   assert.equal(listeningState(h("Je ne sais pas", "Non"), "Ah si : 12 clients").stopFigures, true, "reste arrêté");
   assert.equal(listeningState(h("Plus de questions"), "Raccourcis mon accroche").stopAll, true);
   const last = listeningState([], "C'est prêt ?");
-  assert.deepEqual(last, { stopAll: false, stopFigures: false, readiness: true, confirmation: false, refusal: false });
+  assert.deepEqual(last, { stopAll: false, stopFigures: false, readiness: true, confirmation: false, refusal: false, shorten: false });
+  assert.equal(listeningState([], "Raccourcis mon accroche, elle est trop longue.").shorten, true);
+  assert.equal(listeningState([], "Can you make my summary shorter?").shorten, true);
 });
 
-const none = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: false };
+const none = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: false, shorten: false };
 const listen = (patch) =>
   listenText({ mode: "parcours", lang: "fr", score: 72, scoreBefore: 70, corrections: ["2 puces sans chiffre — Stage chez X", "Dates sans mois — Y", "C"], previousCoach: [], ...patch, listening: { ...none, ...patch.listening } });
 
@@ -129,10 +131,10 @@ test("sans intention détectée : texte inchangé", () => {
 test("prompt : bloc « situation » en phrases fixes, absent sans intention", () => {
   const base = { cvJson: "{}", score: { value: 60, corrections: [], banned: [] }, sector: "tech", marketKeywords: [], analysis: null };
   assert.ok(!coachSystem({ ...base, listening: none }, "").includes("<situation>"));
-  const all = { stopAll: true, stopFigures: true, readiness: true, confirmation: true, refusal: true };
+  const all = { stopAll: true, stopFigures: true, readiness: true, confirmation: true, refusal: true, shorten: true };
   const system = coachSystem({ ...base, listening: all }, "");
   const block = system.slice(system.indexOf("<situation>"), system.indexOf("</situation>"));
-  assert.equal(block.split("\n").filter(Boolean).length - 1, 5, "une phrase par intention, après la balise");
+  assert.equal(block.split("\n").filter(Boolean).length - 1, 6, "une phrase par intention, après la balise");
   assert.ok(block.includes("ne demande plus aucun chiffre"));
   assert.ok(block.includes("commence « message » par une réponse directe"));
 });

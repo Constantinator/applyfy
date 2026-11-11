@@ -244,6 +244,25 @@ test(
   }),
 );
 
+test(
+  "échange : raccourcir, le second essai reçoit la cause et la version assez courte est appliquée",
+  quiet(async () => {
+    const { PROBLEM_NOT_SHORTER } = await import("./coach-proposals.ts");
+    const listening = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: false, shorten: true };
+    const summaryReply = (text) => reply({ mode: "demande", update: { section: "summary", data: text }, raw: { section: "summary", data: text } });
+    const calls = [];
+    const turn = await runCoachTurn(
+      turnInput(summaryReply("Commercial terrain, 3 ans de prospection auprès de PME."), async (retry) => {
+        calls.push(retry);
+        return summaryReply("Commercial terrain, 3 ans auprès de PME.");
+      }, { request: "Raccourcis mon accroche", context: { scoring, offerKeywords: [], listening } }),
+    );
+    assert.deepEqual(calls[0].problems[0].problems, [PROBLEM_NOT_SHORTER]);
+    assert.equal(turn.applied, 1);
+    assert.equal(turn.updated.summary, "Commercial terrain, 3 ans auprès de PME.");
+  }),
+);
+
 test("annonce fidèle : citation d'une puce restée identique", async () => {
   const { quotesUnchangedBullet } = await import("./coach-turn.ts");
   const after = { ...cv, experiences: [{ ...cv.experiences[0], bullets: [...cv.experiences[0].bullets, "Nouvelle puce de 3 mots"] }] };

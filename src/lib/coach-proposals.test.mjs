@@ -276,3 +276,39 @@ test("CV clos à l'ouverture : texte fixe avec le score, sans question", () => {
   assert.ok(text.includes("86/100"));
   assert.ok(!text.includes("?"));
 });
+
+// --- Raccourcir (lot « le coach écoute ») : au moins 20 % de mots en moins sur le texte visé ---
+
+test("raccourcir : moins de 20 % de mots en moins est refusé, 20 % ou plus est accepté", async () => {
+  const { PROBLEM_NOT_SHORTER } = await import("./coach-proposals.ts");
+  const { coachReplyText } = await import("./coach-outcome.ts");
+  // Accroche de 8 mots : 7 mots = -12 % (refusé) ; 5 mots = -37 % (accepté).
+  const summary = (text) => proposalFor({ section: "summary", data: text });
+  const check = (proposal, shorten) => checkProposal(proposal, SCORING, cv, { mode: "demande", shorten }).flatMap((p) => p.problems);
+  assert.deepEqual(check(summary("Chargée de clientèle, 4 ans d'expérience en agence."), true), [PROBLEM_NOT_SHORTER]);
+  assert.deepEqual(check(summary("Chargée de clientèle, 4 ans en agence."), true), []);
+  // Sans demande de raccourcir : pas de règle de longueur.
+  assert.deepEqual(check(summary("Chargée de clientèle, 4 ans d'expérience en agence."), false), []);
+  // Supprimer une puce raccourcit : pas concerné.
+  const removal = proposalFor({ section: "experience", data: { id: "e1", bullets: [], bullets_to_remove: [2] } });
+  assert.deepEqual(check(removal, true), []);
+  // Texte affiché : la raison honnête.
+  const text = coachReplyText({
+    mode: "demande",
+    section: "summary",
+    applied: 0,
+    stale: 0,
+    invalid: false,
+    firstInvalid: false,
+    noChange: false,
+    problems: [{ changeId: "c", text: "x", problems: [PROBLEM_NOT_SHORTER] }],
+    firstProblems: [],
+    message: "",
+    changeSummary: "",
+    scoreBefore: 60,
+    scoreAfter: null,
+    corrections: [],
+    offerKeywords: [],
+  });
+  assert.ok(text.startsWith("Je n'ai pas pu faire cette modification : je n'ai pas réussi à le raccourcir d'au moins 20 % sans retirer une information. Dis-moi ce que je peux enlever."), text);
+});

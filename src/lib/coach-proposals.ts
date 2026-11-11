@@ -331,6 +331,9 @@ export const PROBLEM_BANNED_PREFIX = "contient la formule à éviter « ";
 /** Mode demande : régression par rapport au texte d'origine, et nombre absent des sources. */
 export const PROBLEM_LOST_VERB = "ne commence plus par un verbe ou un nom d'action, contrairement à la puce d'origine";
 export const PROBLEM_LOST_FIGURE = "a perdu le chiffre ou l'ordre de grandeur de la puce d'origine";
+/** Demande de raccourcir : le texte visé doit perdre au moins SHORTEN_MIN_SHARE de ses mots. */
+export const SHORTEN_MIN_SHARE = 0.2;
+export const PROBLEM_NOT_SHORTER = "n'est pas assez courte : au moins 20 % de mots en moins sont attendus";
 export const PROBLEM_NEW_NUMBER_PREFIX = "contient un nombre absent du CV et des messages du candidat : ";
 
 /** Textes refusés d'un changement et leurs défauts. */
@@ -345,7 +348,12 @@ export type ChangeProblem = {
 };
 
 /** Mode de la réponse et messages du candidat (source autorisée des nombres, avec le CV). */
-export type CheckOptions = { mode?: CoachMode; candidateMessages?: string[] };
+export type CheckOptions = {
+  mode?: CoachMode;
+  candidateMessages?: string[];
+  /** Le candidat demande de raccourcir (coach-intent.ts) : chaque texte modifié perd au moins 20 % de ses mots. */
+  shorten?: boolean;
+};
 
 /**
  * Défauts des textes proposés.
@@ -370,6 +378,13 @@ export function checkProposal(
     options.mode === "demande"
       ? requestProblems(proposal, context, numberSources([...cvStrings(current), ...(options.candidateMessages ?? [])]))
       : textProblems(proposal, context);
+  if (options.shorten) {
+    for (const p of shortenProblems(proposal)) {
+      const same = problems.find((q) => q.changeId === p.changeId);
+      if (same) same.problems.push(...p.problems);
+      else problems.push(p);
+    }
+  }
   let state = current;
   for (const change of proposal.changes) {
     if (problems.some((p) => p.changeId === change.id)) continue;
@@ -386,6 +401,23 @@ export function checkProposal(
 }
 
 /** Textes d'un changement : puces d'une expérience ajoutée, ou le texte « après ». */
+const wordsIn = (text: string) => text.split(/\s+/).filter((w) => /[\p{L}\d]/u.test(w)).length;
+
+/**
+ * Demande de raccourcir : un texte existant modifié qui ne perd pas au moins 20 % de ses mots est
+ * refusé (un ajout ou une suppression n'est pas concerné).
+ */
+function shortenProblems(proposal: CoachProposal): ChangeProblem[] {
+  return proposal.changes.flatMap((change) => {
+    if (change.before === null || change.kind === "removeBullet" || change.kind === "removeItem") return [];
+    if (change.kind === "bullet" && change.moved) return [];
+    const before = wordsIn(change.before);
+    return before && wordsIn(change.after) > (1 - SHORTEN_MIN_SHARE) * before
+      ? [{ changeId: change.id, text: change.after, problems: [PROBLEM_NOT_SHORTER] }]
+      : [];
+  });
+}
+
 function changeTexts(change: CoachChange): { text: string; bullet: boolean }[] {
   if (change.kind === "bullet") return [{ text: change.after, bullet: true }];
   if (change.kind === "item" && change.target === "experience") {

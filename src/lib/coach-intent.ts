@@ -17,6 +17,9 @@ const NEGATIVE =
 /** Demande d'arrêt des questions. */
 const STOP =
   /plus (de|aucune) questions?|arr[êe]te (les|tes) questions|stop (les|tes|the|asking|with the) questions?|pas d'autres? questions?|no more questions|stop asking/i;
+/** Demande de raccourcir un texte. */
+const SHORTEN = /raccourci|plus court|moins long|r[ée]dui[st] (la longueur|mon|ma|mes|le|la|les)|condense|all[ée]ge|shorten|shorter|trim|cut down|make it short|more concise/i;
+
 /** Question de chiffre (ce que deux refus de suite arrêtent). */
 const FIGURE_QUESTION = /combien|chiffre|nombre|ordre de grandeur|pourcentage|%|budget|how many|how much|number|figure|percentage|amount/i;
 /** Proposition de continuer une demande en plusieurs parties. */
@@ -27,6 +30,7 @@ export const isConfirmationQuestion = (message: string) => CONFIRMATION.test(mes
 /** Réponse négative : refus ou information inconnue, sans chiffre donné. */
 export const isNegative = (message: string) => NEGATIVE.test(message) && !/\d/.test(message);
 export const asksToStop = (message: string) => STOP.test(message);
+export const asksToShorten = (message: string) => SHORTEN.test(message);
 
 /** Ce que le serveur a compris de la session (messages du candidat, dernier compris). */
 export type Listening = {
@@ -39,6 +43,8 @@ export type Listening = {
   confirmation: boolean;
   /** Le dernier message est un refus. */
   refusal: boolean;
+  /** Le dernier message demande de raccourcir (au moins 20 % de mots en moins sur le texte visé). */
+  shorten: boolean;
 };
 
 /** État de la session tiré des messages du candidat (historique, puis dernier message). */
@@ -51,6 +57,7 @@ export function listeningState(history: { role: "user" | "assistant"; content: s
     readiness: isReadinessQuestion(request),
     confirmation: isConfirmationQuestion(request),
     refusal: isNegative(request),
+    shorten: asksToShorten(request),
   };
 }
 
