@@ -360,15 +360,51 @@ export type CheckOptions = {
 /** Vérifications propres à un CV lié à une offre. */
 export type OfferCheck = Record<string, never>;
 
+/** CV lié : une puce qui disait un rôle partiel le garde. */
+export const PROBLEM_INFLATED_ROLE = "gonfle le rôle : la puce d'origine décrivait une participation";
+/** CV lié : le titre n'annonce aucun niveau que le CV ou le candidat ne montre pas. */
+export const PROBLEM_INFLATED_TITLE_PREFIX = "annonce un niveau absent du CV : ";
+
+/** Début d'une puce qui dit un rôle partiel (français, anglais). */
+const PARTIAL_ROLE =
+  /^\s*(participation|contribution|appui|aide|soutien|support|assistance|particip[ée]|contribu[ée]|aid[ée]|assist[ée]|accompagn[ée]|participated|participating|contributed|contributing|assisted|assisting|helped|helping|supported|supporting)\b/i;
+/** Mots de niveau d'un titre (ancienneté ou encadrement). */
+const SENIORITY = ["senior", "sénior", "lead", "staff", "principal", "manager", "head", "chef", "directeur", "directrice", "director", "responsable", "confirmé", "confirmée", "expert", "experte", "vp"];
+const levelWords = (text: string) => {
+  const words = new Set(text.toLowerCase().match(/[\p{L}]+/gu) ?? []);
+  return SENIORITY.filter((w) => words.has(w));
+};
+/** Premier mot d'un texte, réduit à sa racine (5 lettres) : « Pilotage » ≈ « piloté ». */
+const firstStem = (text: string) => (text.trim().toLowerCase().match(/^[\p{L}]+/u)?.[0] ?? "").slice(0, 5);
+
 /**
- * Défauts propres à un CV lié à une offre : le résumé réécrit pour l'offre ne contient aucun
- * nombre absent du CV et des messages du candidat (en mode parcours aussi).
+ * Défauts propres à un CV lié à une offre :
+ * - le résumé réécrit pour l'offre ne contient aucun nombre absent du CV et des messages du
+ *   candidat (en mode parcours aussi) ;
+ * - une puce qui commençait par un rôle partiel (« Participation à… ») le garde, sauf si le
+ *   candidat a lui-même employé le nouveau verbe ;
+ * - le titre n'annonce aucun niveau (senior, manager…) absent du titre, des postes et des
+ *   messages du candidat.
  */
-function offerProblems(proposal: CoachProposal, allowed: Set<string>): ChangeProblem[] {
-  return proposal.changes.flatMap((change) => {
-    if (change.kind !== "field" || change.target !== "summary") return [];
-    const invented = inventedNumbers(change.after, allowed);
-    return invented.length ? [{ changeId: change.id, text: change.after, problems: [`${PROBLEM_NEW_NUMBER_PREFIX}${invented.join(", ")}`] }] : [];
+function offerProblems(proposal: CoachProposal, current: CvData, candidateMessages: string[]): ChangeProblem[] {
+  const allowed = numberSources([...cvStrings(current), ...candidateMessages]);
+  const said = candidateMessages.join(" ").toLowerCase();
+  const known = new Set(levelWords([current.personal.jobTitle, ...current.experiences.map((e) => e.position), ...candidateMessages].join(" ")));
+  return proposal.changes.flatMap((change): ChangeProblem[] => {
+    if (change.kind === "field" && change.target === "summary") {
+      const invented = inventedNumbers(change.after, allowed);
+      return invented.length ? [{ changeId: change.id, text: change.after, problems: [`${PROBLEM_NEW_NUMBER_PREFIX}${invented.join(", ")}`] }] : [];
+    }
+    if (change.kind === "field" && change.target === "personal" && change.field === "jobTitle") {
+      const added = levelWords(change.after).filter((w) => !known.has(w));
+      return added.length ? [{ changeId: change.id, text: change.after, problems: [`${PROBLEM_INFLATED_TITLE_PREFIX}${added.join(", ")}`] }] : [];
+    }
+    if (change.kind === "bullet" && !change.moved && change.before !== null && PARTIAL_ROLE.test(change.before) && !PARTIAL_ROLE.test(change.after)) {
+      const stem = firstStem(change.after);
+      if (stem && said.includes(stem)) return [];
+      return [{ changeId: change.id, text: change.after, problems: [PROBLEM_INFLATED_ROLE] }];
+    }
+    return [];
   });
 }
 
@@ -403,8 +439,7 @@ export function checkProposal(
     }
   }
   if (options.offer) {
-    const allowed = numberSources([...cvStrings(current), ...(options.candidateMessages ?? [])]);
-    for (const p of offerProblems(proposal, allowed)) {
+    for (const p of offerProblems(proposal, current, options.candidateMessages ?? [])) {
       const same = problems.find((q) => q.changeId === p.changeId);
       if (same) same.problems.push(...p.problems.filter((x) => !same.problems.includes(x)));
       else problems.push(p);

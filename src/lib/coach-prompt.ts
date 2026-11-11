@@ -88,6 +88,9 @@ const OFFER_PROPOSE: Record<ProposedStep, string> = {
   resume:
     "Étape à proposer dans « message » : le résumé. Propose de réécrire le résumé pour cette offre en nommant 1 ou 2 atouts réels du CV ou des messages du candidat qui répondent à l'offre, et demande seulement si le candidat l'accepte. Ne modifie pas encore le résumé.",
 };
+/** CV lié pas encore clos : le niveau de responsabilité du CV est gardé (vérifié par le serveur). */
+const OFFER_FAITHFUL_ROLE =
+  "Niveau de responsabilité : garde celui du CV. Une puce qui commence par « Participation à », « Contribution à » ou « Appui à » (ou « participé », « aidé », « assisté ») garde ce rôle partiel : ne la transforme jamais en « Réalisation de », « Pilotage de » ou un autre verbe de pleine responsabilité, sauf si le candidat l'a dit lui-même. Le titre n'annonce aucun niveau (senior, lead, manager, responsable…) que le CV ne montre pas. L'application refuse tout gonflement.";
 /** CV lié pas encore clos : les atouts pour l'offre remontent en tête des expériences. */
 const OFFER_STRENGTHS =
   "Atouts pour l'offre : quand tu traites une expérience, si une puce existante répond mieux à l'offre que la première, place-la en premier (déplacement de la puce telle quelle, sans la réécrire) et dis-le dans « change_summary ». N'invente aucun atout.";
@@ -231,6 +234,7 @@ export function coachSystem(
         "Le CV est adapté à cette offre : elle fixe le poste visé, le secteur et le score.",
         `Intitulé du poste : ${n(position)}`,
         !closed ? OFFER_STRENGTHS : null,
+        !closed ? OFFER_FAITHFUL_ROLE : null,
         "</offre>",
       ]
         .filter(Boolean)

@@ -298,3 +298,39 @@ test("écart : consigne et champ dédié pour un CV lié seulement, affiché ava
   await coachBuilderCv(freeClient, contextFor(financeCv, null, { history: opening, request }), opening, request);
   assert.ok(!JSON.stringify(freeClient.requests[0].output_config).includes("ecart_offre"));
 });
+
+// --- Verbes fidèles au rôle et titre sans niveau inventé ---
+
+test("verbes : un rôle partiel n'est pas gonflé (CV lié), inchangé pour un CV libre ; titre sans niveau inventé", async () => {
+  const request = "J'ai participé à 6 missions de commissariat aux comptes.";
+  const history = [{ role: "assistant", content: "Combien de missions d'audit as-tu accompagnées ?" }];
+  const skipped = ["offre:titre", "offre:resume", "offre:ecart"];
+  const run = async (reply, detail = backend) => {
+    const context = contextFor(financeCv, detail, { history, request, skipped });
+    const first = await coachBuilderCv(fakeClient(reply), context, history, request);
+    return quiet(() => runCoachTurn({ current: financeCv, context, turns: history, request, reply: first, limitReached: false, retry: async () => first }));
+  };
+  const bullet = (after) => flat({ section: "experience", data: JSON.stringify({ id: "fj-e2", bullets: [{ index: 0, after }] }), change_summary: "C'est fait." });
+  const original = financeCv.experiences[1].bullets[0];
+  assert.match(original, /^Participation/);
+
+  const inflated = await run(bullet("Réalisation de 6 missions d'audit légal"));
+  assert.equal(inflated.updated.experiences[1].bullets[0], original);
+  assert.ok(inflated.text.includes("je ne peux pas écrire que tu l'as mené seul"));
+  const faithful = await run(bullet("Participation à 6 missions d'audit légal"));
+  assert.equal(faithful.updated.experiences[1].bullets[0], "Participation à 6 missions d'audit légal");
+  // CV libre : comportement inchangé (pas de cette vérification).
+  assert.equal((await run(bullet("Réalisation de 6 missions d'audit légal"), null)).updated.experiences[1].bullets[0], "Réalisation de 6 missions d'audit légal");
+
+  const title = (jobTitle) => flat({ section: "personal", data: JSON.stringify({ jobTitle }), change_summary: "C'est fait." });
+  const senior = await run(title("Développeuse backend senior"));
+  assert.equal(senior.updated.personal.jobTitle, financeCv.personal.jobTitle);
+  assert.ok(senior.text.includes("un niveau (senior)"));
+  assert.equal((await run(title("Développeuse backend junior"))).updated.personal.jobTitle, "Développeuse backend junior");
+});
+
+test("prompt : règle du niveau de responsabilité pour un CV lié seulement", () => {
+  const linked = coachSystem(contextFor(financeCv, backend, { history: opening, request: "oui" }), "");
+  assert.ok(linked.includes("Niveau de responsabilité : garde celui du CV."));
+  assert.ok(!coachSystem(contextFor(financeCv, null, { history: opening, request: "oui" }), "").includes("Niveau de responsabilité"));
+});

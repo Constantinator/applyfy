@@ -1,5 +1,7 @@
 import {
   PROBLEM_BANNED_PREFIX,
+  PROBLEM_INFLATED_ROLE,
+  PROBLEM_INFLATED_TITLE_PREFIX,
   PROBLEM_LOST_FIGURE,
   PROBLEM_LOST_VERB,
   PROBLEM_NEW_NUMBER_PREFIX,
@@ -34,6 +36,8 @@ const TEXTS = {
     lostVerb: "la nouvelle version ne disait plus ce que tu faisais, contrairement à ta puce d'origine.",
     lostFigure: "la nouvelle version perdait le chiffre de ta puce d'origine.",
     invented: (numbers: string) => `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).`,
+    inflatedRole: "ta puce d'origine disait que tu avais participé : je ne peux pas écrire que tu l'as mené seul.",
+    inflatedTitle: (words: string) => `le titre proposé annonçait un niveau (${words}) que ton CV ne montre pas.`,
     notShorter: "je n'ai pas réussi à le raccourcir d'au moins 20 % sans retirer une information. Dis-moi ce que je peux enlever.",
     requestFailed: "Je n'ai pas pu faire cette modification : ",
     otherFailed: "Je n'ai pas pu appliquer cette modification à ton CV. ",
@@ -82,6 +86,8 @@ const TEXTS = {
     lostVerb: "the new version no longer said what you did, unlike your original bullet.",
     lostFigure: "the new version lost the number from your original bullet.",
     invented: (numbers: string) => `the proposed text contained a number that comes neither from your CV nor from your messages (${numbers}).`,
+    inflatedRole: "your original bullet said you took part in it: I can't write that you led it alone.",
+    inflatedTitle: (words: string) => `the proposed title claimed a level (${words}) that your CV doesn't show.`,
     notShorter: "I couldn't shorten it by at least 20% without removing information. Tell me what I can cut.",
     requestFailed: "I couldn't make this change: ",
     otherFailed: "I couldn't apply this change to your CV. ",
@@ -156,10 +162,10 @@ export type CoachOutcomeInput = {
   lang?: CoachLang;
 };
 
-type Kind = "format" | "limit" | "shorten" | "verb" | "banned" | "regression" | "invented" | "stale" | "noop" | "figure" | "unknown";
+type Kind = "format" | "limit" | "shorten" | "verb" | "banned" | "regression" | "invented" | "faithful" | "stale" | "noop" | "figure" | "unknown";
 type Cause = { kind: Kind; text: string };
 /** Ordre d'affichage : le chiffre manquant vient en dernier. */
-const RANK: Kind[] = ["format", "limit", "shorten", "verb", "banned", "regression", "invented", "stale", "noop", "figure", "unknown"];
+const RANK: Kind[] = ["format", "limit", "shorten", "verb", "banned", "regression", "invented", "faithful", "stale", "noop", "figure", "unknown"];
 
 const upperFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 /** Minuscule initiale, sauf le pronom anglais « I » (« I'm », « I need »). */
@@ -179,6 +185,8 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_NO_VERB) return [{ kind: "verb", text: t.verb }];
     if (p === PROBLEM_NO_FIGURE) return [{ kind: "figure", text: t.figure }];
     if (p === PROBLEM_NOT_SHORTER) return [{ kind: "shorten", text: t.notShorter }];
+    if (p === PROBLEM_INFLATED_ROLE) return [{ kind: "faithful", text: t.inflatedRole }];
+    if (p.startsWith(PROBLEM_INFLATED_TITLE_PREFIX)) return [{ kind: "faithful", text: t.inflatedTitle(p.slice(PROBLEM_INFLATED_TITLE_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {
       return [{ kind: "banned", text: t.banned(p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "")) }];
     }
