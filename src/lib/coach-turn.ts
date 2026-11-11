@@ -54,6 +54,14 @@ export type CoachTurnResult =
       scoreAfter: number | null;
     };
 
+/** Le résumé cite entre « » une puce d'expérience restée identique (présente avant et après). */
+export function quotesUnchangedBullet(summary: string, before: CvData, after: CvData) {
+  const bullets = (cv: CvData) => new Set(cv.experiences.flatMap((e) => e.bullets.map((b) => b.trim())));
+  const was = bullets(before);
+  const is = bullets(after);
+  return [...summary.matchAll(/«\s*([^»]+?)\s*»/g)].some((m) => was.has(m[1]) && is.has(m[1]));
+}
+
 /**
  * Suite d'un échange du coach à partir de sa première réponse : modification vérifiée par le
  * code ; textes refusés (ou contenu invalide) : un nouvel essai, invisible pour le candidat (sauf
@@ -93,11 +101,13 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   let updated = current;
   let applied = 0;
   let stale = 0;
+  const appliedLabels: string[] = [];
   for (const change of proposal?.changes ?? []) {
     const next = applyCoachChange(updated, change);
     if (next) {
       updated = next;
       applied++;
+      appliedLabels.push(change.label);
     } else {
       stale++;
       console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
@@ -140,6 +150,11 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     firstProblems,
     message: answer.message,
     changeSummary: answer.changeSummary,
+    // Annonce fidèle : emplacements réellement modifiés, emplacement de chaque texte refusé, et
+    // résumé du modèle écarté s'il cite une puce restée identique.
+    appliedLabels,
+    refusedLabels: Object.fromEntries((built?.changes ?? []).map((c) => [c.id, c.label])),
+    summaryFaithful: !quotesUnchangedBullet(answer.changeSummary, current, updated),
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
     corrections: scored?.after.corrections.map((c) => c.message) ?? [],

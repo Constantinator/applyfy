@@ -225,6 +225,33 @@ test(
 );
 
 test(
+  "échange : annonce fidèle, une puce écrite et une refusée, chacune avec son emplacement",
+  quiet(async () => {
+    const first = reply({
+      changeSummary: "C'est fait : j'ai ajouté tes deux résultats.",
+      update: {
+        section: "experience",
+        data: { id: "e1", bullets: [{ index: -1, after: `${VERB} 12 contrats par mois` }, { index: -1, after: "Signature de contrats" }], bullets_to_remove: [] },
+      },
+      raw: { section: "experience", data: "{}" },
+    });
+    const turn = await runCoachTurn(turnInput(first, async () => null));
+    assert.equal(turn.kind, "done");
+    assert.equal(turn.applied, 1);
+    assert.ok(turn.text.startsWith("C'est fait, j'ai modifié : Commercial chez Société Fictive (nouvelle puce)."), turn.text);
+    assert.ok(turn.text.includes("Pas modifié — Commercial chez Société Fictive (nouvelle puce) : il me manque un chiffre"), turn.text);
+    assert.ok(!turn.text.includes("deux résultats"), "résumé du modèle écarté");
+  }),
+);
+
+test("annonce fidèle : citation d'une puce restée identique", async () => {
+  const { quotesUnchangedBullet } = await import("./coach-turn.ts");
+  const after = { ...cv, experiences: [{ ...cv.experiences[0], bullets: [...cv.experiences[0].bullets, "Nouvelle puce de 3 mots"] }] };
+  assert.equal(quotesUnchangedBullet("C'est fait : « Prospection de nouveaux clients PME » est chiffrée.", cv, after), true);
+  assert.equal(quotesUnchangedBullet("C'est fait : « Nouvelle puce de 3 mots » ajoutée.", cv, after), false);
+});
+
+test(
   "échange : question seule, aucune modification",
   quiet(async () => {
     const turn = await runCoachTurn(turnInput(reply(), noRetry));

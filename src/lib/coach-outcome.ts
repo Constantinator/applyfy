@@ -44,6 +44,14 @@ export type CoachOutcomeInput = {
   /** Question et annonce du coach. */
   message: string;
   changeSummary: string;
+  /**
+   * Annonce fidèle : emplacements réellement modifiés (libellés des changements appliqués) et
+   * emplacement de chaque texte refusé (par identifiant de changement). `summaryFaithful` faux :
+   * le résumé du modèle cite une puce restée identique ; il n'est alors pas affiché.
+   */
+  appliedLabels?: string[];
+  refusedLabels?: Record<string, string>;
+  summaryFaithful?: boolean;
   /** Score avant et après l'application (null après : rien n'a été appliqué). */
   scoreBefore: number;
   scoreAfter: number | null;
@@ -73,13 +81,18 @@ function problemCauses(problem: ChangeProblem): Cause[] {
     ];
   }
   return problem.problems.flatMap((p): Cause[] => {
-    if (p === PROBLEM_NO_VERB) return [{ kind: "verb", text: "la puce proposée ne commence pas par un verbe d'action." }];
+    if (p === PROBLEM_NO_VERB) {
+      return [{ kind: "verb", text: "j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »)." }];
+    }
     if (p === PROBLEM_NO_FIGURE) {
       return [{ kind: "figure", text: "il me manque un chiffre ou un ordre de grandeur pour écrire cette puce." }];
     }
-    if (p.startsWith(PROBLEM_BANNED_PREFIX)) return [{ kind: "banned", text: `le texte proposé ${p}.` }];
+    if (p.startsWith(PROBLEM_BANNED_PREFIX)) {
+      const phrase = p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "");
+      return [{ kind: "banned", text: `le texte proposé contenait « ${phrase} », une formule trop vague pour un recruteur.` }];
+    }
     if (p === PROBLEM_LOST_VERB) {
-      return [{ kind: "verb", text: "la nouvelle version ne commençait plus par un verbe d'action, contrairement à ta puce d'origine." }];
+      return [{ kind: "verb", text: "la nouvelle version ne disait plus ce que tu faisais, contrairement à ta puce d'origine." }];
     }
     if (p === PROBLEM_LOST_FIGURE) {
       return [{ kind: "regression", text: "la nouvelle version perdait le chiffre de ta puce d'origine." }];
@@ -101,6 +114,15 @@ function sortedCauses(causes: Cause[]): Cause[] {
 /** Phrases des causes : la première en minuscule si elle suit des deux-points, les autres en majuscule. */
 const sentences = (causes: Cause[], afterColon: boolean) =>
   causes.map((c, i) => (i === 0 && afterColon ? lowerFirst(c.text) : upperFirst(c.text))).join(" ");
+
+/** Libellé d'un changement lisible dans une phrase : « Stage chez X — puce 2 » → « Stage chez X (puce 2) ». */
+const placeName = (label: string) => label.replace(/\s+—\s+(.+)$/, " ($1)");
+
+/** Annonce écrite par le serveur à partir des emplacements réellement modifiés. */
+function appliedAnnouncement(labels: string[] | undefined) {
+  const places = [...new Set(labels ?? [])];
+  return places.length ? `C'est fait, j'ai modifié : ${places.map(placeName).join(" ; ")}.` : DEFAULT_SUMMARY;
+}
 
 /** Clôture complète : le CV vient de passer le seuil « prêt à postuler ». */
 export function closureMessage(score: number, corrections: string[], offerKeywords: string[]) {
@@ -181,10 +203,19 @@ export function coachReplyText(i: CoachOutcomeInput): string {
   const partial: Cause[] = [...fromProblems];
   if (i.stale) partial.push({ kind: "stale", text: STALE_CAUSE });
   const sorted = sortedCauses(partial);
-  const partialText = sorted.length
-    ? `${experience && !request ? "Certaines puces n'ont pas été ajoutées" : "Une partie de la modification n'a pas été appliquée"} : ${sentences(sorted, true)}`
-    : null;
-  const summary = i.changeSummary || DEFAULT_SUMMARY;
+  // Ce qui n'a pas été modifié : chaque texte refusé avec son emplacement quand il est connu.
+  const refused = i.problems.length ? i.problems : i.firstProblems;
+  const named = refused.every((p) => i.refusedLabels?.[p.changeId]);
+  const partialText = !sorted.length
+    ? null
+    : named && refused.length
+      ? [
+          ...refused.map((p) => `Pas modifié — ${placeName(i.refusedLabels![p.changeId])} : ${sentences(sortedCauses(problemCauses(p)), true)}`),
+          ...(i.stale ? [upperFirst(STALE_CAUSE)] : []),
+        ].join(" ")
+      : `${experience && !request ? "Certaines puces n'ont pas été ajoutées" : "Une partie de la modification n'a pas été appliquée"} : ${sentences(sorted, true)}`;
+  // Le résumé du modèle n'est repris que si tout a été appliqué tel quel ; sinon, annonce du serveur.
+  const summary = !sorted.length && i.summaryFaithful !== false && i.changeSummary ? i.changeSummary : appliedAnnouncement(i.appliedLabels);
 
   if (i.scoreAfter !== null && i.scoreAfter >= READY_SCORE) {
     // Passage du seuil : clôture complète ; déjà au-dessus avant : une ligne courte, sans nouvelle clôture.

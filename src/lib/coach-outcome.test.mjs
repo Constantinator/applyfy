@@ -46,13 +46,13 @@ test("échec : format invalide", () => {
 
 test("échec : pas de verbe d'action, sans question de chiffre", () => {
   const out = text({ problems: [problem([PROBLEM_NO_VERB])] });
-  assert.equal(out, `${PREFIX}la puce proposée ne commence pas par un verbe d'action.`);
+  assert.equal(out, `${PREFIX}j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »).`);
   assert.ok(!out.includes("chiffre"));
 });
 
 test("échec : formule creuse", () => {
   const out = text({ problems: [problem([`${PROBLEM_BANNED_PREFIX}force de proposition »`])] });
-  assert.equal(out, `${PREFIX}le texte proposé contient la formule à éviter « force de proposition ».`);
+  assert.equal(out, `${PREFIX}le texte proposé contenait « force de proposition », une formule trop vague pour un recruteur.`);
 });
 
 test("échec : limite de puces, puis autre limite", () => {
@@ -89,14 +89,14 @@ test("échec : plusieurs causes, le chiffre en dernier", () => {
   const out = text({ problems: [problem([PROBLEM_NO_FIGURE, PROBLEM_NO_VERB])] });
   assert.equal(
     out,
-    `${PREFIX}la puce proposée ne commence pas par un verbe d'action. Il me manque un chiffre ou un ordre de grandeur pour écrire cette puce. ${MISSING_FIGURE_QUESTION}`,
+    `${PREFIX}j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »). Il me manque un chiffre ou un ordre de grandeur pour écrire cette puce. ${MISSING_FIGURE_QUESTION}`,
   );
 });
 
 test("échec au second essai : causes du premier essai si le second ne propose plus rien", () => {
   assert.equal(
     text({ firstProblems: [problem([PROBLEM_NO_VERB])], message: "Peux-tu préciser ton rôle ?" }),
-    `${PREFIX}la puce proposée ne commence pas par un verbe d'action. Peux-tu préciser ton rôle ?`,
+    `${PREFIX}j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »). Peux-tu préciser ton rôle ?`,
   );
 });
 
@@ -107,7 +107,7 @@ test("échec hors expérience : motif, puis demande de reformuler", () => {
   });
   assert.equal(
     out,
-    "Je n'ai pas pu appliquer cette modification à ton CV. Le texte proposé contient la formule à éviter « dynamique ». Peux-tu reformuler ta demande ?",
+    "Je n'ai pas pu appliquer cette modification à ton CV. Le texte proposé contenait « dynamique », une formule trop vague pour un recruteur. Peux-tu reformuler ta demande ?",
   );
   assert.equal(
     text({ section: "skills", stale: 1 }),
@@ -115,15 +115,35 @@ test("échec hors expérience : motif, puis demande de reformuler", () => {
   );
 });
 
-test("modification partielle : la cause des puces refusées", () => {
+test("modification partielle : jamais le résumé du modèle, la cause des puces refusées", () => {
   assert.equal(
     text({ applied: 1, scoreBefore: 50, scoreAfter: 55, changeSummary: "C'est fait : j'ai mis à jour ton stage.", problems: [problem([PROBLEM_NO_VERB])] }),
-    "C'est fait : j'ai mis à jour ton stage. Certaines puces n'ont pas été ajoutées : la puce proposée ne commence pas par un verbe d'action.",
+    "C'est fait : j'ai mis à jour ton CV. Certaines puces n'ont pas été ajoutées : j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »).",
   );
   assert.equal(
     text({ applied: 1, scoreBefore: 50, scoreAfter: 55, changeSummary: "C'est fait.", problems: [problem([PROBLEM_NO_FIGURE])] }),
-    `C'est fait. Certaines puces n'ont pas été ajoutées : il me manque un chiffre ou un ordre de grandeur pour écrire cette puce. ${MISSING_FIGURE_QUESTION}`,
+    `C'est fait : j'ai mis à jour ton CV. Certaines puces n'ont pas été ajoutées : il me manque un chiffre ou un ordre de grandeur pour écrire cette puce. ${MISSING_FIGURE_QUESTION}`,
   );
+});
+
+test("annonce fidèle : emplacements réellement modifiés, et chaque texte refusé avec son emplacement", () => {
+  const out = text({
+    applied: 1,
+    scoreBefore: 50,
+    scoreAfter: 55,
+    changeSummary: "C'est fait : j'ai ajouté tes 12 patients à ta puce de soins et tes 3 étudiants à ta puce d'encadrement.",
+    appliedLabels: ["Infirmière chez CH Fictif — puce 2"],
+    refusedLabels: { c1: "Infirmière chez CH Fictif — puce 1", c2: "Infirmière chez CH Fictif — puce 2" },
+    problems: [problem([PROBLEM_NO_VERB])],
+  });
+  assert.equal(out, `C'est fait, j'ai modifié : Infirmière chez CH Fictif (puce 2). Pas modifié — Infirmière chez CH Fictif (puce 1) : j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »).`);
+  assert.ok(!out.includes("12 patients"), "le résumé du modèle n'est pas repris");
+});
+
+test("annonce fidèle : résumé du modèle gardé si tout est appliqué, écarté s'il cite une puce inchangée", () => {
+  const ok = { applied: 1, scoreBefore: 50, scoreAfter: 55, changeSummary: "C'est fait : j'ai chiffré ta puce.", appliedLabels: ["Stage chez X — puce 1"] };
+  assert.equal(text(ok), "C'est fait : j'ai chiffré ta puce.");
+  assert.equal(text({ ...ok, summaryFaithful: false }), "C'est fait, j'ai modifié : Stage chez X (puce 1).");
 });
 
 test("sous le seuil : comportement inchangé, la question du coach est gardée", () => {
@@ -182,13 +202,13 @@ test("déjà prêt avant et après (85 → 85) : une ligne courte", () => {
 
 test("aucun changement appliqué : jamais de clôture, même à 80 ou plus", () => {
   const out = text({ scoreBefore: 85, scoreAfter: null, problems: [problem([PROBLEM_NO_VERB])] });
-  assert.equal(out, `${PREFIX}la puce proposée ne commence pas par un verbe d'action.`);
+  assert.equal(out, `${PREFIX}j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »).`);
   assert.ok(!out.includes("prêt") && !out.includes("/100"));
 });
 
 test("clôture avec une partie refusée : la cause est dite avant la clôture", () => {
   const out = text({ applied: 1, scoreBefore: 79, scoreAfter: 80, problems: [problem([PROBLEM_NO_VERB])] });
-  assert.ok(out.includes("Certaines puces n'ont pas été ajoutées : la puce proposée ne commence pas par un verbe d'action. Ton CV est prêt"));
+  assert.ok(out.includes("Certaines puces n'ont pas été ajoutées : j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »). Ton CV est prêt"));
 });
 
 test("limite de puces : chemin réel produit par checkProposal", async () => {
