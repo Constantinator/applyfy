@@ -1,0 +1,86 @@
+{
+  "id": "etudiant-stage-fr",
+  "sector": "etudiant",
+  "level": "stage",
+  "language": "fr",
+  "facts": [
+    "Tu es en 2e année de licence d'économie.",
+    "Tu travailles 15 heures par semaine dans un fast-food depuis 1 an.",
+    "Dans l'association sportive de ta fac, tu as organisé 4 tournois et animé 8 bénévoles.",
+    "Tu hésites encore entre un stage en banque et un stage en marketing."
+  ],
+  "cv": {
+    "personal": {
+      "firstName": "Yanis",
+      "lastName": "Exemple",
+      "jobTitle": "Étudiant",
+      "email": "yanis.exemple@example.com",
+      "city": "Montpellier"
+    },
+    "summary": "Étudiant motivé cherchant un stage.",
+    "targetJob": "",
+    "experiences": [
+      {
+        "id": "es-e1",
+        "position": "Équipier polyvalent",
+        "company": "Restaurant Fictif",
+        "startDate": "2025",
+        "endDate": "",
+        "current": true,
+        "location": "Montpellier",
+        "bullets": [
+          "Service en salle et en caisse"
+        ]
+      },
+      {
+        "id": "es-e2",
+        "position": "Bénévole",
+        "company": "Association sportive universitaire",
+        "startDate": "2024",
+        "endDate": "2025",
+        "location": "Montpellier",
+        "bullets": [
+          "Organisation de 4 tournois inter-facultés",
+          "Animation d'une équipe de 8 bénévoles"
+        ]
+      }
+    ],
+    "education": [
+      {
+        "id": "es-d1",
+        "school": "Université Exemple",
+        "degree": "Licence d'économie",
+        "startDate": "2024",
+        "endDate": "",
+        "bullets": [
+          "Cours : microéconomie, statistiques, comptabilité"
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "id": "es-s1",
+        "name": "Pack Office",
+        "level": ""
+      },
+      {
+        "id": "es-s2",
+        "name": "Travail en équipe",
+        "level": ""
+      },
+      {
+        "id": "es-s3",
+        "name": "Anglais",
+        "level": ""
+      }
+    ],
+    "languages": [
+      {
+        "id": "es-l1",
+        "name": "Anglais",
+        "level": "B2"
+      }
+    ],
+    "interests": "Basket, trésorier de l'association sportive de l'université"
+  }
+}

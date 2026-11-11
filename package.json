@@ -11,7 +11,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test src/lib/*.test.mjs",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "eval:coach": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/eval/register.mjs scripts/eval/run.ts",
+    "eval:typecheck": "tsc --noEmit -p scripts/eval"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

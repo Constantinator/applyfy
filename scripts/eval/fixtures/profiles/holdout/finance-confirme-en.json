@@ -1,0 +1,44 @@
+{
+  "id": "finance-confirme-en",
+  "sector": "finance",
+  "level": "confirmé",
+  "language": "en",
+  "facts": [
+    "You closed 9 mid-market M&A deals worth a combined 400 million euros.",
+    "You manage 3 analysts.",
+    "You built the valuation model template now used by the whole team."
+  ],
+  "cv": {
+    "personal": { "firstName": "Alex", "lastName": "Example", "jobTitle": "M&A Associate", "email": "alex.example@example.com", "city": "London" },
+    "summary": "M&A associate with 6 years of experience in mid-market transactions across industrial and consumer sectors.",
+    "targetJob": "M&A Vice President",
+    "experiences": [
+      {
+        "id": "fe-e1",
+        "position": "M&A Associate",
+        "company": "Fictional Advisory Partners",
+        "startDate": "2021",
+        "endDate": "",
+        "current": true,
+        "location": "London",
+        "bullets": ["Execution of mid-market M&A transactions", "Management of analysts", "Preparation of valuation models and pitch books"]
+      },
+      {
+        "id": "fe-e2",
+        "position": "M&A Analyst",
+        "company": "Example Capital",
+        "startDate": "2019",
+        "endDate": "2021",
+        "location": "Paris",
+        "bullets": ["Built financial models for 15 buy-side mandates", "Due diligence coordination"]
+      }
+    ],
+    "education": [{ "id": "fe-d1", "school": "Example Business School", "degree": "MSc Finance", "startDate": "2017", "endDate": "2019" }],
+    "skills": [
+      { "id": "fe-s1", "name": "Financial modelling", "level": "expert" },
+      { "id": "fe-s2", "name": "Valuation", "level": "expert" },
+      { "id": "fe-s3", "name": "Due diligence", "level": "avance" }
+    ],
+    "languages": [{ "id": "fe-l1", "name": "English", "level": "C2" }, { "id": "fe-l2", "name": "French", "level": "Native" }]
+  }
+}

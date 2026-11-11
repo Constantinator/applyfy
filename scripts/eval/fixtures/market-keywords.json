@@ -1,0 +1,13 @@
+{
+  "_note": "Mots-clés figés par secteur, à la place de la table job_keywords (Supabase) : le banc d'essai ne lit aucune base. Listes génériques écrites à la main.",
+  "finance": ["Excel", "reporting", "analyse financière", "budget", "trésorerie", "audit", "consolidation", "IFRS", "contrôle de gestion", "modélisation"],
+  "conseil": ["gestion de projet", "stratégie", "transformation", "PowerPoint", "conduite du changement", "analyse", "recommandations", "ateliers", "pilotage", "Excel"],
+  "tech": ["Python", "JavaScript", "TypeScript", "SQL", "Docker", "Git", "API", "cloud", "Kubernetes", "React"],
+  "marketing": ["réseaux sociaux", "SEO", "Google Analytics", "e-mailing", "stratégie de contenu", "acquisition", "CRM", "Canva", "KPI", "campagnes"],
+  "creatif": ["Figma", "Adobe Creative Suite", "identité visuelle", "UX", "direction artistique", "Illustrator", "motion design", "InDesign", "print", "photographie"],
+  "commercial": ["prospection", "négociation", "CRM", "Salesforce", "chiffre d'affaires", "fidélisation", "B2B", "objectifs", "portefeuille clients", "closing"],
+  "rh": ["recrutement", "SIRH", "onboarding", "paie", "droit du travail", "marque employeur", "entretiens", "GPEC", "formation", "relations sociales"],
+  "sante": ["soins", "patients", "protocoles", "hygiène", "pharmacovigilance", "dossier patient", "urgences", "éducation thérapeutique", "équipe pluridisciplinaire", "qualité"],
+  "etudiant": ["Pack Office", "anglais", "travail en équipe", "stage", "alternance", "communication", "organisation", "associatif", "Excel", "autonomie"],
+  "luxe": ["clienteling", "relation client", "vente", "merchandising", "clientèle internationale", "expérience client", "anglais", "retail", "CRM", "excellence"]
+}

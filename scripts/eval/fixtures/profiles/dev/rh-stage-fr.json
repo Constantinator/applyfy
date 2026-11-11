@@ -1,0 +1,75 @@
+{
+  "id": "rh-stage-fr",
+  "sector": "rh",
+  "level": "stage",
+  "language": "fr",
+  "facts": [
+    "Pendant ton alternance, tu as présélectionné les candidats pour 25 recrutements.",
+    "Tu as organisé l'accueil de 10 nouveaux arrivants.",
+    "Tu ne te souviens pas du nombre exact d'entretiens que tu as menés."
+  ],
+  "cv": {
+    "personal": {
+      "firstName": "Chloé",
+      "lastName": "Exemple",
+      "jobTitle": "Assistante ressources humaines",
+      "email": "chloe.exemple@example.com",
+      "city": "Toulouse"
+    },
+    "summary": "Diplômée d'une licence professionnelle RH, je cherche un premier poste en recrutement.",
+    "targetJob": "",
+    "experiences": [
+      {
+        "id": "rs-e1",
+        "position": "Alternante ressources humaines",
+        "company": "Entreprise Fictive",
+        "startDate": "2024",
+        "endDate": "2025",
+        "location": "Toulouse",
+        "bullets": [
+          "Aide au recrutement",
+          "Accueil des nouveaux arrivants",
+          "Organisation de 3 forums de recrutement sur les campus"
+        ]
+      }
+    ],
+    "education": [
+      {
+        "id": "rs-d1",
+        "school": "Université Exemple",
+        "degree": "Licence professionnelle RH",
+        "startDate": "2024",
+        "endDate": "2025"
+      }
+    ],
+    "skills": [
+      {
+        "id": "rs-s1",
+        "name": "Écoute",
+        "level": ""
+      },
+      {
+        "id": "rs-s2",
+        "name": "Logiciel SIRH",
+        "level": ""
+      },
+      {
+        "id": "rs-s3",
+        "name": "Organisation",
+        "level": ""
+      },
+      {
+        "id": "rs-s4",
+        "name": "Recrutement",
+        "level": ""
+      }
+    ],
+    "languages": [
+      {
+        "id": "rs-l1",
+        "name": "Anglais",
+        "level": "B2"
+      }
+    ]
+  }
+}

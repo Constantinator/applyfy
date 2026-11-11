@@ -1,0 +1,35 @@
+{
+  "id": "sante-junior-fr",
+  "sector": "sante",
+  "level": "junior",
+  "language": "fr",
+  "facts": [
+    "Tu travailles en service de médecine interne, avec 12 patients en moyenne par poste.",
+    "Tu as formé 3 étudiants infirmiers en stage.",
+    "Tu as participé à la mise en place d'un protocole de prévention des chutes."
+  ],
+  "cv": {
+    "personal": { "firstName": "Nora", "lastName": "Exemple", "jobTitle": "Infirmière diplômée d'État", "email": "nora.exemple@example.com", "city": "Rennes" },
+    "summary": "Infirmière diplômée d'État depuis 2 ans, à l'écoute des patients et habituée au travail en équipe pluridisciplinaire.",
+    "targetJob": "Infirmière en service hospitalier",
+    "experiences": [
+      {
+        "id": "sj-e1",
+        "position": "Infirmière",
+        "company": "Centre Hospitalier Fictif",
+        "startDate": "2024",
+        "endDate": "",
+        "current": true,
+        "location": "Rennes",
+        "bullets": ["Soins aux patients en médecine interne", "Encadrement des étudiants infirmiers", "Participation aux transmissions"]
+      }
+    ],
+    "education": [{ "id": "sj-d1", "school": "Institut de Formation Exemple", "degree": "Diplôme d'État d'infirmier", "startDate": "2021", "endDate": "2024" }],
+    "skills": [
+      { "id": "sj-s1", "name": "Soins techniques", "level": "" },
+      { "id": "sj-s2", "name": "Écoute", "level": "" },
+      { "id": "sj-s3", "name": "Travail en équipe", "level": "" }
+    ],
+    "languages": [{ "id": "sj-l1", "name": "Anglais", "level": "B1" }]
+  }
+}

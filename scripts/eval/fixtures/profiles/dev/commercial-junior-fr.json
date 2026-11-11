@@ -1,0 +1,40 @@
+{
+  "id": "commercial-junior-fr",
+  "sector": "commercial",
+  "level": "junior",
+  "language": "fr",
+  "facts": [
+    "Tu signes en moyenne 12 nouveaux contrats par mois auprès de PME.",
+    "Tu as dépassé ton objectif annuel de 15 % en 2025.",
+    "Ton portefeuille compte 80 clients actifs.",
+    "Avant, tu étais vendeur en boutique pendant 1 an ; tu n'as jamais fait de développement informatique."
+  ],
+  "cv": {
+    "personal": { "firstName": "Karim", "lastName": "Exemple", "jobTitle": "Commercial terrain", "email": "karim.exemple@example.com", "city": "Lille" },
+    "summary": "Commercial terrain dynamique, force de proposition, orienté résultats.",
+    "targetJob": "Commercial B2B",
+    "experiences": [
+      {
+        "id": "cj-e1",
+        "position": "Commercial terrain",
+        "company": "Société Fictive",
+        "startDate": "2023",
+        "endDate": "",
+        "current": true,
+        "location": "Lille",
+        "bullets": ["Prospection de nouveaux clients PME", "Négociation des contrats", "Suivi du portefeuille clients"]
+      },
+      {
+        "id": "cj-e2",
+        "position": "Vendeur",
+        "company": "Boutique Exemple",
+        "startDate": "2022",
+        "endDate": "2023",
+        "location": "Lille",
+        "bullets": ["Accueil et conseil des clients", "Tenue de la caisse"]
+      }
+    ],
+    "education": [{ "id": "cj-d1", "school": "IUT Exemple", "degree": "BUT Techniques de commercialisation", "startDate": "2019", "endDate": "2022" }],
+    "skills": [{ "id": "cj-s1", "name": "Négociation", "level": "" }, { "id": "cj-s2", "name": "Prospection", "level": "" }]
+  }
+}

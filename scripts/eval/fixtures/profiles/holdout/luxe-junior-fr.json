@@ -1,0 +1,31 @@
+{
+  "id": "luxe-junior-fr",
+  "sector": "luxe",
+  "level": "junior",
+  "language": "fr",
+  "facts": [
+    "Tu as réalisé 180 000 euros de ventes en 2025 dans la boutique de Maison Fictive.",
+    "Tu suis un fichier de 60 clients fidèles.",
+    "Tu as organisé 2 soirées privées pour les clients de la boutique."
+  ],
+  "cv": {
+    "personal": { "firstName": "Camille", "lastName": "Exemple", "jobTitle": "Conseillère de vente", "email": "camille.exemple@example.com", "city": "Paris" },
+    "summary": "Conseillère de vente passionnée par la mode et le service client d'exception.",
+    "targetJob": "Conseillère de vente en maison de luxe",
+    "experiences": [
+      {
+        "id": "lj-e1",
+        "position": "Conseillère de vente",
+        "company": "Maison Fictive",
+        "startDate": "2024",
+        "endDate": "",
+        "current": true,
+        "location": "Paris",
+        "bullets": ["Accueil et conseil d'une clientèle internationale", "Suivi des clients fidèles", "Organisation d'événements en boutique"]
+      }
+    ],
+    "education": [{ "id": "lj-d1", "school": "École de Mode Exemple", "degree": "Bachelor Management du luxe", "startDate": "2021", "endDate": "2024" }],
+    "skills": [{ "id": "lj-s1", "name": "Relation client", "level": "" }, { "id": "lj-s2", "name": "Merchandising", "level": "" }],
+    "languages": [{ "id": "lj-l1", "name": "Anglais", "level": "C1" }, { "id": "lj-l2", "name": "Mandarin", "level": "A2" }]
+  }
+}

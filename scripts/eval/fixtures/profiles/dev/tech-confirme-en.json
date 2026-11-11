@@ -1,0 +1,109 @@
+{
+  "id": "tech-confirme-en",
+  "sector": "tech",
+  "level": "confirmé",
+  "language": "en",
+  "facts": [
+    "At Fictional Software Ltd you cut API response time by 40% after moving the main service to a cache layer.",
+    "You lead a team of 4 backend engineers.",
+    "You migrated 12 services from a monolith to containers on Kubernetes.",
+    "You know Go, TypeScript, PostgreSQL, Kubernetes and AWS."
+  ],
+  "cv": {
+    "personal": {
+      "firstName": "Sam",
+      "lastName": "Example",
+      "jobTitle": "Senior Backend Engineer",
+      "email": "sam.example@example.com",
+      "city": "Paris"
+    },
+    "summary": "Senior backend engineer with 8 years of experience building APIs and distributed systems for B2B products.",
+    "targetJob": "Senior Backend Engineer",
+    "experiences": [
+      {
+        "id": "te-e1",
+        "position": "Senior Backend Engineer",
+        "company": "Fictional Software Ltd",
+        "startDate": "2021",
+        "endDate": "",
+        "current": true,
+        "location": "Paris",
+        "bullets": [
+          "Led the migration of 12 services from a monolith to Kubernetes",
+          "Cut API response time by 40% with a new cache layer",
+          "Mentoring of junior engineers"
+        ]
+      },
+      {
+        "id": "te-e2",
+        "position": "Backend Engineer",
+        "company": "Example Tech SAS",
+        "startDate": "2017",
+        "endDate": "2021",
+        "location": "Lyon",
+        "bullets": [
+          "Developed 25 REST APIs in Go for B2B customers",
+          "Maintained the PostgreSQL databases"
+        ]
+      }
+    ],
+    "education": [
+      {
+        "id": "te-d1",
+        "school": "Example Engineering School",
+        "degree": "MSc Computer Science",
+        "startDate": "2012",
+        "endDate": "2017"
+      }
+    ],
+    "skills": [
+      {
+        "id": "te-s1",
+        "name": "Go",
+        "level": "expert"
+      },
+      {
+        "id": "te-s2",
+        "name": "TypeScript",
+        "level": "avance"
+      },
+      {
+        "id": "te-s3",
+        "name": "PostgreSQL",
+        "level": "avance"
+      },
+      {
+        "id": "te-s4",
+        "name": "Kubernetes",
+        "level": "avance"
+      },
+      {
+        "id": "te-s5",
+        "name": "Teamwork",
+        "level": ""
+      },
+      {
+        "id": "te-s6",
+        "name": "AWS",
+        "level": "avance"
+      },
+      {
+        "id": "te-s7",
+        "name": "Docker",
+        "level": "avance"
+      }
+    ],
+    "languages": [
+      {
+        "id": "te-l1",
+        "name": "English",
+        "level": "C1"
+      },
+      {
+        "id": "te-l2",
+        "name": "French",
+        "level": "Native"
+      }
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "marketing-junior-fr",
+  "sector": "marketing",
+  "level": "junior",
+  "language": "fr",
+  "facts": [
+    "Tu as fait passer la communauté Instagram de Marque Fictive de 2 000 à 9 000 abonnés en 12 mois.",
+    "Ta campagne d'e-mailing de rentrée a obtenu 28 % de taux d'ouverture.",
+    "Tu gères un budget publicitaire de 5 000 euros par mois.",
+    "Tu utilises Canva, Meta Business Suite, Google Analytics et un CRM d'e-mailing."
+  ],
+  "cv": {
+    "personal": { "firstName": "Inès", "lastName": "Exemple", "jobTitle": "Chargée de marketing digital", "email": "ines.exemple@example.com", "city": "Bordeaux" },
+    "summary": "Chargée de marketing digital créative, spécialisée dans les réseaux sociaux et l'e-mailing, avec 2 ans d'expérience en agence et chez l'annonceur. J'aime les projets où la donnée guide les choix créatifs.",
+    "targetJob": "Chargée de marketing digital",
+    "experiences": [
+      {
+        "id": "mj-e1",
+        "position": "Chargée de marketing digital",
+        "company": "Marque Fictive",
+        "startDate": "2024",
+        "endDate": "",
+        "current": true,
+        "location": "Bordeaux",
+        "bullets": ["Gestion des réseaux sociaux de la marque", "Création des campagnes d'e-mailing", "Suivi des indicateurs de performance"]
+      },
+      {
+        "id": "mj-e2",
+        "position": "Assistante communication",
+        "company": "Agence Exemple",
+        "startDate": "2023",
+        "endDate": "2024",
+        "location": "Bordeaux",
+        "bullets": ["Rédaction de contenus pour 4 clients", "Organisation d'un événement de lancement"]
+      }
+    ],
+    "education": [{ "id": "mj-d1", "school": "Université Exemple", "degree": "Master Marketing digital", "startDate": "2021", "endDate": "2023" }],
+    "skills": [
+      { "id": "mj-s1", "name": "Réseaux sociaux", "level": "" },
+      { "id": "mj-s2", "name": "Google Analytics", "level": "" },
+      { "id": "mj-s3", "name": "Canva", "level": "" },
+      { "id": "mj-s4", "name": "Créativité", "level": "" },
+      { "id": "mj-s5", "name": "E-mailing", "level": "" },
+      { "id": "mj-s6", "name": "Organisation", "level": "" }
+    ],
+    "languages": [{ "id": "mj-l1", "name": "Anglais", "level": "C1" }, { "id": "mj-l2", "name": "Espagnol", "level": "B1" }]
+  }
+}

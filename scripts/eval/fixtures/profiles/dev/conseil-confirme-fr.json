@@ -1,0 +1,108 @@
+{
+  "id": "conseil-confirme-fr",
+  "sector": "conseil",
+  "level": "confirmé",
+  "language": "fr",
+  "facts": [
+    "Tu as piloté la transformation des achats d'un groupe industriel fictif : 12 % d'économies sur 3 ans.",
+    "Tu encadres une équipe de 5 consultants.",
+    "Tu as animé plus de 30 ateliers de cadrage avec des directions générales."
+  ],
+  "cv": {
+    "personal": {
+      "firstName": "Thomas",
+      "lastName": "Exemple",
+      "jobTitle": "Consultant senior en stratégie",
+      "email": "thomas.exemple@example.com",
+      "city": "Paris"
+    },
+    "summary": "Consultant senior en stratégie et transformation, 7 ans d'expérience auprès de directions générales de l'industrie et de la distribution. Pilotage de programmes de réduction des coûts et de réorganisation, de la phase de diagnostic jusqu'à la mise en œuvre.",
+    "targetJob": "Manager en conseil en stratégie",
+    "experiences": [
+      {
+        "id": "cc-e1",
+        "position": "Consultant senior",
+        "company": "Cabinet Conseil Fictif",
+        "startDate": "2021",
+        "endDate": "",
+        "current": true,
+        "location": "Paris",
+        "bullets": [
+          "Pilotage de la transformation des achats d'un groupe industriel : 12 % d'économies sur 3 ans",
+          "Encadrement d'une équipe de 5 consultants sur des missions de 3 à 9 mois",
+          "Animation d'ateliers de cadrage avec des comités de direction",
+          "Conception d'un modèle de diagnostic des coûts réutilisé sur 8 missions"
+        ]
+      },
+      {
+        "id": "cc-e2",
+        "position": "Consultant",
+        "company": "Cabinet Exemple Stratégie",
+        "startDate": "2018",
+        "endDate": "2021",
+        "location": "Paris",
+        "bullets": [
+          "Réalisation de diagnostics stratégiques pour des ETI de la distribution",
+          "Optimisation des processus logistiques d'un distributeur : 20 % de délais en moins",
+          "Rédaction de recommandations présentées aux comités exécutifs"
+        ]
+      }
+    ],
+    "education": [
+      {
+        "id": "cc-d1",
+        "school": "École de Commerce Exemple",
+        "degree": "Master Grande École",
+        "startDate": "2015",
+        "endDate": "2018"
+      }
+    ],
+    "skills": [
+      {
+        "id": "cc-s1",
+        "name": "Stratégie d'entreprise",
+        "level": "expert"
+      },
+      {
+        "id": "cc-s2",
+        "name": "Gestion de projet",
+        "level": "avance"
+      },
+      {
+        "id": "cc-s3",
+        "name": "Modélisation financière",
+        "level": "avance"
+      },
+      {
+        "id": "cc-s4",
+        "name": "Conduite du changement",
+        "level": "avance"
+      },
+      {
+        "id": "cc-s5",
+        "name": "PowerPoint",
+        "level": "expert"
+      },
+      {
+        "id": "cc-s6",
+        "name": "Excel",
+        "level": "expert"
+      }
+    ],
+    "languages": [
+      {
+        "id": "cc-l1",
+        "name": "Anglais",
+        "level": "C1"
+      }
+    ],
+    "certifications": [
+      {
+        "id": "cc-c1",
+        "name": "Certification en gestion de projet",
+        "issuer": "Organisme Fictif",
+        "date": "2022"
+      }
+    ]
+  }
+}

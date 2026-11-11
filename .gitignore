@@ -43,3 +43,6 @@ next-env.d.ts
 
 # browser extension build
 /extension/dist/
+
+# banc d'essai du coach (scripts/eval) : rapports locaux
+/eval-runs/

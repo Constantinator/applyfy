@@ -1,0 +1,45 @@
+{
+  "id": "finance-junior-fr",
+  "sector": "finance",
+  "level": "junior",
+  "language": "fr",
+  "facts": [
+    "Chez Banque Fictive, tu as préparé 40 dossiers de crédit par mois pour des PME.",
+    "Ton modèle Excel de suivi de trésorerie a réduit le temps de clôture mensuelle de 2 jours.",
+    "Pendant ton stage d'audit, tu as participé à 6 missions de commissariat aux comptes.",
+    "Tu maîtrises Excel avancé (tableaux croisés, macros simples) et un peu de Python."
+  ],
+  "cv": {
+    "personal": { "firstName": "Léa", "lastName": "Exemple", "jobTitle": "Analyste financière junior", "email": "lea.exemple@example.com", "city": "Lyon" },
+    "summary": "Analyste financière junior, rigoureuse et motivée, avec une première expérience en banque et en audit.",
+    "targetJob": "Analyste financière",
+    "experiences": [
+      {
+        "id": "fj-e1",
+        "position": "Analyste crédit junior",
+        "company": "Banque Fictive",
+        "startDate": "2024",
+        "endDate": "",
+        "current": true,
+        "location": "Lyon",
+        "bullets": ["Analyse des dossiers de crédit des PME", "Préparation des comités de crédit", "Suivi du portefeuille clients"]
+      },
+      {
+        "id": "fj-e2",
+        "position": "Stagiaire audit",
+        "company": "Cabinet Exemple Audit",
+        "startDate": "2023",
+        "endDate": "2023",
+        "location": "Lyon",
+        "bullets": ["Participation aux missions d'audit légal", "Tests de contrôle interne"]
+      }
+    ],
+    "education": [{ "id": "fj-d1", "school": "École de Commerce Exemple", "degree": "Master Finance d'entreprise", "startDate": "2021", "endDate": "2023" }],
+    "skills": [
+      { "id": "fj-s1", "name": "Excel", "level": "avance" },
+      { "id": "fj-s2", "name": "Analyse financière", "level": "" },
+      { "id": "fj-s3", "name": "Travail en équipe", "level": "" }
+    ],
+    "languages": [{ "id": "fj-l1", "name": "Anglais", "level": "B2" }]
+  }
+}

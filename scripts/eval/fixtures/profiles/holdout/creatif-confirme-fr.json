@@ -1,0 +1,43 @@
+{
+  "id": "creatif-confirme-fr",
+  "sector": "creatif",
+  "level": "confirmé",
+  "language": "fr",
+  "facts": [
+    "Tu as refait l'identité visuelle de 14 marques en indépendant.",
+    "Ton travail pour Studio Fictif a gagné un prix régional de design en 2024.",
+    "Tu travailles avec Figma, Illustrator, InDesign et After Effects."
+  ],
+  "cv": {
+    "personal": { "firstName": "Jules", "lastName": "Exemple", "jobTitle": "Directeur artistique", "email": "jules.exemple@example.com", "city": "Marseille" },
+    "summary": "Directeur artistique, 9 ans d'expérience en identité de marque et en édition, en studio et en indépendant.",
+    "targetJob": "Directeur artistique",
+    "experiences": [
+      {
+        "id": "cr-e1",
+        "position": "Directeur artistique indépendant",
+        "company": "Indépendant",
+        "startDate": "2020",
+        "endDate": "",
+        "current": true,
+        "location": "Marseille",
+        "bullets": ["Création d'identités visuelles pour 14 marques", "Direction de shootings photo", "Conception de supports print et digitaux"]
+      },
+      {
+        "id": "cr-e2",
+        "position": "Graphiste",
+        "company": "Studio Fictif",
+        "startDate": "2016",
+        "endDate": "2020",
+        "location": "Marseille",
+        "bullets": ["Conception de la charte graphique d'un festival", "Mise en page de 20 catalogues"]
+      }
+    ],
+    "education": [{ "id": "cr-d1", "school": "École d'Art Exemple", "degree": "DNSEP Design graphique", "startDate": "2011", "endDate": "2016" }],
+    "skills": [
+      { "id": "cr-s1", "name": "Figma", "level": "expert" },
+      { "id": "cr-s2", "name": "Illustrator", "level": "expert" },
+      { "id": "cr-s3", "name": "InDesign", "level": "avance" }
+    ]
+  }
+}

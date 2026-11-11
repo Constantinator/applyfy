@@ -1,0 +1,94 @@
+{
+  "id": "tech-stage-fr",
+  "sector": "tech",
+  "level": "stage",
+  "language": "fr",
+  "facts": [
+    "Pendant ton projet de fin d'études, tu as développé une API REST en Node.js utilisée par 3 équipes de ton école.",
+    "Ton application mobile de covoiturage étudiant a eu 150 utilisateurs la première année.",
+    "Tu as corrigé une vingtaine de bugs pendant ton stage d'été chez Startup Exemple.",
+    "Tu connais JavaScript, TypeScript, React, Git et les bases de Docker."
+  ],
+  "cv": {
+    "personal": {
+      "firstName": "Hugo",
+      "lastName": "Exemple",
+      "jobTitle": "Étudiant en informatique",
+      "email": "hugo.exemple@example.com",
+      "city": "Nantes"
+    },
+    "summary": "Étudiant passionné par le développement web, je cherche un stage de fin d'études.",
+    "targetJob": "Stage développeur web",
+    "experiences": [
+      {
+        "id": "ts-e1",
+        "position": "Stagiaire développeur",
+        "company": "Startup Exemple",
+        "startDate": "2025",
+        "endDate": "2025",
+        "location": "Nantes",
+        "bullets": [
+          "Correction de bugs sur l'application web",
+          "Participation aux réunions d'équipe",
+          "Développement de 2 nouvelles pages en React"
+        ]
+      }
+    ],
+    "education": [
+      {
+        "id": "ts-d1",
+        "school": "École d'Ingénieurs Exemple",
+        "degree": "Diplôme d'ingénieur informatique",
+        "startDate": "2022",
+        "endDate": "2026"
+      }
+    ],
+    "projects": [
+      {
+        "id": "ts-p1",
+        "name": "Application de covoiturage",
+        "description": "Application mobile pour les étudiants de l'école.",
+        "link": ""
+      }
+    ],
+    "skills": [
+      {
+        "id": "ts-s1",
+        "name": "JavaScript",
+        "level": ""
+      },
+      {
+        "id": "ts-s2",
+        "name": "React",
+        "level": ""
+      },
+      {
+        "id": "ts-s3",
+        "name": "Curiosité",
+        "level": ""
+      },
+      {
+        "id": "ts-s4",
+        "name": "Git",
+        "level": ""
+      },
+      {
+        "id": "ts-s5",
+        "name": "Autonomie",
+        "level": ""
+      },
+      {
+        "id": "ts-s6",
+        "name": "TypeScript",
+        "level": ""
+      }
+    ],
+    "languages": [
+      {
+        "id": "ts-l1",
+        "name": "Anglais",
+        "level": "B1"
+      }
+    ]
+  }
+}
