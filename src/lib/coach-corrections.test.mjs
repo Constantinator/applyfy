@@ -290,3 +290,38 @@ test("question « prêt ? » : formulations réelles du run (L15, O03, L06, L14)
     assert.equal(intent.isReadinessQuestion(message), false, message);
   }
 });
+
+// --- 2. CV clos : « Il y a encore des choses à améliorer ? » (L19) ---
+
+test("améliorer : question reconnue (L19, O05) et consigne fixe", () => {
+  for (const message of [
+    "Il y a encore des choses à améliorer ?",
+    "Merci. Juste une dernière question : y a-t-il un point précis à améliorer, par exemple le résumé ou les puces de mon expérience actuelle ? Sinon, je considère que le CV est prêt.",
+    "Tu vois autre chose à changer pour cette offre ?",
+    "Is there anything else to improve?",
+    "What else could I improve?",
+  ]) {
+    assert.equal(intent.asksWhatToImprove(message), true, message);
+    assert.equal(intent.listeningState([], message).improve, true, message);
+  }
+  for (const message of ["J'ai amélioré le taux de conversion de 12 %.", "Je considère que le CV est prêt.", "non pas LinkedIn"]) {
+    assert.equal(intent.asksWhatToImprove(message), false, message);
+  }
+  const cv = profile("conseil-confirme-fr");
+  const system = coachSystem(contextFor(cv, null, { history: [], request: "Il y a encore des choses à améliorer ?" }), "");
+  assert.ok(system.includes("Le candidat demande ce qu'il reste à améliorer : réponds directement avec 1 ou 2 points concrets"));
+});
+
+test("améliorer, CV clos : jamais « Dis-moi si… » ni « prêt » redit ; pistes du serveur ou rien d'important", () => {
+  const listening = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: false, shorten: false, improve: true };
+  const base = { mode: "parcours", lang: "fr", score: 85, scoreBefore: 85, previousCoach: ["Ton CV est prêt : il atteint 85/100 (seuil de 80)."], listening };
+  // Réponses réelles de L19.
+  const first = intent.listenText({ ...base, corrections: ["Accroche trop longue — 72 mots (vise 40 à 60)", "1 puce sans chiffre — Consultant chez Cabinet Conseil Fictif (+2 pts)"], text: "Dis-moi si tu veux une modification précise." });
+  assert.equal(first, "Deux pistes facultatives, sans urgence : Accroche trop longue — 72 mots (vise 40 à 60) ; 1 puce sans chiffre — Consultant chez Cabinet Conseil Fictif.");
+  const second = intent.listenText({ ...base, corrections: [], text: "Dis-moi si tu veux une modification précise, par exemple sur le résumé ou sur les puces de ton expérience chez Cabinet Conseil Fictif." });
+  assert.ok(second.startsWith("Je ne vois rien d'important à changer"), second);
+  assert.ok(!/prêt/.test(second));
+  // Le modèle répond vraiment : sa réponse est gardée, sans la clôture redite.
+  const answered = intent.listenText({ ...base, corrections: [], text: "Ton CV est prêt. Tu pourrais ajouter le budget de ta mission chez Cabinet Conseil Fictif, si tu le connais." });
+  assert.equal(answered, "Tu pourrais ajouter le budget de ta mission chez Cabinet Conseil Fictif, si tu le connais.");
+});

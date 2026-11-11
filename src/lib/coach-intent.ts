@@ -12,6 +12,9 @@ import { READY_SCORE } from "./cv-score";
  */
 const READINESS =
   /(est-ce (que )?(c'est |mon cv est |il est |le cv est )?(pr[êe]t|bon|fini|termin[ée]|valid[ée])|c'est (pr[êe]t|bon|fini|ok)\s*\?|(mon|ton|le) cv est(-il)? (maintenant |d[ée]sormais |enfin |vraiment )?(pr[êe]t|bon)\s*\?|(peut-on|on peut|je peux|puis-je) (valider|le valider|l'envoyer|envoyer|postuler)|is (it|my cv) (ready|done|good|ok)|can (we|i) (validate|send|apply)|are we done|am i (ready|done))|(est-ce que|tu peux me dire si|peux-tu me dire si|dis-moi si|tu me dis si) (mon|ton|le) cv (est|serait) (maintenant |d[ée]sormais |enfin |vraiment |bien )?(pr[êe]t|bon|fini|ok|suffisant|complet)|est-ce que (ça|c'est|cela) suffi(t|sant)|(ça|cela) suffit(-il)? pour (finaliser|postuler|l'envoyer|envoyer)|reste-t-il (des points|quelque chose|encore)|il reste (des points|quelque chose|encore)[^.?!]*\?|is (my|the) cv (now |finally )?(ready|good enough|done)|is (it|that) enough|(can you )?tell me if (my|the) cv is ready|anything (else )?left to (fix|do)/i;
+/** « Il y a encore des choses à améliorer ? », « tu vois autre chose à changer ? » : pistes concrètes, ou rien d'important. */
+const IMPROVE =
+  /(encore des (choses|points|trucs) [àa] (am[ée]liorer|changer|corriger)|(un|des) points? (pr[ée]cis )?[àa] am[ée]liorer|qu'est-ce (qui|que je peux|qu'on peut|que tu) (reste|encore)? ?(à )?(am[ée]liorer|changer)|que (reste-t-il|puis-je|peut-on) (encore )?(à )?am[ée]liorer|tu vois (encore )?autre chose (à|de) (changer|am[ée]liorer|corriger)|y a-t-il (encore )?(quelque chose|des choses|un point)[^.?!]{0,20}[àa] (am[ée]liorer|changer|corriger)|(anything|something) (else )?(to|i could|i can|i should) (improve|change)|what else (can|could|should) i (improve|change)|could (it|my cv) be improved)/i;
 /** « Peux-tu confirmer… ? », « can you confirm…? » : le coach répond d'abord oui ou non. */
 const CONFIRMATION = /((peux|pourrais)-tu|tu (peux|pourrais)|pouvez-vous) (me )?confirmer|can you confirm|could you confirm/i;
 /** Refus ou « je ne sais pas ». */
@@ -68,6 +71,7 @@ const CONTINUE_OFFER = /je continue avec|veux-tu que je continue|on continue ave
 
 export const isReadinessQuestion = (message: string) => READINESS.test(message);
 export const isConfirmationQuestion = (message: string) => CONFIRMATION.test(message);
+export const asksWhatToImprove = (message: string) => IMPROVE.test(message);
 /**
  * Réponse négative à la question posée : refus ou information inconnue au début du message, sans
  * nombre qui y réponde. Un autre fait donné ensuite (« Par contre, j'ai 80 clients ») ou une année
@@ -130,6 +134,8 @@ export type Listening = {
   stopMonths?: boolean;
   /** Le dernier message demande de s'arrêter si le CV est prêt. Absent sinon. */
   stopIfReady?: boolean;
+  /** Le dernier message demande ce qu'il reste à améliorer. Absent sinon. */
+  improve?: boolean;
 };
 
 /**
@@ -168,6 +174,7 @@ export function listeningState(
   const twoInARow = answers.some((a, i) => i > 0 && isNegative(a.answer) && isNegative(answers[i - 1].answer));
   if (twoInARow) listening.stopTypes = [...new Set(refused.filter((t): t is QuestionType => t !== null))];
   if (stopIfReady) listening.stopIfReady = true;
+  if (asksWhatToImprove(request)) listening.improve = true;
   if (!offer) return listening;
   const refusedKeyword = (a: { question: string; answer: string }) => isNegative(a.answer) && isKeywordQuestion(a.question, offer.keywords);
   return { ...listening, stopKeywords: answers.some((a, i) => i > 0 && refusedKeyword(a) && refusedKeyword(answers[i - 1])) };
@@ -178,6 +185,8 @@ const splitSentences = (text: string) => text.split(/(?<=[.!?])\s+(?=[A-ZÀ-ÖØ
 const isQuestion = (sentence: string) => /\?\s*[»”")]*\s*$/.test(sentence.trim());
 
 const CLOSURE = /Ton CV est prêt|Your CV is ready|Je n'ai plus de question|I have no more questions/i;
+/** Phrase qui renvoie la question au candidat au lieu d'y répondre. */
+const NON_ANSWER = /^(Dis-moi si tu veux une modification précise|Tell me if you want a specific change)/i;
 /** Constats écrits par le serveur (coach-outcome.ts) : jamais retirés comme formules répétées. */
 const SERVER_STATUS = /^(C'est fait|Done|Pas modifié|Not changed|Je n'ai pas pu|I couldn't|Je n'ai pas modifié|I didn't change|Certaines puces|Some bullets|Une partie|Part of)/;
 const normalizeSentence = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -192,6 +201,9 @@ const TEXTS = {
     noInsist: (score: number) => `Pas de souci, je n'insiste pas. Ton CV est à ${score}/100 : tu peux t'arrêter là, ou me demander une modification précise.`,
     stopIfReady: "Tu peux t'arrêter là, ou me dire si tu veux continuer.",
     closedShort: "Dis-moi si tu veux une modification précise.",
+    hints: (hints: string) => `Deux pistes facultatives, sans urgence : ${hints}.`,
+    hint: (hint: string) => `Une piste facultative, sans urgence : ${hint}.`,
+    nothingImportant: "Je ne vois rien d'important à changer : ton CV couvre déjà l'essentiel. Tu peux encore affiner un texte en cliquant dessus dans l'aperçu.",
   },
   en: {
     readyYes: (score: number) => `Yes: your CV is at ${score}/100, above the ${READY_SCORE} threshold. You can send it.`,
@@ -201,6 +213,10 @@ const TEXTS = {
     noInsist: (score: number) => `No problem, I won't insist. Your CV is at ${score}/100: you can stop here, or ask me for a specific change.`,
     stopIfReady: "You can stop here, or tell me if you want to continue.",
     closedShort: "Tell me if you want a specific change.",
+    // Les corrections du score sont écrites en français : pas de liste en anglais.
+    hints: () => "A few optional improvements remain, with no urgency: they are listed under your score.",
+    hint: () => "One optional improvement remains, with no urgency: it is listed under your score.",
+    nothingImportant: "I don't see anything important left to change: your CV already covers the essentials. You can still refine any text by clicking it in the preview.",
   },
 };
 
@@ -256,6 +272,11 @@ export function listenText(i: ListenInput): string {
   const closureSaid = i.previousCoach.some((m) => CLOSURE.test(m));
   if (i.scoreBefore >= READY_SCORE && closureSaid) sentences = sentences.filter((s) => !CLOSURE.test(s));
 
+  // CV clos et « que reste-t-il à améliorer ? » : ni « prêt » redit, ni « Dis-moi si tu veux une
+  // modification précise » à la place d'une réponse ; pistes du serveur si le modèle n'en donne pas.
+  const improveClosed = i.listening.improve === true && i.scoreBefore >= READY_SCORE;
+  if (improveClosed) sentences = sentences.filter((s) => !CLOSURE.test(s) && !NON_ANSWER.test(s));
+
   // Formule déjà écrite mot pour mot dans un message précédent (« Pas de souci, je n'y reviens
   // plus. ») : retirée. Les constats du serveur (annonce, refus, échec) et les questions restent.
   const said = new Set(i.previousCoach.flatMap(splitSentences).map(normalizeSentence));
@@ -263,6 +284,10 @@ export function listenText(i: ListenInput): string {
   if (sentences.some((s) => !repeated(s))) sentences = sentences.filter((s) => !repeated(s));
 
   let text = sentences.join(" ").trim();
+  if (!text && improveClosed) {
+    const hints = i.corrections.slice(0, 2).map((c) => c.replace(/\s*\(\+\d+ pts\)$/, ""));
+    text = hints.length === 2 ? t.hints(hints.join(" ; ")) : hints.length === 1 ? t.hint(hints[0]) : t.nothingImportant;
+  }
   if (!text) {
     // Le message n'était qu'une question (ou que la clôture déjà dite).
     if (i.listening.stopIfReady && i.mode === "parcours") text = t.stopIfReady;

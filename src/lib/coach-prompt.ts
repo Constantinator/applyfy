@@ -168,6 +168,10 @@ const SITUATION: [keyof Listening, string][] = [
     "stopIfReady",
     "Le candidat veut s'arrêter si le CV est prêt : le serveur lui répond avec le score. Ne pose aucune question dans « message » ; dis en une phrase ce qui reste de plus important, s'il reste quelque chose.",
   ],
+  [
+    "improve",
+    "Le candidat demande ce qu'il reste à améliorer : réponds directement avec 1 ou 2 points concrets tirés des « Points à corriger » (ou des « Pistes facultatives » si le CV est clos), en citant l'élément du CV concerné ; s'il n'y a rien d'important, dis-le honnêtement. Ne redis pas que le CV est prêt et n'écris pas « Dis-moi si tu veux une modification précise ».",
+  ],
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];
 
