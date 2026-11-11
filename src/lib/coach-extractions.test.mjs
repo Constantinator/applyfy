@@ -38,7 +38,7 @@ const { quotaBlockedText } = await import("./coach-outcome.ts");
 const { PROBLEM_NO_FIGURE } = await import("./coach-proposals.ts");
 const { CvDataSchema, chatContent, targetJobOf } = await import("./cv-builder-types.ts");
 const { scoreCv } = await import("./cv-score.ts");
-const { cvScoringSector, getSectorContext } = await import("./cv-sector-context.ts");
+const { COMMON_ACTION_VERBS, cvScoringSector, getSectorContext } = await import("./cv-sector-context.ts");
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
@@ -71,7 +71,7 @@ test("contexte du score : même calcul que loadScoringContext, mots-clés du mar
     sector,
     sectorName: c.name,
     atsKeywords: c.ats_keywords,
-    actionVerbs: c.strong_action_verbs,
+    actionVerbs: COMMON_ACTION_VERBS,
     avoid: c.avoid,
     marketKeywords: MARKET,
     offer: null,

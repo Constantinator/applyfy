@@ -116,14 +116,14 @@ test("demande : une nouvelle expérience suit la même règle (verbe exigé, chi
       position: "Hôtesse",
       company: "Salon Y",
       bullets: [
-        { index: -1, after: "Accueil des visiteurs" },
+        { index: -1, after: "Tenue du vestiaire des visiteurs" },
         { index: -1, after: "Gestion des badges" },
       ],
       bullets_to_remove: [],
     },
   });
   const problems = checkProposal(proposal, SCORING, cv, { mode: "demande" });
-  assert.deepEqual(problems.map((p) => [p.text, p.problems]), [["Accueil des visiteurs", [PROBLEM_NO_VERB]]]);
+  assert.deepEqual(problems.map((p) => [p.text, p.problems]), [["Tenue du vestiaire des visiteurs", [PROBLEM_NO_VERB]]]);
   // La puce refusée est retirée, l'expérience et sa puce valide restent.
   assert.deepEqual(withoutProblems(proposal, problems).changes[0].value.bullets, ["Gestion des badges"]);
 });

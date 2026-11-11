@@ -248,6 +248,12 @@ function uniqueTop(sorted: { sector: Sector; score: number }[], title?: string):
   return winners.length === 1 ? winners[0][0] : null;
 }
 
+/**
+ * Verbes d'action de tous les secteurs : liste commune du score et de la vérification des puces
+ * (une action reste une action quel que soit le secteur visé). Le prompt du coach garde ceux du secteur.
+ */
+export const COMMON_ACTION_VERBS: string[] = [...new Set(SECTORS.flatMap((s) => KNOWLEDGE[s].strong_action_verbs))];
+
 /** Données du secteur dans la base de connaissance. */
 export function getSectorContext(sector: Sector): SectorContext {
   return KNOWLEDGE[sector];

@@ -1,6 +1,6 @@
 import { chatContent, targetJobOf, type CvData } from "./cv-builder-types";
 import type { ScoringContext } from "./cv-score";
-import { cvScoringSector, getSectorContext, type ScoringOffer } from "./cv-sector-context";
+import { COMMON_ACTION_VERBS, cvScoringSector, getSectorContext, type ScoringOffer } from "./cv-sector-context";
 
 /**
  * Contexte du score d'un CV, sans aucune lecture : secteur (celui de l'offre pour un CV lié à une
@@ -25,7 +25,8 @@ export function scoringContextForSector(
     sector,
     sectorName: context.name,
     atsKeywords: context.ats_keywords,
-    actionVerbs: context.strong_action_verbs,
+    // Liste commune à tous les secteurs (une action reste une action quel que soit le poste visé).
+    actionVerbs: COMMON_ACTION_VERBS,
     avoid: context.avoid,
     marketKeywords,
     offer: offer ? { position: offer.position.trim().slice(0, 120), company: offer.company.trim().slice(0, 120) } : null,

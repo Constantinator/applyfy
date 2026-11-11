@@ -120,6 +120,10 @@ const GENERAL_VERBS = [
   "increase", "reduce", "grow", "grew", "improve", "implement", "automate", "analyze", "analyse", "negotiate",
   "coordinate", "organize", "supervise", "own", "ship", "scale", "optimize", "generate", "close", "win", "won", "train",
   "mentor", "hire", "write", "wrote", "produce", "run", "ran",
+  // Actions courantes absentes des listes de secteur (lot « le coach écoute »).
+  "corriger", "transmettre", "accueillir", "présélectionner", "trier", "assurer", "prendre en charge", "résoudre",
+  "maintenir", "soutenir", "collaborer",
+  "cut", "maintain", "fix", "fixed", "resolve", "support", "handle", "assist", "collaborate",
 ];
 
 /**
@@ -135,7 +139,30 @@ const ACTION_NOUNS = [
   "production", "construction", "réduction", "amélioration", "augmentation", "administration", "implémentation",
   "conduite", "veille", "budgétisation", "planification", "coaching", "mentorat", "tutorat", "revue", "contrôle",
   "étude", "traitement", "valorisation",
+  "correction", "transmission", "accueil", "présélection", "tri", "prise en charge", "résolution", "maintenance",
+  "soutien", "collaboration",
 ];
+
+/**
+ * Tournures fidèles (« Participation à… », « Contribution à… », « Appui à… ») : une action, sans
+ * gonfler le rôle, seulement avec un complément d'au moins FAITHFUL_MIN_WORDS mots (« Participation
+ * aux réunions » ne compte pas). Elles ne passent jamais par la liste des verbes (y compris
+ * « participer » d'une liste de secteur).
+ */
+const FAITHFUL_STEMS = ["particip", "contribu", "appui", "appuy"];
+const FAITHFUL_MIN_WORDS = 3;
+/** Prépositions et articles qui suivent la tournure (« à la », « aux », « to the »…), non comptés. */
+const FAITHFUL_LINKS = new Set(["a", "au", "aux", "la", "le", "les", "l'", "de", "des", "du", "d'", "en", "to", "in", "on", "the", "of"]);
+
+/** null : pas une tournure fidèle ; sinon, le complément est-il assez précis ? */
+function faithfulAction(text: string): boolean | null {
+  const words = normalizeText(plain(text)).trim().split(" ").filter(Boolean);
+  const first = (words[0] ?? "").replace(/[^a-z]/g, "");
+  if (!FAITHFUL_STEMS.some((s) => first.startsWith(s))) return null;
+  let rest = words.slice(1);
+  while (rest.length && FAITHFUL_LINKS.has(rest[0])) rest = rest.slice(1);
+  return rest.length >= FAITHFUL_MIN_WORDS;
+}
 
 /**
  * Formes nominales irrégulières d'un verbe (le radical ne les trouve pas) : « réduire » →
@@ -200,7 +227,8 @@ export const hasFigure = (text: string) =>
 
 /**
  * Détecteur de puce qui commence par un verbe d'action (ou un nom d'action : « Pilotage »,
- * « Gestion »), verbes courants et verbes du secteur.
+ * « Gestion ») : verbes courants et verbes reçus (liste commune à tous les secteurs, cf.
+ * COMMON_ACTION_VERBS), et tournures fidèles avec un complément précis.
  */
 export function actionDetector(sectorVerbs: string[]) {
   const verbs = [...sectorVerbs, ...GENERAL_VERBS];
@@ -208,6 +236,8 @@ export function actionDetector(sectorVerbs: string[]) {
     ...new Set([...verbs, ...verbs.flatMap(nominalForms), ...ACTION_NOUNS].map(verbStem).filter((s) => s.length >= 3)),
   ];
   return (text: string) => {
+    const faithful = faithfulAction(text);
+    if (faithful !== null) return faithful;
     const word = firstWord(text);
     return stems.some((s) => word.startsWith(s) && (s.length >= 4 || word.length <= s.length + 3));
   };
