@@ -51,6 +51,15 @@ const coachReplyFields = {
   data: z.string().describe(COACH_DATA_FORMAT),
 };
 const CoachReplyFlatSchema = z.object({ mode: z.enum(["demande", "parcours"]).describe(MODE_DESCRIPTION), ...coachReplyFields });
+/** CV lié à une offre : écart avec l'offre, dit une fois quand le bloc « etape_offre » le demande. */
+const offerFields = {
+  ecart_offre: z
+    .string()
+    .describe(
+      "Seulement si le bloc « etape_offre » te le demande : l'écart principal entre le CV et l'offre, dit honnêtement en une ou deux phrases, sans question ; sinon chaîne vide",
+    ),
+};
+const CoachReplyOfferSchema = z.object({ mode: z.enum(["demande", "parcours"]).describe(MODE_DESCRIPTION), ...coachReplyFields, ...offerFields });
 /**
  * Repli si l'API refusait l'énumération « mode » (grammaire trop grande) : un booléen à la place,
  * activé par COACH_MODE_BOOLEAN=1, sans autre changement de comportement.
@@ -59,7 +68,8 @@ const CoachReplyBooleanSchema = z.object({
   demande_explicite: z.boolean().describe(`true = mode « demande », false = mode « parcours ». ${MODE_DESCRIPTION}`),
   ...coachReplyFields,
 });
-type CoachReplyFlat = z.infer<typeof CoachReplyFlatSchema>;
+const CoachReplyOfferBooleanSchema = CoachReplyBooleanSchema.extend(offerFields);
+type CoachReplyFlat = z.infer<typeof CoachReplyFlatSchema> & { ecart_offre?: string };
 
 /**
  * Réponse du coach. `update` : modification proposée, validée ; `invalid` : la section demandée
@@ -74,6 +84,8 @@ export type CoachReply = {
   changeSummary: string;
   /** Points abandonnés dans cette réponse (le candidat ne sait pas ou ne veut pas répondre). */
   skippedPoints: string[];
+  /** CV lié : écart avec l'offre dit dans cette réponse (vide sinon) ; absent pour un CV libre. */
+  gap?: string;
   update: CoachUpdate | null;
   invalid: boolean;
   raw: { section: CoachSection; data: string } | null;
@@ -103,6 +115,7 @@ function toCoachReply(flat: CoachReplyFlat): CoachReply {
     message: flat.message.trim(),
     changeSummary: flat.change_summary.trim(),
     skippedPoints: flat.skipped_points.map((p) => p.trim()).filter(Boolean),
+    ...(flat.ecart_offre !== undefined ? { gap: flat.ecart_offre.trim() } : {}),
   };
   if (flat.section === "aucune") return { ...reply, update: null, invalid: false, raw: null };
   const update = readCoachData(flat.section, flat.data);
@@ -161,12 +174,18 @@ export async function coachBuilderCv(
   const system = coachSystem(ctx, coachSectorContext(ctx));
   // 16 000 tokens : la réflexion du modèle compte dans la limite.
   const options = { effort: "low", maxTokens: 16000 } as const;
+  // CV lié : schéma avec le champ « ecart_offre » ; CV libre : schéma inchangé.
+  const linked = Boolean(context.offerSteps);
   if (process.env.COACH_MODE_BOOLEAN === "1") {
-    const reply = await parseStructured(client, "coachBuilderCv", CoachReplyBooleanSchema, system, text, options);
+    const reply = linked
+      ? await parseStructured(client, "coachBuilderCv", CoachReplyOfferBooleanSchema, system, text, options)
+      : await parseStructured(client, "coachBuilderCv", CoachReplyBooleanSchema, system, text, options);
     if (!reply) return null;
     const { demande_explicite, ...fields } = reply;
     return toCoachReply({ mode: demande_explicite ? "demande" : "parcours", ...fields });
   }
-  const flat = await parseStructured(client, "coachBuilderCv", CoachReplyFlatSchema, system, text, options);
+  const flat = linked
+    ? await parseStructured(client, "coachBuilderCv", CoachReplyOfferSchema, system, text, options)
+    : await parseStructured(client, "coachBuilderCv", CoachReplyFlatSchema, system, text, options);
   return flat && toCoachReply(flat);
 }

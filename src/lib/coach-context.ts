@@ -1,5 +1,5 @@
 import { candidateLanguage, cvLanguage } from "./coach-language";
-import { offerSteps } from "./coach-offer";
+import { offerGap, offerSteps } from "./coach-offer";
 import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
 import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "./cv-score";
@@ -22,19 +22,30 @@ export type CoachOfferDetail = { application: { cv_suggestions?: unknown } };
  * d'abord. Sans échec : le coach continue sans eux.
  */
 export function missingOfferKeywords(detail: CoachOfferDetail | null, data: CvData, sector: Sector): string[] {
+  return missingKeywordRows(detail, data, sector)
+    .map((r) => r.keyword)
+    .slice(0, COACH_OFFER_KEYWORDS_MAX);
+}
+
+/** Mots-clés absents, avec leur caractère spécifique (compétence technique ; tous pour l'ancien format). */
+function missingKeywordRows(detail: CoachOfferDetail | null, data: CvData, sector: Sector): { keyword: string; specific: boolean }[] {
   try {
     const saved = readCvSuggestions(detail?.application.cv_suggestions);
-    const missing =
-      saved?.kind === "keywords"
-        ? matchCvKeywords(saved, cvDataToText(data), sector)
-            .rows.filter((r) => !r.present && !r.ignored)
-            .map((r) => r.keyword)
-        : (saved?.ce_qui_manque ?? []);
-    return missing.slice(0, COACH_OFFER_KEYWORDS_MAX);
+    return saved?.kind === "keywords"
+      ? matchCvKeywords(saved, cvDataToText(data), sector)
+          .rows.filter((r) => !r.present && !r.ignored)
+          .map((r) => ({ keyword: r.keyword, specific: r.group === "technique" }))
+      : (saved?.ce_qui_manque ?? []).map((keyword) => ({ keyword, specific: true }));
   } catch (error) {
     console.error("[cv-builder coach] mots-clés de l'offre", error);
     return [];
   }
+}
+
+/** CV lié : écart principal avec l'offre et étapes nécessaires (aucune une fois le CV clos). */
+function linkedSteps(data: CvData, sector: Sector, detail: CoachOfferDetail | null, closed: boolean) {
+  const gap = offerGap(data, sector, missingKeywordRows(detail, data, sector).filter((r) => r.specific).length);
+  return { offerGap: gap, offerSteps: closed ? [] : offerSteps(data, sector, gap) };
 }
 
 export type BuiltCoachContext = CoachContext & { contentKey: string; scoring: ScoringContext };
@@ -64,7 +75,7 @@ export function buildCoachContext(data: CvData, scoring: ScoringContext, detail:
     offer,
     titleMismatch: offer ? cvTitleMismatch(data.personal.jobTitle, scoring.sector) : false,
     // CV lié : étapes d'adaptation à l'offre (titre…), aucune une fois le CV clos. Absent en mode libre.
-    ...(offer ? { offerSteps: isCvClosed(score.score) ? [] : offerSteps(data, scoring.sector) } : {}),
+    ...(offer ? linkedSteps(data, scoring.sector, detail, isCvClosed(score.score)) : {}),
     language: candidateLanguage(request, data),
     cvLanguage: cvLanguage(data),
     // Mots-clés, secteur et offre compris : le premier message est réécrit quand ils changent.

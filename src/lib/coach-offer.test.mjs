@@ -101,7 +101,7 @@ test("étapes : titre d'un autre métier ou vide, rien pour un titre du même m�
 test("étape : proposée au premier message, résolue à l'échange suivant, puis suivante", () => {
   const steps = ["titre", "resume"].filter((s) => offer.OFFER_STEPS.includes(s));
   const none = new Set();
-  assert.deepEqual(offer.offerStage(steps, none, { opening: true, stopAll: false }), { resolve: null, propose: steps[0] });
+  assert.deepEqual(offer.offerStage(steps, none, { opening: true, stopAll: false }), { resolve: null, propose: steps[0], sayGap: false });
   assert.equal(offer.offerStage(steps, none, { opening: false, stopAll: false }).resolve, "titre");
   assert.equal(offer.offerStage(steps, new Set(steps), { opening: false, stopAll: false }), null);
   // « Plus de questions » : plus aucune étape.
@@ -233,4 +233,68 @@ test("échange : résumé de l'offre sans nombre inventé ; déplacement de puce
   const moved = await run(swap);
   assert.deepEqual(moved.updated.experiences[0].bullets[0], b2);
   assert.deepEqual(moved.updated.experiences[0].bullets[2], b0);
+});
+
+// --- Écart ---
+
+test("écart : métier différent, compétences manquantes, ou omis quand il est faible", () => {
+  assert.equal(offer.offerGap(financeCv, "tech", 0), "metier");
+  assert.equal(offer.offerGap(financeCv, "finance", 2), null);
+  assert.equal(offer.offerGap(financeCv, "finance", offer.GAP_SKILLS_MIN), "competences");
+  assert.deepEqual(offer.offerSteps(financeCv, "tech", "metier"), ["titre", "resume", "ecart"]);
+  assert.deepEqual(offer.offerSteps(financeCv, "finance", null), ["resume"]);
+  const ctx = contextFor(financeCv, backend);
+  assert.equal(ctx.offerGap, "metier");
+  assert.deepEqual(ctx.offerSteps, ["titre", "resume", "ecart"]);
+  // Même métier, 7 mots-clés techniques absents : écart de compétences.
+  assert.equal(contextFor(financeCv, detailOf("o-finance-analyste")).offerGap, "competences");
+  // Même métier, un seul mot-clé spécifique absent : pas d'étape écart.
+  const close = detailOf("o-finance-analyste");
+  close.application.cv_suggestions.keywords = ["Excel", "audit", "reporting"].map((keyword, i) => ({ keyword, group: "technique", variants: [], weight: 3 - i }));
+  const near = contextFor(financeCv, close);
+  assert.equal(near.offerGap, null);
+  assert.ok(!near.offerSteps.includes("ecart"));
+});
+
+test("écart : dit avec la réponse au résumé, sans être proposé", () => {
+  const steps = ["titre", "resume", "ecart"];
+  assert.deepEqual(offer.offerStage(steps, new Set(["titre"]), { opening: false, stopAll: false }), { resolve: "resume", propose: null, sayGap: true });
+  assert.deepEqual(offer.offerStage(steps, new Set(["titre", "resume"]), { opening: false, stopAll: false }), { resolve: null, propose: null, sayGap: true });
+  assert.equal(offer.offerStage(["ecart"], new Set(), { opening: true, stopAll: false }), null);
+  // Dit : fait. Vide : redemandé une fois, puis abandonné.
+  assert.deepEqual(offer.offerMarkersAfter({ resolve: "resume", propose: null, sayGap: true }, "parcours", true), ["offre:resume", "offre:ecart"]);
+  assert.deepEqual(offer.offerMarkersAfter({ resolve: "resume", propose: null, sayGap: true }, "parcours", false), ["offre:resume"]);
+  assert.deepEqual(offer.offerMarkersAfter({ resolve: null, propose: null, sayGap: true }, "parcours", false), ["offre:ecart"]);
+});
+
+test("écart : consigne et champ dédié pour un CV lié seulement, affiché avant la question", async () => {
+  const request = "Oui, vas-y.";
+  const ctx = contextFor(financeCv, backend, { history: opening, request, skipped: ["offre:titre"] });
+  const reply = flat({
+    section: "summary",
+    data: "Analyste crédit junior, à l'aise avec Excel",
+    change_summary: "C'est fait : j'ai réécrit ton résumé.",
+    message: "As-tu déjà utilisé Python dans un projet ?",
+    ecart_offre: "Ton CV montre un parcours en finance, alors que l'offre demande du développement backend.",
+  });
+  const client = fakeClient(reply);
+  const first = await coachBuilderCv(client, ctx, opening, request);
+  const { system, output_config } = client.requests[0];
+  assert.ok(system.includes("les postes du CV relèvent d'un autre métier que celui de l'offre"));
+  assert.ok(JSON.stringify(output_config).includes("ecart_offre"));
+  const result = await quiet(() => runCoachTurn({ current: financeCv, context: ctx, turns: opening, request, reply: first, limitReached: false, retry: async () => null }));
+  assert.ok(result.text.indexOf("parcours en finance") < result.text.indexOf("As-tu déjà utilisé Python"));
+  assert.ok(result.text.indexOf("parcours en finance") > result.text.indexOf("C'est fait"));
+  assert.ok(result.skippedPoints.includes("offre:ecart"));
+
+  // Hors de l'étape écart : le champ est ignoré, même rempli.
+  const early = contextFor(financeCv, backend, { history: opening, request });
+  const off = await coachBuilderCv(fakeClient({ ...reply, section: "aucune", data: "" }), early, opening, request);
+  const shown = await quiet(() => runCoachTurn({ current: financeCv, context: early, turns: opening, request, reply: off, limitReached: false, retry: async () => null }));
+  assert.ok(!shown.text.includes("parcours en finance"));
+
+  // CV libre : schéma sans le champ.
+  const freeClient = fakeClient(flat({ message: "Combien ?" }));
+  await coachBuilderCv(freeClient, contextFor(financeCv, null, { history: opening, request }), opening, request);
+  assert.ok(!JSON.stringify(freeClient.requests[0].output_config).includes("ecart_offre"));
 });

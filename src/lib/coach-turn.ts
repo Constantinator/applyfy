@@ -148,7 +148,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     }
   }
   // Étape de l'offre résolue : marqueur renvoyé avec les points abandonnés (rien en mode libre).
-  const markers = offerMarkersAfter(stage, mode);
+  // Écart avec l'offre : affiché seulement quand le serveur l'a demandé, avant la question.
+  const gap = stage?.sayGap ? (answer.gap ?? "") : "";
+  const markers = offerMarkersAfter(stage, mode, gap !== "");
   const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints, ...markers])];
   // Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées.
   const reorganized = applied > 0 && isReorganization(current, updated);
@@ -157,7 +159,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   if (reply.raw && limitReached && !reorganized) {
     return {
       kind: "quotaBlocked",
-      text: quotaBlockedText({ mode, section: reply.raw.section, message: reply.message, lang: context.language }),
+      text: quotaBlockedText({ mode, section: reply.raw.section, message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }),
       mode,
       skippedPoints: markers.length ? [...new Set([...reply.skippedPoints, ...markers])] : reply.skippedPoints,
     };
@@ -184,7 +186,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     noChange: Boolean(answer.update) && !built,
     problems,
     firstProblems,
-    message: answer.message,
+    message: gap ? `${gap} ${answer.message}`.trim() : answer.message,
     changeSummary: answer.changeSummary,
     // Annonce fidèle : emplacements réellement modifiés, emplacement de chaque texte refusé, et
     // résumé du modèle écarté s'il cite une puce restée identique.

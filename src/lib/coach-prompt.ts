@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Listening } from "./coach-intent";
-import { offerStageOf, withoutOfferMarkers, type OfferStage, type OfferStep } from "./coach-offer";
+import { offerStageOf, withoutOfferMarkers, type OfferGap, type OfferStage, type OfferStep, type ProposedStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import type { CoachMode, CoachSection } from "./coach-proposals";
 import { GENERIC_JARGON, READY_SCORE } from "./cv-score";
@@ -46,6 +46,8 @@ export type CoachContext = {
   titleMismatch?: boolean;
   /** CV lié : étapes d'adaptation à l'offre nécessaires, dans l'ordre (coach-offer.ts) ; absent en mode libre. */
   offerSteps?: OfferStep[];
+  /** CV lié : écart principal avec l'offre, décidé par le serveur (null : écart faible). */
+  offerGap?: OfferGap | null;
   /** Premier message du coach (rien n'a encore été proposé au candidat). */
   opening?: boolean;
   /** Langue du candidat (messages) et langue du contenu du CV (coach-language.ts). */
@@ -74,13 +76,13 @@ const OFFER_KEYWORD_RULES = [
 /** Consignes fixes du bloc « etape_offre » (CV lié) : seule l'étape, décidée par le serveur, varie. */
 const OFFER_STAGE_INTRO =
   "Adaptation du CV à l'offre, décidée par l'application : traite cette étape avant les « Points à corriger » et les mots-clés de l'offre, une seule étape à la fois.";
-const OFFER_RESOLVE: Record<OfferStep, string> = {
+const OFFER_RESOLVE: Record<ProposedStep, string> = {
   titre:
     "Étape en cours : le titre. Le candidat répond à ta proposition d'aligner le titre du CV sur l'offre. S'il l'accepte, applique-la dans cette réponse (section personal, champ jobTitle). S'il la refuse ou n'y répond pas, ne touche pas au titre et ne le repropose jamais.",
   resume:
     "Étape en cours : le résumé. Le candidat répond à ta proposition de réécrire le résumé pour l'offre. S'il l'accepte, réécris-le dans cette réponse (section summary) avec seulement des faits du CV et de ses messages, les atouts qui répondent à l'offre en premier, sans aucun nombre absent du CV et de ses messages ; s'il ajoute un fait, intègre-le. S'il la refuse, ne touche pas au résumé et ne le repropose jamais.",
 };
-const OFFER_PROPOSE: Record<OfferStep, string> = {
+const OFFER_PROPOSE: Record<ProposedStep, string> = {
   titre:
     "Étape à proposer dans « message » : le titre. Propose un titre aligné sur l'intitulé du poste de l'offre, sans niveau d'ancienneté (senior, lead, manager, responsable…) que le CV ne montre pas, cite-le entre « », et demande seulement si le candidat l'accepte. Ne modifie pas encore le titre.",
   resume:
@@ -89,6 +91,14 @@ const OFFER_PROPOSE: Record<OfferStep, string> = {
 /** CV lié pas encore clos : les atouts pour l'offre remontent en tête des expériences. */
 const OFFER_STRENGTHS =
   "Atouts pour l'offre : quand tu traites une expérience, si une puce existante répond mieux à l'offre que la première, place-la en premier (déplacement de la puce telle quelle, sans la réécrire) et dis-le dans « change_summary ». N'invente aucun atout.";
+const OFFER_RESOLVE_GAP = "Étape en cours : l'écart avec l'offre.";
+/** Sorte d'écart, décidée par le serveur. */
+const OFFER_GAP: Record<OfferGap, string> = {
+  metier: "les postes du CV relèvent d'un autre métier que celui de l'offre",
+  competences: "plusieurs compétences spécifiques demandées par l'offre n'apparaissent pas dans le CV",
+};
+const offerGapSentence = (gap: OfferGap) =>
+  `Dans « ecart_offre », dis honnêtement au candidat, en une ou deux phrases et sans reproche, l'écart principal entre son CV et l'offre : ${OFFER_GAP[gap]}. Appuie-toi sur le CV et les mots-clés de l'offre absents du CV ; ne propose aucune compétence qu'il n'a pas et ne pose pas de question dans « ecart_offre ».`;
 const OFFER_REFUSED = "Le dernier message du candidat est un refus : ne fais pas l'étape en cours et ne la repropose jamais.";
 const OFFER_DEMANDE =
   "Si le dernier message du candidat est une demande explicite (mode demande), exécute-la d'abord ; l'étape en cours attend : dans « message », repose sa proposition à la place de la question de parcours.";
@@ -96,13 +106,15 @@ const OFFER_THEN = "Dans « message », pose ensuite la question de parcours hab
 const OFFER_OPENING = "Premier message : dis en une phrase que tu adaptes le CV à cette offre, puis fais cette proposition, avec une seule question.";
 
 /** Bloc « etape_offre » : phrases fixes choisies par le serveur, aucune donnée du CV ou de l'offre. */
-function offerStageBlock(stage: OfferStage, { opening, refusal }: { opening: boolean; refusal: boolean }): string {
+function offerStageBlock(stage: OfferStage, { opening, refusal, gap }: { opening: boolean; refusal: boolean; gap: OfferGap | null }): string {
   return [
     "<etape_offre>",
     OFFER_STAGE_INTRO,
     stage.resolve ? OFFER_RESOLVE[stage.resolve] : null,
+    !stage.resolve && stage.sayGap ? OFFER_RESOLVE_GAP : null,
     stage.resolve && refusal ? OFFER_REFUSED : null,
     stage.propose ? OFFER_PROPOSE[stage.propose] : null,
+    stage.sayGap && gap ? offerGapSentence(gap) : null,
     opening && stage.propose ? OFFER_OPENING : null,
     !opening && !stage.propose ? OFFER_THEN : null,
     !opening && stage.resolve ? OFFER_DEMANDE : null,
@@ -228,7 +240,7 @@ export function coachSystem(
   // Étape d'adaptation à l'offre, décidée par le serveur (coach-offer.ts) ; CV lié pas encore clos.
   const opening = context.opening ?? false;
   const stage = !closed ? offerStageOf(context, opening) : null;
-  if (stage) parts.push(offerStageBlock(stage, { opening, refusal: listening?.refusal ?? false }));
+  if (stage) parts.push(offerStageBlock(stage, { opening, refusal: listening?.refusal ?? false, gap: context.offerGap ?? null }));
   if (offerKeywords.length) {
     const title = closed
       ? "Mots-clés de l'offre absents du CV (CV clos : n'en aborde aucun de ta propre initiative)"

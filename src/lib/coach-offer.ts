@@ -1,5 +1,5 @@
 import type { CvData } from "./cv-builder-types";
-import { cvTitleMismatch } from "./cv-sector-context";
+import { cvTitleMismatch, detectOfferSector } from "./cv-sector-context";
 import type { Sector } from "./sectors";
 
 // CV lié à une offre (lot « CV lié à l'offre ») : étapes d'adaptation à l'offre, traitées avant
@@ -9,7 +9,7 @@ import type { Sector } from "./sectors";
 // notées par des marqueurs fixes dans les points abandonnés (renvoyés par l'éditeur et
 // enregistrés avec la conversation) ; jamais pour un CV libre.
 
-export const OFFER_STEPS = ["titre", "resume"] as const;
+export const OFFER_STEPS = ["titre", "resume", "ecart"] as const;
 export type OfferStep = (typeof OFFER_STEPS)[number];
 
 const MARKER_PREFIX = "offre:";
@@ -29,21 +29,42 @@ export function boundSkipped(points: string[], max: number): string[] {
   return markers.length ? [...markers, ...rest] : rest;
 }
 
+/**
+ * Écart principal entre le CV et l'offre, décidé par le serveur : « metier » quand aucun poste du
+ * CV n'est du secteur de l'offre et qu'au moins un est d'un autre métier ; « competences » quand
+ * il manque au moins GAP_SKILLS_MIN mots-clés spécifiques de l'offre ; null si l'écart est faible.
+ */
+export type OfferGap = "metier" | "competences";
+export const GAP_SKILLS_MIN = 3;
+
+export function offerGap(data: Pick<CvData, "experiences">, sector: Sector, missingSpecific: number): OfferGap | null {
+  if (sector !== "etudiant") {
+    const sectors = data.experiences.map((e) => detectOfferSector(e.position)).filter((s): s is Sector => s !== null && s !== "etudiant");
+    if (sectors.length && !sectors.includes(sector)) return "metier";
+  }
+  return missingSpecific >= GAP_SKILLS_MIN ? "competences" : null;
+}
+
 /** Étapes nécessaires pour ce CV et le secteur de l'offre, dans leur ordre (CV pas encore clos). */
-export function offerSteps(data: Pick<CvData, "personal">, sector: Sector): OfferStep[] {
+export function offerSteps(data: Pick<CvData, "personal">, sector: Sector, gap: OfferGap | null = null): OfferStep[] {
   const steps: OfferStep[] = [];
   const title = data.personal.jobTitle.trim();
   if (!title || cvTitleMismatch(title, sector)) steps.push("titre");
   // Résumé orienté offre : proposé une fois par session.
   steps.push("resume");
+  // Écart dit une fois, avec la réponse au résumé ; omis quand il est faible.
+  if (gap) steps.push("ecart");
   return steps;
 }
 
 /**
  * Étape de l'échange : `resolve`, l'étape proposée au message précédent, à laquelle le candidat
- * répond ; `propose`, l'étape à proposer dans ce message.
+ * répond ; `propose`, l'étape à proposer dans ce message ; `sayGap`, l'écart à dire dans ce
+ * message (champ « ecart_offre »), sans question.
  */
-export type OfferStage = { resolve: OfferStep | null; propose: OfferStep | null };
+export type OfferStage = { resolve: ProposedStep | null; propose: ProposedStep | null; sayGap: boolean };
+/** Étapes proposées au candidat (l'écart est seulement dit). */
+export type ProposedStep = Exclude<OfferStep, "ecart">;
 
 /**
  * Étape de l'échange, décidée par le serveur. `opening` : premier message du coach (rien n'a
@@ -53,8 +74,12 @@ export function offerStage(steps: OfferStep[], done: Set<OfferStep>, { opening, 
   if (stopAll) return null;
   const remaining = steps.filter((step) => !done.has(step));
   if (!remaining.length) return null;
-  if (opening) return { resolve: null, propose: remaining[0] };
-  return { resolve: remaining[0], propose: remaining[1] ?? null };
+  // L'écart n'est pas une proposition : il est dit avec la réponse à l'étape qui le précède.
+  const first = remaining[0];
+  if (first === "ecart") return opening ? null : { resolve: null, propose: null, sayGap: true };
+  if (opening) return { resolve: null, propose: first, sayGap: false };
+  const next = remaining[1] ?? null;
+  return { resolve: first, propose: next === "ecart" ? null : next, sayGap: next === "ecart" };
 }
 
 /** Contexte du coach réduit à ce qui décide l'étape (coach-prompt.ts, coach-turn.ts). */
@@ -69,9 +94,13 @@ export function offerStageOf(context: OfferStageInput, opening: boolean): OfferS
 /**
  * Marqueurs à ajouter après l'échange : l'étape résolue l'est en mode parcours, quelle que soit
  * la réponse (acceptée, refusée ou sans réponse : proposée une seule fois). Une demande explicite
- * du candidat la laisse en attente.
+ * du candidat la laisse en attente. L'écart est fait s'il a été dit (`gapSaid`) ; resté vide, il
+ * est redemandé une fois, puis abandonné pour ne pas bloquer le parcours.
  */
-export function offerMarkersAfter(stage: OfferStage | null, mode: "demande" | "parcours"): string[] {
-  if (!stage?.resolve || mode !== "parcours") return [];
-  return [offerMarker(stage.resolve)];
+export function offerMarkersAfter(stage: OfferStage | null, mode: "demande" | "parcours", gapSaid = false): string[] {
+  if (!stage) return [];
+  const done: OfferStep[] = [];
+  if (stage.resolve && mode === "parcours") done.push(stage.resolve);
+  if (stage.sayGap && (gapSaid || (!stage.resolve && mode === "parcours"))) done.push("ecart");
+  return done.map(offerMarker);
 }
