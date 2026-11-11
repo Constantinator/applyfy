@@ -2,8 +2,9 @@
 // lecture, échange du coach hors de l'action, appels au modèle sur un client injecté. Mêmes
 // résultats que dans l'application. Lancé par `npm test` (Node 22.18 ou plus).
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
+import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -279,6 +280,69 @@ test("coach : un refus du modèle lève ClaudeRefusalError", async () => {
   } finally {
     console.error = error;
   }
+});
+
+// --- Isolation côté navigateur : consignes et logique du coach jamais dans un composant client ---
+
+const SRC = fileURLToPath(new URL("../", import.meta.url));
+/** Modules du coach (consignes, appels au modèle, vérification) : serveur seulement. */
+const COACH_SERVER_MODULES = ["lib/coach-prompt.ts", "lib/coach-llm.ts", "lib/coach-context.ts", "lib/coach-turn.ts"];
+
+/** Fichier de src/ visé par un import (alias @/ ou chemin relatif), null pour un paquet. */
+function resolveImport(spec, fromFile) {
+  let base;
+  if (spec.startsWith("@/")) base = SRC + spec.slice(2);
+  else if (spec.startsWith(".")) base = fileURLToPath(new URL(spec, pathToFileURL(fromFile)));
+  else return null;
+  for (const candidate of [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`]) {
+    if (/\.(ts|tsx)$/.test(candidate) && existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+/** Imports de valeurs d'un fichier (les imports de types seuls disparaissent à la compilation). */
+function valueImports(text) {
+  const specs = [];
+  const pattern = /(?:^|\n)\s*(?:import|export)\s+(?!type[\s{])(?:[^;"']*?\sfrom\s+)?["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g;
+  for (const m of text.matchAll(pattern)) specs.push(m[1] ?? m[2]);
+  return specs;
+}
+
+function sourceFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(ts|tsx)$/.test(entry.name) ? [path] : [];
+  });
+}
+
+test("isolation : aucun composant client n'importe, même indirectement, les modules du coach", () => {
+  const norm = (path) => path.replaceAll("\\", "/");
+  const forbidden = new Set(COACH_SERVER_MODULES.map((m) => norm(SRC + m)));
+  const clients = sourceFiles(SRC).filter((file) => /^\s*["']use client["']/.test(readFileSync(file, "utf8")));
+  assert.ok(clients.length > 10, "composants clients trouvés");
+  for (const client of clients) {
+    // Parcours des imports depuis le composant ; une action serveur (« use server ») est une frontière.
+    const seen = new Set([norm(client)]);
+    const queue = [[client, [norm(client).slice(norm(SRC).length)]]];
+    while (queue.length) {
+      const [file, path] = queue.shift();
+      for (const spec of valueImports(readFileSync(file, "utf8"))) {
+        const target = resolveImport(spec, file);
+        if (!target || seen.has(norm(target))) continue;
+        seen.add(norm(target));
+        const chain = [...path, norm(target).slice(norm(SRC).length)];
+        assert.ok(!forbidden.has(norm(target)), `module du coach importé côté client : ${chain.join(" → ")}`);
+        if (/^\s*["']use server["']/.test(readFileSync(target, "utf8"))) continue;
+        queue.push([target, chain]);
+      }
+    }
+  }
+});
+
+test("isolation : le détecteur d'imports voit les imports de valeurs, pas les imports de types", () => {
+  const text = `import type { A } from "./a";\nimport { b, type C } from "@/lib/b";\nimport {\n  d,\n} from "../d";\nimport "./side";\nexport { e } from "./e";\nexport type { F } from "./f";\nconst g = await import("./g");`;
+  assert.deepEqual(valueImports(text), ["@/lib/b", "../d", "./side", "./e", "./g"]);
 });
 
 // --- Isolation : aucune clé, aucune base, rien de Next dans les modules extraits ---
