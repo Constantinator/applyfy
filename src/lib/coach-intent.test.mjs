@@ -100,6 +100,27 @@ test("question directe : réponse du serveur avant le reste", () => {
   assert.equal(listen({ text: "Ton CV est à 72/100.", listening: { readiness: true } }), "Ton CV est à 72/100.");
 });
 
+test("ton : formule déjà écrite mot pour mot retirée, constats du serveur et questions gardés", () => {
+  const previousCoach = ["Pas de souci, je n'y reviens plus. Quel outil utilisais-tu ?", "Je n'ai pas pu modifier ton CV : il me manque un chiffre."];
+  assert.equal(listen({ text: "Pas de souci, je n'y reviens plus. Passons à ta formation : quel diplôme ?", previousCoach }), "Passons à ta formation : quel diplôme ?");
+  assert.equal(
+    listen({ text: "Je n'ai pas pu modifier ton CV : il me manque un chiffre. Quel outil utilisais-tu ?", previousCoach }),
+    "Je n'ai pas pu modifier ton CV : il me manque un chiffre. Quel outil utilisais-tu ?",
+  );
+  // Rien d'autre que la formule : gardée (jamais de message vide).
+  assert.equal(listen({ text: "Pas de souci, je n'y reviens plus.", previousCoach }), "Pas de souci, je n'y reviens plus.");
+});
+
+test("prompt : règles des mots-clés de l'offre seulement pour un CV lié", () => {
+  const base = { cvJson: "{}", score: { value: 60, corrections: [], banned: [] }, sector: "tech", marketKeywords: [], analysis: null };
+  assert.ok(!coachSystem(base, "").includes("Mots-clés de l'offre absents du CV » (si cette liste"), "CV libre");
+  const linked = coachSystem({ ...base, offer: { position: "Développeur", company: "X" }, offerKeywords: ["Docker"] }, "");
+  const block = linked.slice(linked.indexOf("<mots_cles_offre>"), linked.indexOf("</mots_cles_offre>"));
+  assert.ok(block.includes("- Docker\nRègles :\n- « Mots-clés de l'offre absents du CV »"));
+  assert.ok(block.includes("La liste des mots-clés est recalculée"));
+  assert.ok(base && coachSystem(base, "").includes("nomme chaque élément exactement comme dans le CV"));
+});
+
 test("sans intention détectée : texte inchangé", () => {
   const text = "C'est fait. Combien de clients ? Je continue avec ta formation ?";
   assert.equal(listen({ text }), text);

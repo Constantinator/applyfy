@@ -36,6 +36,9 @@ export type ConversationMetrics = {
   directQuestionExamples: string[];
   /** « Je n'ai plus de question » puis une nouvelle question du coach. */
   noMoreQuestionsThenQuestion: number;
+  /** Lapsus : le coach se reprend dans son message (« Passons à ton stage… plutôt ton poste »). */
+  lapses: number;
+  lapseExamples: string[];
   repeatedQuestions: number;
   /** Messages du coach écrits dans une autre langue que celle du candidat. */
   languageMismatches: number;
@@ -134,6 +137,9 @@ const DIRECT_QUESTION =
 /** Réponse explicite du coach à une question directe. */
 const ANSWER =
   /(\b(oui|non|pas encore|pas tout à fait|pas de souci|d'accord|bien sûr|entendu|c'est prêt|ton cv est prêt|il est prêt|elle est prêt|n'est pas (encore )?prêt|est bien|sont bien|je confirme|confirmé|tout à fait|effectivement|on garde|yes|no|sure|of course|not yet|it is ready|it's ready|confirmed)\b|\b\d+\s*\/\s*100\b|seuil)/i;
+/** Le coach se reprend dans un message : « ou plutôt », « plutôt ton… », « je veux dire », « or rather »… */
+const LAPSE = /(ou plutôt|(,|\.\.\.|…)\s*plutôt (ton|ta|tes|le|la|les)\b|je veux dire|enfin,? (ton|ta|tes)\b|pardon,|or rather|i mean,|sorry,? i meant)/i;
+
 /** Le coach dit qu'il n'a plus de question. */
 const NO_MORE = /(n'ai plus (de|aucune) questions?|plus aucune question|plus de question à te poser|no more questions|nothing (else|more) to ask)/i;
 
@@ -152,6 +158,7 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     closedFrom === null ? 0 : record.turns.slice(closedFrom).filter((t) => !t.error && t.mode === "parcours" && t.coachText.includes("?")).length;
 
   const userTexts = record.turns.map((t) => t.user);
+  const lapses = allCoach.map((t) => t.match(new RegExp(`[^.!?]*${LAPSE.source}[^.!?]*[.!?]?`, "i"))?.[0].trim()).filter((x): x is string => Boolean(x));
   const allowed = numberSourcesOf(record);
 
   // Annonce fidèle : « C'est fait » seulement si tout a été appliqué et que les puces citées ont changé.
@@ -229,6 +236,8 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     directQuestionsIgnored: ignoredQuestions.length,
     directQuestionExamples: ignoredQuestions.slice(0, 5),
     noMoreQuestionsThenQuestion,
+    lapses: lapses.length,
+    lapseExamples: lapses.slice(0, 3),
     repeatedQuestions: repeatedQuestions(allCoach),
     languageMismatches,
     requestDone: requestDone(scenario, record.startCv, record.endCv),

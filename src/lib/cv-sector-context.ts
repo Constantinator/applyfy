@@ -279,7 +279,7 @@ export function formatSectorContext(context: SectorContext, marketKeywords: stri
       ? `Exemple de reformulation :\n- Avant : ${example.bad}\n- Après : ${example.good}\n- Pourquoi : ${example.why}`
       : null,
     `Conseils recruteurs :\n${context.recruiter_tips.slice(0, 3).map((t) => `- ${t}`).join("\n")}`,
-    "Utilise ces éléments pour orienter tes questions et tes reformulations. Ce sont des repères : n'ajoute un mot-clé que s'il correspond à un fait réel du CV ou de la conversation.",
+    "Utilise ces éléments pour orienter tes questions et tes reformulations. Ce sont des repères : n'ajoute ni ne suggère au candidat un mot-clé que s'il correspond à un fait réel du CV ou de la conversation.",
     "</secteur>",
   ]
     .filter(Boolean)

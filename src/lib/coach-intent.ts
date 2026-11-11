@@ -59,6 +59,9 @@ const splitSentences = (text: string) => text.split(/(?<=[.!?])\s+(?=[A-ZÀ-ÖØ
 const isQuestion = (sentence: string) => /\?\s*[»”")]*\s*$/.test(sentence.trim());
 
 const CLOSURE = /Ton CV est prêt|Your CV is ready|Je n'ai plus de question|I have no more questions/i;
+/** Constats écrits par le serveur (coach-outcome.ts) : jamais retirés comme formules répétées. */
+const SERVER_STATUS = /^(C'est fait|Done|Pas modifié|Not changed|Je n'ai pas pu|I couldn't|Je n'ai pas modifié|I didn't change|Certaines puces|Some bullets|Une partie|Part of)/;
+const normalizeSentence = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 const TEXTS = {
   fr: {
@@ -117,6 +120,12 @@ export function listenText(i: ListenInput): string {
   // CV déjà clos : la clôture n'est pas redite si elle a déjà été affichée.
   const closureSaid = i.previousCoach.some((m) => CLOSURE.test(m));
   if (i.scoreBefore >= READY_SCORE && closureSaid) sentences = sentences.filter((s) => !CLOSURE.test(s));
+
+  // Formule déjà écrite mot pour mot dans un message précédent (« Pas de souci, je n'y reviens
+  // plus. ») : retirée. Les constats du serveur (annonce, refus, échec) et les questions restent.
+  const said = new Set(i.previousCoach.flatMap(splitSentences).map(normalizeSentence));
+  const repeated = (s: string) => !isQuestion(s) && !SERVER_STATUS.test(s) && said.has(normalizeSentence(s));
+  if (sentences.some((s) => !repeated(s))) sentences = sentences.filter((s) => !repeated(s));
 
   let text = sentences.join(" ").trim();
   if (!text) {

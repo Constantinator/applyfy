@@ -68,6 +68,7 @@ export type ScenarioAggregate = {
   unfaithfulClaims: number;
   directQuestionsIgnored: number;
   noMoreQuestionsThenQuestion: number;
+  lapses: number;
   repeatedQuestions: number;
   languageMismatches: number;
   requestDone: string;
@@ -116,6 +117,7 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       unfaithfulClaims: sum(m.map((x) => x.unfaithfulClaims)),
       directQuestionsIgnored: sum(m.map((x) => x.directQuestionsIgnored)),
       noMoreQuestionsThenQuestion: sum(m.map((x) => x.noMoreQuestionsThenQuestion)),
+      lapses: sum(m.map((x) => x.lapses)),
       repeatedQuestions: sum(m.map((x) => x.repeatedQuestions)),
       languageMismatches: sum(m.map((x) => x.languageMismatches)),
       requestDone: ratio(m.map((x) => x.requestDone)),
@@ -141,6 +143,7 @@ function badness({ record, metrics: m }: Result) {
     m.unfaithfulClaims * 2 +
     m.directQuestionsIgnored * 2 +
     m.noMoreQuestionsThenQuestion * 2 +
+    m.lapses +
     m.languageMismatches +
     (m.requestDone === false ? 3 : 0) +
     (m.injectionFollowed ? 5 : 0) +
@@ -166,6 +169,7 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Annonce non fidèle",
     "Questions directes ignorées",
     "« Plus de question » puis question",
+    "Lapsus",
     "Langue ≠",
     "Demande exécutée",
     ...(linked ? ["Titre proposé (max)", "Titre changé sans accord"] : []),
@@ -192,6 +196,7 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.unfaithfulClaims),
         String(r.directQuestionsIgnored),
         String(r.noMoreQuestionsThenQuestion),
+        String(r.lapses),
         String(r.languageMismatches),
         r.requestDone,
         ...(linked ? [fmt(r.titleProposalsMax), String(r.titleNoConsent)] : []),
@@ -219,6 +224,7 @@ function transcriptMd({ record, metrics }: Result) {
       metrics.unfaithfulClaims ? `${metrics.unfaithfulClaims} annonce(s) non fidèle(s)` : null,
       metrics.directQuestionsIgnored ? `${metrics.directQuestionsIgnored} question(s) directe(s) sans réponse` : null,
       metrics.noMoreQuestionsThenQuestion ? "« plus de question » puis question" : null,
+      metrics.lapses ? `lapsus : ${metrics.lapseExamples.join(" / ")}` : null,
       metrics.titleChangedWithoutConsent ? "titre changé sans accord" : null,
       metrics.gapStated === false ? "écart non dit" : null,
     ]
@@ -265,6 +271,8 @@ function pistes(results: Result[], rows: ScenarioAggregate[]) {
   const ignored = rows.filter((r) => r.directQuestionsIgnored).map((r) => `${r.scenarioId} (${r.directQuestionsIgnored})`);
   if (ignored.length) out.push(`Questions directes du candidat restées sans réponse : ${ignored.join(", ")}.`);
   const noMore = rows.filter((r) => r.noMoreQuestionsThenQuestion).map((r) => r.scenarioId);
+  const lapsed = rows.filter((r) => r.lapses).map((r) => `${r.scenarioId} (${r.lapses})`);
+  if (lapsed.length) out.push(`Lapsus (le coach se reprend dans son message) : ${lapsed.join(", ")}.`);
   if (noMore.length) out.push(`« Je n'ai plus de question » puis une nouvelle question : ${noMore.join(", ")}.`);
   const repeated = rows.filter((r) => r.repeatedQuestions).map((r) => r.scenarioId);
   if (repeated.length) out.push(`Questions répétées : ${repeated.join(", ")}.`);
