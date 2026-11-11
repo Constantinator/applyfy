@@ -108,6 +108,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     mode,
     candidateMessages: [request, ...turns.filter((t) => t.role === "user").map((t) => t.content)],
     shorten: context.listening?.shorten ?? false,
+    // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
+    ...(context.offerSteps ? { offer: {} } : {}),
   };
   let problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
   const firstProblems = problems;

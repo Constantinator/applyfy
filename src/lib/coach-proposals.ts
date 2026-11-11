@@ -353,7 +353,24 @@ export type CheckOptions = {
   candidateMessages?: string[];
   /** Le candidat demande de raccourcir (coach-intent.ts) : chaque texte modifié perd au moins 20 % de ses mots. */
   shorten?: boolean;
+  /** CV lié à une offre (coach-offer.ts) : vérifications de l'adaptation à l'offre ; absent en mode libre. */
+  offer?: OfferCheck;
 };
+
+/** Vérifications propres à un CV lié à une offre. */
+export type OfferCheck = Record<string, never>;
+
+/**
+ * Défauts propres à un CV lié à une offre : le résumé réécrit pour l'offre ne contient aucun
+ * nombre absent du CV et des messages du candidat (en mode parcours aussi).
+ */
+function offerProblems(proposal: CoachProposal, allowed: Set<string>): ChangeProblem[] {
+  return proposal.changes.flatMap((change) => {
+    if (change.kind !== "field" || change.target !== "summary") return [];
+    const invented = inventedNumbers(change.after, allowed);
+    return invented.length ? [{ changeId: change.id, text: change.after, problems: [`${PROBLEM_NEW_NUMBER_PREFIX}${invented.join(", ")}`] }] : [];
+  });
+}
 
 /**
  * Défauts des textes proposés.
@@ -382,6 +399,14 @@ export function checkProposal(
     for (const p of shortenProblems(proposal)) {
       const same = problems.find((q) => q.changeId === p.changeId);
       if (same) same.problems.push(...p.problems);
+      else problems.push(p);
+    }
+  }
+  if (options.offer) {
+    const allowed = numberSources([...cvStrings(current), ...(options.candidateMessages ?? [])]);
+    for (const p of offerProblems(proposal, allowed)) {
+      const same = problems.find((q) => q.changeId === p.changeId);
+      if (same) same.problems.push(...p.problems.filter((x) => !same.problems.includes(x)));
       else problems.push(p);
     }
   }

@@ -191,3 +191,46 @@ test("échange : une demande explicite laisse l'étape en attente", async () => 
   const result = await quiet(() => runCoachTurn({ current: financeCv, context: ctx, turns: opening, request, reply, limitReached: false, retry: async () => null }));
   assert.ok(!result.skippedPoints.includes("offre:titre"));
 });
+
+// --- Résumé et atouts ---
+
+test("étapes : résumé toujours proposé (après le titre s'il y en a un)", () => {
+  assert.deepEqual(offer.offerSteps(financeCv, "tech").slice(0, 2), ["titre", "resume"]);
+  assert.deepEqual(offer.offerSteps(financeCv, "finance").slice(0, 1), ["resume"]);
+});
+
+test("prompt : titre résolu puis résumé proposé ; résumé résolu ; atouts en tête des expériences", () => {
+  const afterTitle = coachSystem(contextFor(financeCv, backend, { history: opening, request: "oui" }), "");
+  assert.ok(afterTitle.includes("Étape en cours : le titre."));
+  assert.ok(afterTitle.includes("Étape à proposer dans « message » : le résumé."));
+  const resume = coachSystem(contextFor(financeCv, backend, { history: opening, request: "oui", skipped: ["offre:titre"] }), "");
+  assert.ok(resume.includes("Étape en cours : le résumé."));
+  assert.ok(resume.includes("Dans « message », pose ensuite la question de parcours habituelle"));
+  assert.ok(resume.includes("Atouts pour l'offre : quand tu traites une expérience"));
+  assert.ok(!coachSystem(contextFor(financeCv, null, { history: opening, request: "oui" }), "").includes("Atouts pour l'offre"));
+});
+
+test("échange : résumé de l'offre sans nombre inventé ; déplacement de puce accepté", async () => {
+  const request = "Oui, et je connais un peu Python.";
+  const ctx = contextFor(financeCv, backend, { history: opening, request, skipped: ["offre:titre"] });
+  const summary = (text) => flat({ section: "summary", data: text, change_summary: "C'est fait.", message: "Passons à ton expérience." });
+  const run = async (reply, context = ctx) => {
+    const first = await coachBuilderCv(fakeClient(reply), context, opening, request);
+    return quiet(() => runCoachTurn({ current: financeCv, context, turns: opening, request, reply: first, limitReached: false, retry: async () => first }));
+  };
+  const invented = await run(summary("Analyste avec 5 ans d'automatisation en Python et 40 dossiers par mois"));
+  assert.equal(invented.updated.summary, financeCv.summary);
+  assert.ok(invented.text.includes("ni de ton CV ni de tes messages"));
+  assert.ok(invented.skippedPoints.includes("offre:resume"));
+  const faithful = await run(summary("Analyste crédit junior qui automatise ses fichiers avec Python"));
+  assert.equal(faithful.updated.summary, "Analyste crédit junior qui automatise ses fichiers avec Python");
+  // CV libre : pas de vérification du résumé en mode parcours (inchangé).
+  const free = contextFor(financeCv, null, { history: opening, request });
+  assert.ok((await run(summary("Analyste avec 5 ans d'expérience"), free)).updated.summary.includes("5 ans"));
+
+  const [b0, , b2] = financeCv.experiences[0].bullets;
+  const swap = flat({ section: "experience", data: JSON.stringify({ id: "fj-e1", bullets: [{ index: 0, after: b2 }, { index: 2, after: b0 }] }), change_summary: "C'est fait." });
+  const moved = await run(swap);
+  assert.deepEqual(moved.updated.experiences[0].bullets[0], b2);
+  assert.deepEqual(moved.updated.experiences[0].bullets[2], b0);
+});

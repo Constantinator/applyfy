@@ -77,11 +77,18 @@ const OFFER_STAGE_INTRO =
 const OFFER_RESOLVE: Record<OfferStep, string> = {
   titre:
     "Étape en cours : le titre. Le candidat répond à ta proposition d'aligner le titre du CV sur l'offre. S'il l'accepte, applique-la dans cette réponse (section personal, champ jobTitle). S'il la refuse ou n'y répond pas, ne touche pas au titre et ne le repropose jamais.",
+  resume:
+    "Étape en cours : le résumé. Le candidat répond à ta proposition de réécrire le résumé pour l'offre. S'il l'accepte, réécris-le dans cette réponse (section summary) avec seulement des faits du CV et de ses messages, les atouts qui répondent à l'offre en premier, sans aucun nombre absent du CV et de ses messages ; s'il ajoute un fait, intègre-le. S'il la refuse, ne touche pas au résumé et ne le repropose jamais.",
 };
 const OFFER_PROPOSE: Record<OfferStep, string> = {
   titre:
     "Étape à proposer dans « message » : le titre. Propose un titre aligné sur l'intitulé du poste de l'offre, sans niveau d'ancienneté (senior, lead, manager, responsable…) que le CV ne montre pas, cite-le entre « », et demande seulement si le candidat l'accepte. Ne modifie pas encore le titre.",
+  resume:
+    "Étape à proposer dans « message » : le résumé. Propose de réécrire le résumé pour cette offre en nommant 1 ou 2 atouts réels du CV ou des messages du candidat qui répondent à l'offre, et demande seulement si le candidat l'accepte. Ne modifie pas encore le résumé.",
 };
+/** CV lié pas encore clos : les atouts pour l'offre remontent en tête des expériences. */
+const OFFER_STRENGTHS =
+  "Atouts pour l'offre : quand tu traites une expérience, si une puce existante répond mieux à l'offre que la première, place-la en premier (déplacement de la puce telle quelle, sans la réécrire) et dis-le dans « change_summary ». N'invente aucun atout.";
 const OFFER_REFUSED = "Le dernier message du candidat est un refus : ne fais pas l'étape en cours et ne la repropose jamais.";
 const OFFER_DEMANDE =
   "Si le dernier message du candidat est une demande explicite (mode demande), exécute-la d'abord ; l'étape en cours attend : dans « message », repose sa proposition à la place de la question de parcours.";
@@ -211,6 +218,7 @@ export function coachSystem(
         "<offre>",
         "Le CV est adapté à cette offre : elle fixe le poste visé, le secteur et le score.",
         `Intitulé du poste : ${n(position)}`,
+        !closed ? OFFER_STRENGTHS : null,
         "</offre>",
       ]
         .filter(Boolean)

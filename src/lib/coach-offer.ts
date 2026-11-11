@@ -9,7 +9,7 @@ import type { Sector } from "./sectors";
 // notées par des marqueurs fixes dans les points abandonnés (renvoyés par l'éditeur et
 // enregistrés avec la conversation) ; jamais pour un CV libre.
 
-export const OFFER_STEPS = ["titre"] as const;
+export const OFFER_STEPS = ["titre", "resume"] as const;
 export type OfferStep = (typeof OFFER_STEPS)[number];
 
 const MARKER_PREFIX = "offre:";
@@ -34,6 +34,8 @@ export function offerSteps(data: Pick<CvData, "personal">, sector: Sector): Offe
   const steps: OfferStep[] = [];
   const title = data.personal.jobTitle.trim();
   if (!title || cvTitleMismatch(title, sector)) steps.push("titre");
+  // Résumé orienté offre : proposé une fois par session.
+  steps.push("resume");
   return steps;
 }
 
