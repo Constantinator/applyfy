@@ -79,6 +79,17 @@ export function withoutTitle(reply: CoachReply): CoachReply {
     : { ...reply, update: null, raw: null, invalid: false, changeSummary: "" };
 }
 
+/** Nombre de mots annoncé (« de 12 à 9 mots », « 30 words ») : jamais repris du modèle. */
+const WORD_COUNT = /\d+\s*(mots?|words?)\b/i;
+const countWords = (text: string) => text.split(/\s+/).filter((w) => /[\p{L}\d]/u.test(w)).length;
+
+/** Mots avant et après des textes modifiés (ajouts exclus) ; undefined si aucun texte existant n'a changé. */
+export function wordCounts(texts: { before: string | null; after: string }[]): { before: number; after: number } | undefined {
+  const changed = texts.filter((t) => t.before !== null);
+  if (!changed.length) return undefined;
+  return { before: changed.reduce((n, t) => n + countWords(t.before ?? ""), 0), after: changed.reduce((n, t) => n + countWords(t.after), 0) };
+}
+
 /** Le résumé cite entre « » une puce d'expérience restée identique (présente avant et après). */
 export function quotesUnchangedBullet(summary: string, before: CvData, after: CvData) {
   const bullets = (cv: CvData) => new Set(cv.experiences.flatMap((e) => e.bullets.map((b) => b.trim())));
@@ -109,7 +120,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const check = {
     mode,
     candidateMessages: [request, ...turns.filter((t) => t.role === "user").map((t) => t.content)],
-    shorten: context.listening?.shorten ?? false,
+    // Au moins 20 % de mots en moins : seulement quand le dernier message demande de raccourcir,
+    // en mode demande (jamais pour une puce du parcours ni pour un ajout).
+    shorten: mode === "demande" && (context.listening?.shorten ?? false),
     // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
     ...(context.offerSteps ? { offer: {} } : {}),
   };
@@ -138,12 +151,14 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   let applied = 0;
   let stale = 0;
   const appliedLabels: string[] = [];
+  const appliedTexts: { before: string | null; after: string }[] = [];
   for (const change of proposal?.changes ?? []) {
     const next = applyCoachChange(updated, change);
     if (next) {
       updated = next;
       applied++;
       appliedLabels.push(change.label);
+      appliedTexts.push({ before: change.before, after: change.after });
     } else {
       stale++;
       console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
@@ -194,7 +209,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     // résumé du modèle écarté s'il cite une puce restée identique.
     appliedLabels,
     refusedLabels: Object.fromEntries((built?.changes ?? []).map((c) => [c.id, c.label])),
-    summaryFaithful: !quotesUnchangedBullet(answer.changeSummary, current, updated),
+    // Un nombre de mots annoncé par le modèle n'est jamais repris : le serveur le calcule.
+    summaryFaithful: !quotesUnchangedBullet(answer.changeSummary, current, updated) && !WORD_COUNT.test(answer.changeSummary),
+    wordCounts: check.shorten && applied > 0 ? wordCounts(appliedTexts) : undefined,
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
     corrections: scored?.after.corrections.map((c) => c.message) ?? [],

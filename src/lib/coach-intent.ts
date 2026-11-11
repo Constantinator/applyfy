@@ -17,8 +17,15 @@ const NEGATIVE =
 /** Demande d'arrêt des questions. */
 const STOP =
   /plus (de|aucune) questions?|arr[êe]te (les|tes) questions|stop (les|tes|the|asking|with the) questions?|pas d'autres? questions?|no more questions|stop asking/i;
-/** Demande de raccourcir un texte. */
-const SHORTEN = /raccourci|plus court|moins long|r[ée]dui[st] (la longueur|mon|ma|mes|le|la|les)|condense|all[ée]ge|shorten|shorter|trim|cut down|make it short|more concise/i;
+/**
+ * Demande de raccourcir un texte : une demande, jamais un fait raconté (« mon modèle a réduit la
+ * clôture ») ni une négation (« je n'ai pas demandé de raccourcir »).
+ */
+const SHORTEN =
+  /\b(raccourcis|raccourcir|raccourcissez)\b|\b(fais|rends|écris|r[ée]dige|mets)[- ]?(le|la|les|-le|-la|-les)? ?(un peu )?plus court|\bversion (plus courte|courte)\b|\bplus courte? (stp|svp|s'il te pla[îi]t)|\b(est|sont|c'est|reste|restent) (un peu |beaucoup )?trop longu?e?s?\b|\b(condense|condenser|condensez|all[èe]ge|all[ée]ger|all[ée]gez)\b|\br[ée]dui(s|re|sez) (la longueur|le nombre de mots|mon|ma|mes|le|la|les|l'|ce|cette|ces|ça)\b|\b(shorten|condense)\b|\bmake (it|this|that|them|my [\w-]+|the [\w-]+) (shorter|short|more concise)\b|\b(too long|more concise|shorter version|a bit shorter|cut it down)\b|\btrim (it|this|my|the)\b/i;
+/** Négation d'une demande de raccourcir. */
+const NOT_SHORTEN =
+  /\bpas (demand[ée] (de |à )?|besoin (de )?|voulu |de )?(raccourci|r[ée]dui)|\bne (le |la |les )?(raccourcis|r[ée]duis) pas\b|\bsans (le |la |les )?(raccourcir|r[ée]duire)\b|\baucune r[ée]duction\b|\b(don'?t|do not|not|no need to|never asked (you )?to) (shorten|trim|cut)\b/i;
 
 /** Question sur une expérience d'un mot-clé (CV lié : ce que deux refus de suite arrêtent). */
 const KEYWORD_QUESTION =
@@ -52,7 +59,7 @@ export const isConfirmationQuestion = (message: string) => CONFIRMATION.test(mes
 /** Réponse négative : refus ou information inconnue, sans chiffre donné. */
 export const isNegative = (message: string) => NEGATIVE.test(message) && !/\d/.test(message);
 export const asksToStop = (message: string) => STOP.test(message);
-export const asksToShorten = (message: string) => SHORTEN.test(message);
+export const asksToShorten = (message: string) => SHORTEN.test(message) && !NOT_SHORTEN.test(message);
 
 /** Ce que le serveur a compris de la session (messages du candidat, dernier compris). */
 export type Listening = {

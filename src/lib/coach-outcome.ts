@@ -38,6 +38,7 @@ const TEXTS = {
     invented: (numbers: string) => `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).`,
     inflatedRole: "ta puce d'origine disait que tu avais participé : je ne peux pas écrire que tu l'as mené seul.",
     inflatedTitle: (words: string) => `le titre proposé annonçait un niveau (${words}) que ton CV ne montre pas.`,
+    wordCount: (before: number, after: number) => `Le texte passe de ${before} à ${after} mots.`,
     notShorter: "je n'ai pas réussi à le raccourcir d'au moins 20 % sans retirer une information. Dis-moi ce que je peux enlever.",
     requestFailed: "Je n'ai pas pu faire cette modification : ",
     otherFailed: "Je n'ai pas pu appliquer cette modification à ton CV. ",
@@ -88,6 +89,7 @@ const TEXTS = {
     invented: (numbers: string) => `the proposed text contained a number that comes neither from your CV nor from your messages (${numbers}).`,
     inflatedRole: "your original bullet said you took part in it: I can't write that you led it alone.",
     inflatedTitle: (words: string) => `the proposed title claimed a level (${words}) that your CV doesn't show.`,
+    wordCount: (before: number, after: number) => `The text goes from ${before} to ${after} words.`,
     notShorter: "I couldn't shorten it by at least 20% without removing information. Tell me what I can cut.",
     requestFailed: "I couldn't make this change: ",
     otherFailed: "I couldn't apply this change to your CV. ",
@@ -152,6 +154,8 @@ export type CoachOutcomeInput = {
   appliedLabels?: string[];
   refusedLabels?: Record<string, string>;
   summaryFaithful?: boolean;
+  /** Demande de raccourcir appliquée : mots avant et après, calculés par le serveur. */
+  wordCounts?: { before: number; after: number };
   /** Score avant et après l'application (null après : rien n'a été appliqué). */
   scoreBefore: number;
   scoreAfter: number | null;
@@ -306,8 +310,9 @@ export function coachReplyText(i: CoachOutcomeInput): string {
         ].join(" ")
       : `${experience && !request ? t.bulletsNotAdded : t.partNotApplied}${sentences(sorted, true)}`;
   // Le résumé du modèle n'est repris que si tout a été appliqué tel quel ; sinon, annonce du serveur.
-  const summary =
+  const announced =
     !sorted.length && i.summaryFaithful !== false && i.changeSummary ? i.changeSummary : appliedAnnouncement(i.appliedLabels, lang);
+  const summary = i.wordCounts ? `${announced} ${t.wordCount(i.wordCounts.before, i.wordCounts.after)}` : announced;
 
   if (i.scoreAfter !== null && i.scoreAfter >= READY_SCORE) {
     // Passage du seuil : clôture complète ; déjà au-dessus avant : une ligne courte, sans nouvelle clôture.
