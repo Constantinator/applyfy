@@ -81,7 +81,7 @@ export type ConversationRecord = {
   endCv: CvData;
   opening: string | null;
   /** CV lié : étapes de l'offre décidées au départ, mots-clés absents, phrase de langue attendue ; null en mode libre. */
-  offer: { steps: string[]; keywords: string[]; languageNote: boolean } | null;
+  offer: { steps: string[]; keywords: string[]; languageNote: boolean; gap: string | null } | null;
   turns: TurnRecord[];
   endReason: "candidat" | "max-tours" | "cloture" | "erreur" | "plafond";
   error: string | null;
@@ -168,6 +168,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
           steps: [...start.offerSteps],
           keywords: [...(start.offerKeywords ?? [])],
           languageNote: Boolean(start.offerLanguage && start.offerLanguage !== start.cvLanguage),
+          gap: start.offerGap ?? null,
         }
       : null,
     turns: [],

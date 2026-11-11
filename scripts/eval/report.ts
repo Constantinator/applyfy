@@ -89,6 +89,10 @@ export type ScenarioAggregate = {
   keywordsWithoutFact: number;
   languageNotes: string;
   inflatedRoles: number;
+  metierTitleProposals: string;
+  shortenWithoutRequest: number;
+  jargonMessages: number;
+  questionsAfterRefusals: number;
   judgeMean: number | null;
   judgeRange: [number, number] | null;
   judgeByCriterion: Record<string, number | null>;
@@ -144,6 +148,10 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       keywordsWithoutFact: sum(m.map((x) => x.offerFlow?.keywordsWithoutFact.length ?? 0)),
       languageNotes: m[0].offerFlow ? `${m[0].offerFlow.languageNotes} (attendu ${m[0].offerFlow.languageNoteExpected ? 1 : 0})` : "—",
       inflatedRoles: sum(m.map((x) => x.offerFlow?.inflatedRoles ?? 0)),
+      metierTitleProposals: m[0].offerFlow?.metierTitleProposals === null || !m[0].offerFlow ? "—" : String(sum(m.map((x) => x.offerFlow?.metierTitleProposals ?? 0))),
+      shortenWithoutRequest: sum(m.map((x) => x.shortenWithoutRequest)),
+      jargonMessages: sum(m.map((x) => x.jargonMessages)),
+      questionsAfterRefusals: sum(m.map((x) => x.questionsAfterRefusals)),
       judgeMean: median(means),
       judgeRange,
       judgeByCriterion: Object.fromEntries(JUDGE_CRITERIA.map((k) => [k, median(judged.map((j) => j[k].note))])),
@@ -180,6 +188,10 @@ function badness({ record, metrics: m }: Result) {
     (m.offerFlow?.keywordQuestionsAfterStop ?? 0) * 2 +
     (m.offerFlow?.keywordsWithoutFact.length ?? 0) * 2 +
     (m.offerFlow?.inflatedRoles ?? 0) * 2 +
+    (m.offerFlow?.metierTitleProposals ?? 0) * 3 +
+    m.shortenWithoutRequest * 2 +
+    m.jargonMessages +
+    m.questionsAfterRefusals * 2 +
     (m.offerFlow && m.offerFlow.languageNotes !== (m.offerFlow.languageNoteExpected ? 1 : 0) ? 1 : 0) +
     m.errors * 2 +
     (record.judge ? 5 - judgeMean(record.judge) : 0)
@@ -201,6 +213,9 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Questions directes ignorées",
     "« Plus de question » puis question",
     "Lapsus",
+    "« Pas assez courte » sans demande",
+    "Jargon",
+    "Questions après refus",
     "Langue ≠",
     "Demande exécutée",
     ...(linked
@@ -213,6 +228,7 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
           "Mots-clés sans fait",
           "Phrase langue",
           "Rôle gonflé",
+          "Titre proposé (écart métier)",
         ]
       : []),
     "Secteur OK",
@@ -239,6 +255,9 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.directQuestionsIgnored),
         String(r.noMoreQuestionsThenQuestion),
         String(r.lapses),
+        String(r.shortenWithoutRequest),
+        String(r.jargonMessages),
+        String(r.questionsAfterRefusals),
         String(r.languageMismatches),
         r.requestDone,
         ...(linked
@@ -251,6 +270,7 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
               String(r.keywordsWithoutFact),
               r.languageNotes,
               String(r.inflatedRoles),
+              r.metierTitleProposals,
             ]
           : []),
         r.sectorOk,
