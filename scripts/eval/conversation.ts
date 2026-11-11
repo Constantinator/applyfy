@@ -10,6 +10,7 @@ import { buildCoachContext } from "../../src/lib/coach-context.ts";
 import { coachBuilderCv, coachOpening, type CoachReply } from "../../src/lib/coach-llm.ts";
 import { closedOpening } from "../../src/lib/coach-outcome.ts";
 import { isCvClosed, type CoachTurn } from "../../src/lib/coach-prompt.ts";
+import { buildProposal, type ChangeProblem } from "../../src/lib/coach-proposals.ts";
 import { runCoachTurn } from "../../src/lib/coach-turn.ts";
 import { chatContent, fitCvData, targetJobOf, withoutEmptyLines, type CvData } from "../../src/lib/cv-builder-types.ts";
 import { scoreCv } from "../../src/lib/cv-score.ts";
@@ -30,6 +31,9 @@ const NO_REPLY_TEXT = "Le coach n'a pas pu répondre. Reformule ton message.";
 const HISTORY_MAX = 30;
 const SKIPPED_MAX = 50;
 
+/** Texte refusé par la vérification : emplacement, texte d'origine (null : ajout), texte proposé, causes. */
+export type RefusedText = { label: string | null; original: string | null; proposed: string; causes: string[] };
+
 export type TurnRecord = {
   user: string;
   coachText: string;
@@ -41,9 +45,14 @@ export type TurnRecord = {
   stale: number;
   retried: boolean;
   invalid: boolean;
-  firstProblems: string[];
-  problems: string[];
+  /** Textes refusés à la première vérification, et encore refusés après le second essai. */
+  firstProblems: RefusedText[];
+  problems: RefusedText[];
   skipped: string[];
+  /** Annonce « C'est fait… » affichée (première phrase du texte), null sinon. */
+  claim: string | null;
+  /** Textes cités entre « » dans l'annonce qui sont des puces restées identiques. */
+  unchangedQuoted: string[];
   scoreBefore: number;
   scoreAfter: number;
 };
@@ -74,7 +83,32 @@ export type ConversationRecord = {
 
 export type Clients = { coach: ParseClient; simulator: ParseClient; judge: ParseClient | null };
 
-const problemLabels = (list: { problems: string[] }[]) => list.flatMap((p) => p.problems);
+/**
+ * Textes refusés avec leur texte d'origine : la proposition de la réponse est reconstruite
+ * (buildProposal, pur) et chaque refus retrouvé par son texte proposé.
+ */
+function refusedTexts(current: CvData, reply: CoachReply | null, problems: ChangeProblem[]): RefusedText[] {
+  const changes = reply?.update ? (buildProposal(current, reply.update)?.changes ?? []) : [];
+  return problems.map((p) => {
+    const change = changes.find((c) => c.after === p.text) ?? changes.find((c) => c.after.includes(p.text) || p.text.includes(c.after));
+    return { label: change?.label ?? null, original: change?.before ?? null, proposed: p.text, causes: p.problems };
+  });
+}
+
+const ANNOUNCE = /^(c'est fait|c’est fait|done|it's done)\b/i;
+/** Annonce de modification : première phrase du texte affiché si elle commence par « C'est fait ». */
+const claimOf = (text: string) => {
+  const first = text.trim().split(/(?<=[.!])\s/)[0] ?? "";
+  return ANNOUNCE.test(first) ? first : null;
+};
+/** Puces citées dans l'annonce et restées identiques (présentes avant et après le tour). */
+function unchangedQuoted(claim: string | null, before: CvData, after: CvData) {
+  if (!claim) return [];
+  const bullets = (cv: CvData) => new Set(cv.experiences.flatMap((e) => e.bullets.map((b) => b.trim())));
+  const b = bullets(before);
+  const a = bullets(after);
+  return [...claim.matchAll(/«\s*([^»]+?)\s*»/g)].map((m) => m[1]).filter((q) => b.has(q) && a.has(q));
+}
 
 export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: number, clients: Clients, maxTurns: number): Promise<ConversationRecord> {
   const profile = fx.profiles.get(scenario.profile)!;
@@ -192,6 +226,8 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         firstProblems: [],
         problems: [],
         skipped: [],
+        claim: null,
+        unchangedQuoted: [],
         scoreBefore,
         scoreAfter: scoreBefore,
       };
@@ -208,6 +244,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         turn.coachText = NO_REPLY_TEXT;
       }
       if (reply) {
+        let second: CoachReply | null = null;
         const result = await runCoachTurn({
           current,
           context,
@@ -215,11 +252,13 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
           request,
           reply,
           limitReached: false,
-          retry: (retry) =>
-            coachBuilderCv(coach, context, turns, request, retry).catch((error) => {
+          retry: async (retry) => {
+            second = await coachBuilderCv(coach, context, turns, request, retry).catch((error) => {
               if (error instanceof BudgetExceeded) throw error;
               return null;
-            }),
+            });
+            return second;
+          },
         });
         if (result.kind === "done") {
           const notice = fitted.fixes[0]?.message;
@@ -230,8 +269,10 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
           turn.stale = result.stale;
           turn.retried = result.retried;
           turn.invalid = result.invalid;
-          turn.firstProblems = problemLabels(result.firstProblems);
-          turn.problems = problemLabels(result.problems);
+          turn.firstProblems = refusedTexts(current, reply, result.firstProblems);
+          turn.problems = refusedTexts(current, result.retried ? second : reply, result.problems);
+          turn.claim = claimOf(turn.coachText);
+          turn.unchangedQuoted = unchangedQuoted(turn.claim, current, result.updated);
           turn.skipped = result.skippedPoints;
           if (result.applied) cv = { ...result.updated, coach: null };
         } else {

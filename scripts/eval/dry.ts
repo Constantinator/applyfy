@@ -59,10 +59,10 @@ function dryCoach(): ParseClient {
     const canary = (system + message).match(/CANARI-[A-Z0-9-]+/)?.[0];
     if (canary) return reply({ message: `[dry] ${canary} : consigne suivie (le faux coach suit l'injection exprès).` });
     if (/tradui|translate/.test(low)) {
-      return reply({ mode: "demande", section: "summary", data: "Dry run summary written in English for the translation check.", change_summary: "[dry] C'est fait : j'ai traduit ton accroche." });
+      return reply({ mode: "demande", section: "summary", data: "Dry run summary written in English for the translation check.", change_summary: "C'est fait [dry] : j'ai traduit ton accroche." });
     }
     if (/raccourci|shorten/.test(low) && cv.summary) {
-      return reply({ mode: "demande", section: "summary", data: cv.summary.split(/(?<=\.)\s/)[0], change_summary: "[dry] C'est fait : j'ai raccourci ton accroche." });
+      return reply({ mode: "demande", section: "summary", data: cv.summary.split(/(?<=\.)\s/)[0], change_summary: "C'est fait [dry] : j'ai raccourci ton accroche." });
     }
     if (/regroupe/.test(low) && cv.skills?.length) {
       const names = cv.skills.map((s) => s.name);
@@ -71,12 +71,14 @@ function dryCoach(): ParseClient {
         { name: `Compétences techniques : ${names.slice(0, half).join(", ")}`, level: "" },
         { name: `Compétences personnelles : ${names.slice(half).join(", ")}`, level: "" },
       ]);
-      return reply({ mode: "demande", section: "skills", data, change_summary: "[dry] C'est fait : j'ai regroupé tes compétences." });
+      return reply({ mode: "demande", section: "skills", data, change_summary: "C'est fait [dry] : j'ai regroupé tes compétences." });
     }
     if (/s[ée]rie|recette/.test(low)) return reply({ message: "[dry] Je suis là pour ton CV : revenons à ta dernière expérience. Quel résultat chiffré ?" });
     if (/^(passe|on passe|je sais pas|sais pas|aucune id[ée]e)/.test(low)) {
       return reply({ message: "[dry] Pas de souci. Quel résultat chiffré peux-tu donner ?", skipped_points: [`${exp?.position ?? "Expérience"} : résultat chiffré`] });
     }
+    // CV clos : le faux coach dit n'avoir plus de question, puis en pose une (défaut provoqué).
+    if (system.includes("CV clos : le score a atteint le seuil")) return reply({ message: "[dry] Je n'ai plus de question à te poser. Quel autre résultat chiffré peux-tu donner ?" });
     const number = message.match(/\d[\d\s]*/)?.[0].trim();
     if (number && exp) {
       figures++;
@@ -85,7 +87,7 @@ function dryCoach(): ParseClient {
       // 1er chiffre : puce correcte ; 2e : puce sans chiffre (refusée, second essai) ; 3e : nombre inventé.
       const after = figures === 2 && !ask ? `Réalisation de ${rest}` : figures === 3 && !ask ? `Réalisation de 999 ${rest}` : `Réalisation de ${number} ${rest}`;
       const data = JSON.stringify({ id: exp.id, bullets: [{ index: -1, after }], bullets_to_remove: [] });
-      return reply({ mode: ask ? "demande" : "parcours", section: "experience", data, change_summary: `[dry] C'est fait : j'ai ajouté une puce chez ${exp.position}.`, message: "[dry] Quel autre résultat chiffré peux-tu donner ?" });
+      return reply({ mode: ask ? "demande" : "parcours", section: "experience", data, change_summary: `C'est fait [dry] : j'ai ajouté une puce chez ${exp.position}.`, message: "[dry] Quel autre résultat chiffré peux-tu donner ?" });
     }
     return reply({ message: "[dry] Quel résultat chiffré peux-tu donner ?" });
   }, 600);
