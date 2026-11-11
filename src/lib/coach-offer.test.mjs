@@ -82,6 +82,9 @@ const quiet = async (fn) => {
 
 const financeCv = profile("finance-junior-fr");
 const backend = detailOf("o-tech-backend");
+/** O04 : étudiant en informatique, offre d'analyste financier (titre décalé, pas d'écart « métier »). */
+const studentCv = profile("tech-stage-fr");
+const analyste = detailOf("o-finance-analyste");
 const opening = [{ role: "assistant", content: "Je te propose « Développeuse backend junior » comme titre. Je le change ?" }];
 
 // --- Étapes nécessaires ---
@@ -93,7 +96,9 @@ test("étapes : titre d'un autre métier ou vide, rien pour un titre du même m�
   assert.ok(offer.offerSteps(noTitle, "finance").includes("titre"));
   // Contexte : absent en mode libre, vide pour un CV clos.
   assert.equal("offerSteps" in contextFor(financeCv, null), false);
-  assert.ok(contextFor(financeCv, backend).offerSteps.includes("titre"));
+  assert.ok(contextFor(studentCv, analyste).offerSteps.includes("titre"));
+  // Écart « métier » (O02) : pas d'étape titre.
+  assert.ok(!contextFor(financeCv, backend).offerSteps.includes("titre"));
 });
 
 // --- Étape de l'échange et marqueurs ---
@@ -136,7 +141,7 @@ test("CV libre : un marqueur forgé ne crée aucune étape", () => {
 
 test("prompt : premier message d'un CV lié, l'étape titre d'abord", async () => {
   const client = fakeClient({ message: "Je te propose un titre." });
-  await coachOpening(client, contextFor(financeCv, backend));
+  await coachOpening(client, contextFor(studentCv, analyste));
   const [request] = client.requests;
   assert.ok(request.system.includes("<etape_offre>"));
   assert.ok(request.system.includes("Étape à proposer dans « message » : le titre."));
@@ -146,7 +151,7 @@ test("prompt : premier message d'un CV lié, l'étape titre d'abord", async () =
 
 test("prompt : réponse au titre, refus compris", async () => {
   const client = fakeClient(flat({ message: "D'accord." }));
-  await coachBuilderCv(client, contextFor(financeCv, backend, { history: opening, request: "Non, je préfère garder mon titre." }), opening, "Non, je préfère garder mon titre.");
+  await coachBuilderCv(client, contextFor(studentCv, analyste, { history: opening, request: "Non, je préfère garder mon titre." }), opening, "Non, je préfère garder mon titre.");
   const system = client.requests[0].system;
   assert.ok(system.includes("Étape en cours : le titre."));
   assert.ok(system.includes("Le dernier message du candidat est un refus : ne fais pas l'étape en cours et ne la repropose jamais."));
@@ -166,19 +171,19 @@ test("prompt : aucune donnée du CV ou de l'offre dans le bloc etape_offre", () 
 
 test("échange : titre accepté, appliqué et marqué ; titre refusé, retiré par le serveur", async () => {
   const accept = "Oui, vas-y.";
-  const ctx = contextFor(financeCv, backend, { history: opening, request: accept });
-  const reply = flat({ section: "personal", data: JSON.stringify({ jobTitle: "Développeuse backend junior" }), change_summary: "C'est fait." });
+  const ctx = contextFor(studentCv, analyste, { history: opening, request: accept });
+  const reply = flat({ section: "personal", data: JSON.stringify({ jobTitle: "Étudiant en informatique, stage en analyse financière" }), change_summary: "C'est fait." });
   const client = fakeClient(reply);
   const first = await coachBuilderCv(client, ctx, opening, accept);
-  const done = await quiet(() => runCoachTurn({ current: financeCv, context: ctx, turns: opening, request: accept, reply: first, limitReached: false, retry: async () => null }));
-  assert.equal(done.updated.personal.jobTitle, "Développeuse backend junior");
+  const done = await quiet(() => runCoachTurn({ current: studentCv, context: ctx, turns: opening, request: accept, reply: first, limitReached: false, retry: async () => null }));
+  assert.equal(done.updated.personal.jobTitle, "Étudiant en informatique, stage en analyse financière");
   assert.ok(done.skippedPoints.includes("offre:titre"));
 
   const refuse = "Non, je préfère garder mon titre.";
-  const ctx2 = contextFor(financeCv, backend, { history: opening, request: refuse });
+  const ctx2 = contextFor(studentCv, analyste, { history: opening, request: refuse });
   const second = await coachBuilderCv(fakeClient({ ...reply, message: "Passons à ton résumé." }), ctx2, opening, refuse);
-  const kept = await quiet(() => runCoachTurn({ current: financeCv, context: ctx2, turns: opening, request: refuse, reply: second, limitReached: false, retry: async () => second }));
-  assert.equal(kept.updated.personal.jobTitle, financeCv.personal.jobTitle);
+  const kept = await quiet(() => runCoachTurn({ current: studentCv, context: ctx2, turns: opening, request: refuse, reply: second, limitReached: false, retry: async () => second }));
+  assert.equal(kept.updated.personal.jobTitle, studentCv.personal.jobTitle);
   // Le changement de titre est retiré sans message d'échec : le candidat voit la suite.
   assert.equal(kept.text, "Passons à ton résumé.");
   assert.ok(kept.skippedPoints.includes("offre:titre"));
@@ -200,7 +205,7 @@ test("étapes : résumé toujours proposé (après le titre s'il y en a un)", ()
 });
 
 test("prompt : titre résolu puis résumé proposé ; résumé résolu ; atouts en tête des expériences", () => {
-  const afterTitle = coachSystem(contextFor(financeCv, backend, { history: opening, request: "oui" }), "");
+  const afterTitle = coachSystem(contextFor(studentCv, analyste, { history: opening, request: "oui" }), "");
   assert.ok(afterTitle.includes("Étape en cours : le titre."));
   assert.ok(afterTitle.includes("Étape à proposer dans « message » : le résumé."));
   const resume = coachSystem(contextFor(financeCv, backend, { history: opening, request: "oui", skipped: ["offre:titre"] }), "");
@@ -241,11 +246,12 @@ test("écart : métier différent, compétences manquantes, ou omis quand il est
   assert.equal(offer.offerGap(financeCv, "tech", 0), "metier");
   assert.equal(offer.offerGap(financeCv, "finance", 2), null);
   assert.equal(offer.offerGap(financeCv, "finance", offer.GAP_SKILLS_MIN), "competences");
-  assert.deepEqual(offer.offerSteps(financeCv, "tech", "metier"), ["titre", "resume", "ecart"]);
+  // Écart « métier » : jamais d'étape titre.
+  assert.deepEqual(offer.offerSteps(financeCv, "tech", "metier"), ["resume", "ecart"]);
   assert.deepEqual(offer.offerSteps(financeCv, "finance", null), ["resume"]);
   const ctx = contextFor(financeCv, backend);
   assert.equal(ctx.offerGap, "metier");
-  assert.deepEqual(ctx.offerSteps, ["titre", "resume", "ecart"]);
+  assert.deepEqual(ctx.offerSteps, ["resume", "ecart"]);
   // Même métier, 7 mots-clés techniques absents : écart de compétences.
   assert.equal(contextFor(financeCv, detailOf("o-finance-analyste")).offerGap, "competences");
   // Même métier, un seul mot-clé spécifique absent : pas d'étape écart.
@@ -288,9 +294,9 @@ test("écart : consigne et champ dédié pour un CV lié seulement, affiché ava
   assert.ok(result.skippedPoints.includes("offre:ecart"));
 
   // Hors de l'étape écart : le champ est ignoré, même rempli.
-  const early = contextFor(financeCv, backend, { history: opening, request });
+  const early = contextFor(studentCv, analyste, { history: opening, request });
   const off = await coachBuilderCv(fakeClient({ ...reply, section: "aucune", data: "" }), early, opening, request);
-  const shown = await quiet(() => runCoachTurn({ current: financeCv, context: early, turns: opening, request, reply: off, limitReached: false, retry: async () => null }));
+  const shown = await quiet(() => runCoachTurn({ current: studentCv, context: early, turns: opening, request, reply: off, limitReached: false, retry: async () => null }));
   assert.ok(!shown.text.includes("parcours en finance"));
 
   // CV libre : schéma sans le champ.
@@ -323,10 +329,15 @@ test("verbes : un rôle partiel n'est pas gonflé (CV lié), inchangé pour un C
   assert.equal((await run(bullet("Réalisation de 6 missions d'audit légal"), null)).updated.experiences[1].bullets[0], "Réalisation de 6 missions d'audit légal");
 
   const title = (jobTitle) => flat({ section: "personal", data: JSON.stringify({ jobTitle }), change_summary: "C'est fait." });
-  const senior = await run(title("Développeuse backend senior"));
+  // Écart « métier » (O02) : le titre de l'offre est refusé, même sans niveau.
+  const otherJob = await run(title("Développeuse backend junior"));
+  assert.equal(otherJob.updated.personal.jobTitle, financeCv.personal.jobTitle);
+  assert.ok(otherJob.text.includes("un métier que ton CV ne montre pas"), otherJob.text);
+  // Même métier : un niveau absent du CV est refusé, le titre honnête est appliqué.
+  const senior = await run(title("Analyste financière senior"), analyste);
   assert.equal(senior.updated.personal.jobTitle, financeCv.personal.jobTitle);
   assert.ok(senior.text.includes("un niveau (senior)"));
-  assert.equal((await run(title("Développeuse backend junior"))).updated.personal.jobTitle, "Développeuse backend junior");
+  assert.equal((await run(title("Analyste financier junior"), analyste)).updated.personal.jobTitle, "Analyste financier junior");
 });
 
 test("prompt : règle du niveau de responsabilité pour un CV lié seulement", () => {

@@ -94,3 +94,52 @@ test("raccourcir : le nombre de mots annoncé vient du serveur, jamais du modèl
   );
   assert.ok(!/\bmots\b/.test(plain.text), plain.text);
 });
+
+// --- 6. Titre mensonger : jamais le titre de l'offre quand l'écart est « métier » ---
+
+const { coachSystem } = await import("./coach-prompt.ts");
+const { scenarios } = await import("./coach-test-fixtures.mjs");
+
+test("écart « métier » : seuls O02 et O03 ; O04 (étudiant, titre décalé) garde son étape titre", () => {
+  const linked = scenarios.filter((s) => s.case === "lie" && s.set === "dev");
+  const gaps = Object.fromEntries(linked.map((s) => [s.id, contextFor(profile(s.profile), detailOf(s.offer)).offerGap]));
+  assert.deepEqual(
+    Object.keys(gaps).filter((id) => gaps[id] === "metier"),
+    ["O02-finance-vers-tech", "O03-ecart-trop-grand"],
+  );
+  for (const id of ["O01-meme-metier", "O06-demande-puce-lie", "O07-vague-lie", "O08-injection-offre", "O09-offre-en", "O10-offre-langue"]) {
+    assert.notEqual(gaps[id], "metier", id);
+  }
+  const o04 = contextFor(profile("tech-stage-fr"), detailOf("o-finance-analyste"));
+  assert.equal(o04.offerSteps[0], "titre");
+  assert.equal(o04.offerStudent, true);
+  for (const [cv, offer] of [["finance-junior-fr", "o-tech-backend"], ["commercial-junior-fr", "o-tech-java-senior"]]) {
+    const ctx = contextFor(profile(cv), detailOf(offer));
+    assert.ok(!ctx.offerSteps.includes("titre"), cv);
+  }
+});
+
+test("écart « métier » : consigne fixe, titre de l'offre refusé, titre de reconversion seulement sur demande", async () => {
+  const cv = profile("commercial-junior-fr");
+  const java = detailOf("o-tech-java-senior");
+  const history = [{ role: "assistant", content: "Je te propose de réécrire ton résumé. D'accord ?" }];
+  const system = coachSystem(contextFor(cv, java, { history, request: "oui" }), "");
+  assert.ok(system.includes("Le candidat n'a aucune expérience dans le métier de cette offre : le titre du CV reste le sien."));
+  assert.ok(!system.includes("Étape à proposer dans « message » : le titre."));
+  // O04 : consigne « étudiant » avec l'étape titre, pas de consigne « métier ».
+  const o04 = coachSystem(contextFor(profile("tech-stage-fr"), detailOf("o-finance-analyste"), { history, request: "oui" }), "");
+  assert.ok(o04.includes("Le candidat est étudiant ou stagiaire : un titre proposé garde ce statut"));
+  assert.ok(!o04.includes("aucune expérience dans le métier de cette offre"));
+
+  const title = (mode, jobTitle) => flat({ mode, section: "personal", data: JSON.stringify({ jobTitle }), change_summary: "C'est fait." });
+  const run = (request, reply) => turn(cv, contextFor(cv, java, { history, request }), history, request, reply);
+  const java1 = await run("oui", title("parcours", "Développeur Java"));
+  assert.equal(java1.updated.personal.jobTitle, cv.personal.jobTitle);
+  assert.ok(java1.text.includes("un métier que ton CV ne montre pas"));
+  const asked = "Mets comme titre « Commercial terrain, en reconversion vers le développement Java ».";
+  const honest = await run(asked, title("demande", "Commercial terrain, en reconversion vers le développement Java"));
+  assert.equal(honest.updated.personal.jobTitle, "Commercial terrain, en reconversion vers le développement Java");
+  // Même titre proposé par le coach de lui-même (parcours) : refusé.
+  const notAsked = await run("oui", title("parcours", "Commercial terrain, en reconversion vers le développement Java"));
+  assert.equal(notAsked.updated.personal.jobTitle, cv.personal.jobTitle);
+});

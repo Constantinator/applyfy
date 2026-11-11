@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { CV_LIMITS, CvDataSchema, invalidCvField, newItemId, splitSkillGroup, type CvData } from "./cv-builder-types";
 import { actionDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
+import { detectOfferSector } from "./cv-sector-context";
+import type { Sector } from "./sectors";
 
 // Modifications du CV par le coach du CV Builder : la réponse du coach est transformée en
 // changements (puce, champ, liste, nouvel élément) avec le « avant » lu dans le CV, vérifiés par
@@ -357,9 +359,16 @@ export type CheckOptions = {
   offer?: OfferCheck;
 };
 
-/** Vérifications propres à un CV lié à une offre. */
-export type OfferCheck = Record<string, never>;
+/**
+ * Vérifications propres à un CV lié à une offre. `gap` et `sector` : écart avec l'offre et secteur
+ * de l'offre (titre d'un autre métier refusé quand l'écart est « metier »).
+ */
+export type OfferCheck = { gap?: "metier" | "competences" | null; sector?: Sector };
 
+/** CV lié, écart « metier » : un titre du métier de l'offre, que le CV ne montre pas. */
+export const PROBLEM_TITLE_OTHER_JOB = "présente un métier que le CV ne montre pas";
+/** Titre de reconversion honnête (demandé explicitement par le candidat). */
+const RECONVERSION = /\b(reconversion|en transition|career change|transitioning|aspiring)\b/i;
 /** CV lié : une puce qui disait un rôle partiel le garde. */
 export const PROBLEM_INFLATED_ROLE = "gonfle le rôle : la puce d'origine décrivait une participation";
 /** CV lié : le titre n'annonce aucun niveau que le CV ou le candidat ne montre pas. */
@@ -388,7 +397,7 @@ const firstStem = (text: string) => (text.trim().toLowerCase().match(/^[\p{L}]+/
  * - le titre n'annonce aucun niveau (senior, manager…) absent du titre, des postes et des
  *   messages du candidat.
  */
-function offerProblems(proposal: CoachProposal, current: CvData, candidateMessages: string[]): ChangeProblem[] {
+function offerProblems(proposal: CoachProposal, current: CvData, candidateMessages: string[], offer: OfferCheck, mode: CoachMode | undefined): ChangeProblem[] {
   const allowed = numberSources([...cvStrings(current), ...candidateMessages]);
   const said = candidateMessages.join(" ").toLowerCase();
   const known = new Set(levelWords([current.personal.jobTitle, ...current.experiences.map((e) => e.position), ...candidateMessages].join(" ")));
@@ -398,6 +407,14 @@ function offerProblems(proposal: CoachProposal, current: CvData, candidateMessag
       return invented.length ? [{ changeId: change.id, text: change.after, problems: [`${PROBLEM_NEW_NUMBER_PREFIX}${invented.join(", ")}`] }] : [];
     }
     if (change.kind === "field" && change.target === "personal" && change.field === "jobTitle") {
+      // Écart « metier » : un titre du métier de l'offre est refusé, sauf titre de reconversion
+      // demandé explicitement par le candidat (mode demande).
+      // Le coach ne propose jamais de lui-même un titre de reconversion (mode parcours).
+      const offerJob = offer.sector !== undefined && detectOfferSector(change.after) === offer.sector;
+      const reconversion = RECONVERSION.test(change.after);
+      if (offer.gap === "metier" && ((offerJob && !(mode === "demande" && reconversion)) || (reconversion && mode !== "demande"))) {
+        return [{ changeId: change.id, text: change.after, problems: [PROBLEM_TITLE_OTHER_JOB] }];
+      }
       const added = levelWords(change.after).filter((w) => !known.has(w));
       return added.length ? [{ changeId: change.id, text: change.after, problems: [`${PROBLEM_INFLATED_TITLE_PREFIX}${added.join(", ")}`] }] : [];
     }
@@ -441,7 +458,7 @@ export function checkProposal(
     }
   }
   if (options.offer) {
-    for (const p of offerProblems(proposal, current, options.candidateMessages ?? [])) {
+    for (const p of offerProblems(proposal, current, options.candidateMessages ?? [], options.offer, options.mode)) {
       const same = problems.find((q) => q.changeId === p.changeId);
       if (same) same.problems.push(...p.problems.filter((x) => !same.problems.includes(x)));
       else problems.push(p);

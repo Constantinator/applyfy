@@ -1,15 +1,10 @@
 // Vérification des modifications du coach selon le mode (« demande » : non-régression et nombres
 // inventés ; « parcours » : règle stricte inchangée). Lancé par `npm test` (Node 22.18 ou plus).
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import { test } from "node:test";
 
-// Imports relatifs sans extension (résolus par Next en temps normal).
-registerHooks({
-  resolve(specifier, context, next) {
-    return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
-  },
-});
+// Imports sans extension et JSON sans attribut (comme dans l'app) : chargeur du banc d'essai.
+await import("../../scripts/eval/register.mjs");
 const {
   buildProposal,
   checkProposal,

@@ -46,6 +46,8 @@ export type CoachContext = {
   titleMismatch?: boolean;
   /** CV lié : étapes d'adaptation à l'offre nécessaires, dans l'ordre (coach-offer.ts) ; absent en mode libre. */
   offerSteps?: OfferStep[];
+  /** CV lié : candidat étudiant ou stagiaire (le titre proposé garde ce statut). */
+  offerStudent?: boolean;
   /** CV lié : langue de l'offre (null si elle ne peut pas être décidée). */
   offerLanguage?: CoachLang | null;
   /** CV lié : écart principal avec l'offre, décidé par le serveur (null : écart faible). */
@@ -90,6 +92,12 @@ const OFFER_PROPOSE: Record<ProposedStep, string> = {
   resume:
     "Étape à proposer dans « message » : le résumé. Propose de réécrire le résumé pour cette offre en nommant 1 ou 2 atouts réels du CV ou des messages du candidat qui répondent à l'offre, et demande seulement si le candidat l'accepte. Ne modifie pas encore le résumé.",
 };
+/** Écart « metier » : le candidat n'exerce pas le métier de l'offre (vérifié par le serveur). */
+const OFFER_METIER =
+  "Le candidat n'a aucune expérience dans le métier de cette offre : le titre du CV reste le sien. Ne propose pas l'intitulé de l'offre comme titre et ne présente jamais le candidat comme exerçant ce métier, ni dans le titre, ni dans le résumé ; tu peux citer son objectif s'il l'a dit lui-même. Un titre de reconversion (son métier actuel, puis « en reconversion vers … ») n'est écrit que si le candidat le demande explicitement.";
+/** Étudiant ou stagiaire : le titre proposé garde ce statut. */
+const OFFER_STUDENT_TITLE =
+  "Le candidat est étudiant ou stagiaire : un titre proposé garde ce statut (par exemple « Étudiant en … » ou « Stagiaire … » suivi du domaine visé) et ne le présente pas comme un professionnel déjà en poste.";
 /** CV lié pas encore clos : le niveau de responsabilité du CV est gardé (vérifié par le serveur). */
 const OFFER_FAITHFUL_ROLE =
   "Niveau de responsabilité : garde celui du CV. Une puce qui commence par « Participation à », « Contribution à » ou « Appui à » (ou « participé », « aidé », « assisté ») garde ce rôle partiel : ne la transforme jamais en « Réalisation de », « Pilotage de » ou un autre verbe de pleine responsabilité, sauf si le candidat l'a dit lui-même. Le titre n'annonce aucun niveau (senior, lead, manager, responsable…) que le CV ne montre pas. L'application refuse tout gonflement.";
@@ -241,6 +249,8 @@ export function coachSystem(
         `Intitulé du poste : ${n(position)}`,
         !closed ? OFFER_STRENGTHS : null,
         !closed ? OFFER_FAITHFUL_ROLE : null,
+        !closed && context.offerGap === "metier" ? OFFER_METIER : null,
+        !closed && context.offerStudent && context.offerSteps?.includes("titre") ? OFFER_STUDENT_TITLE : null,
         "</offre>",
       ]
         .filter(Boolean)

@@ -2,6 +2,7 @@ import {
   PROBLEM_BANNED_PREFIX,
   PROBLEM_INFLATED_ROLE,
   PROBLEM_INFLATED_TITLE_PREFIX,
+  PROBLEM_TITLE_OTHER_JOB,
   PROBLEM_LOST_FIGURE,
   PROBLEM_LOST_VERB,
   PROBLEM_NEW_NUMBER_PREFIX,
@@ -36,6 +37,7 @@ const TEXTS = {
     lostVerb: "la nouvelle version ne disait plus ce que tu faisais, contrairement à ta puce d'origine.",
     lostFigure: "la nouvelle version perdait le chiffre de ta puce d'origine.",
     invented: (numbers: string) => `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).`,
+    titleOtherJob: "le titre proposé présentait un métier que ton CV ne montre pas.",
     inflatedRole: "ta puce d'origine disait que tu avais participé : je ne peux pas écrire que tu l'as mené seul.",
     inflatedTitle: (words: string) => `le titre proposé annonçait un niveau (${words}) que ton CV ne montre pas.`,
     wordCount: (before: number, after: number) => `Le texte passe de ${before} à ${after} mots.`,
@@ -87,6 +89,7 @@ const TEXTS = {
     lostVerb: "the new version no longer said what you did, unlike your original bullet.",
     lostFigure: "the new version lost the number from your original bullet.",
     invented: (numbers: string) => `the proposed text contained a number that comes neither from your CV nor from your messages (${numbers}).`,
+    titleOtherJob: "the proposed title presented a job your CV doesn't show.",
     inflatedRole: "your original bullet said you took part in it: I can't write that you led it alone.",
     inflatedTitle: (words: string) => `the proposed title claimed a level (${words}) that your CV doesn't show.`,
     wordCount: (before: number, after: number) => `The text goes from ${before} to ${after} words.`,
@@ -190,6 +193,7 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_NO_FIGURE) return [{ kind: "figure", text: t.figure }];
     if (p === PROBLEM_NOT_SHORTER) return [{ kind: "shorten", text: t.notShorter }];
     if (p === PROBLEM_INFLATED_ROLE) return [{ kind: "faithful", text: t.inflatedRole }];
+    if (p === PROBLEM_TITLE_OTHER_JOB) return [{ kind: "faithful", text: t.titleOtherJob }];
     if (p.startsWith(PROBLEM_INFLATED_TITLE_PREFIX)) return [{ kind: "faithful", text: t.inflatedTitle(p.slice(PROBLEM_INFLATED_TITLE_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {
       return [{ kind: "banned", text: t.banned(p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "")) }];

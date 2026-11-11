@@ -1,6 +1,6 @@
 import type { CoachReply } from "./coach-llm";
 import { listenText, type Listening } from "./coach-intent";
-import { offerMarkersAfter, offerStageOf, type OfferStep } from "./coach-offer";
+import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
@@ -25,6 +25,7 @@ export type CoachTurnInput = {
     listening?: Listening;
     /** CV lié : étapes de l'offre (coach-offer.ts) et points abandonnés, marqueurs des étapes faites compris. */
     offerSteps?: OfferStep[];
+    offerGap?: OfferGap | null;
     skipped?: string[];
   };
   /** Échanges précédents et dernier message du candidat. */
@@ -124,7 +125,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     // en mode demande (jamais pour une puce du parcours ni pour un ajout).
     shorten: mode === "demande" && (context.listening?.shorten ?? false),
     // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
-    ...(context.offerSteps ? { offer: {} } : {}),
+    ...(context.offerSteps ? { offer: { gap: context.offerGap ?? null, sector: context.scoring.sector } } : {}),
   };
   let problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
   const firstProblems = problems;

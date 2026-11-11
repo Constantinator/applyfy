@@ -1,14 +1,9 @@
 // Texte affiché après une réponse du coach : cause d'échec et clôture. Lancé par `npm test` (Node 22.18 ou plus).
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import { test } from "node:test";
 
-// Imports relatifs sans extension (résolus par Next en temps normal).
-registerHooks({
-  resolve(specifier, context, next) {
-    return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
-  },
-});
+// Imports sans extension et JSON sans attribut (comme dans l'app) : chargeur du banc d'essai.
+await import("../../scripts/eval/register.mjs");
 const { closureMessage, coachReplyText, MISSING_FIGURE_QUESTION } = await import("./coach-outcome.ts");
 const { PROBLEM_BANNED_PREFIX, PROBLEM_NO_FIGURE, PROBLEM_NO_VERB } = await import("./coach-proposals.ts");
 const { READY_SCORE } = await import("./cv-score.ts");

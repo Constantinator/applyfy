@@ -32,16 +32,37 @@ export function boundSkipped(points: string[], max: number): string[] {
 }
 
 /**
- * Écart principal entre le CV et l'offre, décidé par le serveur : « metier » quand aucun poste du
- * CV n'est du secteur de l'offre et qu'au moins un est d'un autre métier ; « competences » quand
- * il manque au moins GAP_SKILLS_MIN mots-clés spécifiques de l'offre ; null si l'écart est faible.
+ * Écart principal entre le CV et l'offre, décidé par le serveur :
+ * - « metier » : le candidat a au moins un poste professionnel (hors stage, alternance,
+ *   apprentissage et job étudiant) dont le métier est reconnu, et aucun de ces postes n'est du
+ *   secteur de l'offre (O02 : analyste crédit pour une offre de développeur ; O03 : commercial) ;
+ *   un étudiant ou un stagiaire n'a pas encore de métier : jamais d'écart « metier » (O04) ;
+ * - « competences » : il manque au moins GAP_SKILLS_MIN mots-clés spécifiques de l'offre ;
+ * - null : écart faible.
  */
 export type OfferGap = "metier" | "competences";
 export const GAP_SKILLS_MIN = 3;
 
+/** Poste d'étudiant : stage, alternance, apprentissage, job étudiant (français, anglais). */
+const STUDENT_POSITION = /\b(stage|stagiaire|alternan(t|te|ce)|apprenti(e|ssage)?|[ée]tudiant(e)?|job [ée]tudiant|intern(ship)?|trainee|apprentice|working student)\b/i;
+export const isStudentPosition = (position: string) => STUDENT_POSITION.test(position);
+
+/** Métiers reconnus des postes professionnels du CV (hors postes d'étudiant). */
+export function professionalSectors(data: Pick<CvData, "experiences">): Sector[] {
+  return data.experiences
+    .filter((e) => !isStudentPosition(e.position))
+    .map((e) => detectOfferSector(e.position))
+    .filter((s): s is Sector => s !== null && s !== "etudiant");
+}
+
+/** Étudiant ou stagiaire : titre d'étudiant, ou aucun poste professionnel. */
+export function isStudentProfile(data: Pick<CvData, "experiences" | "personal">): boolean {
+  return isStudentPosition(data.personal.jobTitle) || !data.experiences.some((e) => !isStudentPosition(e.position));
+}
+
 export function offerGap(data: Pick<CvData, "experiences">, sector: Sector, missingSpecific: number): OfferGap | null {
   if (sector !== "etudiant") {
-    const sectors = data.experiences.map((e) => detectOfferSector(e.position)).filter((s): s is Sector => s !== null && s !== "etudiant");
+    const sectors = professionalSectors(data);
     if (sectors.length && !sectors.includes(sector)) return "metier";
   }
   return missingSpecific >= GAP_SKILLS_MIN ? "competences" : null;
@@ -51,7 +72,8 @@ export function offerGap(data: Pick<CvData, "experiences">, sector: Sector, miss
 export function offerSteps(data: Pick<CvData, "personal">, sector: Sector, gap: OfferGap | null = null): OfferStep[] {
   const steps: OfferStep[] = [];
   const title = data.personal.jobTitle.trim();
-  if (!title || cvTitleMismatch(title, sector)) steps.push("titre");
+  // Écart « metier » : aucun titre de l'offre proposé (ce serait mentir) ; le titre reste le sien.
+  if (gap !== "metier" && (!title || cvTitleMismatch(title, sector))) steps.push("titre");
   // Résumé orienté offre : proposé une fois par session.
   steps.push("resume");
   // Écart dit une fois, avec la réponse au résumé ; omis quand il est faible.

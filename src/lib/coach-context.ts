@@ -1,5 +1,5 @@
 import { candidateLanguage, cvLanguage } from "./coach-language";
-import { offerGap, offerLanguage, offerSteps } from "./coach-offer";
+import { isStudentProfile, offerGap, offerLanguage, offerSteps } from "./coach-offer";
 import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
 import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "./cv-score";
@@ -49,6 +49,7 @@ function linkedSteps(data: CvData, sector: Sector, detail: CoachOfferDetail | nu
   const gap = offerGap(data, sector, missingKeywordRows(detail, data, sector).filter((r) => r.specific).length);
   return {
     offerGap: gap,
+    offerStudent: isStudentProfile(data),
     offerSteps: closed ? [] : offerSteps(data, sector, gap),
     offerLanguage: detail ? offerLanguage(detail.application) : null,
   };
