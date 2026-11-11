@@ -5,6 +5,7 @@ import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
 import { detectLanguage } from "./coach-language";
+import { plainCoachText } from "./coach-plain";
 import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
 import { scoreCv, type ScoringContext } from "./cv-score";
@@ -178,7 +179,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   if (reply.raw && limitReached && !reorganized) {
     return {
       kind: "quotaBlocked",
-      text: quotaBlockedText({ mode, section: reply.raw.section, message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }),
+      text: plainCoachText(quotaBlockedText({ mode, section: reply.raw.section, message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }), context.language),
       mode,
       skippedPoints: markers.length ? [...new Set([...reply.skippedPoints, ...markers])] : reply.skippedPoints,
     };
@@ -245,7 +246,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
 
   return {
     kind: "done",
-    text: shown,
+    // Texte affiché sans jargon (« verbe d'action », « (+6 pts) »…), passages cités intacts.
+    text: plainCoachText(shown, context.language),
     mode,
     updated,
     applied,

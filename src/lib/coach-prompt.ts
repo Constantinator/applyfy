@@ -68,6 +68,10 @@ export type CoachContext = {
   } | null;
 };
 
+/** Consigne fixe : pas de jargon du score dans les messages au candidat. */
+const PLAIN_WORDS =
+  "Dans « message », ne reprends jamais les termes techniques de ces points (verbe d'action, mots-clés ATS, points gagnés) : dis ce qui manque en mots simples, par exemple « ta puce ne dit pas ce que tu as fait concrètement ».";
+
 /** CV clos : le score calculé par le serveur atteint le seuil « prêt à postuler ». */
 export const isCvClosed = (score: number) => score >= READY_SCORE;
 
@@ -246,6 +250,8 @@ export function coachSystem(
       score.corrections.length
         ? `${closed ? "Pistes facultatives (n'en parle que si le candidat te le demande)" : "Points à corriger"} :\n${list(score.corrections)}`
         : null,
+      // Termes techniques des points à corriger : jamais repris tels quels dans « message ».
+      score.corrections.length ? PLAIN_WORDS : null,
       score.banned.length ? `Formules à éviter présentes dans le CV :\n${list(score.banned)}` : null,
       skipped.length
         ? `Points abandonnés pendant cette session : ne pose plus aucune question sur ces éléments, même reformulée et même s'ils figurent encore dans « Points à corriger » ; considère-les comme traités.\n${list(skipped)}`

@@ -364,3 +364,48 @@ test("langue : message indécidable, repli sur le message précédent du candida
   assert.equal(lang.candidateLanguage("ok", french, ["Translate my whole CV into French please."]), "en");
   assert.equal(lang.candidateLanguage("ok", french, []), lang.cvLanguage(french));
 });
+
+// --- Jargon : seulement le texte affiché du coach ---
+
+const { plainCoachText } = await import("./coach-plain.ts");
+
+test("jargon : message réel d'O03 réécrit, passages cités intacts", () => {
+  assert.equal(
+    plainCoachText("Pour ton poste de Vendeur chez Boutique Exemple, ta puce « Tenue de la caisse » n'a pas de verbe d'action en tête : sais-tu combien de transactions tu gérais par jour ?"),
+    "Pour ton poste de Vendeur chez Boutique Exemple, ta puce « Tenue de la caisse » ne dit pas ce que tu as fait concrètement : sais-tu combien de transactions tu gérais par jour ?",
+  );
+  assert.equal(
+    plainCoachText("Sur ton stage, la puce « Participation aux réunions d'équipe » n'a ni verbe d'action ni chiffre."),
+    "Sur ton stage, la puce « Participation aux réunions d'équipe » ne dit pas ce que tu as fait concrètement et n'a pas de chiffre.",
+  );
+  assert.equal(
+    plainCoachText("Pistes facultatives, sans urgence : 2 puces sans verbe d'action en tête — Vendeur chez Boutique Exemple (+6 pts) ; 6 mots-clés ATS sur 10."),
+    "Pistes facultatives, sans urgence : 2 puces qui ne disent pas ce que tu as fait concrètement — Vendeur chez Boutique Exemple ; 6 mots-clés du métier sur 10.",
+  );
+  // Une puce du CV citée qui contient ces termes reste telle quelle.
+  const quoted = "Ta puce « Formation de 12 stagiaires aux verbes d'action et aux mots-clés ATS (+2 pts) » n'a pas de verbe d'action en tête.";
+  assert.equal(plainCoachText(quoted), "Ta puce « Formation de 12 stagiaires aux verbes d'action et aux mots-clés ATS (+2 pts) » ne dit pas ce que tu as fait concrètement.");
+  assert.equal(plainCoachText("Your bullet “Led the ATS keywords audit” doesn't start with an action verb.", "en"), "Your bullet “Led the ATS keywords audit” doesn't say what you actually did.");
+});
+
+test("jargon : jamais appliqué au contenu du CV ni au texte proposé", async () => {
+  const cv = profile("rh-stage-fr");
+  const exp = cv.experiences[0];
+  const bullet = "Formation de 12 stagiaires aux verbes d'action et aux mots-clés ATS";
+  const history = [{ role: "assistant", content: "Bonjour." }];
+  const request = "Ajoute une puce : j'ai formé 12 stagiaires aux verbes d'action et aux mots-clés ATS.";
+  const context = contextFor(cv, null, { history, request });
+  const reply = flat({
+    mode: "demande",
+    section: "experience",
+    data: JSON.stringify({ id: exp.id, bullets: [{ index: -1, after: bullet }] }),
+    change_summary: `C'est fait : j'ai ajouté la puce « ${bullet} ».`,
+    message: "Ta puce suivante n'a pas de verbe d'action en tête : que faisais-tu concrètement ?",
+  });
+  const result = await turn(cv, context, history, request, reply);
+  // Contenu du CV : la puce proposée est écrite telle quelle.
+  assert.ok(result.updated.experiences[0].bullets.includes(bullet), JSON.stringify(result.updated.experiences[0].bullets));
+  // Texte affiché : la puce citée reste intacte, le jargon hors citation est remplacé.
+  assert.ok(result.text.includes(`« ${bullet} »`), result.text);
+  assert.ok(result.text.includes("Ta puce suivante ne dit pas ce que tu as fait concrètement"), result.text);
+});

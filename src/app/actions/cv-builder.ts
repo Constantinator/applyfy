@@ -31,6 +31,7 @@ import {
 import { buildCoachContext, type BuiltCoachContext } from "@/lib/coach-context";
 import { listeningState } from "@/lib/coach-intent";
 import { boundSkipped, withOfferLanguageNote } from "@/lib/coach-offer";
+import { plainCoachText } from "@/lib/coach-plain";
 import { closedOpening } from "@/lib/coach-outcome";
 import { isCvClosed } from "@/lib/coach-prompt";
 import { runCoachTurn } from "@/lib/coach-turn";
@@ -700,7 +701,7 @@ export async function coachOpeningAction(
     }
     if (!message) return { ok: false };
     // CV lié : offre et CV dans deux langues différentes, signalé une fois par le serveur.
-    message = withOfferLanguageNote(message, context);
+    message = withOfferLanguageNote(plainCoachText(message, context.language), context);
     const coach = { opening: message, contentKey: context.contentKey };
     await saveBuilderCv(cv.id, { title: cv.title, templateId: cv.templateId, data: { ...cv.data, coach } });
     return { ok: true, coach };
