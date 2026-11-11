@@ -12,18 +12,109 @@ import { CV_LIMITS } from "./cv-builder-types";
 import { READY_SCORE } from "./cv-score";
 
 // Texte affiché après une réponse du coach, décidé par le code (jamais par le modèle) : cause
-// exacte d'un échec, et clôture quand le CV atteint le score « prêt à postuler ».
+// exacte d'un échec, et clôture quand le CV atteint le score « prêt à postuler ». En français ou
+// en anglais, selon la langue du candidat (coach-language.ts).
+
+export type CoachLang = "fr" | "en";
+
+const TEXTS = {
+  fr: {
+    missingFigure: "Peux-tu me donner un ordre de grandeur (nombre, %, durée, budget) pour que je puisse l'écrire ?",
+    defaultSummary: "C'est fait : j'ai mis à jour ton CV.",
+    format: "la réponse que j'avais préparée avait un format invalide.",
+    stale: "ce passage a changé entre-temps. Redemande-moi la modification.",
+    requestFailedEnd: "Tu peux reformuler ta demande, ou modifier ce texte directement dans l'aperçu.",
+    noop: "la modification proposée ne change rien à ton CV.",
+    unknown: "la modification n'a pas pu être appliquée.",
+    bulletLimit: `la limite de ${CV_LIMITS.bullets} puces est atteinte pour cette expérience.`,
+    verb: "j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »).",
+    figure: "il me manque un chiffre ou un ordre de grandeur pour écrire cette puce.",
+    banned: (phrase: string) => `le texte proposé contenait « ${phrase} », une formule trop vague pour un recruteur.`,
+    lostVerb: "la nouvelle version ne disait plus ce que tu faisais, contrairement à ta puce d'origine.",
+    lostFigure: "la nouvelle version perdait le chiffre de ta puce d'origine.",
+    invented: (numbers: string) => `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).`,
+    requestFailed: "Je n'ai pas pu faire cette modification : ",
+    otherFailed: "Je n'ai pas pu appliquer cette modification à ton CV. ",
+    otherFailedEnd: "Peux-tu reformuler ta demande ?",
+    experienceFailed: "Je n'ai pas pu modifier ton CV : ",
+    announce: (places: string) => `C'est fait, j'ai modifié : ${places}.`,
+    notChanged: (place: string) => `Pas modifié — ${place} : `,
+    bulletsNotAdded: "Certaines puces n'ont pas été ajoutées : ",
+    partNotApplied: "Une partie de la modification n'a pas été appliquée : ",
+    scoreLine: (score: number) => `Ton CV est à ${score}/100.`,
+    closure: (score: number) =>
+      `Ton CV est prêt : il atteint ${score}/100 (seuil de ${READY_SCORE}). Tu peux encore le modifier en cliquant sur n'importe quel texte dans l'aperçu, ou me demander une modification précise. Bonne chance pour tes candidatures.`,
+    hints: (hints: string) => `Pistes facultatives, sans urgence : ${hints}.`,
+    offerHint: (keywords: string) => `mots-clés de l'offre à envisager : ${keywords}`,
+    closedOpening: (score: number) =>
+      `Ton CV est prêt : il atteint ${score}/100 (seuil de ${READY_SCORE}). Je n'ai plus de question à te poser. Si tu veux une modification précise (raccourcir, reformuler, réorganiser…), demande-la-moi.`,
+    quotaRequest: (where: string) =>
+      `Je n'ai pas modifié ton CV : c'est ton quota d'adaptations du mois qui bloque, il est épuisé. Reste à faire : la modification demandée sur ${where}. Tu peux la faire toi-même en cliquant sur le texte dans l'aperçu.`,
+    quotaPath: (where: string) =>
+      `Je n'ai pas modifié ton CV : c'est ton quota d'adaptations du mois qui bloque, il est épuisé. Reste à faire : la modification prévue sur ${where}.`,
+    sections: {
+      personal: "tes coordonnées ou ton titre",
+      summary: "ton accroche",
+      experience: "une expérience",
+      education: "une formation",
+      skills: "tes compétences",
+      languages: "tes langues",
+      certifications: "tes certifications",
+      projects: "un projet",
+      interests: "tes centres d'intérêt",
+    } as Record<string, string>,
+    anySection: "ton CV",
+  },
+  en: {
+    missingFigure: "Can you give me an order of magnitude (number, %, duration, budget) so I can write it?",
+    defaultSummary: "Done: I've updated your CV.",
+    format: "the answer I had prepared had an invalid format.",
+    stale: "this part changed in the meantime. Please ask me again.",
+    requestFailedEnd: "You can rephrase your request, or edit this text directly in the preview.",
+    noop: "the proposed change doesn't change anything in your CV.",
+    unknown: "the change could not be applied.",
+    bulletLimit: `this experience already has the maximum of ${CV_LIMITS.bullets} bullets.`,
+    verb: "I need the bullet to start with what you actually did (for example “Led…”, “Organised…”).",
+    figure: "I'm missing a number or an order of magnitude to write this bullet.",
+    banned: (phrase: string) => `the proposed text contained “${phrase}”, a phrase too vague for a recruiter.`,
+    lostVerb: "the new version no longer said what you did, unlike your original bullet.",
+    lostFigure: "the new version lost the number from your original bullet.",
+    invented: (numbers: string) => `the proposed text contained a number that comes neither from your CV nor from your messages (${numbers}).`,
+    requestFailed: "I couldn't make this change: ",
+    otherFailed: "I couldn't apply this change to your CV. ",
+    otherFailedEnd: "Can you rephrase your request?",
+    experienceFailed: "I couldn't update your CV: ",
+    announce: (places: string) => `Done, I've updated: ${places}.`,
+    notChanged: (place: string) => `Not changed — ${place}: `,
+    bulletsNotAdded: "Some bullets were not added: ",
+    partNotApplied: "Part of the change was not applied: ",
+    scoreLine: (score: number) => `Your CV is at ${score}/100.`,
+    closure: (score: number) =>
+      `Your CV is ready: it reaches ${score}/100 (threshold ${READY_SCORE}). You can still edit it by clicking any text in the preview, or ask me for a specific change. Good luck with your applications.`,
+    hints: (hints: string) => `Optional ideas, no rush: ${hints}.`,
+    offerHint: (keywords: string) => `job offer keywords to consider: ${keywords}`,
+    closedOpening: (score: number) =>
+      `Your CV is ready: it reaches ${score}/100 (threshold ${READY_SCORE}). I have no more questions for you. If you want a specific change (shorten, rephrase, reorganise…), just ask.`,
+    quotaRequest: (where: string) =>
+      `I didn't change your CV: your monthly adaptation quota is used up. Still to do: the change you asked for on ${where}. You can make it yourself by clicking the text in the preview.`,
+    quotaPath: (where: string) => `I didn't change your CV: your monthly adaptation quota is used up. Still to do: the planned change on ${where}.`,
+    sections: {
+      personal: "your contact details or title",
+      summary: "your summary",
+      experience: "an experience",
+      education: "an education entry",
+      skills: "your skills",
+      languages: "your languages",
+      certifications: "your certifications",
+      projects: "a project",
+      interests: "your interests",
+    } as Record<string, string>,
+    anySection: "your CV",
+  },
+};
 
 /** Question posée quand une modification attendue manque un chiffre et que le coach n'en pose pas. */
-export const MISSING_FIGURE_QUESTION =
-  "Peux-tu me donner un ordre de grandeur (nombre, %, durée, budget) pour que je puisse l'écrire ?";
-
-const DEFAULT_SUMMARY = "C'est fait : j'ai mis à jour ton CV.";
-const FORMAT_CAUSE = "la réponse que j'avais préparée avait un format invalide.";
-const STALE_CAUSE = "ce passage a changé entre-temps. Redemande-moi la modification.";
-
-/** Fin d'un échec en mode demande : pas de question de parcours, pas de demande de chiffre. */
-const REQUEST_FAILED_END = "Tu peux reformuler ta demande, ou modifier ce texte directement dans l'aperçu.";
+export const MISSING_FIGURE_QUESTION = TEXTS.fr.missingFigure;
 
 export type CoachOutcomeInput = {
   /** Mode de la première réponse : « demande » (demande explicite du candidat) ou « parcours ». */
@@ -58,6 +149,8 @@ export type CoachOutcomeInput = {
   /** Corrections restantes du score (de la plus rentable) et mots-clés de l'offre encore absents. */
   corrections: string[];
   offerKeywords: string[];
+  /** Langue du candidat (français par défaut). */
+  lang?: CoachLang;
 };
 
 type Kind = "format" | "limit" | "verb" | "banned" | "regression" | "invented" | "stale" | "noop" | "figure" | "unknown";
@@ -66,41 +159,28 @@ type Cause = { kind: Kind; text: string };
 const RANK: Kind[] = ["format", "limit", "verb", "banned", "regression", "invented", "stale", "noop", "figure", "unknown"];
 
 const upperFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+/** Minuscule initiale, sauf le pronom anglais « I » (« I'm », « I need »). */
+const lowerFirst = (text: string) => (/^I\b/.test(text) ? text : text.charAt(0).toLowerCase() + text.slice(1));
 
 /** Causes d'un texte refusé. */
-function problemCauses(problem: ChangeProblem): Cause[] {
+function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
+  const t = TEXTS[lang];
   if (problem.limit) {
     const message = problem.problems[0] ?? "";
     const bullets = /^experiences\.\d+\.bullets$/.test(problem.path ?? "") && message.includes("trop d'éléments");
-    return [
-      {
-        kind: "limit",
-        text: bullets ? `la limite de ${CV_LIMITS.bullets} puces est atteinte pour cette expérience.` : lowerFirst(message),
-      },
-    ];
+    // Message du champ écrit en français par la validation du CV : repris tel quel en français seulement.
+    const field = lang === "fr" ? lowerFirst(message) : "one field of the CV is too long or has too many items.";
+    return [{ kind: "limit", text: bullets ? t.bulletLimit : field }];
   }
   return problem.problems.flatMap((p): Cause[] => {
-    if (p === PROBLEM_NO_VERB) {
-      return [{ kind: "verb", text: "j'ai besoin que la puce commence par ce que tu as fait concrètement (par exemple « Suivi de… », « Organisation de… »)." }];
-    }
-    if (p === PROBLEM_NO_FIGURE) {
-      return [{ kind: "figure", text: "il me manque un chiffre ou un ordre de grandeur pour écrire cette puce." }];
-    }
+    if (p === PROBLEM_NO_VERB) return [{ kind: "verb", text: t.verb }];
+    if (p === PROBLEM_NO_FIGURE) return [{ kind: "figure", text: t.figure }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {
-      const phrase = p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "");
-      return [{ kind: "banned", text: `le texte proposé contenait « ${phrase} », une formule trop vague pour un recruteur.` }];
+      return [{ kind: "banned", text: t.banned(p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "")) }];
     }
-    if (p === PROBLEM_LOST_VERB) {
-      return [{ kind: "verb", text: "la nouvelle version ne disait plus ce que tu faisais, contrairement à ta puce d'origine." }];
-    }
-    if (p === PROBLEM_LOST_FIGURE) {
-      return [{ kind: "regression", text: "la nouvelle version perdait le chiffre de ta puce d'origine." }];
-    }
-    if (p.startsWith(PROBLEM_NEW_NUMBER_PREFIX)) {
-      const numbers = p.slice(PROBLEM_NEW_NUMBER_PREFIX.length);
-      return [{ kind: "invented", text: `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).` }];
-    }
+    if (p === PROBLEM_LOST_VERB) return [{ kind: "verb", text: t.lostVerb }];
+    if (p === PROBLEM_LOST_FIGURE) return [{ kind: "regression", text: t.lostFigure }];
+    if (p.startsWith(PROBLEM_NEW_NUMBER_PREFIX)) return [{ kind: "invented", text: t.invented(p.slice(PROBLEM_NEW_NUMBER_PREFIX.length)) }];
     return [];
   });
 }
@@ -115,93 +195,92 @@ function sortedCauses(causes: Cause[]): Cause[] {
 const sentences = (causes: Cause[], afterColon: boolean) =>
   causes.map((c, i) => (i === 0 && afterColon ? lowerFirst(c.text) : upperFirst(c.text))).join(" ");
 
-/** Libellé d'un changement lisible dans une phrase : « Stage chez X — puce 2 » → « Stage chez X (puce 2) ». */
-const placeName = (label: string) => label.replace(/\s+—\s+(.+)$/, " ($1)");
+/** Fin des libellés de changement (coach-proposals.ts), en anglais. */
+const LABEL_EN: [RegExp, string][] = [
+  [/— nouvelle puce$/, "— new bullet"],
+  [/— puce (\d+) supprimée$/, "— bullet $1 removed"],
+  [/— puce (\d+)$/, "— bullet $1"],
+  [/— puces$/, "— bullets"],
+  [/— supprimé$/, "— removed"],
+  [/ chez /, " at "],
+  [/^Accroche$/, "Summary"],
+  [/^Titre du CV$/, "CV title"],
+  [/^Compétences$/, "Skills"],
+  [/^Langues$/, "Languages"],
+  [/^Certifications$/, "Certifications"],
+  [/^Centres d'intérêt$/, "Interests"],
+];
 
-/** Annonce écrite par le serveur à partir des emplacements réellement modifiés. */
-function appliedAnnouncement(labels: string[] | undefined) {
-  const places = [...new Set(labels ?? [])];
-  return places.length ? `C'est fait, j'ai modifié : ${places.map(placeName).join(" ; ")}.` : DEFAULT_SUMMARY;
+/** Libellé d'un changement lisible dans une phrase : « Stage chez X — puce 2 » → « Stage chez X (puce 2) ». */
+function placeName(label: string, lang: CoachLang) {
+  const localized = lang === "en" ? LABEL_EN.reduce((text, [from, to]) => text.replace(from, to), label) : label;
+  return localized.replace(/\s+—\s+(.+)$/, " ($1)");
 }
 
-/** Clôture complète : le CV vient de passer le seuil « prêt à postuler ». */
-export function closureMessage(score: number, corrections: string[], offerKeywords: string[]) {
+/** Annonce écrite par le serveur à partir des emplacements réellement modifiés. */
+function appliedAnnouncement(labels: string[] | undefined, lang: CoachLang) {
+  const places = [...new Set(labels ?? [])];
+  return places.length ? TEXTS[lang].announce(places.map((l) => placeName(l, lang)).join(" ; ")) : TEXTS[lang].defaultSummary;
+}
+
+/**
+ * Clôture complète : le CV vient de passer le seuil « prêt à postuler ». Les corrections du score
+ * sont écrites en français : en anglais, seules les pistes de mots-clés de l'offre sont données.
+ */
+export function closureMessage(score: number, corrections: string[], offerKeywords: string[], lang: CoachLang = "fr") {
+  const t = TEXTS[lang];
   const hints = [
-    ...corrections.slice(0, 3),
-    ...(offerKeywords.length ? [`mots-clés de l'offre à envisager : ${offerKeywords.slice(0, 3).join(", ")}`] : []),
+    ...(lang === "fr" ? corrections.slice(0, 3) : []),
+    ...(offerKeywords.length ? [t.offerHint(offerKeywords.slice(0, 3).join(", "))] : []),
   ];
-  return [
-    `Ton CV est prêt : il atteint ${score}/100 (seuil de ${READY_SCORE}). Tu peux encore le modifier en cliquant sur n'importe quel texte dans l'aperçu, ou me demander une modification précise. Bonne chance pour tes candidatures.`,
-    hints.length ? `Pistes facultatives, sans urgence : ${hints.join(" ; ")}.` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return [t.closure(score), hints.length ? t.hints(hints.join(" ; ")) : null].filter(Boolean).join(" ");
 }
 
 /** Premier message du coach quand le CV est déjà clos : écrit par le serveur, sans appel au modèle. */
-export function closedOpening(score: number) {
-  return `Ton CV est prêt : il atteint ${score}/100 (seuil de ${READY_SCORE}). Je n'ai plus de question à te poser. Si tu veux une modification précise (raccourcir, reformuler, réorganiser…), demande-la-moi.`;
+export function closedOpening(score: number, lang: CoachLang = "fr") {
+  return TEXTS[lang].closedOpening(score);
 }
-
-/** Sections telles que nommées au candidat. */
-const SECTION_NAMES: Record<string, string> = {
-  personal: "tes coordonnées ou ton titre",
-  summary: "ton accroche",
-  experience: "une expérience",
-  education: "une formation",
-  skills: "tes compétences",
-  languages: "tes langues",
-  certifications: "tes certifications",
-  projects: "un projet",
-  interests: "tes centres d'intérêt",
-};
 
 /**
  * Modification bloquée par le quota d'adaptations du mois (et non par son contenu) : le texte le
  * dit clairement, avec ce qui reste à faire. En mode parcours, la question du coach suit ; en mode
  * demande, non (elle parlerait d'autre chose que la demande restée en attente).
  */
-export function quotaBlockedText({ mode, section, message }: { mode: CoachMode; section: string; message: string }) {
-  const where = SECTION_NAMES[section] ?? "ton CV";
-  if (mode === "demande") {
-    return `Je n'ai pas modifié ton CV : c'est ton quota d'adaptations du mois qui bloque, il est épuisé. Reste à faire : la modification demandée sur ${where}. Tu peux la faire toi-même en cliquant sur le texte dans l'aperçu.`;
-  }
-  const blocked = `Je n'ai pas modifié ton CV : c'est ton quota d'adaptations du mois qui bloque, il est épuisé. Reste à faire : la modification prévue sur ${where}.`;
+export function quotaBlockedText({ mode, section, message, lang = "fr" }: { mode: CoachMode; section: string; message: string; lang?: CoachLang }) {
+  const t = TEXTS[lang];
+  const where = t.sections[section] ?? t.anySection;
+  if (mode === "demande") return t.quotaRequest(where);
+  const blocked = t.quotaPath(where);
   return message.includes("?") ? `${blocked} ${message}` : blocked;
 }
 
 /** Texte de la réponse du coach affiché au candidat. */
 export function coachReplyText(i: CoachOutcomeInput): string {
   if (i.section === null) return i.message;
+  const lang = i.lang ?? "fr";
+  const t = TEXTS[lang];
   const request = i.mode === "demande";
   const experience = i.section === "experience";
   const asked = i.message.includes("?") ? i.message : "";
-  const fromProblems = (i.problems.length ? i.problems : i.firstProblems).flatMap(problemCauses);
+  const causesOf = (p: ChangeProblem) => problemCauses(p, lang);
+  const fromProblems = (i.problems.length ? i.problems : i.firstProblems).flatMap(causesOf);
 
   if (!i.applied) {
     const causes: Cause[] = [...fromProblems];
-    if (i.invalid) causes.push({ kind: "format", text: FORMAT_CAUSE });
-    if (i.stale) causes.push({ kind: "stale", text: STALE_CAUSE });
-    if (i.noChange) causes.push({ kind: "noop", text: "la modification proposée ne change rien à ton CV." });
-    if (!causes.length) {
-      causes.push(
-        i.firstInvalid
-          ? { kind: "format", text: FORMAT_CAUSE }
-          : { kind: "unknown", text: "la modification n'a pas pu être appliquée." },
-      );
-    }
+    if (i.invalid) causes.push({ kind: "format", text: t.format });
+    if (i.stale) causes.push({ kind: "stale", text: t.stale });
+    if (i.noChange) causes.push({ kind: "noop", text: t.noop });
+    if (!causes.length) causes.push(i.firstInvalid ? { kind: "format", text: t.format } : { kind: "unknown", text: t.unknown });
     const sorted = sortedCauses(causes);
-    if (request) return `Je n'ai pas pu faire cette modification : ${sentences(sorted, true)} ${REQUEST_FAILED_END}`;
-    if (!experience) {
-      return `Je n'ai pas pu appliquer cette modification à ton CV. ${sentences(sorted, false)} Peux-tu reformuler ta demande ?`;
-    }
-    const question = sorted.some((c) => c.kind === "figure") ? asked || MISSING_FIGURE_QUESTION : asked;
-    return [`Je n'ai pas pu modifier ton CV : ${sentences(sorted, true)}`, question].filter(Boolean).join(" ");
+    if (request) return `${t.requestFailed}${sentences(sorted, true)} ${t.requestFailedEnd}`;
+    if (!experience) return `${t.otherFailed}${sentences(sorted, false)} ${t.otherFailedEnd}`;
+    const question = sorted.some((c) => c.kind === "figure") ? asked || t.missingFigure : asked;
+    return [`${t.experienceFailed}${sentences(sorted, true)}`, question].filter(Boolean).join(" ");
   }
 
   // Modification appliquée, en tout ou en partie.
   const partial: Cause[] = [...fromProblems];
-  if (i.stale) partial.push({ kind: "stale", text: STALE_CAUSE });
+  if (i.stale) partial.push({ kind: "stale", text: t.stale });
   const sorted = sortedCauses(partial);
   // Ce qui n'a pas été modifié : chaque texte refusé avec son emplacement quand il est connu.
   const refused = i.problems.length ? i.problems : i.firstProblems;
@@ -210,22 +289,22 @@ export function coachReplyText(i: CoachOutcomeInput): string {
     ? null
     : named && refused.length
       ? [
-          ...refused.map((p) => `Pas modifié — ${placeName(i.refusedLabels![p.changeId])} : ${sentences(sortedCauses(problemCauses(p)), true)}`),
-          ...(i.stale ? [upperFirst(STALE_CAUSE)] : []),
+          ...refused.map((p) => `${t.notChanged(placeName(i.refusedLabels![p.changeId], lang))}${sentences(sortedCauses(causesOf(p)), true)}`),
+          ...(i.stale ? [upperFirst(t.stale)] : []),
         ].join(" ")
-      : `${experience && !request ? "Certaines puces n'ont pas été ajoutées" : "Une partie de la modification n'a pas été appliquée"} : ${sentences(sorted, true)}`;
+      : `${experience && !request ? t.bulletsNotAdded : t.partNotApplied}${sentences(sorted, true)}`;
   // Le résumé du modèle n'est repris que si tout a été appliqué tel quel ; sinon, annonce du serveur.
-  const summary = !sorted.length && i.summaryFaithful !== false && i.changeSummary ? i.changeSummary : appliedAnnouncement(i.appliedLabels);
+  const summary =
+    !sorted.length && i.summaryFaithful !== false && i.changeSummary ? i.changeSummary : appliedAnnouncement(i.appliedLabels, lang);
 
   if (i.scoreAfter !== null && i.scoreAfter >= READY_SCORE) {
     // Passage du seuil : clôture complète ; déjà au-dessus avant : une ligne courte, sans nouvelle clôture.
-    const end =
-      i.scoreBefore < READY_SCORE ? closureMessage(i.scoreAfter, i.corrections, i.offerKeywords) : `Ton CV est à ${i.scoreAfter}/100.`;
+    const end = i.scoreBefore < READY_SCORE ? closureMessage(i.scoreAfter, i.corrections, i.offerKeywords, lang) : t.scoreLine(i.scoreAfter);
     // CV déjà clos et demande explicite : la suite proposée par le coach (« Je continue avec … ? ») est gardée.
     const next = request && i.scoreBefore >= READY_SCORE ? i.message : null;
     return [summary, partialText, end, next].filter(Boolean).join(" ");
   }
   const needsFigure = sorted.some((c) => c.kind === "figure");
-  const question = needsFigure ? asked || MISSING_FIGURE_QUESTION : partialText ? asked : i.message;
+  const question = needsFigure ? asked || t.missingFigure : partialText ? asked : i.message;
   return [summary, partialText, question].filter(Boolean).join(" ");
 }

@@ -1,3 +1,4 @@
+import { candidateLanguage, cvLanguage } from "./coach-language";
 import { coachContentKey, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
 import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "./cv-score";
@@ -42,9 +43,10 @@ export type BuiltCoachContext = CoachContext & { contentKey: string; scoring: Sc
  * secteur (vérification des modifications). Le coach reçoit à chaque échange la liste à jour
  * des points à corriger : toutes les corrections du score, de la plus rentable à la moins
  * rentable, et les formules à éviter présentes dans le CV. `scoring` : contexte du score (secteur
- * de l'offre pour un CV lié) ; `detail` : candidature liée, null en mode libre.
+ * de l'offre pour un CV lié) ; `detail` : candidature liée, null en mode libre ; `request` : dernier
+ * message du candidat (langue des messages ; sans message, celle du CV).
  */
-export function buildCoachContext(data: CvData, scoring: ScoringContext, detail: CoachOfferDetail | null): BuiltCoachContext {
+export function buildCoachContext(data: CvData, scoring: ScoringContext, detail: CoachOfferDetail | null, request: string | null = null): BuiltCoachContext {
   const cvJson = JSON.stringify(chatContent(data));
   const a = data.analysis;
   // Score calculé par le code, le même que celui affiché dans l'éditeur (secteur de l'offre pour un CV lié).
@@ -60,6 +62,8 @@ export function buildCoachContext(data: CvData, scoring: ScoringContext, detail:
     marketKeywords: scoring.marketKeywords,
     offer,
     titleMismatch: offer ? cvTitleMismatch(data.personal.jobTitle, scoring.sector) : false,
+    language: candidateLanguage(request, data),
+    cvLanguage: cvLanguage(data),
     // Mots-clés, secteur et offre compris : le premier message est réécrit quand ils changent.
     contentKey: coachContentKey(cvJson, offerKeywords, scoring.sector, offer),
     score: {

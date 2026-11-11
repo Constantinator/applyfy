@@ -1,4 +1,5 @@
 import type { CoachReply } from "./coach-llm";
+import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
 import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem } from "./coach-proposals";
@@ -15,7 +16,7 @@ export type CoachTurnInput = {
   /** CV affiché, modifications non enregistrées comprises (sans lignes vides). */
   current: CvData;
   /** Contexte du coach (coach-context.ts) : contexte du score et mots-clés de l'offre manquants. */
-  context: { scoring: ScoringContext; offerKeywords?: string[] };
+  context: { scoring: ScoringContext; offerKeywords?: string[]; language?: CoachLang };
   /** Échanges précédents et dernier message du candidat. */
   turns: CoachTurn[];
   request: string;
@@ -121,7 +122,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   if (reply.raw && limitReached && !reorganized) {
     return {
       kind: "quotaBlocked",
-      text: quotaBlockedText({ mode, section: reply.raw.section, message: reply.message }),
+      text: quotaBlockedText({ mode, section: reply.raw.section, message: reply.message, lang: context.language }),
       mode,
       skippedPoints: reply.skippedPoints,
     };
@@ -159,6 +160,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     scoreAfter: scored?.after.score ?? null,
     corrections: scored?.after.corrections.map((c) => c.message) ?? [],
     offerKeywords: present ? offerKeywords.filter((k) => !present.has(k)) : [],
+    lang: context.language,
   });
 
   return {

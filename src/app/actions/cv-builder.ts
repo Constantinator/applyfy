@@ -662,11 +662,11 @@ const COACH_HISTORY_MAX = 30;
  * Contexte du coach (coach-context.ts) : la candidature liée est relue une seule fois, avec les
  * droits de l'utilisateur, pour le secteur du score et les mots-clés de l'offre.
  */
-async function coachContext(data: CvData, applicationId: string | null): Promise<BuiltCoachContext> {
+async function coachContext(data: CvData, applicationId: string | null, request: string | null = null): Promise<BuiltCoachContext> {
   const detail = applicationId ? await getApplicationDetail(applicationId) : null;
   // Score calculé par le code, le même que celui affiché dans l'éditeur (secteur de l'offre pour un CV lié).
   const scoring = await loadBuilderCvScoring(data, applicationId, detail);
-  return buildCoachContext(data, scoring, detail);
+  return buildCoachContext(data, scoring, detail, request);
 }
 
 /**
@@ -685,7 +685,7 @@ export async function coachOpeningAction(
 
     // CV clos : texte fixe écrit par le serveur, sans appel au modèle (aucune question de parcours).
     let message: string | undefined;
-    if (isCvClosed(context.score.value)) message = closedOpening(context.score.value);
+    if (isCvClosed(context.score.value)) message = closedOpening(context.score.value, context.language);
     else {
       const rate = await checkAiRateLimit();
       if (!rate.ok) return { ok: false };
@@ -812,7 +812,7 @@ export async function refineBuilderCvAction(
   let context: BuiltCoachContext;
   let reply;
   try {
-    context = { ...(await coachContext(current, shown.applicationId)), skipped: skippedPoints(skipped) };
+    context = { ...(await coachContext(current, shown.applicationId, request)), skipped: skippedPoints(skipped) };
     reply = await coachBuilderCv(context, turns, request);
   } catch (error) {
     return { ok: false, error: claudeErrorMessage(error, "cv-builder coach") };

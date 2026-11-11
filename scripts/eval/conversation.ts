@@ -132,7 +132,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
     return scoringContextForSector(sector, scoringOffer, fx.marketKeywords[sector] ?? []);
   };
   let skipped: string[] = [];
-  const contextFor = (data: CvData) => ({ ...buildCoachContext(data, scoringFor(data), detail), skipped: skipped.slice(-SKIPPED_MAX) });
+  const contextFor = (data: CvData, request: string | null = null) => ({ ...buildCoachContext(data, scoringFor(data), detail, request), skipped: skipped.slice(-SKIPPED_MAX) });
 
   const start = contextFor(cv);
   const record: ConversationRecord = {
@@ -163,7 +163,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
   const transcript: Exchange[] = [];
   try {
     // Premier message (coachOpeningAction) : texte fixe si le CV est déjà clos.
-    record.opening = isCvClosed(start.score.value) ? closedOpening(start.score.value) : ((await coachOpening(coach, start))?.slice(0, 2000) ?? null);
+    record.opening = isCvClosed(start.score.value) ? closedOpening(start.score.value, start.language) : ((await coachOpening(coach, start))?.slice(0, 2000) ?? null);
     if (record.opening) {
       history.push({ role: "assistant", content: record.opening });
       transcript.push({ role: "coach", text: record.opening });
@@ -209,7 +209,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         origin: cv.origin,
         coach: null,
       };
-      const context = contextFor(current);
+      const context = contextFor(current, request);
       const turns = history.slice(-HISTORY_MAX).map(({ role, content }) => ({ role, content: content.slice(0, 2000) }));
       const scoreBefore = context.score.value;
 
