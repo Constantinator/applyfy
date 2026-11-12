@@ -340,7 +340,14 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         clients.judge,
         judgeUserContent({
           caseLabel: scenario.case === "lie" ? "CV lié à une offre : le poste visé est imposé par l'offre" : "CV libre : le poste visé se déduit avec le candidat",
-          offer: offer ? { position: offer.detail.application.position, sector: offer.detail.application.sector } : null,
+          offer: offer
+            ? {
+                position: offer.detail.application.position,
+                sector: offer.detail.application.sector,
+                description: offer.detail.application.offer_description,
+                keywords: offer.keywords,
+              }
+            : null,
           facts: profile.facts,
           request: scenario.type.startsWith("demande") ? (scenario.firstMessage ?? null) : null,
           cvBefore: JSON.stringify(chatContent(startCv)),

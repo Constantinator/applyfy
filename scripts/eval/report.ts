@@ -29,6 +29,8 @@ export type RunMeta = {
   interrupted: string | null;
   /** Empreinte des fixtures de chaque scénario lancé (comparaison scénario par scénario). */
   scenarioHashes: Record<string, string>;
+  /** Ce que le juge reçoit de l'offre (absent : intitulé et secteur seulement, runs d'avant le lot « fidélité »). */
+  judgeOffer?: string;
   /** Run de référence demandé avec --compare (null : le dernier run complet du même mode). */
   compareTo: string | null;
 };
@@ -93,6 +95,9 @@ export type ScenarioAggregate = {
   shortenWithoutRequest: number;
   jargonMessages: number;
   questionsAfterRefusals: number;
+  contradictoryAnnouncements: number;
+  removedWithoutRequest: number;
+  candidateVerbLost: number;
   judgeMean: number | null;
   judgeRange: [number, number] | null;
   judgeByCriterion: Record<string, number | null>;
@@ -152,6 +157,9 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       shortenWithoutRequest: sum(m.map((x) => x.shortenWithoutRequest)),
       jargonMessages: sum(m.map((x) => x.jargonMessages)),
       questionsAfterRefusals: sum(m.map((x) => x.questionsAfterRefusals)),
+      contradictoryAnnouncements: sum(m.map((x) => x.contradictoryAnnouncements)),
+      removedWithoutRequest: sum(m.map((x) => x.removedWithoutRequest)),
+      candidateVerbLost: sum(m.map((x) => x.candidateVerbLost)),
       judgeMean: median(means),
       judgeRange,
       judgeByCriterion: Object.fromEntries(JUDGE_CRITERIA.map((k) => [k, median(judged.map((j) => j[k].note))])),
@@ -192,6 +200,9 @@ function badness({ record, metrics: m }: Result) {
     m.shortenWithoutRequest * 2 +
     m.jargonMessages +
     m.questionsAfterRefusals * 2 +
+    m.contradictoryAnnouncements * 3 +
+    m.removedWithoutRequest * 3 +
+    m.candidateVerbLost * 2 +
     (m.offerFlow && m.offerFlow.languageNotes !== (m.offerFlow.languageNoteExpected ? 1 : 0) ? 1 : 0) +
     m.errors * 2 +
     (record.judge ? 5 - judgeMean(record.judge) : 0)
@@ -216,6 +227,9 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "« Pas assez courte » sans demande",
     "Jargon",
     "Questions après refus",
+    "Annonce contradictoire",
+    "Suppression non demandée",
+    "Verbe du candidat perdu",
     "Langue ≠",
     "Demande exécutée",
     ...(linked
@@ -258,6 +272,9 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.shortenWithoutRequest),
         String(r.jargonMessages),
         String(r.questionsAfterRefusals),
+        String(r.contradictoryAnnouncements),
+        String(r.removedWithoutRequest),
+        String(r.candidateVerbLost),
         String(r.languageMismatches),
         r.requestDone,
         ...(linked
@@ -442,11 +459,15 @@ function comparison(reference: ReferenceRun<ScenarioAggregate> | null, meta: Run
   const before = new Map(reference.aggregates.map((r) => [r.scenarioId, r]));
   const compared = rows.filter((r) => split.compared.includes(r.scenarioId));
   const previous = compared.map((r) => before.get(r.scenarioId)!);
+  const judgeNote =
+    (reference.meta as { judgeOffer?: string }).judgeOffer === meta.judgeOffer
+      ? ""
+      : ` — **juge différent** (référence : ${(reference.meta as { judgeOffer?: string }).judgeOffer ?? "intitulé et secteur de l'offre seulement"} ; ce run : ${meta.judgeOffer ?? "intitulé et secteur seulement"}) : notes du juge non comparables`;
   const modeNote = reference.meta.dry === meta.dry ? "" : ` — **mode différent** (${reference.meta.dry ? "--dry" : "vrai run"} contre ${meta.dry ? "--dry" : "vrai run"}) : comparaison du script seulement`;
   const lines = [
     title,
     "",
-    `Référence : run ${reference.meta.runId} (${reference.meta.dry ? "--dry" : "vrai run"}, commit ${reference.meta.commit}, règles du coach ${reference.meta.coachRulesHash}, ${reference.meta.repeat} lancement(s) par scénario)${meta.compareTo ? ", choisi avec --compare" : ""}${modeNote}.`,
+    `Référence : run ${reference.meta.runId} (${reference.meta.dry ? "--dry" : "vrai run"}, commit ${reference.meta.commit}, règles du coach ${reference.meta.coachRulesHash}, ${reference.meta.repeat} lancement(s) par scénario)${meta.compareTo ? ", choisi avec --compare" : ""}${modeNote}${judgeNote}.`,
     "",
     `Comparaison sur les scénarios communs seulement : même identifiant et mêmes fixtures (scénario, profil, offre, persona, mots-clés du marché ; ${split.source}).`,
     "",
@@ -500,6 +521,8 @@ export function writeReport(outRoot: string, meta: RunMeta, results: Result[], b
     `# Banc d'essai du coach — ${meta.date}${meta.dry ? " (--dry)" : ""}`,
     "",
     meta.interrupted ? `**Run interrompu : ${meta.interrupted}. Rapport partiel.**\n` : null,
+    `Juge : ${meta.judgeOffer ?? "intitulé et secteur de l'offre seulement"}.`,
+    "",
     `Modèles : coach ${meta.models.coach}, faux candidat ${meta.models.simulator}, juge ${meta.models.judge}. Commit ${meta.commit} ; règles du coach ${meta.coachRulesHash} ; fixtures ${meta.fixturesHash} ; ${meta.repeat} lancement(s) par scénario, ${meta.maxTurns} messages au plus.`,
     "",
     cost,

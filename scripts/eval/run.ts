@@ -20,6 +20,7 @@ import { findReference, fsFixtureReader, scenarioFingerprints } from "./compare.
 import { runConversation, type Clients } from "./conversation.ts";
 import { dryClients } from "./dry.ts";
 import { estimateRun } from "./estimate.ts";
+import { JUDGE_OFFER_INPUT } from "./judge.ts";
 import { loadFixtures, type Scenario } from "./fixtures.ts";
 import { computeMetrics } from "./metrics.ts";
 import { writeReport, type Result, type RunMeta } from "./report.ts";
@@ -160,6 +161,7 @@ async function main() {
     interrupted: null,
     scenarioHashes: Object.fromEntries(Object.entries(scenarioFingerprints(fsFixtureReader)).filter(([id]) => scenarios.some((s) => s.id === id))),
     compareTo: options.compare,
+    judgeOffer: JUDGE_OFFER_INPUT,
   };
 
   // Conversations en parallèle (pool) ; arrêt de toutes dès que le plafond est atteint.

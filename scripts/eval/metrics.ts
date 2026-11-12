@@ -9,10 +9,12 @@ import {
   isNegative,
   isReadinessQuestion,
   questionType,
+  removalAllowed,
   type QuestionType,
 } from "../../src/lib/coach-intent.ts";
+import { COMMON_ACTION_VERBS } from "../../src/lib/cv-sector-context.ts";
 import { offerMarker } from "../../src/lib/coach-offer.ts";
-import { inventedNumbers, isPartialRole, numberSources } from "../../src/lib/coach-proposals.ts";
+import { inventedNumbers, isPartialRole, keepsOldVerbAgainstCandidate, numberSources } from "../../src/lib/coach-proposals.ts";
 import { chatContent, cvDataToText, type CvData } from "../../src/lib/cv-builder-types.ts";
 import { READY_SCORE } from "../../src/lib/cv-score.ts";
 import type { ConversationRecord } from "./conversation.ts";
@@ -72,7 +74,63 @@ export type ConversationMetrics = {
   jargonExamples: string[];
   /** Questions reposées sur un type déjà refusé, après deux refus de suite (ou sur les mois après un refus). */
   questionsAfterRefusals: number;
+  /** Annonces qui disent « pas appliqué » alors que le second essai a écrit le passage refusé (L04). */
+  contradictoryAnnouncements: number;
+  /** Puces supprimées sans que le candidat l'ait demandé ni accepté (O04). */
+  removedWithoutRequest: number;
+  /** Puces qui ont reçu un nombre du candidat en gardant l'ancien verbe, alors qu'il en avait employé un autre (O01). */
+  candidateVerbLost: number;
 };
+
+/** Phrases de l'annonce qui disent qu'une partie n'a pas été appliquée. */
+const NOT_APPLIED = /n'a pas été appliquée|n'ont pas été ajoutées|Pas modifié —|was not applied|were not added|Not changed —/;
+
+/**
+ * Annonce contradictoire : aucun refus après le second essai, au moins un refus au premier, une
+ * modification appliquée, et pourtant « pas appliqué » dans le texte ; chaque passage refusé au
+ * premier essai a bien changé dans le CV final.
+ */
+function contradictoryAnnouncements(record: ConversationRecord) {
+  const end = cvDataToText(record.endCv);
+  return record.turns.filter(
+    (t) =>
+      t.problems.length === 0 &&
+      t.firstProblems.length > 0 &&
+      t.applied > 0 &&
+      NOT_APPLIED.test(t.coachText) &&
+      t.firstProblems.every((p) => p.original !== null && !end.includes(p.original)),
+  ).length;
+}
+
+/** Puces perdues (par expérience, en nombre) sans aucune demande ni accord de suppression du candidat. */
+function removedWithoutRequest(record: ConversationRecord, allCoach: string[]) {
+  const history: { role: "user" | "assistant"; content: string }[] = [];
+  let allowed = false;
+  record.turns.forEach((t, k) => {
+    if (allCoach[k]) history.push({ role: "assistant", content: allCoach[k] });
+    if (removalAllowed(history, t.user)) allowed = true;
+    history.push({ role: "user", content: t.user });
+  });
+  if (allowed) return 0;
+  return record.startCv.experiences.reduce((n, e) => {
+    const after = record.endCv.experiences.find((x) => x.id === e.id);
+    return n + Math.max(0, e.bullets.length - (after?.bullets.length ?? 0));
+  }, 0);
+}
+
+/** Puces (même expérience, même place) qui gardent l'ancien verbe contre celui du candidat. */
+function candidateVerbLost(record: ConversationRecord) {
+  const messages = record.turns.map((t) => t.user);
+  let count = 0;
+  for (const e of record.startCv.experiences) {
+    const after = record.endCv.experiences.find((x) => x.id === e.id);
+    e.bullets.forEach((b, i) => {
+      const now = after?.bullets[i];
+      if (now && now !== b && keepsOldVerbAgainstCandidate(b, now, messages, COMMON_ACTION_VERBS)) count++;
+    });
+  }
+  return count;
+}
 
 /**
  * Étapes de l'offre (CV lié). Échanges comptés comme les messages du candidat (1 = réponse à
@@ -424,5 +482,8 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     jargonMessages: jargon.length,
     jargonExamples: jargon.slice(0, 3),
     questionsAfterRefusals: questionsAfterRefusals(record, allCoach),
+    contradictoryAnnouncements: contradictoryAnnouncements(record),
+    removedWithoutRequest: removedWithoutRequest(record, allCoach),
+    candidateVerbLost: candidateVerbLost(record),
   };
 }

@@ -392,8 +392,10 @@ const plainWord = (w: string) => w.toLowerCase().normalize("NFD").replace(/[̀-�
 const rootOf = (word: string) => {
   const w = plainWord(word);
   for (const [pattern, root] of ROOTS) if (pattern.test(w)) return root;
-  return w.slice(0, 5);
+  return w.slice(0, 4);
 };
+/** Pronom sujet, auxiliaire éventuel, puis le verbe conjugué (français, anglais). */
+const SUBJECT_VERB = /(?<![\p{L}])(je|j'|j’|on|nous|il|elle|i|we)\s*(ai |avons |a |have |had |ne |n'|n’)?\s*(\p{L}+)/giu;
 const leadingWord = (text: string) => text.trim().split(/[\s,;:.()/'’-]+/)[0] ?? "";
 const digitsOf = (text: string): string[] => text.match(/\d+/g) ?? [];
 
@@ -410,8 +412,20 @@ function notCandidateVerb(before: string, after: string, candidateMessages: stri
     .some((s) => {
       const words = s.split(/[\s,;:.()/'’!?-]+/).filter((w) => /\p{L}/u.test(w));
       if (words.some((w) => rootOf(w) === rootOf(kept))) return false;
-      return words.some((w) => w.length > 3 && (isAction(w) || messageVerbs.has(rootOf(w))));
+      // Verbes d'action du candidat dans cette phrase : la puce doit en reprendre au moins un, à
+      // n'importe quelle place (« Prospection et signature de 12 contrats » pour « je signe 12 contrats »).
+      // Verbes conjugués du candidat : le mot qui suit un pronom sujet (« je prépare », « j'ai animé »,
+      // « I manage ») ; un nom (« crédit ») n'en est jamais un.
+      const verbs = [...s.matchAll(SUBJECT_VERB)].map((m) => m[3]).filter((w) => w.length > 3 && (isAction(w) || messageVerbs.has(rootOf(w))));
+      if (!verbs.length) return false;
+      const bulletRoots = new Set(after.split(/[\s,;:.()/'’!?-]+/).filter((w) => w.length > 3).map(rootOf));
+      return !verbs.some((v) => bulletRoots.has(rootOf(v)));
     });
+}
+
+/** Même contrôle, pour une puce avant / après et des verbes d'action (mesure du banc d'essai). */
+export function keepsOldVerbAgainstCandidate(before: string, after: string, candidateMessages: string[], actionVerbs: string[]): boolean {
+  return notCandidateVerb(before, after, candidateMessages, actionWordDetector(actionVerbs));
 }
 
 /** CV lié, écart « metier » : un titre du métier de l'offre, que le CV ne montre pas. */
