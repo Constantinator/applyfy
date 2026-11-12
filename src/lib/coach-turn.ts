@@ -123,6 +123,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   let proposal = reply.update ? buildProposal(current, reply.update) : null;
   // Proposition telle que construite : null alors que le coach a bien proposé quelque chose = « ne change rien ».
   let built = proposal;
+  // Première proposition : emplacements de ses textes refusés (annonce après un second essai).
+  const firstBuilt = proposal;
   // Le mode est celui de la première réponse : le nouvel essai ne peut pas en changer pour passer
   // la vérification. Nombres autorisés en mode demande : ceux du CV et des messages du candidat.
   const mode = reply.mode;
@@ -202,6 +204,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     applied > 0 ? { before: scoreCv(current, context.scoring).score, after: scoreCv(updated, context.scoring) } : null;
   const offerKeywords = context.offerKeywords ?? [];
   const present = scored && offerKeywords.length ? new Set(matchKeywords(cvDataToText(updated), offerKeywords, context.scoring.sector)) : null;
+  const firstLabels: Record<string, string> = Object.fromEntries((firstBuilt?.changes ?? []).map((c) => [c.id, c.label]));
   const text = coachReplyText({
     mode,
     section: reply.raw?.section ?? null,
@@ -211,13 +214,16 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     firstInvalid: reply.invalid,
     noChange: Boolean(answer.update) && !built,
     problems,
-    firstProblems,
+    // Seul un texte réellement refusé au final figure dans « pas appliqué » : un premier refus dont
+    // l'emplacement a été écrit au second essai (L04 : accroche raccourcie à 23 %) n'est plus cité ;
+    // une puce abandonnée au second essai, si.
+    firstProblems: firstProblems.filter((p) => !appliedLabels.includes(firstLabels[p.changeId] ?? "")),
     message: gap ? `${gap} ${answer.message}`.trim() : answer.message,
     changeSummary: answer.changeSummary,
     // Annonce fidèle : emplacements réellement modifiés, emplacement de chaque texte refusé, et
     // résumé du modèle écarté s'il cite une puce restée identique.
     appliedLabels,
-    refusedLabels: Object.fromEntries((built?.changes ?? []).map((c) => [c.id, c.label])),
+    refusedLabels: { ...firstLabels, ...Object.fromEntries((built?.changes ?? []).map((c) => [c.id, c.label])) },
     // Un nombre de mots annoncé par le modèle n'est jamais repris : le serveur le calcule.
     summaryFaithful:
       !quotesUnchangedBullet(answer.changeSummary, current, updated) &&
