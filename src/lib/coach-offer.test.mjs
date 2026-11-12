@@ -83,7 +83,11 @@ const quiet = async (fn) => {
 const financeCv = profile("finance-junior-fr");
 const backend = detailOf("o-tech-backend");
 /** O04 : étudiant en informatique, offre d'analyste financier (titre décalé, pas d'écart « métier »). */
-const studentCv = profile("tech-stage-fr");
+// Titre générique « Étudiant » : étape titre gardée (« Étudiant en informatique » n'en a plus).
+const studentCv = (() => {
+  const cv = profile("tech-stage-fr");
+  return { ...cv, personal: { ...cv.personal, jobTitle: "Étudiant" } };
+})();
 const analyste = detailOf("o-finance-analyste");
 const opening = [{ role: "assistant", content: "Je te propose « Développeuse backend junior » comme titre. Je le change ?" }];
 

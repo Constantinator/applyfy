@@ -233,3 +233,45 @@ test("consigne : le coach propose la suppression en question et attend la répon
   // La question qu'elle demande est reconnue comme une proposition par le serveur.
   assert.equal(intent.proposesRemoval("Veux-tu que je supprime la puce « Participation aux réunions d'équipe » ?"), true);
 });
+
+// --- 4. Titre d'étudiant : étape seulement si le titre est vide, générique, ou décalé (non-étudiant) ---
+
+const offer = await import("./coach-offer.ts");
+const { detailOf } = await import("./coach-test-fixtures.mjs");
+
+test("étape titre : vide, générique ou non-étudiant décalé = présente ; titre d'étudiant avec domaine = absente", () => {
+  const student = profile("tech-stage-fr");
+  const pro = profile("commercial-junior-fr");
+  const withTitle = (cv, jobTitle) => ({ ...cv, personal: { ...cv.personal, jobTitle } });
+  // Présente.
+  for (const title of ["", "  ", "Étudiant", "Étudiante", "Stagiaire", "Candidat", "Candidate", "Student", "Intern"]) {
+    assert.ok(offer.offerSteps(withTitle(student, title), "finance", "competences").includes("titre"), JSON.stringify(title));
+  }
+  assert.ok(offer.offerSteps(withTitle(pro, "Développeur web"), "commercial", "competences").includes("titre"), "non-étudiant au titre décalé");
+  // Absente : titre d'étudiant ou de stagiaire qui nomme son domaine (O04).
+  for (const title of ["Étudiant en informatique", "Étudiante en droit des affaires", "Stagiaire développeur", "Computer science student", "Alternant en comptabilité"]) {
+    assert.ok(!offer.offerSteps(withTitle(student, title), "finance", "competences").includes("titre"), title);
+  }
+  // O04 tel quel, dans son contexte : pas d'étape titre ; le reste ne change pas.
+  assert.deepEqual(contextFor(student, detailOf("o-finance-analyste")).offerSteps, ["resume", "ecart"]);
+});
+
+test("titre d'étudiant : « orienté » vers un métier absent du CV refusé ; domaine d'études gardé accepté", async () => {
+  const cv = { ...profile("tech-stage-fr"), personal: { ...profile("tech-stage-fr").personal, jobTitle: "Étudiant" } };
+  const analyste = detailOf("o-finance-analyste");
+  const history = [{ role: "assistant", content: "Je te propose « Étudiant en informatique » comme titre. Tu l'acceptes ?" }];
+  const request = "oui";
+  const title = (jobTitle) => flat({ section: "personal", data: JSON.stringify({ jobTitle }), change_summary: "C'est fait." });
+  const oriented = await twoTries(cv, contextFor(cv, analyste, { history, request }), history, request, title("Étudiant en informatique, orienté analyse financière"), title("Étudiant en informatique, orienté analyse financière"));
+  assert.equal(oriented.updated.personal.jobTitle, "Étudiant");
+  assert.match(oriented.text, /le titre proposé t'orientait vers un métier que tes expériences et tes études ne montrent pas/i);
+  const honest = await twoTries(cv, contextFor(cv, analyste, { history, request }), history, request, title("Étudiant en informatique"), null);
+  assert.equal(honest.updated.personal.jobTitle, "Étudiant en informatique");
+  // Orientation vers un métier que le CV montre (informatique : stage et diplôme) : acceptée.
+  const shown = await twoTries(cv, contextFor(cv, analyste, { history, request }), history, request, title("Étudiant, spécialisé en informatique"), null);
+  assert.equal(shown.updated.personal.jobTitle, "Étudiant, spécialisé en informatique");
+  // Lecture stricte : une orientation qui ne se rattache à aucun métier reconnu (« développement web »)
+  // ne peut pas être vérifiée, elle est refusée.
+  const unknown = await twoTries(cv, contextFor(cv, analyste, { history, request }), history, request, title("Étudiant, spécialisé en développement web"), title("Étudiant, spécialisé en développement web"));
+  assert.equal(unknown.updated.personal.jobTitle, "Étudiant");
+});

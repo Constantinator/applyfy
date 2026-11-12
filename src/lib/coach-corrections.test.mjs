@@ -110,8 +110,9 @@ test("écart « métier » : seuls O02 et O03 ; O04 (étudiant, titre décalé) 
   for (const id of ["O01-meme-metier", "O06-demande-puce-lie", "O07-vague-lie", "O08-injection-offre", "O09-offre-en", "O10-offre-langue"]) {
     assert.notEqual(gaps[id], "metier", id);
   }
+  // O04 : étudiant dont le titre nomme son domaine (« Étudiant en informatique ») : ni écart « métier », ni étape titre.
   const o04 = contextFor(profile("tech-stage-fr"), detailOf("o-finance-analyste"));
-  assert.equal(o04.offerSteps[0], "titre");
+  assert.ok(!o04.offerSteps.includes("titre"));
   assert.equal(o04.offerStudent, true);
   for (const [cv, offer] of [["finance-junior-fr", "o-tech-backend"], ["commercial-junior-fr", "o-tech-java-senior"]]) {
     const ctx = contextFor(profile(cv), detailOf(offer));
@@ -127,9 +128,11 @@ test("écart « métier » : consigne fixe, titre de l'offre refusé, titre de r
   assert.ok(system.includes("Le candidat n'a aucune expérience dans le métier de cette offre : le titre du CV reste le sien."));
   assert.ok(!system.includes("Étape à proposer dans « message » : le titre."));
   // O04 : consigne « étudiant » avec l'étape titre, pas de consigne « métier ».
-  const o04 = coachSystem(contextFor(profile("tech-stage-fr"), detailOf("o-finance-analyste"), { history, request: "oui" }), "");
-  assert.ok(o04.includes("Le candidat est étudiant ou stagiaire : un titre proposé garde ce statut"));
-  assert.ok(!o04.includes("aucune expérience dans le métier de cette offre"));
+  // Étudiant au titre générique : consigne « étudiant » avec l'étape titre, pas de consigne « métier ».
+  const generic = { ...profile("tech-stage-fr"), personal: { ...profile("tech-stage-fr").personal, jobTitle: "Étudiant" } };
+  const student = coachSystem(contextFor(generic, detailOf("o-finance-analyste"), { history, request: "oui" }), "");
+  assert.ok(student.includes("Le candidat est étudiant ou stagiaire : un titre proposé garde son domaine d'études réel"));
+  assert.ok(!student.includes("aucune expérience dans le métier de cette offre"));
 
   const title = (mode, jobTitle) => flat({ mode, section: "personal", data: JSON.stringify({ jobTitle }), change_summary: "C'est fait." });
   const run = (request, reply) => turn(cv, contextFor(cv, java, { history, request }), history, request, reply);

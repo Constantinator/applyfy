@@ -44,7 +44,8 @@ export type OfferGap = "metier" | "competences";
 export const GAP_SKILLS_MIN = 3;
 
 /** Poste d'étudiant : stage, alternance, apprentissage, job étudiant (français, anglais). */
-const STUDENT_POSITION = /\b(stage|stagiaire|alternan(t|te|ce)|apprenti(e|ssage)?|[ée]tudiant(e)?|job [ée]tudiant|intern(ship)?|trainee|apprentice|working student)\b/i;
+// Bornes en lettres Unicode : « \b » ne voit pas le début de « Étudiant ».
+const STUDENT_POSITION = /(?<![\p{L}\d])(stage|stagiaire|alternan(t|te|ce)|apprenti(e|ssage)?|[ée]tudiant(e)?|job [ée]tudiant|intern(ship)?|trainee|apprentice|working student)(?![\p{L}\d])/iu;
 export const isStudentPosition = (position: string) => STUDENT_POSITION.test(position);
 
 /** Métiers reconnus des postes professionnels du CV (hors postes d'étudiant). */
@@ -69,11 +70,25 @@ export function offerGap(data: Pick<CvData, "experiences">, sector: Sector, miss
 }
 
 /** Étapes nécessaires pour ce CV et le secteur de l'offre, dans leur ordre (CV pas encore clos). */
+/** Titre d'étudiant générique, sans domaine (« Étudiant », « Stagiaire », « Candidat »). */
+const GENERIC_STUDENT_TITLE = /^(etudiante?|stagiaire|candidate?|alternante?|apprentie?|student|intern|trainee|candidate|apprentice)$/;
+const plainTitle = (title: string) =>
+  title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+export const isGenericStudentTitle = (title: string) => GENERIC_STUDENT_TITLE.test(plainTitle(title));
+/** Titre d'étudiant ou de stagiaire qui nomme déjà son domaine (« Étudiant en informatique ») : honnête, rien à proposer. */
+export const isStudentTitleWithDomain = (title: string) => isStudentPosition(title) && !isGenericStudentTitle(title);
+
+/**
+ * Étapes nécessaires pour ce CV et le secteur de l'offre, dans leur ordre (CV pas encore clos).
+ * Titre : vide, générique (« Étudiant », « Stagiaire »), ou d'un autre métier que l'offre ; jamais
+ * pour un écart « metier » (ce serait mentir) ni pour un titre d'étudiant qui nomme déjà son
+ * domaine d'études (rien d'honnête à proposer : O04).
+ */
 export function offerSteps(data: Pick<CvData, "personal">, sector: Sector, gap: OfferGap | null = null): OfferStep[] {
   const steps: OfferStep[] = [];
   const title = data.personal.jobTitle.trim();
-  // Écart « metier » : aucun titre de l'offre proposé (ce serait mentir) ; le titre reste le sien.
-  if (gap !== "metier" && (!title || cvTitleMismatch(title, sector))) steps.push("titre");
+  const needsTitle = !title || isGenericStudentTitle(title) || (cvTitleMismatch(title, sector) && !isStudentTitleWithDomain(title));
+  if (gap !== "metier" && needsTitle) steps.push("titre");
   // Résumé orienté offre : proposé une fois par session.
   steps.push("resume");
   // Écart dit une fois, avec la réponse au résumé ; omis quand il est faible.

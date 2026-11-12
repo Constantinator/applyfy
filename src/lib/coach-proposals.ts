@@ -371,7 +371,7 @@ export const PROBLEM_REMOVAL_NOT_ASKED = "supprime un passage que le candidat n'
  * Vérifications propres à un CV lié à une offre. `gap` et `sector` : écart avec l'offre et secteur
  * de l'offre (titre d'un autre métier refusé quand l'écart est « metier »).
  */
-export type OfferCheck = { gap?: "metier" | "competences" | null; sector?: Sector };
+export type OfferCheck = { gap?: "metier" | "competences" | null; sector?: Sector; student?: boolean };
 
 /**
  * Puce existante qui reçoit un nombre donné par le candidat en gardant l'ancien verbe, alors que
@@ -416,6 +416,9 @@ function notCandidateVerb(before: string, after: string, candidateMessages: stri
 
 /** CV lié, écart « metier » : un titre du métier de l'offre, que le CV ne montre pas. */
 export const PROBLEM_TITLE_OTHER_JOB = "présente un métier que le CV ne montre pas";
+/** Étudiant ou stagiaire : un titre « orienté / spécialisé … » vers un métier que le CV ne montre pas. */
+export const PROBLEM_STUDENT_TITLE = "oriente le titre vers un métier que les expériences et formations ne montrent pas";
+const ORIENTATION = /(?<![\p{L}])(orient[ée]e?s?|sp[ée]cialis[ée]e?s?|tourn[ée]e?s? vers|en reconversion|oriented|speciali[sz]ed|focused on|aspiring)(?![\p{L}])/iu;
 /** Titre de reconversion honnête (demandé explicitement par le candidat). */
 const RECONVERSION = /\b(reconversion|en transition|career change|transitioning|aspiring)\b/i;
 /** CV lié : une puce qui disait un rôle partiel le garde. */
@@ -463,6 +466,17 @@ function offerProblems(proposal: CoachProposal, current: CvData, candidateMessag
       const reconversion = RECONVERSION.test(change.after);
       if (offer.gap === "metier" && ((offerJob && !(mode === "demande" && reconversion)) || (reconversion && mode !== "demande"))) {
         return [{ changeId: change.id, text: change.after, problems: [PROBLEM_TITLE_OTHER_JOB] }];
+      }
+      // Étudiant ou stagiaire (proposé par le coach) : pas d'orientation vers un métier absent du CV.
+      const orientation = change.after.match(ORIENTATION);
+      if (offer.student && mode !== "demande" && orientation) {
+        const target = detectOfferSector(change.after.slice((orientation.index ?? 0) + orientation[0].length));
+        const shown = new Set(
+          [current.personal.jobTitle, ...current.experiences.map((e) => e.position), ...current.education.map((e) => `${e.degree} ${e.school}`)]
+            .map((t) => detectOfferSector(t))
+            .filter((s) => s !== null),
+        );
+        if (target === null || !shown.has(target)) return [{ changeId: change.id, text: change.after, problems: [PROBLEM_STUDENT_TITLE] }];
       }
       const added = levelWords(change.after).filter((w) => !known.has(w));
       return added.length ? [{ changeId: change.id, text: change.after, problems: [`${PROBLEM_INFLATED_TITLE_PREFIX}${added.join(", ")}`] }] : [];

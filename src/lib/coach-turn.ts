@@ -28,6 +28,7 @@ export type CoachTurnInput = {
     /** CV lié : étapes de l'offre (coach-offer.ts) et points abandonnés, marqueurs des étapes faites compris. */
     offerSteps?: OfferStep[];
     offerGap?: OfferGap | null;
+    offerStudent?: boolean;
     skipped?: string[];
   };
   /** Échanges précédents et dernier message du candidat. */
@@ -137,7 +138,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     // Suppression d'une puce ou d'un élément : seulement demandée, ou acceptée après une proposition du coach.
     removalAllowed: removalAllowed(turns, request),
     // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
-    ...(context.offerSteps ? { offer: { gap: context.offerGap ?? null, sector: context.scoring.sector } } : {}),
+    ...(context.offerSteps ? { offer: { gap: context.offerGap ?? null, sector: context.scoring.sector, student: context.offerStudent ?? false } } : {}),
   };
   let problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
   const firstProblems = problems;

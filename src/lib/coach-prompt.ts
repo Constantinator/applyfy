@@ -101,7 +101,7 @@ const OFFER_METIER =
   "Le candidat n'a aucune expérience dans le métier de cette offre : le titre du CV reste le sien. Ne propose pas l'intitulé de l'offre comme titre et ne présente jamais le candidat comme exerçant ce métier, ni dans le titre, ni dans le résumé ; tu peux citer son objectif s'il l'a dit lui-même. Un titre de reconversion (son métier actuel, puis « en reconversion vers … ») n'est écrit que si le candidat le demande explicitement.";
 /** Étudiant ou stagiaire : le titre proposé garde ce statut. */
 const OFFER_STUDENT_TITLE =
-  "Le candidat est étudiant ou stagiaire : un titre proposé garde ce statut (par exemple « Étudiant en … » ou « Stagiaire … » suivi du domaine visé) et ne le présente pas comme un professionnel déjà en poste.";
+  "Le candidat est étudiant ou stagiaire : un titre proposé garde son domaine d'études réel (par exemple « Étudiant en … ») et ne contient jamais « orienté », « spécialisé », « tourné vers » ou « en reconversion vers » un métier que ses expériences et formations ne montrent pas.";
 /** CV lié pas encore clos : le niveau de responsabilité du CV est gardé (vérifié par le serveur). */
 const OFFER_FAITHFUL_ROLE =
   "Niveau de responsabilité : garde celui du CV. Une puce qui commence par « Participation à », « Contribution à » ou « Appui à » (ou « participé », « aidé », « assisté ») garde ce rôle partiel : ne la transforme jamais en « Réalisation de », « Pilotage de » ou un autre verbe de pleine responsabilité, sauf si le candidat l'a dit lui-même. Le titre n'annonce aucun niveau (senior, lead, manager, responsable…) que le CV ne montre pas. L'application refuse tout gonflement.";
