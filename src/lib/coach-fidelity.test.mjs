@@ -162,3 +162,74 @@ test("annonce des puces : texte réellement écrit, 140 caractères, 3 au plus, 
   const added = await twoTries(rh, contextFor(rh, null, { history, request: rhRequest }), history, rhRequest, flat({ mode: "demande", section: "experience", data: JSON.stringify({ id: rh.experiences[0].id, bullets: [{ index: -1, after: jargon }] }), change_summary: "C'est fait." }), null);
   assert.ok(added.text.includes(`« ${jargon} »`), added.text);
 });
+
+const coachPrompt = await import("./coach-prompt.ts");
+
+// --- 3. Suppression : demandée, ou acceptée après une proposition du coach ---
+
+const intent = await import("./coach-intent.ts");
+
+test("suppression autorisée : demande explicite, ou « oui » après une proposition de suppression ou de fusion", () => {
+  const proposal = [{ role: "assistant", content: "Ta puce « Participation aux réunions d'équipe » recoupe la précédente. Veux-tu que je fusionne ces deux puces ?" }];
+  const removal = [{ role: "assistant", content: "Veux-tu que je supprime la puce « Participation aux réunions d'équipe » ?" }];
+  const unrelated = [{ role: "assistant", content: "Combien de réunions animais-tu par semaine ?" }];
+  // « oui » après une proposition de fusion / de suppression : accepté.
+  for (const yes of ["oui", "Oui, vas-y.", "ok", "d'accord", "yes"]) {
+    assert.equal(intent.removalAllowed(proposal, yes), true, yes);
+    assert.equal(intent.removalAllowed(removal, yes), true, yes);
+  }
+  // « oui » après une question sans rapport : refusé.
+  assert.equal(intent.removalAllowed(unrelated, "oui"), false);
+  // Message réel d'O04 : refusé.
+  assert.equal(intent.removalAllowed(unrelated, "Tu peux reformuler la puce avec ça ?"), false);
+  assert.equal(intent.removalAllowed(proposal, "Non, garde-les toutes les deux."), false);
+  // Demandes explicites (et réponse réelle d'O01, « remplacer la puce »).
+  for (const ask of ["Supprime la puce sur les réunions.", "Fusionne ces deux puces.", "Enlève la ligne sur le tutorat.", "Tu peux remplacer la puce par cette information.", "Please remove the duplicate bullet.", "Merge these two bullets."]) {
+    assert.equal(intent.removalAllowed(unrelated, ask), true, ask);
+  }
+  // Faits racontés : pas des demandes.
+  for (const fact of ["Je retire 40 dossiers par mois du coffre.", "J'ai fusionné deux équipes de vente.", "We merged two teams."]) {
+    assert.equal(intent.removalAllowed(unrelated, fact), false, fact);
+  }
+});
+
+test("rejeu O04 : puce supprimée sans demande refusée, reformulation gardée, aucune fausse justification", async () => {
+  const cv = profile("tech-stage-fr");
+  const exp = cv.experiences[0];
+  const history = [{ role: "assistant", content: "Ta puce « Participation aux réunions d'équipe » ne dit pas ce que tu y as fait. Sur quels sujets portaient ces réunions ?" }];
+  const request = "Je ne sais pas précisément. Par contre, j'ai corrigé une vingtaine de bugs. Tu peux reformuler la puce avec ça ?";
+  const context = contextFor(cv, null, { history, request });
+  const reply = flat({
+    mode: "demande",
+    section: "experience",
+    data: JSON.stringify({ id: exp.id, bullets: [{ index: 0, after: "Correction d'une vingtaine de bugs sur l'application web" }], bullets_to_remove: [1] }),
+    change_summary: "C'est fait : j'ai reformulé la puce et supprimé « Participation aux réunions d'équipe », qui faisait doublon.",
+  });
+  const result = await twoTries(cv, context, history, request, reply, reply);
+  assert.ok(result.updated.experiences[0].bullets.includes("Participation aux réunions d'équipe"), "puce gardée");
+  assert.equal(result.updated.experiences[0].bullets[0], "Correction d'une vingtaine de bugs sur l'application web");
+  assert.ok(!result.text.includes("doublon"), result.text);
+  assert.ok(result.text.includes("je ne supprime un passage que si tu me le demandes"), result.text);
+
+  // Même suppression, demandée : appliquée et nommée dans l'annonce.
+  const asked = "Supprime la puce sur les réunions d'équipe.";
+  const removed = await twoTries(
+    cv,
+    contextFor(cv, null, { history, request: asked }),
+    history,
+    asked,
+    flat({ mode: "demande", section: "experience", data: JSON.stringify({ id: exp.id, bullets: [], bullets_to_remove: [1] }), change_summary: "C'est fait : supprimée, elle faisait doublon." }),
+    null,
+  );
+  assert.ok(!removed.updated.experiences[0].bullets.includes("Participation aux réunions d'équipe"));
+  assert.ok(removed.text.startsWith("C'est fait : puce supprimée « Participation aux réunions d'équipe » — Stagiaire développeur chez Startup Exemple"), removed.text);
+  assert.ok(!removed.text.includes("doublon"), removed.text);
+});
+
+test("consigne : le coach propose la suppression en question et attend la réponse", () => {
+  const { COACH_RULES } = coachPrompt;
+  assert.ok(COACH_RULES.includes("Ne supprime jamais une puce de ta propre initiative, même si tu la juges en doublon : propose-le dans « message », en une question qui cite la puce (« Veux-tu que je supprime la puce « … » ? »), et attends sa réponse."));
+  assert.ok(!COACH_RULES.includes("fais-le directement sans demander de confirmation"));
+  // La question qu'elle demande est reconnue comme une proposition par le serveur.
+  assert.equal(intent.proposesRemoval("Veux-tu que je supprime la puce « Participation aux réunions d'équipe » ?"), true);
+});

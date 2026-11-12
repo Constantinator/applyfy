@@ -357,7 +357,15 @@ export type CheckOptions = {
   shorten?: boolean;
   /** CV lié à une offre (coach-offer.ts) : vérifications de l'adaptation à l'offre ; absent en mode libre. */
   offer?: OfferCheck;
+  /**
+   * Le candidat a demandé (ou accepté) une suppression : faux, toute suppression de puce ou
+   * d'élément est refusée. Absent : pas de contrôle (appelants qui ne connaissent pas la conversation).
+   */
+  removalAllowed?: boolean;
 };
+
+/** Suppression (puce ou élément) que le candidat n'a ni demandée ni acceptée. */
+export const PROBLEM_REMOVAL_NOT_ASKED = "supprime un passage que le candidat n'a pas demandé de supprimer";
 
 /**
  * Vérifications propres à un CV lié à une offre. `gap` et `sector` : écart avec l'offre et secteur
@@ -496,6 +504,15 @@ export function checkProposal(
       const same = problems.find((q) => q.changeId === p.changeId);
       if (same) same.problems.push(...p.problems);
       else problems.push(p);
+    }
+  }
+  // Suppression non demandée (tous les CV, tous les modes) : refusée.
+  if (options.removalAllowed === false) {
+    for (const change of proposal.changes) {
+      if (change.kind !== "removeBullet" && change.kind !== "removeItem") continue;
+      if (!problems.some((q) => q.changeId === change.id)) {
+        problems.push({ changeId: change.id, text: change.before ?? change.label, problems: [PROBLEM_REMOVAL_NOT_ASKED] });
+      }
     }
   }
   // Verbe du candidat (tous les CV, tous les modes) : une puce existante qui reçoit son nombre garde

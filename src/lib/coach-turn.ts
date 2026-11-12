@@ -1,5 +1,5 @@
 import type { CoachReply } from "./coach-llm";
-import { listenText, type Listening } from "./coach-intent";
+import { listenText, removalAllowed, type Listening } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, type BulletChange } from "./coach-outcome";
@@ -134,6 +134,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     // Au moins 20 % de mots en moins : seulement quand le dernier message demande de raccourcir,
     // en mode demande (jamais pour une puce du parcours ni pour un ajout).
     shorten: mode === "demande" && (context.listening?.shorten ?? false),
+    // Suppression d'une puce ou d'un élément : seulement demandée, ou acceptée après une proposition du coach.
+    removalAllowed: removalAllowed(turns, request),
     // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
     ...(context.offerSteps ? { offer: { gap: context.offerGap ?? null, sector: context.scoring.sector } } : {}),
   };

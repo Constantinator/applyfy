@@ -15,6 +15,35 @@ const READINESS =
 /** « Il y a encore des choses à améliorer ? », « tu vois autre chose à changer ? » : pistes concrètes, ou rien d'important. */
 const IMPROVE =
   /(encore des (choses|points|trucs) [àa] (am[ée]liorer|changer|corriger)|(un|des) points? (pr[ée]cis )?[àa] am[ée]liorer|qu'est-ce (qui|que je peux|qu'on peut|que tu) (reste|encore)? ?(à )?(am[ée]liorer|changer)|que (reste-t-il|puis-je|peut-on) (encore )?(à )?am[ée]liorer|tu vois (encore )?autre chose (à|de) (changer|am[ée]liorer|corriger)|y a-t-il (encore )?(quelque chose|des choses|un point)[^.?!]{0,20}[àa] (am[ée]liorer|changer|corriger)|(anything|something) (else )?(to|i could|i can|i should) (improve|change)|what else (can|could|should) i (improve|change)|could (it|my cv) be improved)/i;
+/**
+ * Demande de supprimer, fusionner ou remplacer (une puce, un élément) : seule autorisation d'une
+ * suppression (« supprime la puce sur les réunions », « fusionne ces deux puces »). « Je retire 40
+ * dossiers par mois » (un fait) n'en est pas une.
+ */
+const REMOVE =
+  /\b(supprime|supprimes|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|fusionne|fusionnez|fusionner|regroupe|regroupez|regrouper|remplace|remplacez|remplacer)\b[^.?!]{0,40}\b(puces?|lignes?|exp[ée]riences?|formations?|projets?|doublons?|les deux|ces deux|celle|celles|la|les|l'|ça|cela)\b|\b(remove|delete|drop|merge|combine|replace)\b[^.?!]{0,40}\b(bullets?|lines?|points?|experiences?|entries|entry|projects?|both|these|those|it|them|duplicates?)\b|\bget rid of\b/i;
+/** Fait raconté avec un de ces verbes (« je retire 40 dossiers », « j'ai fusionné deux équipes ») : pas une demande. */
+const REMOVE_FACT = /\b(je|j'|on|nous|il|elle|i|we)\s*(retire|retirais|retirons|ai (retiré|fusionné|regroupé|supprimé|remplacé)|avons|merged|removed|replaced)\b/i;
+/** Le coach propose une suppression ou une fusion, en question (« Veux-tu que je supprime la puce … ? »). */
+const PROPOSES_REMOVAL =
+  /(veux-tu|souhaites-tu|tu veux|est-ce que tu veux|je (peux|propose de|te propose de))[^?]{0,40}\b(supprime[rs]?|retire[rs]?|enl[èe]ve[rs]?|fusionne[rs]?|regroupe[rs]?)\b[^?]*\?|\b(shall|should|can) i (remove|delete|merge|combine)\b[^?]*\?|\bdo you want me to (remove|delete|merge|combine)\b[^?]*\?/i;
+/** Réponse affirmative courte. */
+const AFFIRMATIVE = /^\s*(oui|ouais|d'accord|ok|okay|vas-y|go|yes|yep|yeah|sure|parfait|c'est bon|bien sûr|of course)\b/i;
+
+/** Le dernier message demande de supprimer, fusionner ou remplacer. */
+export const asksToRemove = (message: string) => REMOVE.test(message) && !REMOVE_FACT.test(message);
+/** Le message du coach propose une suppression ou une fusion. */
+export const proposesRemoval = (coachMessage: string) => PROPOSES_REMOVAL.test(coachMessage);
+/**
+ * Suppression autorisée : demandée dans le dernier message, ou acceptée (« oui », « ok », « yes »)
+ * quand le dernier message du coach la proposait explicitement.
+ */
+export function removalAllowed(history: { role: "user" | "assistant"; content: string }[], request: string): boolean {
+  if (asksToRemove(request)) return true;
+  const lastCoach = [...history].reverse().find((t) => t.role === "assistant")?.content ?? "";
+  return proposesRemoval(lastCoach) && AFFIRMATIVE.test(request) && !isNegative(request);
+}
+
 /** « Peux-tu confirmer… ? », « can you confirm…? » : le coach répond d'abord oui ou non. */
 const CONFIRMATION = /((peux|pourrais)-tu|tu (peux|pourrais)|pouvez-vous) (me )?confirmer|can you confirm|could you confirm/i;
 /** Refus ou « je ne sais pas ». */

@@ -3,6 +3,7 @@ import {
   PROBLEM_INFLATED_ROLE,
   PROBLEM_INFLATED_TITLE_PREFIX,
   PROBLEM_NOT_CANDIDATE_VERB,
+  PROBLEM_REMOVAL_NOT_ASKED,
   PROBLEM_TITLE_OTHER_JOB,
   PROBLEM_LOST_FIGURE,
   PROBLEM_LOST_VERB,
@@ -40,6 +41,7 @@ const TEXTS = {
     invented: (numbers: string) => `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).`,
     notCandidateVerb:
       "la puce gardait l'ancien verbe au lieu de celui que tu as employé. Je la laisse telle quelle pour l'instant : dis-moi si tu veux que je la reformule avec tes mots.",
+    removalNotAsked: "je ne supprime un passage que si tu me le demandes : dis-le-moi si tu veux le retirer.",
     bulletsDone: (items: string) => `C'est fait : ${items}.`,
     bulletWritten: (quote: string, place: string) => `« ${quote} » — ${place}`,
     bulletRemoved: (quote: string, place: string) => `puce supprimée « ${quote} » — ${place}`,
@@ -98,6 +100,7 @@ const TEXTS = {
     invented: (numbers: string) => `the proposed text contained a number that comes neither from your CV nor from your messages (${numbers}).`,
     notCandidateVerb:
       "the bullet kept the old verb instead of the one you used. I'm leaving it as it is for now: tell me if you want me to rephrase it with your words.",
+    removalNotAsked: "I only remove something if you ask me to: tell me if you want it removed.",
     bulletsDone: (items: string) => `Done: ${items}.`,
     bulletWritten: (quote: string, place: string) => `“${quote}” — ${place}`,
     bulletRemoved: (quote: string, place: string) => `removed bullet “${quote}” — ${place}`,
@@ -213,6 +216,7 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_INFLATED_ROLE) return [{ kind: "faithful", text: t.inflatedRole }];
     if (p === PROBLEM_TITLE_OTHER_JOB) return [{ kind: "faithful", text: t.titleOtherJob }];
     if (p === PROBLEM_NOT_CANDIDATE_VERB) return [{ kind: "faithful", text: t.notCandidateVerb }];
+    if (p === PROBLEM_REMOVAL_NOT_ASKED) return [{ kind: "faithful", text: t.removalNotAsked }];
     if (p.startsWith(PROBLEM_INFLATED_TITLE_PREFIX)) return [{ kind: "faithful", text: t.inflatedTitle(p.slice(PROBLEM_INFLATED_TITLE_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {
       return [{ kind: "banned", text: t.banned(p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "")) }];
