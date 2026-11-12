@@ -230,11 +230,23 @@ export const hasFigure = (text: string) =>
  * « Gestion ») : verbes courants et verbes reçus (liste commune à tous les secteurs, cf.
  * COMMON_ACTION_VERBS), et tournures fidèles avec un complément précis.
  */
-export function actionDetector(sectorVerbs: string[]) {
+/** Radicaux des verbes et noms d'action (ceux du score). */
+function actionStems(sectorVerbs: string[]) {
   const verbs = [...sectorVerbs, ...GENERAL_VERBS];
-  const stems = [
-    ...new Set([...verbs, ...verbs.flatMap(nominalForms), ...ACTION_NOUNS].map(verbStem).filter((s) => s.length >= 3)),
-  ];
+  return [...new Set([...verbs, ...verbs.flatMap(nominalForms), ...ACTION_NOUNS].map(verbStem).filter((s) => s.length >= 3))];
+}
+
+/** Un mot seul est-il un verbe ou un nom d'action (mêmes radicaux que le score) ? */
+export function actionWordDetector(sectorVerbs: string[]) {
+  const stems = actionStems(sectorVerbs);
+  return (word: string) => {
+    const w = firstWord(word);
+    return stems.some((s) => w.startsWith(s) && (s.length >= 4 || w.length <= s.length + 3));
+  };
+}
+
+export function actionDetector(sectorVerbs: string[]) {
+  const stems = actionStems(sectorVerbs);
   return (text: string) => {
     const faithful = faithfulAction(text);
     if (faithful !== null) return faithful;

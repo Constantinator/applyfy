@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { CV_LIMITS, CvDataSchema, invalidCvField, newItemId, splitSkillGroup, type CvData } from "./cv-builder-types";
-import { actionDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
+import { actionDetector, actionWordDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
 import { detectOfferSector } from "./cv-sector-context";
 import type { Sector } from "./sectors";
 
@@ -365,6 +365,47 @@ export type CheckOptions = {
  */
 export type OfferCheck = { gap?: "metier" | "competences" | null; sector?: Sector };
 
+/**
+ * Puce existante qui reçoit un nombre donné par le candidat en gardant l'ancien verbe, alors que
+ * le candidat a dit ce nombre avec un autre verbe (« je prépare 40 dossiers » → « Suivi de 40
+ * dossiers en portefeuille », O01).
+ */
+export const PROBLEM_NOT_CANDIDATE_VERB = "garde l'ancien verbe alors que le candidat a employé un autre verbe pour ce fait";
+
+/** Verbes courants des messages, absents des listes du score (contrôle du verbe seulement). */
+const MESSAGE_VERBS = ["prepare", "prepared", "preparing", "monitor", "monitored", "follow", "followed", "track", "tracked", "process", "processed", "handle", "handled", "traiter", "traite", "suivre"];
+/** Formes irrégulières ramenées à une même racine (« je suis » ≈ « Suivi », « je gère » ≈ « Gestion »). */
+const ROOTS: [RegExp, string][] = [
+  [/^(suis|suit|suivons|suivez|suivent|suivre|suivi|suivie|suivis|suivies)$/, "suiv"],
+  [/^(gere|geres|gerent|gerons|gerez|gerer|gere|geree|gestion)$/, "ger"],
+  [/^(fais|fait|faisons|faites|font|faire)$/, "fai"],
+];
+const plainWord = (w: string) => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]/g, "");
+const rootOf = (word: string) => {
+  const w = plainWord(word);
+  for (const [pattern, root] of ROOTS) if (pattern.test(w)) return root;
+  return w.slice(0, 5);
+};
+const leadingWord = (text: string) => text.trim().split(/[\s,;:.()/'’-]+/)[0] ?? "";
+const digitsOf = (text: string): string[] => text.match(/\d+/g) ?? [];
+
+/** Le verbe de la puce n'est pas celui que le candidat a employé pour le nombre ajouté. */
+function notCandidateVerb(before: string, after: string, candidateMessages: string[], isAction: (word: string) => boolean): boolean {
+  const kept = leadingWord(after);
+  if (!kept || rootOf(kept) !== rootOf(leadingWord(before))) return false;
+  const added = digitsOf(after).filter((n) => !digitsOf(before).includes(n));
+  if (!added.length) return false;
+  const sentences = candidateMessages.flatMap((m) => m.split(/(?<=[.!?;])\s+/));
+  const messageVerbs = new Set(MESSAGE_VERBS.map(rootOf));
+  return sentences
+    .filter((s) => added.some((n) => new RegExp(`(^|\\D)${n}(\\D|$)`).test(s)))
+    .some((s) => {
+      const words = s.split(/[\s,;:.()/'’!?-]+/).filter((w) => /\p{L}/u.test(w));
+      if (words.some((w) => rootOf(w) === rootOf(kept))) return false;
+      return words.some((w) => w.length > 3 && (isAction(w) || messageVerbs.has(rootOf(w))));
+    });
+}
+
 /** CV lié, écart « metier » : un titre du métier de l'offre, que le CV ne montre pas. */
 export const PROBLEM_TITLE_OTHER_JOB = "présente un métier que le CV ne montre pas";
 /** Titre de reconversion honnête (demandé explicitement par le candidat). */
@@ -455,6 +496,19 @@ export function checkProposal(
       const same = problems.find((q) => q.changeId === p.changeId);
       if (same) same.problems.push(...p.problems);
       else problems.push(p);
+    }
+  }
+  // Verbe du candidat (tous les CV, tous les modes) : une puce existante qui reçoit son nombre garde
+  // le verbe qu'il a employé, pas celui de l'ancienne puce.
+  const candidateMessages = options.candidateMessages ?? [];
+  if (candidateMessages.length) {
+    const isAction = actionWordDetector(context.actionVerbs);
+    for (const change of proposal.changes) {
+      if (change.kind !== "bullet" || change.moved || change.before === null) continue;
+      if (!notCandidateVerb(change.before, change.after, candidateMessages, isAction)) continue;
+      const same = problems.find((q) => q.changeId === change.id);
+      if (same) same.problems.push(PROBLEM_NOT_CANDIDATE_VERB);
+      else problems.push({ changeId: change.id, text: change.after, problems: [PROBLEM_NOT_CANDIDATE_VERB] });
     }
   }
   if (options.offer) {

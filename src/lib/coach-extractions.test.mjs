@@ -238,7 +238,8 @@ test(
     const turn = await runCoachTurn(turnInput(first, async () => null));
     assert.equal(turn.kind, "done");
     assert.equal(turn.applied, 1);
-    assert.ok(turn.text.startsWith("C'est fait, j'ai modifié : Commercial chez Société Fictive (nouvelle puce)."), turn.text);
+    // Annonce des puces écrite par le serveur : le texte écrit cité, puis son emplacement.
+    assert.match(turn.text, /^C'est fait : « [^»]+ » — Commercial chez Société Fictive \(nouvelle puce\)\./);
     assert.ok(turn.text.includes("Pas modifié — Commercial chez Société Fictive (nouvelle puce) : il me manque un chiffre"), turn.text);
     assert.ok(!turn.text.includes("deux résultats"), "résumé du modèle écarté");
   }),

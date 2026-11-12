@@ -2,7 +2,7 @@ import type { CoachReply } from "./coach-llm";
 import { listenText, type Listening } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
-import { coachReplyText, quotaBlockedText } from "./coach-outcome";
+import { coachReplyText, quotaBlockedText, type BulletChange } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
 import { announcementLanguage } from "./coach-language";
 import { plainCoachText } from "./coach-plain";
@@ -163,6 +163,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   let stale = 0;
   const appliedLabels: string[] = [];
   const appliedTexts: { before: string | null; after: string }[] = [];
+  const bulletChanges: BulletChange[] = [];
   for (const change of proposal?.changes ?? []) {
     const next = applyCoachChange(updated, change);
     if (next) {
@@ -170,6 +171,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       applied++;
       appliedLabels.push(change.label);
       appliedTexts.push({ before: change.before, after: change.after });
+      if (change.kind === "bullet") bulletChanges.push({ kind: "written", text: change.after, label: change.label });
+      if (change.kind === "removeBullet") bulletChanges.push({ kind: "removed", text: change.before ?? "", label: change.label });
     } else {
       stale++;
       console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
@@ -232,6 +235,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       // tirée du seul CV) : annonce du serveur, dans cette langue, seule.
       !(context.language && sameLanguage(answer.changeSummary, context.language) === false),
     wordCounts: check.shorten && applied > 0 ? wordCounts(appliedTexts) : undefined,
+    // Puces d'expérience : annonce écrite par le serveur, texte réellement écrit cité.
+    bulletChanges,
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
     corrections: scored?.after.corrections.map((c) => c.message) ?? [],

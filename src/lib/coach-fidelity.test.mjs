@@ -54,7 +54,7 @@ test("rejeu L04 : second essai accepté, aucune cause du premier refus dans l'an
 test("annonce : une puce abandonnée au second essai reste signalée", async () => {
   const cv = profile("finance-junior-fr");
   const history = [{ role: "assistant", content: "Combien de dossiers traitais-tu ?" }];
-  const request = "J'en traitais 40 par mois, et je formais les nouveaux.";
+  const request = "J'en analysais 40 par mois, et je formais les nouveaux.";
   const context = contextFor(cv, null, { history, request });
   const data = (bullets) => JSON.stringify({ id: "fj-e1", bullets });
   const result = await twoTries(
@@ -69,4 +69,96 @@ test("annonce : une puce abandonnée au second essai reste signalée", async () 
   assert.equal(result.updated.experiences[0].bullets[0], "Analyse de 40 dossiers de crédit PME par mois");
   assert.ok(!result.updated.experiences[0].bullets.includes("Formation des nouveaux arrivants"));
   assert.ok(/n'ont pas été ajoutées|Pas modifié/.test(result.text), result.text);
+});
+
+// --- 2. Verbe du candidat et annonce qui cite le texte écrit ---
+
+const { checkProposal, buildProposal, PROBLEM_NOT_CANDIDATE_VERB } = await import("./coach-proposals.ts");
+const { bulletAnnouncement } = await import("./coach-outcome.ts");
+const { scoringContextFrom } = await import("./cv-scoring-context.ts");
+
+/** Problèmes d'une puce remplacée (index 0 de la première expérience) dans un CV dont c'est la puce de départ. */
+function verbCheck(before, after, messages, mode = "parcours") {
+  const base = profile("finance-junior-fr");
+  const cv = { ...base, experiences: [{ ...base.experiences[0], bullets: [before] }, ...base.experiences.slice(1)] };
+  const proposal = buildProposal(cv, { section: "experience", data: { id: cv.experiences[0].id, bullets: [{ index: 0, after }], bullets_to_remove: [] } });
+  return checkProposal(proposal, scoringContextFrom(cv, null, []), cv, { mode, candidateMessages: messages }).flatMap((p) => p.problems);
+}
+
+test("verbe du candidat : rejeu O01 et cas anglais ; les bons verbes passent", () => {
+  const o01 = "Je ne sais pas combien de clients je suis exactement. En revanche, je peux dire que je prépare 40 dossiers de crédit par mois pour des PME.";
+  assert.ok(verbCheck("Suivi du portefeuille clients", "Suivi de 40 dossiers de crédit PME par mois en portefeuille", [o01]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  assert.ok(!verbCheck("Suivi du portefeuille clients", "Préparation de 40 dossiers de crédit PME par mois", [o01]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  // Anglais.
+  assert.ok(verbCheck("Monitoring of client files", "Monitoring of 40 files per month", ["I prepare 40 files per month."]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  assert.ok(!verbCheck("Management of client accounts", "Management of 80 clients", ["I manage 80 clients."]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  // Formes irrégulières : « je suis 80 clients » ≈ « Suivi », « je gère 80 clients » ≈ « Gestion ».
+  assert.ok(!verbCheck("Suivi du portefeuille clients", "Suivi d'un portefeuille de 80 clients", ["Je suis 80 clients actifs."]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  assert.ok(!verbCheck("Gestion du portefeuille clients", "Gestion d'un portefeuille de 80 clients", ["Je gère 80 clients."]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  // Pas de nombre ajouté, ou nouveau verbe : pas de ce contrôle.
+  assert.ok(!verbCheck("Suivi du portefeuille clients", "Suivi régulier du portefeuille clients", ["Je prépare des dossiers."]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  assert.ok(!verbCheck("Suivi du portefeuille clients", "Préparation de 40 dossiers", ["je prépare 40 dossiers"]).includes(PROBLEM_NOT_CANDIDATE_VERB));
+  // Mode demande aussi.
+  assert.ok(verbCheck("Suivi du portefeuille clients", "Suivi de 40 dossiers", [o01], "demande").includes(PROBLEM_NOT_CANDIDATE_VERB));
+});
+
+test("verbe du candidat : un seul nouvel essai ; s'il échoue aussi, message honnête et puce laissée telle quelle", async () => {
+  const cv = profile("finance-junior-fr");
+  const history = [{ role: "assistant", content: "Ta puce « Suivi du portefeuille clients » ne dit pas la taille du portefeuille. Combien de clients ?" }];
+  const request = "Je ne sais pas combien de clients. En revanche, je prépare 40 dossiers de crédit par mois pour des PME.";
+  const context = contextFor(cv, null, { history, request });
+  const wrong = flat({ section: "experience", data: JSON.stringify({ id: "fj-e1", bullets: [{ index: 2, after: "Suivi de 40 dossiers de crédit PME par mois en portefeuille" }] }), change_summary: "C'est fait : les 40 dossiers préparés par mois." });
+  let calls = 0;
+  const reply = await coachBuilderCv(fakeClient(wrong), context, history, request);
+  const result = await quiet(() =>
+    runCoachTurn({
+      current: cv,
+      context,
+      turns: history,
+      request,
+      reply,
+      limitReached: false,
+      retry: (retry) => {
+        calls++;
+        return coachBuilderCv(fakeClient(wrong), context, history, request, retry);
+      },
+    }),
+  );
+  assert.equal(calls, 1, "au plus un nouvel essai");
+  assert.equal(result.updated.experiences[0].bullets[2], "Suivi du portefeuille clients");
+  assert.ok(result.text.includes("la puce gardait l'ancien verbe au lieu de celui que tu as employé. Je la laisse telle quelle pour l'instant"), result.text);
+  assert.ok(!result.text.includes("préparés par mois"), "résumé du modèle écarté");
+});
+
+test("annonce des puces : texte réellement écrit, 140 caractères, 3 au plus, langue du candidat, pas de remplacement du jargon", async () => {
+  const cv = profile("finance-junior-fr");
+  const history = [{ role: "assistant", content: "Combien de dossiers ?" }];
+  const request = "Je prépare 40 dossiers de crédit par mois pour des PME.";
+  const data = JSON.stringify({ id: "fj-e1", bullets: [{ index: 0, after: "Préparation de 40 dossiers de crédit PME par mois" }] });
+  const result = await twoTries(cv, contextFor(cv, null, { history, request }), history, request, flat({ section: "experience", data, change_summary: "C'est fait : j'ai ajouté tes 40 dossiers préparés." }), null);
+  assert.ok(result.text.startsWith("C'est fait : « Préparation de 40 dossiers de crédit PME par mois » — Analyste crédit junior chez Banque Fictive (puce 1)."), result.text);
+  assert.ok(!result.text.includes("tes 40 dossiers préparés"), "résumé du modèle écarté");
+  // Longueur, nombre, langue.
+  const long = "Préparation de dossiers ".repeat(10).trim();
+  const changes = [
+    { kind: "written", text: long, label: "Analyste crédit junior chez Banque Fictive — puce 1" },
+    { kind: "removed", text: "Participation aux réunions d'équipe", label: "Stagiaire développeur chez Startup Exemple — puce 2" },
+    { kind: "written", text: "Puce trois", label: "X — puce 3" },
+    { kind: "written", text: "Puce quatre", label: "X — puce 4" },
+    { kind: "written", text: "Puce cinq", label: "X — puce 5" },
+  ];
+  const fr = bulletAnnouncement(changes, "fr");
+  const firstQuote = fr.match(/« ([^»]+) »/)[1];
+  assert.ok(firstQuote.length <= 140 && firstQuote.endsWith("…"), firstQuote);
+  assert.ok(fr.includes("puce supprimée « Participation aux réunions d'équipe » — Stagiaire développeur chez Startup Exemple (puce 2)"), fr);
+  assert.ok(fr.endsWith("et 2 autres modifications."), fr);
+  assert.ok(!fr.includes("Puce quatre"));
+  const en = bulletAnnouncement(changes.slice(1, 2), "en");
+  assert.equal(en, "Done: removed bullet “Participation aux réunions d'équipe” — Stagiaire développeur at Startup Exemple (bullet 2).");
+  // Jargon : la citation reste intacte dans le texte affiché.
+  const jargon = "Formation de 12 stagiaires aux verbes d'action et aux mots-clés ATS";
+  const rh = profile("rh-stage-fr");
+  const rhRequest = "Ajoute : j'ai formé 12 stagiaires aux verbes d'action et aux mots-clés ATS.";
+  const added = await twoTries(rh, contextFor(rh, null, { history, request: rhRequest }), history, rhRequest, flat({ mode: "demande", section: "experience", data: JSON.stringify({ id: rh.experiences[0].id, bullets: [{ index: -1, after: jargon }] }), change_summary: "C'est fait." }), null);
+  assert.ok(added.text.includes(`« ${jargon} »`), added.text);
 });

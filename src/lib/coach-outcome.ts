@@ -2,6 +2,7 @@ import {
   PROBLEM_BANNED_PREFIX,
   PROBLEM_INFLATED_ROLE,
   PROBLEM_INFLATED_TITLE_PREFIX,
+  PROBLEM_NOT_CANDIDATE_VERB,
   PROBLEM_TITLE_OTHER_JOB,
   PROBLEM_LOST_FIGURE,
   PROBLEM_LOST_VERB,
@@ -37,6 +38,12 @@ const TEXTS = {
     lostVerb: "la nouvelle version ne disait plus ce que tu faisais, contrairement à ta puce d'origine.",
     lostFigure: "la nouvelle version perdait le chiffre de ta puce d'origine.",
     invented: (numbers: string) => `le texte proposé contenait un nombre qui ne vient ni de ton CV ni de tes messages (${numbers}).`,
+    notCandidateVerb:
+      "la puce gardait l'ancien verbe au lieu de celui que tu as employé. Je la laisse telle quelle pour l'instant : dis-moi si tu veux que je la reformule avec tes mots.",
+    bulletsDone: (items: string) => `C'est fait : ${items}.`,
+    bulletWritten: (quote: string, place: string) => `« ${quote} » — ${place}`,
+    bulletRemoved: (quote: string, place: string) => `puce supprimée « ${quote} » — ${place}`,
+    bulletsMore: (n: number) => `et ${n} autre${n > 1 ? "s" : ""} modification${n > 1 ? "s" : ""}`,
     titleOtherJob: "le titre proposé présentait un métier que ton CV ne montre pas.",
     inflatedRole: "ta puce d'origine disait que tu avais participé : je ne peux pas écrire que tu l'as mené seul.",
     inflatedTitle: (words: string) => `le titre proposé annonçait un niveau (${words}) que ton CV ne montre pas.`,
@@ -89,6 +96,12 @@ const TEXTS = {
     lostVerb: "the new version no longer said what you did, unlike your original bullet.",
     lostFigure: "the new version lost the number from your original bullet.",
     invented: (numbers: string) => `the proposed text contained a number that comes neither from your CV nor from your messages (${numbers}).`,
+    notCandidateVerb:
+      "the bullet kept the old verb instead of the one you used. I'm leaving it as it is for now: tell me if you want me to rephrase it with your words.",
+    bulletsDone: (items: string) => `Done: ${items}.`,
+    bulletWritten: (quote: string, place: string) => `“${quote}” — ${place}`,
+    bulletRemoved: (quote: string, place: string) => `removed bullet “${quote}” — ${place}`,
+    bulletsMore: (n: number) => `and ${n} other change${n > 1 ? "s" : ""}`,
     titleOtherJob: "the proposed title presented a job your CV doesn't show.",
     inflatedRole: "your original bullet said you took part in it: I can't write that you led it alone.",
     inflatedTitle: (words: string) => `the proposed title claimed a level (${words}) that your CV doesn't show.`,
@@ -157,6 +170,11 @@ export type CoachOutcomeInput = {
   appliedLabels?: string[];
   refusedLabels?: Record<string, string>;
   summaryFaithful?: boolean;
+  /**
+   * Puces d'expérience réellement écrites ou supprimées : l'annonce est écrite par le serveur, avec
+   * le texte écrit cité (jamais le résumé du modèle).
+   */
+  bulletChanges?: BulletChange[];
   /** Demande de raccourcir appliquée : mots avant et après, calculés par le serveur. */
   wordCounts?: { before: number; after: number };
   /** Score avant et après l'application (null après : rien n'a été appliqué). */
@@ -194,6 +212,7 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_NOT_SHORTER) return [{ kind: "shorten", text: t.notShorter }];
     if (p === PROBLEM_INFLATED_ROLE) return [{ kind: "faithful", text: t.inflatedRole }];
     if (p === PROBLEM_TITLE_OTHER_JOB) return [{ kind: "faithful", text: t.titleOtherJob }];
+    if (p === PROBLEM_NOT_CANDIDATE_VERB) return [{ kind: "faithful", text: t.notCandidateVerb }];
     if (p.startsWith(PROBLEM_INFLATED_TITLE_PREFIX)) return [{ kind: "faithful", text: t.inflatedTitle(p.slice(PROBLEM_INFLATED_TITLE_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {
       return [{ kind: "banned", text: t.banned(p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "")) }];
@@ -235,6 +254,31 @@ const LABEL_EN: [RegExp, string][] = [
 function placeName(label: string, lang: CoachLang) {
   const localized = lang === "en" ? LABEL_EN.reduce((text, [from, to]) => text.replace(from, to), label) : label;
   return localized.replace(/\s+—\s+(.+)$/, " ($1)");
+}
+
+/** Puce écrite (ajoutée, modifiée, déplacée) ou supprimée, avec son emplacement. */
+export type BulletChange = { kind: "written" | "removed"; text: string; label: string };
+/** Longueur maximale d'une citation et nombre de citations dans l'annonce. */
+const QUOTE_MAX = 140;
+const QUOTES_MAX = 3;
+const quoted = (text: string) => {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > QUOTE_MAX ? `${flat.slice(0, QUOTE_MAX - 1).trimEnd()}…` : flat;
+};
+
+/**
+ * Annonce des puces écrite par le serveur : le texte réellement écrit (ou supprimé) entre
+ * guillemets, dans la langue du CV, 140 caractères au plus ; 3 changements au plus, puis « et N
+ * autres » ; le reste dans la langue du candidat.
+ */
+export function bulletAnnouncement(changes: BulletChange[], lang: CoachLang): string {
+  const t = TEXTS[lang];
+  const items = changes.slice(0, QUOTES_MAX).map((c) => {
+    const place = placeName(c.label, lang);
+    return c.kind === "removed" ? t.bulletRemoved(quoted(c.text), place) : t.bulletWritten(quoted(c.text), place);
+  });
+  if (changes.length > QUOTES_MAX) items.push(t.bulletsMore(changes.length - QUOTES_MAX));
+  return t.bulletsDone(items.join(" ; "));
 }
 
 /** Annonce écrite par le serveur à partir des emplacements réellement modifiés. */
@@ -314,8 +358,11 @@ export function coachReplyText(i: CoachOutcomeInput): string {
         ].join(" ")
       : `${experience && !request ? t.bulletsNotAdded : t.partNotApplied}${sentences(sorted, true)}`;
   // Le résumé du modèle n'est repris que si tout a été appliqué tel quel ; sinon, annonce du serveur.
-  const announced =
-    !sorted.length && i.summaryFaithful !== false && i.changeSummary ? i.changeSummary : appliedAnnouncement(i.appliedLabels, lang);
+  const announced = i.bulletChanges?.length
+    ? bulletAnnouncement(i.bulletChanges, lang)
+    : !sorted.length && i.summaryFaithful !== false && i.changeSummary
+      ? i.changeSummary
+      : appliedAnnouncement(i.appliedLabels, lang);
   const summary = i.wordCounts ? `${announced} ${t.wordCount(i.wordCounts.before, i.wordCounts.after)}` : announced;
 
   if (i.scoreAfter !== null && i.scoreAfter >= READY_SCORE) {
