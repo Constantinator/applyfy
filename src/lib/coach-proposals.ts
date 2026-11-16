@@ -409,6 +409,20 @@ export const PROBLEM_FIRST_PERSON =
 
 /** Passages cités entre guillemets : jamais comptés. */
 const QUOTED = /«[^»]*»|“[^”]*”|"[^"]*"/g;
+
+/**
+ * Texte du CV qui garde une hésitation du candidat (run 2026-11-16T02-55-59, L02 : « (une page de
+ * liste et une page de détail, il me semble) »). Les approximations chiffrées (« environ », « une
+ * vingtaine », « about ») restent permises.
+ */
+export const PROBLEM_HESITATION =
+  "contient une hésitation (« il me semble », « je crois », « I think »…) : un CV n'en contient jamais ; écris seulement ce qui est sûr, ou retire ce passage";
+/** Marqueurs d'hésitation (texte sans accents, en minuscules). */
+const HESITATION = /(?<![\p{L}])(il me semble|je crois|je pense|peut-etre|i think|i believe|i guess|probably)(?![\p{L}])/gu;
+/** Nombre de marqueurs d'hésitation d'un texte, hors passages cités entre guillemets. */
+function hesitationCount(text: string): number {
+  return (fold(text.replace(QUOTED, " ")).match(HESITATION) ?? []).length;
+}
 /** Nom propre qui commence par « Mon / Ma / Mes » (« Mon Covoit Étudiant »). */
 const PROPER_NAME = /\b(?:Mon|Ma|Mes)(?:\s+\p{Lu}[\p{L}'-]*)+/gu;
 
@@ -723,6 +737,19 @@ export function checkProposal(
         else problems.push({ changeId: change.id, text, problems: [PROBLEM_FIRST_PERSON] });
         break;
       }
+    }
+  }
+  // Hésitation (tous les CV, tous les modes) : refusée si le texte en a plus que le texte d'origine.
+  for (const change of proposal.changes) {
+    if (change.kind === "removeBullet" || change.kind === "removeItem") continue;
+    if (change.kind === "bullet" && change.moved) continue;
+    const before = hesitationCount(change.before ?? "");
+    for (const { text } of changeTexts(change)) {
+      if (hesitationCount(text) <= before) continue;
+      const same = problems.find((q) => q.changeId === change.id);
+      if (same) same.problems.push(PROBLEM_HESITATION);
+      else problems.push({ changeId: change.id, text, problems: [PROBLEM_HESITATION] });
+      break;
     }
   }
   if (options.offer) {

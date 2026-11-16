@@ -411,3 +411,82 @@ test("banc d'essai : questions sur les mots-clés de l'offre et mots-clés par q
   assert.equal(m.offerFlow.keywordQuestions, 2, "la proposition de résumé n'est pas une question d'expérience");
   assert.equal(m.offerFlow.keywordsPerQuestionMax, 3);
 });
+
+// --- Suite du run 2026-11-16T02-55-59 : 1. Marqueurs d'hésitation refusés (L02, tour 3) ---
+
+const { PROBLEM_HESITATION } = await import("./coach-proposals.ts");
+const { coachBuilderCv } = await import("./coach-llm.ts");
+const { runCoachTurn } = await import("./coach-turn.ts");
+const { quiet } = await import("./coach-test-fixtures.mjs");
+/** Client factice : première réponse, puis seconde réponse pour le nouvel essai. */
+const fakeClient = (pick) => ({
+  beta: { messages: { parse: async (params) => ({ stop_reason: "end_turn", parsed_output: pick(++fakeClient.calls), model: params.model }) } },
+});
+
+const L02_PAGES_REQUEST =
+  "Alors pour les deux pages en React, c'étaient une page de liste et une page de détail, enfin je crois, parce que je ne me souviens plus très bien des noms exacts. Pour la version de React, je ne sais pas trop, je pense que c'était la version utilisée par le projet. Ce qui est sûr, c'est que j'ai surtout appris à découper les composants et à gérer l'état entre les pages. Est-ce que je peux écrire ça sans inventer la version ni les noms des pages ?";
+const L02_HISTORY = [{ role: "assistant", content: "Passons à ta puce « Développement de 2 nouvelles pages en React » chez Startup Exemple : quelles pages as-tu développées, et quelle version de React as-tu utilisée ?" }];
+const L02_WRITTEN = "Développement de 2 nouvelles pages en React (une page de liste et une page de détail, il me semble) : découpage en composants et gestion de l'état entre les pages";
+const L02_CLEAN = "Développement de 2 nouvelles pages en React : découpage en composants et gestion de l'état entre les pages";
+const pageBullet = (after) =>
+  flat({ section: "experience", change_summary: "C'est fait.", message: "Quels sont les mois de début et de fin de ton stage ?", data: JSON.stringify({ id: "ts-e1", bullets: [{ index: 2, after }] }) });
+
+/** Un échange avec un second essai différent de la première réponse. */
+async function turnWithRetry(cv, context, history, request, first, second) {
+  fakeClient.calls = 0;
+  const client = fakeClient((n) => (n === 1 ? first : second));
+  const reply = await coachBuilderCv(client, context, history, request);
+  return quiet(() =>
+    runCoachTurn({ current: cv, context, turns: history, request, reply, limitReached: false, retry: (retry) => coachBuilderCv(client, context, history, request, retry) }),
+  );
+}
+
+test("hésitation : L02, « il me semble » refusé au premier essai, la version sûre est écrite au second", async () => {
+  const context = contextFor(techStage, null, { history: L02_HISTORY, request: L02_PAGES_REQUEST });
+  const result = await turnWithRetry(techStage, context, L02_HISTORY, L02_PAGES_REQUEST, pageBullet(L02_WRITTEN), pageBullet(L02_CLEAN));
+  assert.ok(result.firstProblems.some((p) => p.problems.includes(PROBLEM_HESITATION)));
+  assert.equal(result.retried, true);
+  assert.equal(result.updated.experiences[0].bullets[2], L02_CLEAN);
+  // Encore refusé au second essai : rien n'est écrit, et le candidat le sait.
+  const twice = await turnWithRetry(techStage, context, L02_HISTORY, L02_PAGES_REQUEST, pageBullet(L02_WRITTEN), pageBullet(L02_WRITTEN));
+  assert.equal(twice.applied, 0);
+  assert.equal(twice.updated.experiences[0].bullets[2], "Développement de 2 nouvelles pages en React");
+  assert.ok(twice.text.includes("n'a pas sa place dans un CV : je n'ai pas écrit ce passage."), twice.text);
+});
+
+test("hésitation : déclenchement en anglais, en mode demande, dans l'accroche", async () => {
+  const cases = [
+    ["Built 2 React pages, I think, for the web app", "parcours"],
+    ["Gestion de 3 projets, peut-être 4, pour l'équipe produit", "demande"],
+    ["Développement de 2 pages en React, probably for the dashboard", "demande"],
+  ];
+  for (const [after, mode] of cases) {
+    const context = contextFor(techStage, null, { history: L02_HISTORY, request: "Ajoute une puce." });
+    const result = await turn(techStage, context, L02_HISTORY, "Ajoute une puce.", { ...pageBullet(after), mode });
+    assert.ok(result.firstProblems.some((p) => p.problems.includes(PROBLEM_HESITATION)), after);
+  }
+  const summary = flat({ mode: "demande", section: "summary", change_summary: "C'est fait.", data: "Étudiant en informatique, je pense orienté web, à la recherche d'un stage de fin d'études" });
+  const r = await turn(techStage, contextFor(techStage, null, { request: "Reformule mon accroche." }), [], "Reformule mon accroche.", summary);
+  assert.ok(r.firstProblems.some((p) => p.problems.includes(PROBLEM_HESITATION)));
+});
+
+test("hésitation : non-déclenchement (approximations, citation, marqueur déjà présent, « Pensée design », anglais sans marqueur)", async () => {
+  const ok = [
+    "Correction d'environ 20 bugs sur l'application web",
+    "Correction d'une vingtaine de bugs sur l'application web",
+    "Fixed about 20 bugs on the web app",
+    "Animation de points quotidiens d'environ 15 minutes",
+    "Animation d'un atelier « je pense donc je code » pour 2 équipes",
+    "Pensée design appliquée à 2 nouvelles pages en React",
+  ];
+  for (const after of ok) {
+    const context = contextFor(techStage, null, { history: L02_HISTORY, request: "Une vingtaine, 20 bugs, 15 minutes, 2 équipes." });
+    const result = await turn(techStage, context, L02_HISTORY, "Une vingtaine, 20 bugs, 15 minutes, 2 équipes.", pageBullet(after));
+    assert.ok(!result.firstProblems.some((p) => p.problems.includes(PROBLEM_HESITATION)), `${after} : ${JSON.stringify(result.firstProblems)}`);
+  }
+  // Marqueur déjà dans le texte d'origine (mode demande) : toléré.
+  const cv = { ...techStage, experiences: [{ ...techStage.experiences[0], bullets: ["Développement de 2 pages en React, il me semble", ...techStage.experiences[0].bullets.slice(1)] }] };
+  const kept = flat({ mode: "demande", section: "experience", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-e1", bullets: [{ index: 0, after: "Développement de 2 pages React, il me semble" }] }) });
+  const result = await turn(cv, contextFor(cv, null, { request: "Raccourcis ma première puce." }), [], "Raccourcis ma première puce.", kept);
+  assert.ok(!result.firstProblems.some((p) => p.problems.includes(PROBLEM_HESITATION)), JSON.stringify(result.firstProblems));
+});
