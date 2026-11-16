@@ -169,6 +169,10 @@ const SITUATION: [keyof Listening, string][] = [
     "Le candidat ne connaît pas les mois de ses dates : ne pose plus aucune question sur les mois ou les dates exactes, pour aucun poste.",
   ],
   [
+    "monthsAsked",
+    "Tu as déjà posé une question sur les mois des dates : n'en pose plus aucune dans cette session, pour aucun poste. Passe au point suivant.",
+  ],
+  [
     "stopIfReady",
     "Le candidat veut s'arrêter si le CV est prêt : le serveur lui répond avec le score. Ne pose aucune question dans « message » ; dis en une phrase ce qui reste de plus important, s'il reste quelque chose.",
   ],

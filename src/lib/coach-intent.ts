@@ -179,6 +179,11 @@ export function questionType(text: string): QuestionType | null {
   if (isFigureQuestion(question)) return "chiffre";
   return "detail";
 }
+/** Le message du coach pose une question sur les mois des dates (dans n'importe laquelle de ses phrases-questions). */
+const asksMonths = (text: string) => splitSentences(text).some((s) => isQuestion(s) && MONTH_QUESTION.test(s));
+/** Le candidat demande d'ajouter ou de préciser les mois de ses dates (« tu peux ajouter les mois »). */
+const MONTH_REQUEST =
+  /\b(ajoute[rz]?|pr[ée]cise[rz]?|mets|mettre|mettez|indique[rz]?|compl[èe]te[rz]?|add|include|put)\b[^.?!]{0,30}\b(mois|dates?|months?)\b/i;
 /** Type d'une phrase-question (pour la retirer). */
 const sentenceType = (sentence: string): QuestionType =>
   MONTH_QUESTION.test(sentence) ? "mois" : TOOL_QUESTION.test(sentence) ? "outil" : isFigureQuestion(sentence) ? "chiffre" : "detail";
@@ -207,6 +212,12 @@ export type Listening = {
   stopTypes?: QuestionType[];
   /** Le candidat a dit une fois ne pas connaître les mois de ses dates. Absent sinon. */
   stopMonths?: boolean;
+  /**
+   * Une question sur les mois des dates a déjà été posée (réponse donnée ou non), sans refus : le
+   * coach n'en pose plus, pour aucun poste, sauf si le dernier message demande d'ajouter les mois.
+   * Absent sinon.
+   */
+  monthsAsked?: boolean;
   /** Le dernier message demande de s'arrêter si le CV est prêt. Absent sinon. */
   stopIfReady?: boolean;
   /** Le dernier message demande ce qu'il reste à améliorer. Absent sinon. */
@@ -247,9 +258,12 @@ export function listeningState(
       question = "";
     }
   }
-  // Refus par type de question : mois refusés une fois ; deux refus de suite, quel que soit le type.
+  // Refus par type de question : mois refusés une fois (toute phrase-question du message du coach,
+  // pas seulement la dernière) ; deux refus de suite, quel que soit le type.
   const refused = answers.map((a) => (isNegative(a.answer) ? questionType(a.question) : null));
-  if (refused.includes("mois")) listening.stopMonths = true;
+  if (answers.some((a) => isNegative(a.answer) && asksMonths(a.question))) listening.stopMonths = true;
+  // Question de mois déjà posée, sans refus : une seule fois par CV (sauf demande d'ajouter les mois).
+  else if (history.some((t) => t.role === "assistant" && asksMonths(t.content)) && !MONTH_REQUEST.test(request)) listening.monthsAsked = true;
   const twoInARow = answers.some((a, i) => i > 0 && isNegative(a.answer) && isNegative(answers[i - 1].answer));
   if (twoInARow) listening.stopTypes = [...new Set(refused.filter((t): t is QuestionType => t !== null))];
   if (stopIfReady) listening.stopIfReady = true;
@@ -265,6 +279,8 @@ export function listeningState(
 const splitSentences = (text: string) => text.split(/(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Ý«"“(])/).filter((s) => s.trim());
 const isQuestion = (sentence: string) => /\?\s*[»”")]*\s*$/.test(sentence.trim());
 
+/** Correction du score sur les dates (« Dates sans mois ou incomplètes — … ») : jamais citée comme point suivant. */
+const DATE_CORRECTION = /^(Dates sans mois|Date de fin avant)/;
 const CLOSURE = /Ton CV est prêt|Your CV is ready|Je n'ai plus de question|I have no more questions/i;
 /** Phrase qui renvoie la question au candidat au lieu d'y répondre. */
 const NON_ANSWER = /^(Dis-moi si tu veux une modification précise|Tell me if you want a specific change)/i;
@@ -282,6 +298,9 @@ const TEXTS = {
     noInsist: (score: number) => `Pas de souci, je n'insiste pas. Ton CV est à ${score}/100 : tu peux t'arrêter là, ou me demander une modification précise.`,
     stopIfReady: "Tu peux t'arrêter là, ou me dire si tu veux continuer.",
     closedShort: "Dis-moi si tu veux une modification précise.",
+    nextPoint: (point: string) => `Je ne te redemande pas les mois de tes dates. On passe au point suivant : ${point}.`,
+    allDone:
+      "J'ai fait le tour des points à corriger. Tu peux encore modifier ton CV directement en cliquant sur n'importe quel texte dans l'aperçu, ou me demander une modification précise.",
     hints: (hints: string) => `Deux pistes facultatives, sans urgence : ${hints}.`,
     hint: (hint: string) => `Une piste facultative, sans urgence : ${hint}.`,
     nothingImportant: "Je ne vois rien d'important à changer : ton CV couvre déjà l'essentiel. Tu peux encore affiner un texte en cliquant dessus dans l'aperçu.",
@@ -294,6 +313,9 @@ const TEXTS = {
     noInsist: (score: number) => `No problem, I won't insist. Your CV is at ${score}/100: you can stop here, or ask me for a specific change.`,
     stopIfReady: "You can stop here, or tell me if you want to continue.",
     closedShort: "Tell me if you want a specific change.",
+    // Les corrections du score sont écrites en français : pas de point cité en anglais.
+    nextPoint: () => "I won't ask about the months of your dates again. Let's move on: the next point is listed under your score.",
+    allDone: "I've gone through the points to fix. You can still edit your CV by clicking any text in the preview, or ask me for a specific change.",
     // Les corrections du score sont écrites en français : pas de liste en anglais.
     hints: () => "A few optional improvements remain, with no urgency: they are listed under your score.",
     hint: () => "One optional improvement remains, with no urgency: it is listed under your score.",
@@ -346,7 +368,8 @@ export function listenText(i: ListenInput): string {
   // celles sur les mois après un refus.
   const stopAll = (i.listening.stopAll || i.listening.stopIfReady === true) && i.mode === "parcours";
   const refusedType = (s: string) =>
-    (i.listening.stopTypes?.includes(sentenceType(s)) ?? false) || (i.listening.stopMonths === true && sentenceType(s) === "mois");
+    (i.listening.stopTypes?.includes(sentenceType(s)) ?? false) ||
+    ((i.listening.stopMonths === true || i.listening.monthsAsked === true) && sentenceType(s) === "mois");
   const modelQuestions = new Set(splitSentences(i.modelMessage ?? "").filter(isQuestion).map(normalizeSentence));
   const stoppedNow = (s: string) =>
     i.stopNow === true && i.mode === "demande" && !CONTINUE_OFFER.test(s) && modelQuestions.has(normalizeSentence(s));
@@ -358,6 +381,16 @@ export function listenText(i: ListenInput): string {
       (i.listening.stopKeywords === true && isKeywordQuestion(s, i.offerKeywords ?? [])) ||
       refusedType(s));
   const hadQuestion = sentences.some(dropQuestion);
+  // Seulement une question de mois déjà posée une fois (sans refus du candidat) : rien à « ne pas
+  // insister », le parcours enchaîne sur le point suivant.
+  const monthsOnce = (s: string) =>
+    i.listening.monthsAsked === true &&
+    !i.listening.stopMonths &&
+    sentenceType(s) === "mois" &&
+    !(i.listening.stopTypes?.includes("mois") ?? false) &&
+    !(i.listening.stopFigures && FIGURE_QUESTION.test(s)) &&
+    !stoppedNow(s);
+  const onlyMonthsOnce = !stopAll && hadQuestion && sentences.filter(dropQuestion).every(monthsOnce);
   const onlyRefused = !stopAll && sentences.filter(dropQuestion).every((s) => refusedType(s) && !(i.listening.stopFigures && FIGURE_QUESTION.test(s)));
   sentences = sentences.filter((s) => !dropQuestion(s));
 
@@ -384,7 +417,11 @@ export function listenText(i: ListenInput): string {
   if (!text) {
     // Le message n'était qu'une question (ou que la clôture déjà dite).
     if (i.listening.stopIfReady && i.mode === "parcours") text = t.stopIfReady;
-    else if (hadQuestion && onlyRefused) text = t.noInsist(i.score);
+    else if (onlyMonthsOnce) {
+      // CV clos : phrase courte. Sinon, point suivant (hors dates), ou clôture du parcours.
+      const next = i.corrections.find((c) => !DATE_CORRECTION.test(c));
+      text = i.score >= READY_SCORE ? t.closedShort : next ? t.nextPoint(next.replace(/\s*\(\+\d+ pts\)$/, "")) : t.allDone;
+    } else if (hadQuestion && onlyRefused) text = t.noInsist(i.score);
     else if (hadQuestion) text = i.lang === "fr" ? TEXTS.fr.stopped(i.score, gaps) : TEXTS.en.stopped(i.score);
     else text = t.closedShort;
   } else if (i.listening.stopIfReady && i.mode === "parcours" && hadQuestion) {
