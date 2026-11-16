@@ -380,6 +380,90 @@ export type OfferCheck = { gap?: "metier" | "competences" | null; sector?: Secto
  */
 export const PROBLEM_NOT_CANDIDATE_VERB = "garde l'ancien verbe alors que le candidat a employé un autre verbe pour ce fait";
 
+/**
+ * Chiffre que le candidat a donné avec un doute (« de quinze minutes environ », « about 4 I
+ * think ») écrit comme un fait sûr (run 2026-11-16T00-45-04, L02) : la puce doit garder une
+ * approximation (« environ », « une quinzaine », « about »…).
+ */
+export const PROBLEM_UNSURE_FIGURE =
+  "présente comme sûr un chiffre que le candidat a donné avec un doute : garde une approximation (« environ », « une quinzaine », « about »)";
+
+/** Doute du candidat sur ce qu'il dit (texte sans accents, en minuscules). */
+const DOUBT =
+  /\b(je crois|je pense|il me semble|environ|a peu pres|plus ou moins|approximativement|grosso modo|peut-etre|plutot|pas (tres |vraiment )?(sur|sure|certain|certaine)|si je me souviens( bien)?|de memoire|i think|i believe|not (really |quite )?sure|roughly|about|around|maybe|perhaps|approximately|i guess|more or less|or so|if i remember)\b/g;
+/** Approximation gardée dans le texte écrit (texte sans accents, en minuscules). */
+const APPROXIMATION =
+  /\b(environ|pres de|a peu pres|presque|plus de|moins de|quelques?|autour de|approximativement|jusqu'a|about|around|roughly|over|nearly|approximately|almost|some|more than|up to)\b|[~≈]/g;
+/** Approximations qui peuvent suivre le nombre (« 15 minutes environ », « 4 or so »). */
+const APPROXIMATION_AFTER = /\b(environ|or so)\b/g;
+/** Fin d'une proposition : ponctuation, ou mot qui ouvre un autre fait (« mais », « par contre »). */
+const CLAUSE_BREAK = /[.!?;:,\n]|\b(?:mais|par contre|sauf|en revanche|cependant|toutefois|but|except|however|though)\b/;
+/** Distance maximale (en mots) entre le nombre et le doute, et entre le nombre et l'approximation. */
+const DOUBT_WINDOW = 4;
+const APPROXIMATION_WINDOW = 3;
+
+const fold = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+type NumberToken = { start: number; value: string | null; magnitude: boolean };
+/** Mots d'une proposition, avec la valeur des nombres (chiffres, nombres en lettres, ordres de grandeur). */
+function tokensOf(clause: string): NumberToken[] {
+  return [...clause.matchAll(/\d+(?:[   ]\d{3})*(?!\d)|[\p{L}']+/gu)].map((m) => {
+    const word = m[0];
+    if (/^\d/.test(word)) {
+      const digits = word.replace(/\D/g, "");
+      // Une année (« en 2023 je crois ») n'est pas un chiffre de résultat.
+      const year = /^(19|20)\d\d$/.test(digits);
+      return { start: m.index ?? 0, value: year ? null : digits, magnitude: false };
+    }
+    const magnitude = MAGNITUDE_WORDS[singular(word)];
+    return { start: m.index ?? 0, value: NUMBER_WORDS[word] ?? magnitude ?? null, magnitude: Boolean(magnitude) };
+  });
+}
+/** Positions (en mots) couvertes par chaque marqueur trouvé dans la proposition. */
+function markerSpans(clause: string, tokens: NumberToken[], marker: RegExp): [number, number][] {
+  const at = (index: number) => tokens.filter((t) => t.start < index).length;
+  return [...clause.matchAll(marker)].map((m) => [at((m.index ?? 0) + 1) - 1, at((m.index ?? 0) + m[0].length) - 1]);
+}
+const near = (i: number, spans: [number, number][], window: number) => spans.some(([s, e]) => Math.min(Math.abs(i - s), Math.abs(i - e)) <= window);
+const clausesOf = (text: string) => fold(text).split(CLAUSE_BREAK).filter((c): c is string => Boolean(c && c.trim()));
+
+/**
+ * Nombres que le candidat a donnés avec un doute dans la même proposition (même phrase, sans
+ * virgule ni « mais / par contre / sauf » entre les deux), à 4 mots au plus ; un nombre qu'il a
+ * aussi donné sans doute ailleurs n'en est pas un.
+ */
+export function doubtfulNumbers(messages: string[]): Set<string> {
+  const doubtful = new Set<string>();
+  const sure = new Set<string>();
+  for (const clause of messages.flatMap(clausesOf)) {
+    const tokens = tokensOf(clause);
+    const spans = markerSpans(clause, tokens, DOUBT);
+    tokens.forEach((t, i) => {
+      if (t.value === null) return;
+      if (near(i, spans, DOUBT_WINDOW)) doubtful.add(t.value);
+      else sure.add(t.value);
+    });
+  }
+  for (const value of sure) doubtful.delete(value);
+  return doubtful;
+}
+
+/**
+ * Le texte écrit un nombre douteux comme sûr : nombre nouveau (absent du texte d'origine), sans
+ * approximation à 3 mots au plus ni ordre de grandeur (« une quinzaine »).
+ */
+function assertsDoubtfulNumber(text: string, doubtful: Set<string>, before: Set<string>): boolean {
+  return clausesOf(text).some((clause) => {
+    const tokens = tokensOf(clause);
+    // Approximation placée avant le nombre (« environ 15 », « about 4 ») ; seuls « environ » et
+    // « or so » comptent aussi après (« 15 minutes environ »). « over two years » après « 4 » ne compte pas.
+    const prefix = markerSpans(clause, tokens, APPROXIMATION);
+    const suffix = markerSpans(clause, tokens, APPROXIMATION_AFTER);
+    const approximated = (i: number) =>
+      prefix.some(([, e]) => e < i && i - e <= APPROXIMATION_WINDOW) || suffix.some(([s]) => s > i && s - i <= APPROXIMATION_WINDOW);
+    return tokens.some((t, i) => t.value !== null && doubtful.has(t.value) && !before.has(t.value) && !t.magnitude && !approximated(i));
+  });
+}
+
 /** Verbes courants des messages, absents des listes du score (contrôle du verbe seulement). */
 const MESSAGE_VERBS = ["prepare", "prepared", "preparing", "monitor", "monitored", "follow", "followed", "track", "tracked", "process", "processed", "handle", "handled", "traiter", "traite", "suivre"];
 /** Formes irrégulières ramenées à une même racine (« je suis » ≈ « Suivi », « je gère » ≈ « Gestion »). */
@@ -554,6 +638,21 @@ export function checkProposal(
       const same = problems.find((q) => q.changeId === change.id);
       if (same) same.problems.push(PROBLEM_NOT_CANDIDATE_VERB);
       else problems.push({ changeId: change.id, text: change.after, problems: [PROBLEM_NOT_CANDIDATE_VERB] });
+    }
+    // Chiffre donné avec un doute (tous les CV, tous les modes) : la puce garde son approximation.
+    const doubtful = doubtfulNumbers(candidateMessages);
+    if (doubtful.size) {
+      for (const change of proposal.changes) {
+        if (change.kind === "removeBullet" || change.kind === "removeItem") continue;
+        if (change.kind === "bullet" && change.moved) continue;
+        const before = numberSources([change.before ?? ""]);
+        for (const { text, bullet } of changeTexts(change)) {
+          if (!bullet || !assertsDoubtfulNumber(text, doubtful, before)) continue;
+          const same = problems.find((q) => q.changeId === change.id);
+          if (same) same.problems.push(PROBLEM_UNSURE_FIGURE);
+          else problems.push({ changeId: change.id, text, problems: [PROBLEM_UNSURE_FIGURE] });
+        }
+      }
     }
   }
   if (options.offer) {

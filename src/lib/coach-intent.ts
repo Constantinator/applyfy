@@ -119,6 +119,15 @@ export const isConfirmationQuestion = (message: string) => CONFIRMATION.test(mes
 const OPEN_QUESTION =
   /\b(comment|pourquoi|conseill(es|erais)|qu'en penses-tu|tu en penses quoi|qu'est-ce que tu en penses|vaut-il mieux|vaut mieux|lequel|laquelle|lesquels|lesquelles|o[ùu] (le |la |les )?(mettre|placer)|how|why|should i|what do you (think|suggest|recommend)|which|would you (recommend|suggest)|where should)\b/i;
 /**
+ * Doute du candidat sur un fait (« je crois que c'était », « environ », « pas certain », « I think »,
+ * « not sure »). « Je pense que ça me va » (une opinion) ou « tell me about » n'en sont pas :
+ * « about », « around » ne comptent que devant un nombre.
+ */
+const DOUBT =
+  /\b(je crois|il me semble|environ|[àa] peu pr[èe]s|plus ou moins|approximativement|grosso modo|peut-[êe]tre|je ne suis (pas|plus) (tr[èe]s |vraiment )?(s[ûu]re?|certaine?)|pas (tr[èe]s |vraiment )?(s[ûu]re?|certaine?) (du|de|des|que)|si je me souviens( bien)?|de m[ée]moire|i think|i believe|not (really |quite )?sure|roughly|maybe|perhaps|approximately|i guess|more or less|or so|if i remember|(about|around) \d)/i;
+export const expressesDoubt = (message: string) => DOUBT.test(message);
+
+/**
  * Le dernier message pose une question ouverte. « Prêt ? », « que reste-t-il ? » et « peux-tu
  * confirmer ? » ont déjà leur réponse du serveur : ils n'en sont pas.
  */
@@ -196,6 +205,8 @@ export type Listening = {
   improve?: boolean;
   /** Le dernier message pose une question ouverte (conseil, explication). Absent sinon. */
   openQuestion?: boolean;
+  /** Le dernier message exprime un doute sur un fait (« je crois », « environ », « I think »). Absent sinon. */
+  uncertain?: boolean;
 };
 
 /**
@@ -236,6 +247,7 @@ export function listeningState(
   if (stopIfReady) listening.stopIfReady = true;
   if (asksWhatToImprove(request)) listening.improve = true;
   if (asksOpenQuestion(request)) listening.openQuestion = true;
+  if (expressesDoubt(request)) listening.uncertain = true;
   if (!offer) return listening;
   const refusedKeyword = (a: { question: string; answer: string }) => isNegative(a.answer) && isKeywordQuestion(a.question, offer.keywords);
   return { ...listening, stopKeywords: answers.some((a, i) => i > 0 && refusedKeyword(a) && refusedKeyword(answers[i - 1])) };

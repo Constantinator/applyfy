@@ -176,6 +176,10 @@ const SITUATION: [keyof Listening, string][] = [
     "improve",
     "Le candidat demande ce qu'il reste à améliorer : réponds directement avec 1 ou 2 points concrets tirés des « Points à corriger » (ou des « Pistes facultatives » si le CV est clos), en citant l'élément du CV concerné ; s'il n'y a rien d'important, dis-le honnêtement. Ne redis pas que le CV est prêt et n'écris pas « Dis-moi si tu veux une modification précise ».",
   ],
+  [
+    "uncertain",
+    "Le candidat exprime un doute dans son dernier message : un fait ou un chiffre donné avec un doute garde ce doute dans le texte (« environ », « une quinzaine », « plutôt »), ou n'est pas écrit. Ne le présente jamais comme sûr.",
+  ],
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];
 

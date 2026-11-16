@@ -104,3 +104,111 @@ test("CV pas encore clos, question ouverte : pas de consigne ajoutée, texte hab
   const result = await turn(cv, context, [], request, flat({ message: "Oui, l'accroche est le bon endroit. Veux-tu que je l'y ajoute ?" }));
   assert.equal(result.text, "Oui, l'accroche est le bon endroit. Veux-tu que je l'y ajoute ?");
 });
+
+// --- 2. Un chiffre donné avec un doute garde son approximation ---
+
+const techStage = profile("tech-stage-fr");
+const commercial = profile("commercial-junior-fr");
+const techEn = profile("tech-confirme-en");
+
+/** L02, échange 3 : rythme et durée des réunions donnés avec un doute. */
+const L02_REQUEST =
+  "Ah parfait, merci pour le coup de main ! Pour les réunions d'équipe, je crois que c'était plutôt des points quotidiens le matin, de quinze minutes environ, mais honnêtement je ne suis pas certain du rythme exact, ça changeait parfois selon les semaines. Je n'ai pas vraiment présenté de sujets moi-même, j'écoutais surtout et je posais des questions quand je bloquais sur un bug, ce qui me permettait de rattraper vite ce que je ne connaissais pas. Je ne sais pas si ça vaut le coup de le mettre dans le CV, mais je me suis pas mal investi dans la discussion sur les tickets à prendre. Est-ce qu'il vaut mieux garder cette puce en l'état, ou la reformuler autour de la collaboration ?";
+const L02_HISTORY = [{ role: "assistant", content: "Pour ta puce « Participation aux réunions d'équipe », à quel rythme avaient-elles lieu ?" }];
+
+/** Réponse du modèle qui réécrit une puce (expérience, index), en mode parcours. */
+const bullet = (id, index, after, mode = "parcours") =>
+  flat({ mode, section: "experience", change_summary: "C'est fait.", message: "", data: JSON.stringify({ id, bullets: [{ index, after }] }) });
+const play = (cv, history, request, reply) => turn(cv, contextFor(cv, null, { history, request }), history, request, reply);
+
+test("L02 rejoué : « de quinze minutes environ » écrit « de 15 minutes » est refusé, puce laissée telle quelle", async () => {
+  const result = await play(techStage, L02_HISTORY, L02_REQUEST, bullet("ts-e1", 1, "Participation aux points d'équipe quotidiens de 15 minutes et à la sélection des tickets à prendre"));
+  assert.equal(result.applied, 0, result.text);
+  assert.equal(result.updated.experiences[0].bullets[1], "Participation aux réunions d'équipe");
+  assert.ok(result.text.includes("tu m'as donné ce chiffre avec un doute, je laisse donc la puce telle quelle"), result.text);
+});
+
+test("chiffre avec un doute : accepté quand la puce garde l'approximation", async () => {
+  for (const after of [
+    "Participation aux points d'équipe quotidiens d'environ 15 minutes et à la sélection des tickets à prendre",
+    "Participation aux points d'équipe quotidiens de 15 minutes environ et à la sélection des tickets à prendre",
+    "Participation à une quinzaine de minutes de point d'équipe quotidien et à la sélection des tickets",
+  ]) {
+    const result = await play(techStage, L02_HISTORY, L02_REQUEST, bullet("ts-e1", 1, after));
+    assert.equal(result.applied, 1, `${after} → ${result.text}`);
+  }
+});
+
+test("chiffre avec un doute : non-déclenchement (autre proposition, loin, année, déjà dans le CV, sans doute)", async () => {
+  for (const [request, after] of [
+    // Doute dans une autre proposition (virgule) : le nombre est sûr.
+    ["Je suis 80 clients actifs, et je crois que c'était en juin.", "Suivi d'un portefeuille de 80 clients actifs"],
+    // « mais » entre le nombre et le doute.
+    ["Je suis 80 clients actifs mais je ne suis pas certain du mois.", "Suivi d'un portefeuille de 80 clients actifs"],
+    // Doute à plus de 4 mots du nombre, dans la même proposition.
+    ["Je crois que dans la boutique du centre commercial nous suivions 80 clients actifs.", "Suivi d'un portefeuille de 80 clients actifs"],
+    // Aucun doute.
+    ["Je suis 80 clients actifs.", "Suivi d'un portefeuille de 80 clients actifs"],
+    // « Je ne sais pas » est un refus, pas un doute ; le chiffre donné ensuite est sûr.
+    ["Je ne sais pas pour le chiffre d'affaires. Je suis 80 clients actifs.", "Suivi d'un portefeuille de 80 clients actifs"],
+  ]) {
+    const result = await play(commercial, [], request, bullet("cj-e1", 2, after));
+    assert.equal(result.applied, 1, `${request} → ${result.text}`);
+  }
+  // Année donnée avec un doute : une date n'est pas un chiffre de résultat.
+  const year = await play(commercial, [], "C'était en 2023 je crois, j'y suivais 80 clients.", bullet("cj-e1", 2, "Suivi d'un portefeuille de 80 clients actifs depuis 2023"));
+  assert.equal(year.applied, 1, year.text);
+  // Nombre déjà dans la puce d'origine : pas concerné.
+  const kept = await play(techStage, L02_HISTORY, "Je crois que c'était environ 2 pages, oui.", bullet("ts-e1", 2, "Développement de 2 nouvelles pages en React connectées à une API"));
+  assert.equal(kept.applied, 1, kept.text);
+});
+
+test("chiffre avec un doute : CV en anglais, refus et message du serveur en anglais", async () => {
+  const request = "I mentored about 4 junior engineers I think, over two years.";
+  const refused = await play(techEn, [], request, bullet("te-e1", 2, "Mentored 4 junior engineers over two years"));
+  assert.equal(refused.applied, 0, refused.text);
+  assert.ok(refused.text.includes("you gave me this number with some doubt, so I'm leaving the bullet as it is"), refused.text);
+  for (const after of ["Mentored about 4 junior engineers over two years", "Mentored around 4 junior engineers over two years", "Mentored roughly 4 junior engineers over two years"]) {
+    const result = await play(techEn, [], request, bullet("te-e1", 2, after));
+    assert.equal(result.applied, 1, `${after} → ${result.text}`);
+  }
+});
+
+test("chiffre avec un doute : non-déclenchement sur le CV en anglais (doute ailleurs, aucun doute)", async () => {
+  for (const request of ["I mentored 4 junior engineers, I think it was in 2021.", "I mentored 4 junior engineers.", "I mentored 4 junior engineers but I'm not sure about the dates."]) {
+    const result = await play(techEn, [], request, bullet("te-e1", 2, "Mentored 4 junior engineers"));
+    assert.equal(result.applied, 1, `${request} → ${result.text}`);
+  }
+});
+
+test("doute exprimé : consigne de situation seulement quand le candidat doute", () => {
+  assert.equal(intent.listeningState(L02_HISTORY, L02_REQUEST).uncertain, true);
+  assert.equal(intent.listeningState([], "I mentored about 4 engineers I think.").uncertain, true);
+  const context = contextFor(techStage, null, { history: L02_HISTORY, request: L02_REQUEST });
+  assert.ok(coachSystem(context, "").includes("Le candidat exprime un doute"));
+});
+
+test("doute exprimé : non-déclenchement (opinion, refus, aide générale, anglais courant)", () => {
+  for (const message of [
+    "Sinon, je pense que ça me va pour l'instant.",
+    "Je ne sais pas.",
+    "Aide-moi à améliorer mon CV.",
+    "Can you help me improve my CV please?",
+    "Tell me about the summary.",
+    "Je suis 80 clients actifs.",
+  ]) {
+    assert.ok(!("uncertain" in intent.listeningState([], message)), message);
+  }
+});
+
+test("nombres douteux : même proposition et 4 mots au plus (phrases exactes)", async () => {
+  const { doubtfulNumbers } = await import("./coach-proposals.ts");
+  assert.deepEqual([...doubtfulNumbers(["j'ai 80 clients actifs, et je crois que c'était en juin"])], []);
+  assert.deepEqual([...doubtfulNumbers(["j'ai 80 clients actifs mais je ne suis pas certain du mois"])], []);
+  assert.deepEqual([...doubtfulNumbers(["de quinze minutes environ"])], ["15"]);
+  assert.deepEqual([...doubtfulNumbers(["je crois qu'on était 12"])], ["12"]);
+  // Doute à 5 mots du nombre : hors fenêtre.
+  assert.deepEqual([...doubtfulNumbers(["je crois que dans la grande équipe 12 personnes"])], []);
+  // Donné aussi sans doute ailleurs : sûr.
+  assert.deepEqual([...doubtfulNumbers(["environ 12 je crois", "Oui, c'est bien 12."])], []);
+});
