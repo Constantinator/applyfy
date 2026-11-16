@@ -167,6 +167,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const appliedLabels: string[] = [];
   const appliedTexts: { before: string | null; after: string }[] = [];
   const bulletChanges: BulletChange[] = [];
+  let summaryText: string | undefined;
   for (const change of proposal?.changes ?? []) {
     const next = applyCoachChange(updated, change);
     if (next) {
@@ -176,6 +177,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       appliedTexts.push({ before: change.before, after: change.after });
       if (change.kind === "bullet") bulletChanges.push({ kind: "written", text: change.after, label: change.label });
       if (change.kind === "removeBullet") bulletChanges.push({ kind: "removed", text: change.before ?? "", label: change.label });
+      if (change.kind === "field" && change.target === "summary") summaryText = change.after;
     } else {
       stale++;
       console.error("[cv-builder coach] changement inapplicable", change.kind, change.label);
@@ -240,6 +242,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     wordCounts: check.shorten && applied > 0 ? wordCounts(appliedTexts) : undefined,
     // Puces d'expérience : annonce écrite par le serveur, texte réellement écrit cité.
     bulletChanges,
+    // Accroche : idem, sauf demande de raccourcir (annonce et décompte des mots, comme avant).
+    ...(summaryText && !check.shorten ? { summaryText } : {}),
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
     corrections: scored?.after.corrections.map((c) => c.message) ?? [],

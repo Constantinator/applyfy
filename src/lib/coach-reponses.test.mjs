@@ -210,3 +210,50 @@ test("arrêt en mode demande : sans arrêt dans ce message, rien ne change", () 
   });
   assert.equal(text, model);
 });
+
+// --- 4. L'annonce de l'accroche cite le texte réellement écrit ---
+
+const { contextFor, flat, profile, turn } = await import("./coach-test-fixtures.mjs");
+
+/** Échange réel de L14 (accroche) : texte écrit, annonce et message du modèle. */
+const L14_REQUEST =
+  "Oui, c'est bien vu, l'accroche parle encore de marketing digital. Tu peux la reformuler vers la gestion de projet événementiel, en gardant la part de données et de créativité ? Je ne connais pas de chiffre supplémentaire à y ajouter, donc sans chiffre c'est très bien.";
+const L14_SUMMARY =
+  "Chargée de marketing digital créative, avec 2 ans d'expérience en agence et chez l'annonceur, et une première expérience d'organisation d'événement : planning, invitations et coordination des prestataires pour un lancement client. Je m'appuie sur la donnée pour guider mes choix créatifs, avec une pratique des réseaux sociaux et de l'e-mailing.";
+const L14_REPLY = flat({
+  mode: "demande",
+  section: "summary",
+  change_summary: "C'est fait : j'ai reformulé ton accroche vers la gestion de projet événementiel, sans « j'aime » et sans chiffre ajouté.",
+  message: "Ton accroche est maintenant orientée événementiel.",
+  data: L14_SUMMARY,
+});
+
+test("L14 rejoué : l'annonce de l'accroche cite le début du texte réellement écrit", async () => {
+  const cv = profile("marketing-junior-fr");
+  const context = contextFor(cv, null, { request: L14_REQUEST });
+  const result = await turn(cv, context, [], L14_REQUEST, L14_REPLY);
+  assert.equal(result.updated.summary, L14_SUMMARY);
+  assert.ok(result.text.startsWith("C'est fait : ton accroche commence maintenant par « Chargée de marketing digital créative, avec 2 ans"), result.text);
+});
+
+test("annonce de l'accroche : non-déclenchement (raccourcir, titre, compétences, texte refusé)", async () => {
+  const cv = profile("marketing-junior-fr");
+  // Raccourcir : annonce du modèle et décompte des mots du serveur, comme avant.
+  const shorten = "Raccourcis mon accroche.";
+  const short = await turn(cv, contextFor(cv, null, { request: shorten }), [], shorten, flat({ mode: "demande", section: "summary", change_summary: "C'est fait : accroche raccourcie.", data: "Chargée de marketing digital, 2 ans d'expérience en agence et chez l'annonceur." }));
+  assert.ok(short.text.startsWith("C'est fait : accroche raccourcie. Le texte passe de"), short.text);
+  // Titre du CV : annonce du modèle inchangée.
+  const title = "Change mon titre en Chargée de communication.";
+  const titled = await turn(cv, contextFor(cv, null, { request: title }), [], title, flat({ mode: "demande", section: "personal", change_summary: "C'est fait : titre changé en « Chargée de communication ».", data: JSON.stringify({ jobTitle: "Chargée de communication" }) }));
+  assert.ok(titled.text.startsWith("C'est fait : titre changé en « Chargée de communication »."), titled.text);
+  assert.ok(!titled.text.includes("ton accroche"), titled.text);
+  // Rien d'écrit (aucune section) : message du modèle tel quel.
+  const none = await turn(cv, contextFor(cv, null, { request: L14_REQUEST }), [], L14_REQUEST, flat({ mode: "parcours", message: "Quelle partie de ton accroche veux-tu garder ?" }));
+  assert.equal(none.text, "Quelle partie de ton accroche veux-tu garder ?");
+});
+
+test("annonce de l'accroche : texte court cité en entier, en anglais aussi", () => {
+  const base = { mode: "demande", section: "summary", applied: 1, stale: 0, invalid: false, firstInvalid: false, noChange: false, problems: [], firstProblems: [], message: "", changeSummary: "Done.", appliedLabels: ["Accroche"], summaryFaithful: true, scoreBefore: 70, scoreAfter: 71, corrections: [], offerKeywords: [] };
+  assert.equal(outcome.coachReplyText({ ...base, lang: "fr", summaryText: "Chef de projet événementiel junior." }), "C'est fait : ton accroche est maintenant « Chef de projet événementiel junior ».");
+  assert.equal(outcome.coachReplyText({ ...base, lang: "en", summaryText: "Backend engineer with 7 years of Go." }), "Done: your summary now reads “Backend engineer with 7 years of Go”.");
+});

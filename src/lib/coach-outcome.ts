@@ -48,6 +48,8 @@ const TEXTS = {
     bulletWritten: (quote: string, place: string) => `« ${quote} » — ${place}`,
     bulletRemoved: (quote: string, place: string) => `puce supprimée « ${quote} » — ${place}`,
     bulletsMore: (n: number) => `et ${n} autre${n > 1 ? "s" : ""} modification${n > 1 ? "s" : ""}`,
+    summaryWritten: (quote: string) => `C'est fait : ton accroche est maintenant « ${quote} ».`,
+    summaryStarts: (quote: string) => `C'est fait : ton accroche commence maintenant par « ${quote} ».`,
     titleOtherJob: "le titre proposé présentait un métier que ton CV ne montre pas.",
     inflatedRole: "ta puce d'origine disait que tu avais participé : je ne peux pas écrire que tu l'as mené seul.",
     inflatedTitle: (words: string) => `le titre proposé annonçait un niveau (${words}) que ton CV ne montre pas.`,
@@ -108,6 +110,8 @@ const TEXTS = {
     bulletWritten: (quote: string, place: string) => `“${quote}” — ${place}`,
     bulletRemoved: (quote: string, place: string) => `removed bullet “${quote}” — ${place}`,
     bulletsMore: (n: number) => `and ${n} other change${n > 1 ? "s" : ""}`,
+    summaryWritten: (quote: string) => `Done: your summary now reads “${quote}”.`,
+    summaryStarts: (quote: string) => `Done: your summary now starts with “${quote}”.`,
     titleOtherJob: "the proposed title presented a job your CV doesn't show.",
     inflatedRole: "your original bullet said you took part in it: I can't write that you led it alone.",
     inflatedTitle: (words: string) => `the proposed title claimed a level (${words}) that your CV doesn't show.`,
@@ -181,6 +185,11 @@ export type CoachOutcomeInput = {
    * le texte écrit cité (jamais le résumé du modèle).
    */
   bulletChanges?: BulletChange[];
+  /**
+   * Accroche réellement écrite (hors demande de raccourcir, annoncée avec le décompte des mots) :
+   * l'annonce est écrite par le serveur et cite le texte écrit (run 2026-11-15T23-04-28, L14).
+   */
+  summaryText?: string;
   /** Demande de raccourcir appliquée : mots avant et après, calculés par le serveur. */
   wordCounts?: { before: number; after: number };
   /** Score avant et après l'application (null après : rien n'a été appliqué). */
@@ -296,6 +305,12 @@ export function bulletAnnouncement(changes: BulletChange[], lang: CoachLang): st
 const YES_NO_LEAD = /^\s*(oui|non|yes|no)\s*[:,.!]\s*/i;
 const withoutYesNo = (summary: string) => (YES_NO_LEAD.test(summary) ? upperFirst(summary.replace(YES_NO_LEAD, "").trim()) : summary);
 
+/** Annonce de l'accroche écrite par le serveur : le texte écrit cité, en entier ou son début (140 caractères). */
+export function summaryAnnouncement(text: string, lang: CoachLang): string {
+  const quote = quoted(text).replace(/\.$/, "");
+  return quote.endsWith("…") ? TEXTS[lang].summaryStarts(quote) : TEXTS[lang].summaryWritten(quote);
+}
+
 /** Annonce écrite par le serveur à partir des emplacements réellement modifiés. */
 function appliedAnnouncement(labels: string[] | undefined, lang: CoachLang) {
   const places = [...new Set(labels ?? [])];
@@ -376,7 +391,9 @@ export function coachReplyText(i: CoachOutcomeInput): string {
   const modelSummary = withoutYesNo(i.changeSummary);
   const announced = i.bulletChanges?.length
     ? bulletAnnouncement(i.bulletChanges, lang)
-    : !sorted.length && i.summaryFaithful !== false && modelSummary
+    : i.summaryText
+      ? summaryAnnouncement(i.summaryText, lang)
+      : !sorted.length && i.summaryFaithful !== false && modelSummary
       ? modelSummary
       : appliedAnnouncement(i.appliedLabels, lang);
   const summary = i.wordCounts ? `${announced} ${t.wordCount(i.wordCounts.before, i.wordCounts.after)}` : announced;

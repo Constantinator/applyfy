@@ -358,7 +358,8 @@ test("langue : demande de traduction rédigée en anglais, message court, CV dev
   });
   const result = await turn(french, context, history, request, reply);
   assert.ok(!result.text.includes("C'est fait"), result.text);
-  assert.ok(result.text.startsWith("Done, I've updated:"), result.text);
+  // Accroche : annonce du serveur qui cite le texte écrit (lot « corrections de réponses », L14).
+  assert.ok(result.text.startsWith("Done: your summary now reads “Ingénieur backend senior"), result.text);
 });
 
 test("langue : message indécidable, repli sur le message précédent du candidat avant le CV", () => {
