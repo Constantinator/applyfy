@@ -25,26 +25,38 @@ const IMPROVE =
  */
 const REMOVE =
   /\b(supprime|supprimes|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|fusionne|fusionnez|fusionner|regroupe|regroupez|regrouper|remplace|remplacez|remplacer)\b[^.?!]{0,40}\b(puces?|lignes?|exp[ée]riences?|formations?|projets?|doublons?|les deux|ces deux|celle|celles|la|les|l'|ça|cela)\b|\b(remove|delete|drop|merge|combine|replace)\b[^.?!]{0,40}\b(bullets?|lines?|points?|experiences?|entries|entry|projects?|both|these|those|it|them|duplicates?)\b|\bget rid of\b/i;
+/**
+ * Pronom placé avant le verbe (« Tu peux la supprimer », « Peux-tu les retirer ? », run
+ * 2026-11-16T05-00-26, L02 tour 9) : REMOVE ne lit que le verbe suivi de son objet.
+ */
+const REMOVE_PRONOUN =
+  /\b(tu peux|peux-tu|tu pourrais|pourrais-tu|vous pouvez|pouvez-vous|n'h[ée]site pas [àa])\s+(la|le|les|l')\s*(supprimer|retirer|enlever|effacer)\b/i;
+/** Refus de la suppression (« ne la supprime pas », « pas la supprimer », « garde-la », « laisse-la »). */
+const NOT_REMOVE =
+  /\bne\s+(la|le|les|l')\s*(supprime|retire|enl[èe]ve|efface)\w*\s+pas\b|\bpas\s+(la|le|les|l')\s*(supprimer|retirer|enlever|effacer)\b|\b(garde|gardez|laisse|laissez)-(la|le|les)\b/i;
 /** Fait raconté avec un de ces verbes (« je retire 40 dossiers », « j'ai fusionné deux équipes ») : pas une demande. */
 const REMOVE_FACT = /\b(je|j'|on|nous|il|elle|i|we)\s*(retire|retirais|retirons|ai (retiré|fusionné|regroupé|supprimé|remplacé)|avons|merged|removed|replaced)\b/i;
 /** Le coach propose une suppression ou une fusion, en question (« Veux-tu que je supprime la puce … ? »). */
 const PROPOSES_REMOVAL =
   /(veux-tu|souhaites-tu|tu veux|est-ce que tu veux|je (peux|propose de|te propose de))[^?]{0,40}\b(supprime[rs]?|retire[rs]?|enl[èe]ve[rs]?|fusionne[rs]?|regroupe[rs]?)\b[^?]*\?|\b(shall|should|can) i (remove|delete|merge|combine)\b[^?]*\?|\bdo you want me to (remove|delete|merge|combine)\b[^?]*\?/i;
-/** Réponse affirmative courte. */
-const AFFIRMATIVE = /^\s*(oui|ouais|d'accord|ok|okay|vas-y|go|yes|yep|yeah|sure|parfait|c'est bon|bien sûr|of course)\b/i;
+/** Réponse affirmative courte, éventuellement après une interjection (« Ah oui, … », L02 tour 9). */
+const AFFIRMATIVE = /^\s*((ah|oh|bon|alors|euh|ben|bah|eh bien)\s*,?\s*)?(oui|ouais|d'accord|ok|okay|vas-y|go|yes|yep|yeah|sure|parfait|c'est bon|bien sûr|of course)\b/i;
 
 /** Le dernier message demande de supprimer, fusionner ou remplacer. */
-export const asksToRemove = (message: string) => REMOVE.test(message) && !REMOVE_FACT.test(message);
+export const asksToRemove = (message: string) =>
+  (REMOVE.test(message) || REMOVE_PRONOUN.test(message)) && !REMOVE_FACT.test(message) && !NOT_REMOVE.test(message);
 /** Le message du coach propose une suppression ou une fusion. */
 export const proposesRemoval = (coachMessage: string) => PROPOSES_REMOVAL.test(coachMessage);
 /**
  * Suppression autorisée : demandée dans le dernier message, ou acceptée (« oui », « ok », « yes »)
- * quand le dernier message du coach la proposait explicitement.
+ * quand la dernière question du coach la proposait. « Oui, en mars » après « Veux-tu que je
+ * supprime X ? Et à quel mois… ? » répond à la question de mois : rien n'est supprimé.
  */
 export function removalAllowed(history: { role: "user" | "assistant"; content: string }[], request: string): boolean {
   if (asksToRemove(request)) return true;
   const lastCoach = [...history].reverse().find((t) => t.role === "assistant")?.content ?? "";
-  return proposesRemoval(lastCoach) && AFFIRMATIVE.test(request) && !isNegative(request);
+  const lastQuestion = splitSentences(lastCoach).filter(isQuestion).pop() ?? "";
+  return proposesRemoval(lastQuestion) && AFFIRMATIVE.test(request) && !isNegative(request) && !NOT_REMOVE.test(request);
 }
 
 /** « Peux-tu confirmer… ? », « can you confirm…? » : le coach répond d'abord oui ou non. */
