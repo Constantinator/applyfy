@@ -114,6 +114,14 @@ export const isKeywordQuestion = (text: string, keywords: string[]) =>
 
 /** Question de chiffre (ce que deux refus de suite arrêtent). */
 const FIGURE_QUESTION = /combien|chiffre|nombre|ordre de grandeur|pourcentage|%|budget|how many|how much|number|figure|percentage|amount/i;
+/**
+ * « Sans chiffre » n'est pas une demande de chiffre (run 2026-11-16T03-20-31, L14 : « tu veux que je
+ * la reformule maintenant, sans chiffre ? » retirée après deux refus de chiffre) : retiré avant de
+ * chercher un mot de chiffre.
+ */
+const NO_FIGURE_WORDS = /\bsans (aucun )?chiffres?\b|\bwithout (any )?(numbers?|figures?)\b/gi;
+/** La phrase demande un chiffre (mots stricts : combien, chiffre, nombre…). */
+const asksFigureWord = (text: string) => FIGURE_QUESTION.test(text.replace(NO_FIGURE_WORDS, " "));
 /** Proposition de continuer une demande en plusieurs parties. */
 const CONTINUE_OFFER = /je continue avec|veux-tu que je continue|on continue avec|je passe à .*\?|shall i continue|should i continue|do you want me to continue|i'?ll continue with/i;
 
@@ -173,7 +181,7 @@ export const asksToStop = (message: string) => {
 
 /** Question de chiffre au sens large (montant, volume, taux) pour le type de question. */
 const FIGURE_LIKE = /montant|volume|taux|chiffre d'affaires|encours|fr[ée]quence|amount|volume|rate|revenue/i;
-const isFigureQuestion = (text: string) => FIGURE_QUESTION.test(text) || FIGURE_LIKE.test(text);
+const isFigureQuestion = (text: string) => asksFigureWord(text) || FIGURE_LIKE.test(text.replace(NO_FIGURE_WORDS, " "));
 
 /** Type d'une question du coach : ce que deux refus de suite arrêtent. */
 export type QuestionType = "mois" | "outil" | "chiffre" | "detail";
@@ -442,7 +450,7 @@ export function listenText(i: ListenInput): string {
     isQuestion(s) &&
     (stopAll ||
       stoppedNow(s) ||
-      (i.listening.stopFigures && FIGURE_QUESTION.test(s)) ||
+      (i.listening.stopFigures && asksFigureWord(s)) ||
       ((i.listening.stopKeywords === true || i.listening.keywordsDone === true) && isKeywordQuestion(s, i.offerKeywords ?? [])) ||
       refusedType(s));
   const hadQuestion = sentences.some(dropQuestion);
@@ -453,7 +461,7 @@ export function listenText(i: ListenInput): string {
     !i.listening.stopMonths &&
     sentenceType(s) === "mois" &&
     !(i.listening.stopTypes?.includes("mois") ?? false) &&
-    !(i.listening.stopFigures && FIGURE_QUESTION.test(s)) &&
+    !(i.listening.stopFigures && asksFigureWord(s)) &&
     !stoppedNow(s);
   // Question sur un mot-clé retirée par le seul plafond (sans deux refus de suite) : idem.
   const keywordCap = (s: string) =>
@@ -461,12 +469,12 @@ export function listenText(i: ListenInput): string {
     !i.listening.stopKeywords &&
     isKeywordQuestion(s, i.offerKeywords ?? []) &&
     !refusedType(s) &&
-    !(i.listening.stopFigures && FIGURE_QUESTION.test(s)) &&
+    !(i.listening.stopFigures && asksFigureWord(s)) &&
     !stoppedNow(s);
   const dropped = sentences.filter(dropQuestion);
   const onlyCapped = !stopAll && hadQuestion && dropped.every((s) => monthsOnce(s) || keywordCap(s));
   const monthsDropped = dropped.some(monthsOnce);
-  const onlyRefused = !stopAll && sentences.filter(dropQuestion).every((s) => refusedType(s) && !(i.listening.stopFigures && FIGURE_QUESTION.test(s)));
+  const onlyRefused = !stopAll && sentences.filter(dropQuestion).every((s) => refusedType(s) && !(i.listening.stopFigures && asksFigureWord(s)));
   sentences = sentences.filter((s) => !dropQuestion(s));
 
   // CV déjà clos : la clôture n'est pas redite si elle a déjà été affichée.
