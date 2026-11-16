@@ -449,7 +449,7 @@ function pronounCount(text: string, cvText: string): number {
 
 /** Doute du candidat sur ce qu'il dit (texte sans accents, en minuscules). */
 const DOUBT =
-  /\b(je crois|je pense|il me semble|environ|a peu pres|plus ou moins|approximativement|grosso modo|peut-etre|plutot|pas (tres |vraiment )?(sur|sure|certain|certaine)|si je me souviens( bien)?|de memoire|i think|i believe|not (really |quite )?sure|roughly|about|around|maybe|perhaps|approximately|i guess|more or less|or so|if i remember)\b/g;
+  /\b(je crois|je pense|je dirais|il me semble|environ|a peu pres|plus ou moins|approximativement|grosso modo|peut-etre|plutot|pas (tres |vraiment )?(sur|sure|certain|certaine)|si je me souviens( bien)?|de memoire|i think|i believe|i'?d say|not (really |quite )?sure|roughly|about|around|maybe|perhaps|approximately|i guess|more or less|or so|if i remember)\b/g;
 /** Approximation gardée dans le texte écrit (texte sans accents, en minuscules). */
 const APPROXIMATION =
   /\b(environ|pres de|a peu pres|presque|plus de|moins de|quelques?|autour de|approximativement|jusqu'a|about|around|roughly|over|nearly|approximately|almost|some|more than|up to)\b|[~≈]/g;

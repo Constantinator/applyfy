@@ -124,7 +124,7 @@ const OPEN_QUESTION =
  * « about », « around » ne comptent que devant un nombre.
  */
 const DOUBT =
-  /\b(je crois|il me semble|environ|[àa] peu pr[èe]s|plus ou moins|approximativement|grosso modo|peut-[êe]tre|je ne suis (pas|plus) (tr[èe]s |vraiment )?(s[ûu]re?|certaine?)|pas (tr[èe]s |vraiment )?(s[ûu]re?|certaine?) (du|de|des|que)|si je me souviens( bien)?|de m[ée]moire|i think|i believe|not (really |quite )?sure|roughly|maybe|perhaps|approximately|i guess|more or less|or so|if i remember|(about|around) \d)/i;
+  /\b(je crois|je dirais|il me semble|environ|[àa] peu pr[èe]s|plus ou moins|approximativement|grosso modo|peut-[êe]tre|je ne suis (pas|plus) (tr[èe]s |vraiment )?(s[ûu]re?|certaine?)|pas (tr[èe]s |vraiment )?(s[ûu]re?|certaine?) (du|de|des|que)|si je me souviens( bien)?|de m[ée]moire|i think|i believe|i'?d say|not (really |quite )?sure|roughly|maybe|perhaps|approximately|i guess|more or less|or so|if i remember|(about|around) \d)/i;
 export const expressesDoubt = (message: string) => DOUBT.test(message);
 
 /**

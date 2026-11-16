@@ -188,7 +188,7 @@ const SITUATION: [keyof Listening, string][] = [
   ],
   [
     "uncertain",
-    "Le candidat exprime un doute dans son dernier message : un fait ou un chiffre donné avec un doute garde ce doute dans le texte (« environ », « une quinzaine », « plutôt »), ou n'est pas écrit. Ne le présente jamais comme sûr.",
+    "Le candidat exprime un doute dans son dernier message. Un chiffre donné avec un doute garde son approximation (« environ », « une quinzaine », « plutôt »), ou n'est pas écrit. Un autre fait donné avec un doute n'est pas écrit. N'écris jamais de marqueur d'hésitation (« il me semble », « je crois », « I think ») dans le CV.",
   ],
   [
     "noFigure",
@@ -196,6 +196,10 @@ const SITUATION: [keyof Listening, string][] = [
   ],
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];
+
+/** Consigne « uncertain » pour un CV en anglais : exemples d'approximation et d'hésitation en anglais. */
+const UNCERTAIN_EN_CV =
+  "Le candidat exprime un doute dans son dernier message. Un chiffre donné avec un doute garde son approximation (« about », « around 15 », « roughly »), ou n'est pas écrit. Un autre fait donné avec un doute n'est pas écrit. N'écris jamais de marqueur d'hésitation (« I think », « I believe », « probably ») dans le CV.";
 
 /** CV clos et question ouverte du candidat (run 2026-11-16T00-45-04, O05). */
 const OPEN_QUESTION_CLOSED =
@@ -330,7 +334,10 @@ export function coachSystem(
     );
   }
   // Consignes du serveur selon les messages du candidat : phrases fixes, aucune donnée du candidat.
-  const situation = listening ? SITUATION.filter(([key]) => listening[key]).map(([, sentence]) => sentence) : [];
+  // Doute sur un CV en anglais : mêmes consignes, exemples anglais.
+  const situation = listening
+    ? SITUATION.filter(([key]) => listening[key]).map(([key, sentence]) => (key === "uncertain" && cvLanguage === "en" ? UNCERTAIN_EN_CV : sentence))
+    : [];
   // Deux refus de suite : types de questions refusés, étiquettes fixes du serveur.
   if (listening?.stopTypes?.length) situation.push(stopTypesSentence(listening.stopTypes));
   // CV clos et question ouverte du candidat : une réponse, jamais une nouvelle question (O05).

@@ -490,3 +490,32 @@ test("hésitation : non-déclenchement (approximations, citation, marqueur déj�
   const result = await turn(cv, contextFor(cv, null, { request: "Raccourcis ma première puce." }), [], "Raccourcis ma première puce.", kept);
   assert.ok(!result.firstProblems.some((p) => p.problems.includes(PROBLEM_HESITATION)), JSON.stringify(result.firstProblems));
 });
+
+// --- 2. Consigne du doute : chiffre approché, autre fait non écrit, aucun marqueur dans le CV ---
+
+const UNCERTAIN_FR =
+  "Le candidat exprime un doute dans son dernier message. Un chiffre donné avec un doute garde son approximation (« environ », « une quinzaine », « plutôt »), ou n'est pas écrit. Un autre fait donné avec un doute n'est pas écrit. N'écris jamais de marqueur d'hésitation (« il me semble », « je crois », « I think ») dans le CV.";
+
+test("doute : nouvelle consigne avec le doute (L02, tour 3), absente sans doute", () => {
+  const withDoubt = coachSystem(contextFor(techStage, null, { history: L02_HISTORY, request: L02_PAGES_REQUEST }), "");
+  assert.ok(withDoubt.includes(UNCERTAIN_FR));
+  assert.ok(!withDoubt.includes("garde ce doute dans le texte"), "ancienne consigne retirée");
+  for (const request of ["Une vingtaine de bugs.", "Aide-moi à améliorer mon CV.", "je sais pas"]) {
+    const ctx = contextFor(techStage, null, { history: L02_HISTORY, request });
+    assert.ok(!ctx.listening.uncertain && !coachSystem(ctx, "").includes("Le candidat exprime un doute"), request);
+  }
+});
+
+const { doubtfulNumbers: doubtful } = await import("./coach-proposals.ts");
+
+test("doute : CV en anglais, exemples anglais ; « je dirais » et « I'd say » reconnus", () => {
+  const en = profile("tech-confirme-en");
+  const ctx = contextFor(en, null, { history: [{ role: "assistant", content: "How many services did you migrate?" }], request: "I'd say around 12 services." });
+  assert.equal(ctx.listening.uncertain, true);
+  const system = coachSystem(ctx, "");
+  assert.ok(system.includes("(« about », « around 15 », « roughly »)") && system.includes("(« I think », « I believe », « probably »)"));
+  assert.ok(!system.includes(UNCERTAIN_FR));
+  assert.equal(intent.expressesDoubt("Je dirais une quinzaine de clients."), true);
+  assert.deepEqual([...doubtful(["Je dirais 15 clients par semaine."])], ["15"]);
+  assert.deepEqual([...doubtful(["I'd say 12 services."])], ["12"]);
+});
