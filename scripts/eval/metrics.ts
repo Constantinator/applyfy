@@ -17,8 +17,9 @@ import { offerMarker } from "../../src/lib/coach-offer.ts";
 import { inventedNumbers, isPartialRole, keepsOldVerbAgainstCandidate, numberSources } from "../../src/lib/coach-proposals.ts";
 import { chatContent, cvDataToText, type CvData } from "../../src/lib/cv-builder-types.ts";
 import { READY_SCORE } from "../../src/lib/cv-score.ts";
-import type { ConversationRecord } from "./conversation.ts";
+import type { ConversationRecord, TurnRecord } from "./conversation.ts";
 import type { Scenario } from "./fixtures.ts";
+import type { JudgeVerdict } from "./judge.ts";
 
 export type ConversationMetrics = {
   startScore: number;
@@ -44,7 +45,11 @@ export type ConversationMetrics = {
   /** Annonces « C'est fait » alors qu'une partie a été refusée, que rien n'a changé ou qu'une puce citée est restée identique. */
   unfaithfulClaims: number;
   unfaithfulExamples: string[];
-  /** Questions directes du candidat (« c'est prêt ? », « peut-on valider ? ») restées sans réponse. */
+  /**
+   * Questions fermées du candidat (« c'est prêt ? », « peut-on valider ? », « tu vois autre chose à
+   * changer ? ») restées sans réponse. Les questions ouvertes ou indirectes (« je ne sais pas si mon
+   * B1 a sa place ») sont relevées par le juge (`judgeUnanswered`).
+   */
   directQuestionsIgnored: number;
   directQuestionExamples: string[];
   /** « Je n'ai plus de question » puis une nouvelle question du coach. */
@@ -52,7 +57,12 @@ export type ConversationMetrics = {
   /** Lapsus : le coach se reprend dans son message (« Passons à ton stage… plutôt ton poste »). */
   lapses: number;
   lapseExamples: string[];
+  /** Questions du coach qui reprennent l'une de ses questions précédentes (mots pleins à 80 % communs). */
   repeatedQuestions: number;
+  /** Messages du coach qui annoncent une écriture puis demandent de confirmer ce fait (L02 : « je mets juillet… est-ce bien juillet ? »). */
+  announcedThenAsked: number;
+  /** Questions ou suggestions du candidat restées sans réponse, relevées par le juge ; null sans juge ou ancien juge. */
+  judgeUnanswered: number | null;
   /** Messages du coach écrits dans une autre langue que celle du candidat. */
   languageMismatches: number;
   /** Demande explicite : exécutée (true), non (false), sans objet (null). */
@@ -275,6 +285,27 @@ function jaccard(a: Set<string>, b: Set<string>) {
   return inter / (a.size + b.size - inter);
 }
 
+/** Le coach annonce avoir écrit (ou écrire) un fait… */
+const ANNOUNCES_WRITE =
+  /\b(je mets|j'ai mis|j'inscris|j'ai inscrit|je note|j'ai noté|c'est fait|j'ai ajouté|j'ajoute|j'ai précisé|je précise|i'?ve (added|put|set|written|updated)|i'?ll put|i'?m putting)\b/i;
+/** … puis demande au candidat de confirmer ce même fait. */
+const CONFIRM_QUESTION =
+  /\b(est-ce bien|c'est bien|tu confirmes|confirmes-tu|(peux|pourrais)-tu (me )?(le |la |les )?confirmer|is (that|this|it) (right|correct)|can you confirm|could you confirm)\b/i;
+
+/**
+ * Messages du coach qui annoncent une écriture et demandent, dans le même message, de confirmer un
+ * fait (run 2026-11-15T23-04-28, L02 : « je mets bien Juillet 2025 à Août 2025 … est-ce bien
+ * juillet et août ? »). Une suite proposée (« Je continue avec… ? ») ou une autre question n'en est pas.
+ */
+export function announcedThenAsked(coachTexts: string[]) {
+  return coachTexts.filter((text) => ANNOUNCES_WRITE.test(text) && (text.match(/[^.!?]*\?/g) ?? []).some((q) => CONFIRM_QUESTION.test(q))).length;
+}
+
+/** Questions sans réponse relevées par le juge ; null sans juge, ou pour un juge sans ce champ (anciens rapports). */
+export function judgeUnansweredOf(judge: JudgeVerdict | (Omit<JudgeVerdict, "questions_sans_reponse"> & { questions_sans_reponse?: string[] }) | null) {
+  return judge && Array.isArray(judge.questions_sans_reponse) ? judge.questions_sans_reponse.length : null;
+}
+
 /** Questions qui reprennent une question d'un message précédent du coach (mots pleins à 80 % communs). */
 function repeatedQuestions(texts: string[]) {
   let repeated = 0;
@@ -332,6 +363,8 @@ const READY_ANSWER =
 /** Jargon du score dans un message du coach (hors passages cités). */
 const JARGON = /verbes? d'action|action verbs?|mots-clés ATS|ATS keywords|\(\+\d+ pts?\)|formules? à éviter/i;
 const withoutQuotes = (text: string) => text.replace(/«[^»]*»|“[^”]*”|"[^"]*"/g, " ");
+/** Réponse à « que reste-t-il à améliorer ? » : celle de « prêt ? », ou des pistes données (O05 : « Oui, deux pistes… »). */
+const IMPROVE_ANSWER = /\bpistes?\b|\bideas?\b|\bimprovements?\b/i;
 /** Réponse explicite du coach à une question directe. */
 const ANSWER =
   /(\b(oui|non|pas encore|pas tout à fait|pas de souci|d'accord|bien sûr|entendu|c'est prêt|ton cv est prêt|il est prêt|elle est prêt|n'est pas (encore )?prêt|est bien|sont bien|je confirme|confirmé|tout à fait|effectivement|on garde|yes|no|sure|of course|not yet|it is ready|it's ready|confirmed)\b|\b\d+\s*\/\s*100\b|seuil|pistes? facultatives?|rien d'important|nothing important|optional improvements?)/i;
@@ -369,6 +402,24 @@ function questionsAfterRefusals(record: ConversationRecord, allCoach: string[]) 
   return count;
 }
 
+/**
+ * Questions fermées du candidat restées sans réponse au même tour. « Prêt ? » / « si c'est prêt on
+ * s'arrête » : il faut une vraie réponse (score, prêt ou pas encore) ; « que reste-t-il ? » : celle-
+ * là, un oui/non ou des pistes (O05 : « Oui, deux pistes… ») ; « pas de souci » ou une question à la
+ * place ne suffisent pas.
+ */
+export function ignoredDirectQuestions(turns: Pick<TurnRecord, "user" | "coachText" | "error">[]) {
+  const answered = (user: string, coach: string) =>
+    isReadinessQuestion(user) || asksToStopIfReady(user)
+      ? READY_ANSWER.test(coach)
+      : asksWhatToImprove(user)
+        ? READY_ANSWER.test(coach) || ANSWER.test(coach) || IMPROVE_ANSWER.test(coach)
+        : ANSWER.test(coach);
+  return turns
+    .filter((t) => isDirectQuestion(t.user) && (t.error !== null || !answered(t.user, t.coachText)))
+    .map((t) => `${t.user.match(/[^.!?]*\?/)?.[0].trim() ?? t.user.slice(0, 120)} → ${t.coachText.slice(0, 120)}`);
+}
+
 export function computeMetrics(record: ConversationRecord, scenario: Scenario): ConversationMetrics {
   const coachTexts = record.turns.filter((t) => !t.error).map((t) => t.coachText);
   const allCoach = [record.opening ?? "", ...coachTexts];
@@ -397,13 +448,7 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     .filter((x): x is string => x !== null);
 
   // Questions directes du candidat : la réponse du coach au même tour doit y répondre.
-  // « Prêt ? » / « que reste-t-il ? » / « si c'est prêt on s'arrête » : il faut une vraie réponse
-  // (score, prêt ou pas encore, pistes) ; « pas de souci » ou un « oui » sur autre chose ne suffit pas.
-  const answered = (user: string, coach: string) =>
-    isReadinessQuestion(user) || asksWhatToImprove(user) || asksToStopIfReady(user) ? READY_ANSWER.test(coach) : ANSWER.test(coach);
-  const ignoredQuestions = record.turns
-    .filter((t) => isDirectQuestion(t.user) && (t.error !== null || !answered(t.user, t.coachText)))
-    .map((t) => `${t.user.match(/[^.!?]*\?/)?.[0].trim() ?? t.user.slice(0, 120)} → ${t.coachText.slice(0, 120)}`);
+  const ignoredQuestions = ignoredDirectQuestions(record.turns);
 
   // « Plus de question » puis une question : dans le même message après la phrase, ou dans un
   // message de parcours suivant qui ne répond pas à une question du candidat (s'il demande des
@@ -467,6 +512,8 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     lapses: lapses.length,
     lapseExamples: lapses.slice(0, 3),
     repeatedQuestions: repeatedQuestions(allCoach),
+    announcedThenAsked: announcedThenAsked(coachTexts),
+    judgeUnanswered: judgeUnansweredOf(record.judge),
     languageMismatches,
     requestDone: requestDone(scenario, record.startCv, record.endCv),
     titleProposals,

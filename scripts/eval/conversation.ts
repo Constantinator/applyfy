@@ -60,6 +60,13 @@ export type TurnRecord = {
   unchangedQuoted: string[];
   scoreBefore: number;
   scoreAfter: number;
+  /**
+   * Réponse brute du modèle retenue (second essai s'il a eu lieu) : « change_summary » et
+   * « message », avant le texte décidé par le serveur. Absents des rapports d'avant ce lot et des
+   * échanges en erreur.
+   */
+  modelChangeSummary?: string;
+  modelMessage?: string;
 };
 
 export type ConversationRecord = {
@@ -282,6 +289,10 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
             return second;
           },
         });
+        // Réponse brute retenue : second essai s'il a eu lieu et répondu, sinon la première.
+        const kept: CoachReply = (result.kind === "done" && result.retried ? (second as CoachReply | null) : null) ?? reply;
+        turn.modelChangeSummary = kept.changeSummary;
+        turn.modelMessage = kept.message;
         if (result.kind === "done") {
           const notice = fitted.fixes[0]?.message;
           turn.coachText = result.applied && notice ? `${notice} ${result.text}` : result.text;

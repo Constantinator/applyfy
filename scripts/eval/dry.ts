@@ -114,7 +114,7 @@ function drySimulator(scenario: Scenario): ParseClient {
 function dryJudge(): ParseClient {
   const note = { note: 3, justification: "[dry] note factice" };
   return fake(
-    () => ({ respect_demande: note, utilite_question: note, honnetete: note, aucune_invention: note, ton: note, pistes: ["[dry] piste factice"] }),
+    () => ({ respect_demande: note, utilite_question: note, honnetete: note, aucune_invention: note, ton: note, questions_sans_reponse: [], pistes: ["[dry] piste factice"] }),
     1200,
   );
 }

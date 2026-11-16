@@ -257,3 +257,57 @@ test("annonce de l'accroche : texte court cité en entier, en anglais aussi", ()
   assert.equal(outcome.coachReplyText({ ...base, lang: "fr", summaryText: "Chef de projet événementiel junior." }), "C'est fait : ton accroche est maintenant « Chef de projet événementiel junior ».");
   assert.equal(outcome.coachReplyText({ ...base, lang: "en", summaryText: "Backend engineer with 7 years of Go." }), "Done: your summary now reads “Backend engineer with 7 years of Go”.");
 });
+
+// --- 5. Mesures du banc d'essai ---
+
+const metrics = await import("../../scripts/eval/metrics.ts");
+const judge = await import("../../scripts/eval/judge.ts");
+
+const exchange = (user, coachText) => ({ user, coachText, error: null });
+const O05_ANSWER =
+  "Oui, deux pistes si tu veux aller plus loin. Chez Cabinet Exemple Stratégie (Consultant), deux puces ne disent pas l'ampleur de ton travail : « Réalisation de diagnostics stratégiques pour des ETI de la distribution » gagnerait à préciser combien de missions.";
+
+test("O05 rejoué : « Oui, deux pistes… » répond à « Tu vois autre chose à changer ? » (faux positif)", () => {
+  assert.deepEqual(metrics.ignoredDirectQuestions([exchange("Tu vois autre chose à changer pour cette offre ?", O05_ANSWER)]), []);
+});
+
+test("questions oui/non ignorées : non-déclenchement du correctif (vraies absences de réponse gardées)", () => {
+  for (const [user, coach] of [
+    ["Tu vois autre chose à changer pour cette offre ?", "Dis-moi si tu veux une modification précise."],
+    ["Tu vois autre chose à changer pour cette offre ?", "Combien de missions as-tu menées ?"],
+    // « Prêt ? » exige toujours le score ou « pas encore » : deux pistes ne suffisent pas.
+    ["Est-ce que mon CV est prêt ?", "Oui, deux pistes si tu veux aller plus loin."],
+  ]) {
+    assert.equal(metrics.ignoredDirectQuestions([exchange(user, coach)]).length, 1, `${user} → ${coach}`);
+  }
+});
+
+/** L02, échange 2 : le coach dit écrire les mois, n'écrit rien, et redemande les mois donnés. */
+const L02_ASKED_AGAIN =
+  "Pour ton stage de Stagiaire développeur chez Startup Exemple, je mets bien « Juillet 2025 » à « Août 2025 », en laissant les jours de côté. Ta convention de stage peut confirmer les mois : est-ce bien juillet et août ?";
+
+test("L02 rejoué : annonce d'une écriture puis demande de confirmation du même fait (faux négatif)", () => {
+  assert.equal(metrics.announcedThenAsked([L02_ASKED_AGAIN]), 1);
+});
+
+test("annonce puis redemande : non-déclenchement (autre question, confirmation sans annonce, suite proposée)", () => {
+  for (const text of [
+    "C'est fait : « Correction d'une vingtaine de bugs » — Stagiaire développeur chez Startup Exemple (puce 1). Combien de pages as-tu développées ?",
+    "Ton stage indique seulement « 2025 ». Est-ce bien juillet et août ?",
+    "C'est fait : j'ai traduit ton accroche. Je continue avec ta formation ?",
+    "C'est fait : j'ai remplacé ton titre. Oui, c'est cohérent avec ton accroche. Veux-tu que je reformule l'accroche sans « je » ?",
+    "Done: your summary is in French. Shall I continue with your experience?",
+  ]) {
+    assert.equal(metrics.announcedThenAsked([text]), 0, text);
+  }
+});
+
+test("juge : questions sans réponse relevées, juge marqué différent, ancien rapport lu avec un repli", () => {
+  assert.ok("questions_sans_reponse" in judge.JudgeSchema.shape);
+  // Le run de référence 2026-11-15T23-04-28 avait ce juge : la comparaison doit le dire différent.
+  assert.notEqual(judge.JUDGE_OFFER_INPUT, "offre complète fournie (intitulé, description, mots-clés)");
+  const old = { respect_demande: { note: 3, justification: "" }, utilite_question: { note: 3, justification: "" }, honnetete: { note: 4, justification: "" }, aucune_invention: { note: 5, justification: "" }, ton: { note: 4, justification: "" }, pistes: [] };
+  assert.equal(metrics.judgeUnansweredOf(old), null);
+  assert.equal(metrics.judgeUnansweredOf(null), null);
+  assert.equal(metrics.judgeUnansweredOf({ ...old, questions_sans_reponse: ["la place de mon anglais B1"] }), 1);
+});

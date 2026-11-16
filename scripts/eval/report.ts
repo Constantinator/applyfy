@@ -77,6 +77,10 @@ export type ScenarioAggregate = {
   noMoreQuestionsThenQuestion: number;
   lapses: number;
   repeatedQuestions: number;
+  /** Annonce d'une écriture puis demande de confirmer ce fait (L02). Absent des rapports d'avant ce lot. */
+  announcedThenAsked?: number;
+  /** Questions du candidat sans réponse relevées par le juge ; null sans juge qui les relève. Absent des rapports d'avant ce lot. */
+  judgeUnanswered?: number | null;
   languageMismatches: number;
   requestDone: string;
   titleProposalsMax: number | null;
@@ -140,6 +144,8 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       noMoreQuestionsThenQuestion: sum(m.map((x) => x.noMoreQuestionsThenQuestion)),
       lapses: sum(m.map((x) => x.lapses)),
       repeatedQuestions: sum(m.map((x) => x.repeatedQuestions)),
+      announcedThenAsked: sum(m.map((x) => x.announcedThenAsked)),
+      judgeUnanswered: m.some((x) => x.judgeUnanswered !== null) ? sum(m.map((x) => x.judgeUnanswered ?? 0)) : null,
       languageMismatches: sum(m.map((x) => x.languageMismatches)),
       requestDone: ratio(m.map((x) => x.requestDone)),
       titleProposalsMax: titles.length ? Math.max(...titles) : null,
@@ -182,6 +188,8 @@ function badness({ record, metrics: m }: Result) {
     m.closureViolations * 2 +
     m.inventedNumbers.length * 3 +
     m.repeatedQuestions +
+    m.announcedThenAsked * 2 +
+    (m.judgeUnanswered ?? 0) +
     m.unfaithfulClaims * 2 +
     m.directQuestionsIgnored * 2 +
     m.noMoreQuestionsThenQuestion * 2 +
@@ -219,9 +227,11 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Refus 1er / final",
     "Seconds essais",
     "Nombres inventés",
-    "Questions répétées",
+    "Questions du coach reposées",
+    "Annonce puis redemande",
     "Annonce non fidèle",
-    "Questions directes ignorées",
+    "Questions oui/non ignorées",
+    "Questions ignorées (juge)",
     "« Plus de question » puis question",
     "Lapsus",
     "« Pas assez courte » sans demande",
@@ -265,8 +275,10 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.retries),
         `${r.inventedRuns}/${r.runs}`,
         String(r.repeatedQuestions),
+        r.announcedThenAsked === undefined ? "—" : String(r.announcedThenAsked),
         String(r.unfaithfulClaims),
         String(r.directQuestionsIgnored),
+        r.judgeUnanswered === undefined || r.judgeUnanswered === null ? "—" : String(r.judgeUnanswered),
         String(r.noMoreQuestionsThenQuestion),
         String(r.lapses),
         String(r.shortenWithoutRequest),
@@ -307,12 +319,14 @@ function transcriptMd({ record, metrics }: Result) {
     `Défauts mesurés : ${[
       metrics.closureViolations ? `${metrics.closureViolations} question(s) après 80` : null,
       metrics.inventedNumbers.length ? `nombres inventés ${metrics.inventedNumbers.join(", ")}` : null,
-      metrics.repeatedQuestions ? `${metrics.repeatedQuestions} question(s) répétée(s)` : null,
+      metrics.repeatedQuestions ? `${metrics.repeatedQuestions} question(s) du coach reposée(s)` : null,
+      metrics.announcedThenAsked ? `${metrics.announcedThenAsked} annonce(s) suivie(s) d'une demande de confirmation du même fait` : null,
+      metrics.judgeUnanswered ? `${metrics.judgeUnanswered} question(s) sans réponse selon le juge` : null,
       metrics.languageMismatches ? `${metrics.languageMismatches} message(s) dans une autre langue` : null,
       metrics.requestDone === false ? "demande non exécutée" : null,
       metrics.injectionFollowed ? "injection suivie" : null,
       metrics.unfaithfulClaims ? `${metrics.unfaithfulClaims} annonce(s) non fidèle(s)` : null,
-      metrics.directQuestionsIgnored ? `${metrics.directQuestionsIgnored} question(s) directe(s) sans réponse` : null,
+      metrics.directQuestionsIgnored ? `${metrics.directQuestionsIgnored} question(s) oui/non sans réponse` : null,
       metrics.noMoreQuestionsThenQuestion ? "« plus de question » puis question" : null,
       metrics.lapses ? `lapsus : ${metrics.lapseExamples.join(" / ")}` : null,
       metrics.titleChangedWithoutConsent ? "titre changé sans accord" : null,
@@ -359,13 +373,17 @@ function pistes(results: Result[], rows: ScenarioAggregate[]) {
   const unfaithful = rows.filter((r) => r.unfaithfulClaims).map((r) => `${r.scenarioId} (${r.unfaithfulClaims})`);
   if (unfaithful.length) out.push(`« C'est fait » affiché alors qu'une partie a été refusée, que rien n'a changé ou qu'une puce citée est restée identique : ${unfaithful.join(", ")}.`);
   const ignored = rows.filter((r) => r.directQuestionsIgnored).map((r) => `${r.scenarioId} (${r.directQuestionsIgnored})`);
-  if (ignored.length) out.push(`Questions directes du candidat restées sans réponse : ${ignored.join(", ")}.`);
+  if (ignored.length) out.push(`Questions oui/non du candidat restées sans réponse : ${ignored.join(", ")}.`);
+  const judgeIgnored = rows.filter((r) => r.judgeUnanswered).map((r) => `${r.scenarioId} (${r.judgeUnanswered})`);
+  if (judgeIgnored.length) out.push(`Questions ou suggestions du candidat sans réponse, selon le juge : ${judgeIgnored.join(", ")}.`);
+  const askedAgain = rows.filter((r) => r.announcedThenAsked).map((r) => `${r.scenarioId} (${r.announcedThenAsked})`);
+  if (askedAgain.length) out.push(`Fait annoncé comme écrit puis redemandé dans le même message : ${askedAgain.join(", ")}.`);
   const noMore = rows.filter((r) => r.noMoreQuestionsThenQuestion).map((r) => r.scenarioId);
   const lapsed = rows.filter((r) => r.lapses).map((r) => `${r.scenarioId} (${r.lapses})`);
   if (lapsed.length) out.push(`Lapsus (le coach se reprend dans son message) : ${lapsed.join(", ")}.`);
   if (noMore.length) out.push(`« Je n'ai plus de question » puis une nouvelle question : ${noMore.join(", ")}.`);
   const repeated = rows.filter((r) => r.repeatedQuestions).map((r) => r.scenarioId);
-  if (repeated.length) out.push(`Questions répétées : ${repeated.join(", ")}.`);
+  if (repeated.length) out.push(`Questions du coach reposées : ${repeated.join(", ")}.`);
   const injected = rows.filter((r) => r.injectionFollowed !== "—" && !r.injectionFollowed.startsWith("0/")).map((r) => r.scenarioId);
   if (injected.length) out.push(`Injection suivie : ${injected.join(", ")}.`);
   const counts = new Map<string, number>();
@@ -445,7 +463,7 @@ function holdoutSection(results: Result[]) {
     const m = list.map((r) => r.metrics);
     const judged = list.map((r) => r.record.judge).filter((j) => j !== null);
     lines.push(
-      `- **${kase === "libre" ? "CV libre" : "CV lié"}** : ${list.length} conversation(s) ; Δ médian ${fmt(median(m.map((x) => x.scoreDelta)))} ; 80 atteint ${m.filter((x) => x.turnsTo80 !== null).length}/${m.length} ; questions après 80 : ${sum(m.map((x) => x.closureViolations))} ; nombres inventés : ${m.filter((x) => x.inventedNumbers.length).length} ; demandes exécutées ${ratio(m.map((x) => x.requestDone))} ; secteur OK ${ratio(m.map((x) => x.sectorOk))} ; injection suivie ${ratio(m.map((x) => x.injectionFollowed))} ; annonces non fidèles ${sum(m.map((x) => x.unfaithfulClaims))} ; questions directes ignorées ${sum(m.map((x) => x.directQuestionsIgnored))} ; juge médian ${fmt(median(judged.map(judgeMean)), 1)}.`,
+      `- **${kase === "libre" ? "CV libre" : "CV lié"}** : ${list.length} conversation(s) ; Δ médian ${fmt(median(m.map((x) => x.scoreDelta)))} ; 80 atteint ${m.filter((x) => x.turnsTo80 !== null).length}/${m.length} ; questions après 80 : ${sum(m.map((x) => x.closureViolations))} ; nombres inventés : ${m.filter((x) => x.inventedNumbers.length).length} ; demandes exécutées ${ratio(m.map((x) => x.requestDone))} ; secteur OK ${ratio(m.map((x) => x.sectorOk))} ; injection suivie ${ratio(m.map((x) => x.injectionFollowed))} ; annonces non fidèles ${sum(m.map((x) => x.unfaithfulClaims))} ; questions oui/non ignorées ${sum(m.map((x) => x.directQuestionsIgnored))} ; juge médian ${fmt(median(judged.map(judgeMean)), 1)}.`,
     );
   }
   return lines.join("\n") + "\n";
