@@ -218,6 +218,12 @@ test("nombres douteux : même proposition et 4 mots au plus (phrases exactes)", 
 /** L02, échange 4 : accroche réécrite par le coach en mode parcours, avec « mon ». */
 const L02_SUMMARY =
   "Étudiant en informatique en dernière année d'école d'ingénieurs, à la recherche d'un stage de fin d'études en développement web. Maîtrise de JavaScript, React, TypeScript, Git et des bases de Docker. Développement d'une API REST en Node.js pour mon projet de fin d'études, utilisée par 3 équipes de l'école.";
+/**
+ * Même accroche sans « Maîtrise » : pour les messages où le candidat ne dit pas « je maîtrise »,
+ * le niveau serait refusé (lot D, PROBLEM_INFLATED_LEVEL) ; ces tests ne portent que sur la
+ * première personne.
+ */
+const L02_SUMMARY_PLAIN = L02_SUMMARY.replace("Maîtrise de", "Connaissance de");
 const L02_SUMMARY_REQUEST =
   "Alors pour l'accroche, je maîtrise surtout JavaScript, React, TypeScript, Git et les bases de Docker, et côté projet j'ai développé une API REST en Node.js pour mon projet de fin d'études, utilisée par 3 équipes de mon école.";
 const summary = (data, mode = "parcours") => flat({ mode, section: "summary", change_summary: "C'est fait : accroche réécrite.", message: "", data });
@@ -258,7 +264,7 @@ test("1. parcours : refus aussi dans une puce et un projet (un pronom suffit)", 
 
 test("2. parcours : pas de refus quand le dernier message demande la première personne", async () => {
   for (const request of FIRST_PERSON_REQUESTS) {
-    const result = await play(techStage, [], request, summary(L02_SUMMARY));
+    const result = await play(techStage, [], request, summary(L02_SUMMARY_PLAIN));
     assert.equal(result.applied, 1, `${request} → ${result.text}`);
   }
 });
@@ -267,7 +273,7 @@ test("3. parcours : second essai refusé aussi, accroche inchangée, message hon
   const fr = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY));
   assert.equal(fr.updated.summary, techStage.summary);
   assert.equal(fr.text, FR_FAILED);
-  const en = await play(techStage, [], "For the summary, mention my Node.js REST API used by 3 teams at my school.", summary(L02_SUMMARY));
+  const en = await play(techStage, [], "For the summary, mention my Node.js REST API used by 3 teams at my school.", summary(L02_SUMMARY_PLAIN));
   assert.equal(en.updated.summary, techStage.summary);
   assert.equal(en.text, EN_FAILED);
 });

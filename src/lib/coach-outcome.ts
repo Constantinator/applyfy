@@ -9,6 +9,7 @@ import {
   PROBLEM_UNSURE_FIGURE,
   PROBLEM_FIRST_PERSON,
   PROBLEM_HESITATION,
+  PROBLEM_INFLATED_LEVEL,
   PROBLEM_LOST_FIGURE,
   PROBLEM_LOST_VERB,
   PROBLEM_NEW_NUMBER_PREFIX,
@@ -50,6 +51,7 @@ const TEXTS = {
     unsureFigure: "tu m'as donné ce chiffre avec un doute, je laisse donc la puce telle quelle.",
     firstPerson: "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »), je laisse donc ce passage tel quel.",
     hesitation: "le texte proposé gardait une hésitation (« il me semble », « je crois »), qui n'a pas sa place dans un CV : je n'ai pas écrit ce passage.",
+    inflatedLevel: "le texte proposé annonçait un niveau que tu n'as pas dit (« maîtrise », « expert », « avancé ») : je n'ai pas écrit ce passage.",
     schoolProject: "Si c'était un projet d'école plutôt qu'une mission de ton stage, dis-le-moi : je le mettrai dans tes projets.",
     bulletsDone: (items: string) => `C'est fait : ${items}.`,
     bulletWritten: (quote: string, place: string) => `« ${quote} » — ${place}`,
@@ -116,6 +118,7 @@ const TEXTS = {
     unsureFigure: "you gave me this number with some doubt, so I'm leaving the bullet as it is.",
     firstPerson: "the proposed text spoke about you in the first person (“je”, “mon”, “mes”), so I'm leaving it as it is.",
     hesitation: "the proposed text kept a hesitation (“I think”, “I believe”), which has no place in a CV: I didn't write that passage.",
+    inflatedLevel: "the proposed text claimed a level you didn't state (“mastery”, “expert”, “advanced”): I didn't write that passage.",
     schoolProject: "If it was a school project rather than a task from your internship, tell me: I'll put it in your projects.",
     bulletsDone: (items: string) => `Done: ${items}.`,
     bulletWritten: (quote: string, place: string) => `“${quote}” — ${place}`,
@@ -255,6 +258,7 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_UNSURE_FIGURE) return [{ kind: "faithful", text: t.unsureFigure }];
     if (p === PROBLEM_FIRST_PERSON) return [{ kind: "faithful", text: t.firstPerson }];
     if (p === PROBLEM_HESITATION) return [{ kind: "faithful", text: t.hesitation }];
+    if (p === PROBLEM_INFLATED_LEVEL) return [{ kind: "faithful", text: t.inflatedLevel }];
     if (p === PROBLEM_STUDENT_TITLE) return [{ kind: "faithful", text: t.studentTitle }];
     if (p.startsWith(PROBLEM_INFLATED_TITLE_PREFIX)) return [{ kind: "faithful", text: t.inflatedTitle(p.slice(PROBLEM_INFLATED_TITLE_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {

@@ -423,6 +423,32 @@ const HESITATION = /(?<![\p{L}])(il me semble|je crois|je pense|peut-etre|i thin
 function hesitationCount(text: string): number {
   return (fold(text.replace(QUOTED, " ")).match(HESITATION) ?? []).length;
 }
+/**
+ * Niveau que le candidat n'a pas dit (run 2026-11-16T03-20-31, L02 : « Maîtrise de React,
+ * TypeScript, Git » alors que le candidat dit « je connais » ; O06 du 16/11 : « Maîtrise de
+ * JavaScript… ») : un mot de niveau ajouté dont la famille n'est ni dans les messages du candidat
+ * ni dans le CV est refusé. L'offre n'en est pas une source.
+ */
+export const PROBLEM_INFLATED_LEVEL =
+  "annonce un niveau que le candidat n'a pas dit (« maîtrise », « expert », « avancé »…) : écris « connaissance de », « utilisation de » ou les mots du candidat";
+/**
+ * Familles de mots de niveau (texte sans accents, en minuscules), français et anglais ensemble :
+ * une traduction (« Excel avancé » → « advanced Excel ») garde sa source. « Master » (le diplôme)
+ * et « expert-comptable » (un métier) n'en sont pas.
+ */
+const LEVEL_FAMILIES: RegExp[] = [
+  /(?<![\p{L}])(maitris\p{L}*|mastery|proficien\p{L}*)(?![\p{L}])/gu,
+  /(?<![\p{L}-])(experte?s?|expertises?)(?![\p{L}-])/gu,
+  /(?<![\p{L}])(avancee?s?|advanced)(?![\p{L}])/gu,
+  /(?<![\p{L}])(experimentee?s?|experienced|seasoned)(?![\p{L}])/gu,
+  /(?<![\p{L}])(confirmee?s?)(?![\p{L}])/gu,
+  /(?<![\p{L}])(chevronnee?s?)(?![\p{L}])/gu,
+];
+const levelCount = (family: RegExp, text: string) => (fold(text.replace(QUOTED, " ")).match(family) ?? []).length;
+/** Familles de niveau ajoutées par le texte (plus d'occurrences qu'avant) et absentes des sources. */
+function inflatedLevels(text: string, before: string, sources: string): boolean {
+  return LEVEL_FAMILIES.some((family) => levelCount(family, text) > levelCount(family, before) && levelCount(family, sources) === 0);
+}
 /** Nom propre qui commence par « Mon / Ma / Mes » (« Mon Covoit Étudiant »). */
 const PROPER_NAME = /\b(?:Mon|Ma|Mes)(?:\s+\p{Lu}[\p{L}'-]*)+/gu;
 
@@ -749,6 +775,19 @@ export function checkProposal(
       const same = problems.find((q) => q.changeId === change.id);
       if (same) same.problems.push(PROBLEM_HESITATION);
       else problems.push({ changeId: change.id, text, problems: [PROBLEM_HESITATION] });
+      break;
+    }
+  }
+  // Niveau gonflé (tous les CV, tous les modes ; accroche, puces, projets) : refusé si sa famille
+  // n'est ni dans les messages du candidat ni dans le CV.
+  const levelSources = [...cvStrings(current), ...(options.candidateMessages ?? [])].join("\n");
+  for (const change of proposal.changes) {
+    if (!firstPersonChecked(change)) continue;
+    for (const { text } of changeTexts(change)) {
+      if (!inflatedLevels(text, change.before ?? "", levelSources)) continue;
+      const same = problems.find((q) => q.changeId === change.id);
+      if (same) same.problems.push(PROBLEM_INFLATED_LEVEL);
+      else problems.push({ changeId: change.id, text, problems: [PROBLEM_INFLATED_LEVEL] });
       break;
     }
   }

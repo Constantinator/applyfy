@@ -213,3 +213,72 @@ test("second essai : phrase neutre, juste pour noFigure comme pour une question 
   assert.ok(!text.includes("Le candidat a dit ne pas avoir le chiffre"), "faux après une question d'outils");
   assert.ok(!text.includes("termine ton message par une question précise pour obtenir ce chiffre"));
 });
+
+// --- 5. Niveau gonflé (« Maîtrise de React » alors que le candidat dit « je connais ») ---
+
+const { PROBLEM_INFLATED_LEVEL } = await import("./coach-proposals.ts");
+
+const tech = profile("tech-stage-fr");
+const finance = profile("finance-junior-fr");
+const SUMMARY_Q = "Passons à ton accroche : quel type de projet web aimerais-tu réaliser, et avec quelles technologies ?";
+const L02_ANSWER =
+  "J'aimerais travailler sur une application web complète. Côté technologies, je connais React, TypeScript, Git et les bases de Docker. Est-ce que tu peux me proposer une formulation sobre ?";
+const summaryReply = (text, mode = "parcours") => flat({ mode, section: "summary", change_summary: "C'est fait.", message: "", data: text });
+const summaryTurn = (cv, history, request, text, mode, detail = null) =>
+  turn(cv, contextFor(cv, detail, { history, request }), history, request, summaryReply(text, mode));
+const hasLevel = (result) => result.problems.some((p) => p.problems.includes(PROBLEM_INFLATED_LEVEL));
+
+test("niveau : « Maîtrise de React… » refusée quand le candidat dit « je connais » (L02, run du 16/11 03-20)", async () => {
+  const history = [{ role: "assistant", content: SUMMARY_Q }];
+  const inflated = await summaryTurn(tech, history, L02_ANSWER, "Étudiant en informatique, à la recherche d'un stage de fin d'études en développement web. Maîtrise de React, TypeScript, Git et bases de Docker.");
+  assert.equal(inflated.applied, 0);
+  assert.ok(hasLevel(inflated), JSON.stringify(inflated.problems));
+  assert.ok(inflated.text.includes("un niveau que tu n'as pas dit"), inflated.text);
+  // Les mots du candidat : écrit.
+  const plain = await summaryTurn(tech, history, L02_ANSWER, "Étudiant en informatique, à la recherche d'un stage de fin d'études en développement web. Connaissance de React, TypeScript, Git et bases de Docker.");
+  assert.equal(plain.applied, 1, JSON.stringify(plain.problems));
+  // Anglais et autres familles : refusés aussi.
+  for (const text of ["Computer science student with advanced React skills.", "Développeur expert en React.", "Étudiant expérimenté en développement web."]) {
+    assert.ok(hasLevel(await summaryTurn(tech, history, L02_ANSWER, text)), text);
+  }
+});
+
+test("niveau : refusé aussi en mode demande, et l'offre n'est pas une source", async () => {
+  const request = "Réécris mon accroche : je connais React et TypeScript.";
+  const demande = await summaryTurn(tech, [], request, "Étudiant en informatique : maîtrise de React et TypeScript.", "demande");
+  assert.ok(hasLevel(demande), JSON.stringify(demande.problems));
+  // CV lié à une offre qui demande la « maîtrise d'Excel » : toujours refusé.
+  const linked = await summaryTurn(tech, [], request, "Étudiant en informatique : maîtrise de React et TypeScript.", "demande", detailOf("o-finance-analyste"));
+  assert.ok(hasLevel(linked), JSON.stringify(linked.problems));
+});
+
+test("niveau : non-déclenchement (mots du candidat, CV, traduction, avancement, expert-comptable, titre)", async () => {
+  // Le candidat dit « je maîtrise » (L11, O01) : écrit.
+  const said = await summaryTurn(finance, [], "Réécris mon accroche, je maîtrise Excel avancé (tableaux croisés, macros simples).", "Analyste financière junior : maîtrise d'Excel avancé (tableaux croisés dynamiques, macros simples).", "demande");
+  assert.ok(!hasLevel(said), JSON.stringify(said.problems));
+  // « Excel » déjà au niveau avancé dans le CV : « Excel avancé » permis.
+  const fromCv = await summaryTurn(finance, [], "Réécris mon accroche.", "Analyste financière junior, Excel avancé, première expérience en banque et en audit.", "demande");
+  assert.ok(!hasLevel(fromCv), JSON.stringify(fromCv.problems));
+  // Traduction : « Excel avancé » du CV → « advanced Excel ».
+  const french = { ...finance, summary: "Analyste financière junior, Excel avancé.", skills: finance.skills.map((s) => ({ ...s, level: "" })) };
+  const translated = await summaryTurn(french, [], "Traduis mon accroche en anglais.", "Junior financial analyst, advanced Excel.", "demande");
+  assert.ok(!hasLevel(translated), JSON.stringify(translated.problems));
+  // Même famille déjà dans le texte d'origine, pas plus d'occurrences : permis.
+  const kept = { ...tech, summary: "Étudiant en informatique, maîtrise de React." };
+  const shorter = await summaryTurn(kept, [], "Raccourcis mon accroche.", "Étudiant, maîtrise de React.", "demande");
+  assert.ok(!hasLevel(shorter), JSON.stringify(shorter.problems));
+  // « avancement », « expert-comptable » : pas des mots de niveau.
+  const history = [{ role: "assistant", content: "Pour ton stage chez Startup Exemple, sur quoi portaient les réunions d'équipe ?" }];
+  const bullets = flat({
+    section: "experience",
+    change_summary: "C'est fait.",
+    data: JSON.stringify({ id: "ts-e1", bullets: [{ index: 1, after: "Suivi de l'état d'avancement de 2 pages en React avec l'expert-comptable du client" }] }),
+  });
+  const request = "On faisait le point sur l'avancement des 2 pages.";
+  const progress = await turn(tech, contextFor(tech, null, { history, request }), history, request, bullets);
+  assert.ok(!hasLevel(progress), JSON.stringify(progress.problems));
+  // Titre du CV : pas vérifié par ce contrôle.
+  const title = flat({ mode: "demande", section: "personal", change_summary: "C'est fait.", data: JSON.stringify({ jobTitle: "Développeur React confirmé" }) });
+  const titled = await turn(tech, contextFor(tech, null, { history: [], request: "Change mon titre." }), [], "Change mon titre.", title);
+  assert.ok(!hasLevel(titled), JSON.stringify(titled.problems));
+});
