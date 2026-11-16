@@ -1,4 +1,5 @@
 import type { CoachLang } from "./coach-outcome";
+import { plainCoachText } from "./coach-plain";
 import { READY_SCORE } from "./cv-score";
 
 // Le coach écoute (lot « le coach écoute ») : intentions du candidat lues par le serveur dans ses
@@ -9,9 +10,11 @@ import { READY_SCORE } from "./cv-score";
 /**
  * « C'est prêt ? », « Est-ce que ton CV est maintenant prêt ? », « tu peux me dire si mon CV est
  * prêt », « ça suffit pour finaliser ? », « is my CV ready now? » : le serveur répond avec le score.
+ * « Est-ce que ça suffit pour reformuler la puce ? » n'en est pas une (run 2026-11-16T03-20-31,
+ * L14) : « suffit pour » ne compte que devant postuler, finaliser ou envoyer.
  */
 const READINESS =
-  /(est-ce (que )?(c'est |mon cv est |il est |le cv est )?(pr[êe]t|bon|fini|termin[ée]|valid[ée])|c'est (pr[êe]t|bon|fini|ok)\s*\?|(mon|ton|le) cv est(-il)? (maintenant |d[ée]sormais |enfin |vraiment )?(pr[êe]t|bon)\s*\?|(peut-on|on peut|je peux|puis-je) (valider|le valider|l'envoyer|envoyer|postuler)|is (it|my cv) (ready|done|good|ok)|can (we|i) (validate|send|apply)|are we done|am i (ready|done))|(est-ce que|tu peux me dire si|peux-tu me dire si|dis-moi si|tu me dis si) (mon|ton|le) cv (est|serait) (maintenant |d[ée]sormais |enfin |vraiment |bien )?(pr[êe]t|bon|fini|ok|suffisant|complet)|est-ce que (ça|c'est|cela) suffi(t|sant)|(ça|cela) suffit(-il)? pour (finaliser|postuler|l'envoyer|envoyer)|reste-t-il (des points|quelque chose|encore)|il reste (des points|quelque chose|encore)[^.?!]*\?|is (my|the) cv (now |finally )?(ready|good enough|done)|is (it|that) enough|(can you )?tell me if (my|the) cv is ready|anything (else )?left to (fix|do)/i;
+  /(est-ce (que )?(c'est |mon cv est |il est |le cv est )?(pr[êe]t|bon|fini|termin[ée]|valid[ée])|c'est (pr[êe]t|bon|fini|ok)\s*\?|(mon|ton|le) cv est(-il)? (maintenant |d[ée]sormais |enfin |vraiment )?(pr[êe]t|bon)\s*\?|(peut-on|on peut|je peux|puis-je) (valider|le valider|l'envoyer|envoyer|postuler)|is (it|my cv) (ready|done|good|ok)|can (we|i) (validate|send|apply)|are we done|am i (ready|done))|(est-ce que|tu peux me dire si|peux-tu me dire si|dis-moi si|tu me dis si) (mon|ton|le) cv (est|serait) (maintenant |d[ée]sormais |enfin |vraiment |bien )?(pr[êe]t|bon|fini|ok|suffisant|complet)|est-ce que (ça|c'est|cela) suffi(t|sant)(?!\s+pour (?!postuler|finaliser|l'envoyer|envoyer|candidater))|(ça|cela) suffit(-il)? pour (finaliser|postuler|l'envoyer|envoyer)|reste-t-il (des points|quelque chose|encore)|il reste (des points|quelque chose|encore)[^.?!]*\?|is (my|the) cv (now |finally )?(ready|good enough|done)|is (it|that) enough(?!\s+(to|for) (?!apply|send|submit))|(can you )?tell me if (my|the) cv is ready|anything (else )?left to (fix|do)/i;
 /** « Il y a encore des choses à améliorer ? », « tu vois autre chose à changer ? » : pistes concrètes, ou rien d'important. */
 const IMPROVE =
   /(encore des (choses|points|trucs) [àa] (am[ée]liorer|changer|corriger)|(un|des) points? (pr[ée]cis )?[àa] am[ée]liorer|qu'est-ce (qui|que je peux|qu'on peut|que tu) (reste|encore)? ?(à )?(am[ée]liorer|changer)|que (reste-t-il|puis-je|peut-on) (encore )?(à )?am[ée]liorer|tu vois (encore )?autre chose (à|de) (changer|am[ée]liorer|corriger)|y a-t-il (encore )?(quelque chose|des choses|un point)[^.?!]{0,20}[àa] (am[ée]liorer|changer|corriger)|(anything|something) (else )?(to|i could|i can|i should) (improve|change)|what else (can|could|should) i (improve|change)|could (it|my cv) be improved)/i;
@@ -357,6 +360,9 @@ const CLOSURE = /Ton CV est prêt|Your CV is ready|Je n'ai plus de question|I ha
 const NON_ANSWER = /^(Dis-moi si tu veux une modification précise|Tell me if you want a specific change)/i;
 /** Constats écrits par le serveur (coach-outcome.ts) : jamais retirés comme formules répétées. */
 const SERVER_STATUS = /^(C'est fait|Done|Pas modifié|Not changed|Je n'ai pas pu|I couldn't|Je n'ai pas modifié|I didn't change|Certaines puces|Some bullets|Une partie|Part of)/;
+/** Réponse du modèle à « prêt ? » en tête de phrase : le serveur a déjà répondu. */
+const upper = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const MODEL_READINESS = /^\s*(pas (tout [àa] fait|encore)|not (yet|quite))\s*[:,]\s*/i;
 const normalizeSentence = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 const TEXTS = {
@@ -513,9 +519,22 @@ export function listenText(i: ListenInput): string {
     text = `${text} ${t.stopIfReady}`;
   }
 
-  // « C'est prêt ? » : réponse directe d'abord (sauf si le texte donne déjà ce score).
+  // « C'est prêt ? » : réponse directe d'abord (sauf si le texte donne déjà ce score). Ce qui bloque
+  // déjà dit mot pour mot dans un message précédent : pas redit (run 2026-11-16T03-20-31, L14). Le
+  // modèle ne répond pas une seconde fois : « Pas tout à fait : », « Pas encore : », « Not yet: » en
+  // tête d'une de ses phrases sont retirés (run 2026-11-16T02-55-59, L15).
   if (i.listening.readiness && !text.includes(`${i.score}/100`)) {
-    const answer = i.score >= READY_SCORE ? t.readyYes(i.score) : i.lang === "fr" ? TEXTS.fr.readyNo(i.score, gaps) : TEXTS.en.readyNo(i.score);
+    // Messages précédents tels qu'affichés (sans jargon, coach-plain.ts) ou tels qu'écrits.
+    const saidGaps = [`Ce qui bloque surtout : ${gaps}.`, plainCoachText(`Ce qui bloque surtout : ${gaps}.`)];
+    const blocking = gaps && i.previousCoach.some((m) => saidGaps.some((g) => m.includes(g))) ? "" : gaps;
+    const answer = i.score >= READY_SCORE ? t.readyYes(i.score) : i.lang === "fr" ? TEXTS.fr.readyNo(i.score, blocking) : TEXTS.en.readyNo(i.score);
+    const modelAnswer = (s: string) => !SERVER_STATUS.test(s) && MODEL_READINESS.test(s);
+    if (splitSentences(text).some(modelAnswer)) {
+      text = splitSentences(text)
+        .map((s) => (modelAnswer(s) ? upper(s.replace(MODEL_READINESS, "")) : s))
+        .filter((s) => s.trim())
+        .join(" ");
+    }
     text = `${answer} ${text}`;
   }
   return text;

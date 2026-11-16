@@ -73,3 +73,56 @@ test("type de question : « sans chiffre » n'en fait pas une question de chiffr
   assert.equal(intent.questionType("Tu veux que je la reformule maintenant, sans chiffre ?"), "detail");
   assert.equal(intent.questionType("Combien de personnes y participaient ?"), "chiffre");
 });
+
+// --- 3. Réponse « prêt ? » : pas de faux « prêt ? », pas de bloc redit, pas de double réponse ---
+
+test("« Est-ce que ça suffit pour reformuler la puce ? » n'est pas une question « prêt ? » (L14, tour 4)", () => {
+  assert.equal(intent.isReadinessQuestion("Est-ce que ça suffit pour reformuler la puce ?"), false);
+  assert.equal(intent.isReadinessQuestion("Is that enough to rewrite the bullet?"), false);
+  // Toujours des questions « prêt ? ».
+  assert.equal(intent.isReadinessQuestion("Est-ce que ça suffit ?"), true);
+  assert.equal(intent.isReadinessQuestion("Est-ce que ça suffit pour postuler ?"), true);
+  assert.equal(intent.isReadinessQuestion("Est-ce que c'est suffisant pour envoyer ma candidature ?"), true);
+  assert.equal(intent.isReadinessQuestion("Is that enough?"), true);
+  assert.equal(intent.isReadinessQuestion("Is it enough to apply?"), true);
+  assert.equal(intent.isReadinessQuestion("Est-ce que mon CV est prêt ?"), true);
+});
+
+const READY = { stopAll: false, stopFigures: false, readiness: true, confirmation: false, refusal: false, shorten: false };
+const GAPS = ["7 mots-clés du métier sur 10 visés (Marketing & Communication) (+4 pts)", "2 puces seulement (vise 3 à 6) — Assistante communication chez Agence Exemple (+3 pts)"];
+const BLOCK = "Ce qui bloque surtout : 7 mots-clés du métier sur 10 visés (Marketing & Communication) ; 2 puces seulement (vise 3 à 6) — Assistante communication chez Agence Exemple.";
+
+test("« prêt ? » : ce qui bloque, déjà dit mot pour mot, n'est pas redit (L14, tours 7 et 8)", () => {
+  const first = listen(READY, "Il reste surtout à étoffer ton CV.", { score: 75, scoreBefore: 75, corrections: GAPS, mode: "parcours" });
+  assert.ok(first.startsWith(`Pas encore : ton CV est à 75/100 (seuil de 80). ${BLOCK}`), first);
+  const second = listen(READY, "C'est fait : ton accroche commence maintenant par « Chargée… ».", {
+    score: 77,
+    scoreBefore: 75,
+    corrections: GAPS,
+    previousCoach: [first],
+  });
+  assert.ok(second.startsWith("Pas encore : ton CV est à 77/100 (seuil de 80). C'est fait"), second);
+  assert.ok(!second.includes("Ce qui bloque surtout"), second);
+  // Autres points bloquants : redits.
+  const other = listen(READY, "Il reste peu.", { score: 77, scoreBefore: 75, corrections: ["3 puces sans chiffre — Vendeur (+5 pts)"], previousCoach: [first] });
+  assert.ok(other.includes("Ce qui bloque surtout : 3 puces sans chiffre — Vendeur."), other);
+});
+
+test("« prêt ? » : « Pas tout à fait : » du modèle retiré quand le serveur a répondu (L15, tour 7)", () => {
+  const text =
+    "C'est fait : j'ai changé le titre de ton CV en « Commercial terrain B2B ». Pas tout à fait : le plus important qui reste, c'est d'étoffer ton poste de Vendeur.";
+  const shown = listen(READY, text, { score: 64, scoreBefore: 64, corrections: ["2 puces sans chiffre — Vendeur chez Boutique Exemple (+5 pts)"] });
+  assert.equal(
+    shown,
+    "Pas encore : ton CV est à 64/100 (seuil de 80). Ce qui bloque surtout : 2 puces sans chiffre — Vendeur chez Boutique Exemple. C'est fait : j'ai changé le titre de ton CV en « Commercial terrain B2B ». Le plus important qui reste, c'est d'étoffer ton poste de Vendeur.",
+  );
+  assert.ok(listen(READY, "Pas encore, il manque des chiffres.", { score: 60 }).endsWith(" Il manque des chiffres."));
+  const en = listen(READY, "Not yet: add figures to your internship.", { score: 60, lang: "en" });
+  assert.equal(en, "Not yet: your CV is at 60/100 (threshold 80). Add figures to your internship.");
+  // Sans réponse du serveur (pas de question « prêt ? ») : la phrase du modèle reste telle quelle.
+  const none = listen({ ...READY, readiness: false }, "Pas encore : il manque des chiffres.", { score: 60 });
+  assert.equal(none, "Pas encore : il manque des chiffres.");
+  // « Pas encore » au milieu d'une phrase : gardé.
+  const mid = listen(READY, "Ton accroche n'a pas encore de chiffre.", { score: 60 });
+  assert.ok(mid.endsWith("Ton accroche n'a pas encore de chiffre."), mid);
+});
