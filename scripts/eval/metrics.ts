@@ -16,7 +16,7 @@ import {
 import { COMMON_ACTION_VERBS } from "../../src/lib/cv-sector-context.ts";
 import { offerMarker } from "../../src/lib/coach-offer.ts";
 import { SCHOOL_PROJECT_TEXTS } from "../../src/lib/coach-outcome.ts";
-import { inventedNumbers, isPartialRole, keepsOldVerbAgainstCandidate, numberSources } from "../../src/lib/coach-proposals.ts";
+import { inflatedLevels, inventedNumbers, isPartialRole, keepsOldVerbAgainstCandidate, numberSources } from "../../src/lib/coach-proposals.ts";
 import { chatContent, cvDataToText, type CvData } from "../../src/lib/cv-builder-types.ts";
 import { READY_SCORE } from "../../src/lib/cv-score.ts";
 import type { ConversationRecord, TurnRecord } from "./conversation.ts";
@@ -96,6 +96,13 @@ export type ConversationMetrics = {
   monthQuestions: number;
   /** Phrases du serveur « projet d'école » après une puce ajoutée à un stage (lot C, O06 : 1 attendue). */
   schoolProjectPhrases: number;
+  /**
+   * Textes écrits (accroche, puces, projets) avec un niveau que le candidat n'a pas dit ni le CV de
+   * départ (« Maîtrise de React » : lot D, L02 ; attendu : 0).
+   */
+  inflatedLevels: number;
+  /** Messages du coach qui redisent mot pour mot un « Ce qui bloque surtout : … » déjà dit (lot D, L14 ; attendu : 0). */
+  readyBlocksRepeated: number;
 };
 
 /** Phrases de l'annonce qui disent qu'une partie n'a pas été appliquée. */
@@ -144,6 +151,28 @@ function candidateVerbLost(record: ConversationRecord) {
       const now = after?.bullets[i];
       if (now && now !== b && keepsOldVerbAgainstCandidate(b, now, messages, COMMON_ACTION_VERBS)) count++;
     });
+  }
+  return count;
+}
+
+/** Textes du CV que le score lit pour le niveau : accroche, puces, descriptions de projets. */
+const levelTexts = (cv: CvData) => [cv.summary, ...cv.experiences.flatMap((e) => e.bullets), ...cv.projects.map((p) => p.description)].filter(Boolean);
+
+/** Textes écrits (absents du CV de départ) avec un niveau absent des messages du candidat et du CV de départ. */
+function inflatedLevelsWritten(record: ConversationRecord) {
+  const sources = [cvDataToText(record.startCv), ...record.startCv.skills.map((k) => k.level), ...record.turns.map((t) => t.user)].join("\n");
+  const before = new Set(levelTexts(record.startCv));
+  return levelTexts(record.endCv).filter((t) => !before.has(t) && inflatedLevels(t, "", sources)).length;
+}
+
+/** « Ce qui bloque surtout : … » redit mot pour mot dans un message suivant du coach. */
+function readyBlocksRepeated(allCoach: string[]) {
+  const said = new Set<string>();
+  let count = 0;
+  for (const text of allCoach) {
+    const blocks = text.match(/Ce qui bloque surtout : [^]*?\.(?=\s|$)/g) ?? [];
+    if (blocks.some((b) => said.has(b))) count++;
+    for (const b of blocks) said.add(b);
   }
   return count;
 }
@@ -566,5 +595,7 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     candidateVerbLost: candidateVerbLost(record),
     monthQuestions: allCoach.filter(asksMonths).length,
     schoolProjectPhrases: allCoach.filter((t) => SCHOOL_PROJECT_TEXTS.some((p) => t.includes(p))).length,
+    inflatedLevels: inflatedLevelsWritten(record),
+    readyBlocksRepeated: readyBlocksRepeated(allCoach),
   };
 }

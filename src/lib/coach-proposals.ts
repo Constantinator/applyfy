@@ -446,7 +446,7 @@ const LEVEL_FAMILIES: RegExp[] = [
 ];
 const levelCount = (family: RegExp, text: string) => (fold(text.replace(QUOTED, " ")).match(family) ?? []).length;
 /** Familles de niveau ajoutées par le texte (plus d'occurrences qu'avant) et absentes des sources. */
-function inflatedLevels(text: string, before: string, sources: string): boolean {
+export function inflatedLevels(text: string, before: string, sources: string): boolean {
   return LEVEL_FAMILIES.some((family) => levelCount(family, text) > levelCount(family, before) && levelCount(family, sources) === 0);
 }
 /** Nom propre qui commence par « Mon / Ma / Mes » (« Mon Covoit Étudiant »). */

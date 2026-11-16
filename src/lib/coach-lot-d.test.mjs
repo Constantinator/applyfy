@@ -282,3 +282,66 @@ test("niveau : non-déclenchement (mots du candidat, CV, traduction, avancement,
   const titled = await turn(tech, contextFor(tech, null, { history: [], request: "Change mon titre." }), [], "Change mon titre.", title);
   assert.ok(!hasLevel(titled), JSON.stringify(titled.problems));
 });
+
+// --- Banc d'essai : mesures du lot D ---
+
+const evalMetrics = await import("../../scripts/eval/metrics.ts");
+
+/** Enregistrement minimal d'une conversation du banc d'essai. */
+function record(startCv, endCv, exchanges) {
+  return {
+    scenarioId: "X",
+    case: "libre",
+    repeat: 0,
+    language: "fr",
+    sectorStart: "tech",
+    startScore: 60,
+    endScore: 60,
+    startCv,
+    endCv,
+    opening: "Bonjour, on commence par ton stage ?",
+    offer: null,
+    judge: null,
+    endReason: "fin",
+    turns: exchanges.map(([user, coachText]) => ({
+      user,
+      coachText,
+      error: null,
+      mode: "parcours",
+      scoreBefore: 60,
+      scoreAfter: 60,
+      applied: 0,
+      retried: false,
+      problems: [],
+      firstProblems: [],
+      claim: null,
+      unchangedQuoted: [],
+      skipped: [],
+      section: null,
+      offerGap: "",
+    })),
+  };
+}
+const scenario = { id: "X", case: "libre", expectedSector: "tech" };
+
+test("banc d'essai : niveau gonflé écrit compté (L02), pas les mots du candidat ni du CV", () => {
+  const inflated = { ...tech, summary: "Étudiant en informatique. Maîtrise de React, TypeScript et Git." };
+  const m = evalMetrics.computeMetrics(record(tech, inflated, [[L02_ANSWER, "C'est fait."]]), scenario);
+  assert.equal(m.inflatedLevels, 1);
+  const said = evalMetrics.computeMetrics(record(tech, inflated, [["Je maîtrise React, TypeScript et Git.", "C'est fait."]]), scenario);
+  assert.equal(said.inflatedLevels, 0);
+  const excel = { ...finance, summary: "Analyste financière junior, Excel avancé." };
+  assert.equal(evalMetrics.computeMetrics(record(finance, excel, [["Réécris mon accroche.", "C'est fait."]]), scenario).inflatedLevels, 0, "niveau des compétences du CV");
+});
+
+test("banc d'essai : bloc « Ce qui bloque surtout » redit mot pour mot compté (L14)", () => {
+  const m = evalMetrics.computeMetrics(
+    record(tech, tech, [
+      ["Est-ce que mon CV est prêt ?", `Pas encore : ton CV est à 75/100 (seuil de 80). ${BLOCK} Il reste à étoffer ton CV.`],
+      ["Et maintenant ?", `Pas encore : ton CV est à 77/100 (seuil de 80). ${BLOCK} C'est fait.`],
+      ["Prêt ?", "Pas encore : ton CV est à 77/100 (seuil de 80). Ce qui bloque surtout : 3 puces sans chiffre — Vendeur. Rien d'autre."],
+    ]),
+    scenario,
+  );
+  assert.equal(m.readyBlocksRepeated, 1);
+});

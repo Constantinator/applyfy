@@ -108,6 +108,9 @@ export type ScenarioAggregate = {
   /** Lot C : questions de mois (max par lancement), phrases « projet d'école » (somme). */
   monthQuestionsMax: number;
   schoolProjectPhrases: number;
+  /** Lot D : niveaux gonflés écrits, blocs « Ce qui bloque surtout » redits (sommes). */
+  inflatedLevels: number;
+  readyBlocksRepeated: number;
   judgeMean: number | null;
   judgeRange: [number, number] | null;
   judgeByCriterion: Record<string, number | null>;
@@ -176,6 +179,8 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       candidateVerbLost: sum(m.map((x) => x.candidateVerbLost)),
       monthQuestionsMax: Math.max(...m.map((x) => x.monthQuestions)),
       schoolProjectPhrases: sum(m.map((x) => x.schoolProjectPhrases)),
+      inflatedLevels: sum(m.map((x) => x.inflatedLevels)),
+      readyBlocksRepeated: sum(m.map((x) => x.readyBlocksRepeated)),
       judgeMean: median(means),
       judgeRange,
       judgeByCriterion: Object.fromEntries(JUDGE_CRITERIA.map((k) => [k, median(judged.map((j) => j[k].note))])),
@@ -222,6 +227,8 @@ function badness({ record, metrics: m }: Result) {
     m.removedWithoutRequest * 3 +
     m.candidateVerbLost * 2 +
     Math.max(0, m.monthQuestions - 1) * 2 +
+    m.inflatedLevels * 3 +
+    m.readyBlocksRepeated +
     Math.max(0, (m.offerFlow?.keywordQuestions ?? 0) - 4) * 2 +
     ((m.offerFlow?.keywordsPerQuestionMax ?? 0) > 2 ? 2 : 0) +
     (m.offerFlow && m.offerFlow.languageNotes !== (m.offerFlow.languageNoteExpected ? 1 : 0) ? 1 : 0) +
@@ -255,6 +262,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Verbe du candidat perdu",
     "Questions de mois (max)",
     "Phrase école",
+    "Niveau gonflé",
+    "Bloc « prêt » redit",
     "Langue ≠",
     "Demande exécutée",
     ...(linked
@@ -306,6 +315,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.candidateVerbLost),
         String(r.monthQuestionsMax),
         String(r.schoolProjectPhrases),
+        String(r.inflatedLevels),
+        String(r.readyBlocksRepeated),
         String(r.languageMismatches),
         r.requestDone,
         ...(linked
@@ -342,6 +353,8 @@ function transcriptMd({ record, metrics }: Result) {
       metrics.inventedNumbers.length ? `nombres inventés ${metrics.inventedNumbers.join(", ")}` : null,
       metrics.repeatedQuestions ? `${metrics.repeatedQuestions} question(s) du coach reposée(s)` : null,
       metrics.monthQuestions > 1 ? `${metrics.monthQuestions} messages avec une question de mois` : null,
+      metrics.inflatedLevels ? `${metrics.inflatedLevels} texte(s) avec un niveau que le candidat n'a pas dit` : null,
+      metrics.readyBlocksRepeated ? `${metrics.readyBlocksRepeated} bloc(s) « Ce qui bloque surtout » redit(s) mot pour mot` : null,
       (metrics.offerFlow?.keywordQuestions ?? 0) > 4 ? `${metrics.offerFlow?.keywordQuestions} questions sur des mots-clés de l'offre` : null,
       (metrics.offerFlow?.keywordsPerQuestionMax ?? 0) > 2 ? `${metrics.offerFlow?.keywordsPerQuestionMax} mots-clés de l'offre dans une même question` : null,
       metrics.announcedThenAsked ? `${metrics.announcedThenAsked} annonce(s) suivie(s) d'une demande de confirmation du même fait` : null,
