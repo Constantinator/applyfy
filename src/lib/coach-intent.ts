@@ -387,7 +387,18 @@ export function figureNotAsked(history: { role: "user" | "assistant"; content: s
   const last = history.at(-1);
   if (last?.role !== "assistant") return false;
   const questions = splitSentences(last.content).filter(isQuestion);
-  return questions.length > 0 && !questions.some(asksFigure) && !isNegative(request);
+  return questions.length > 0 && !questions.some(asksFigure) && (!isNegative(request) || laterFacts(request));
+}
+/**
+ * Réponse partielle à une question en plusieurs parties : la première phrase refuse un élément
+ * (« Je ne connais pas les secteurs… »), une phrase suivante, non négative et d'au moins 6 mots,
+ * répond au reste (« Pour les tests, j'utilisais surtout Excel… » : run 2026-11-16T05-00-26, L11
+ * tour 4). « Je ne sais pas. Je vais vérifier ce soir. » (5 mots) n'en est pas une.
+ */
+const LATER_FACTS_MIN_WORDS = 6;
+function laterFacts(message: string): boolean {
+  const later = message.trim().split(/(?<=[.!?])\s/).slice(1);
+  return later.some((s) => !isNegative(s) && s.split(/\s+/).filter(Boolean).length >= LATER_FACTS_MIN_WORDS);
 }
 
 /** Phrases d'un texte (une majuscule ou un guillemet ouvre la suivante). */

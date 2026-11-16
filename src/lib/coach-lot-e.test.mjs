@@ -102,3 +102,38 @@ test("message d'échec : sans proposition, ou après un refus, l'ancien message 
     assert.ok(!result.text.includes("réponds-moi oui ou non"), result.text);
   }
 });
+
+// --- 3. Puce sans chiffre après une réponse partielle (L11, tour 4) ---
+
+/** L11 tour 3 (run 2026-11-16T05-00-26) : question sur les secteurs et les outils, sans chiffre. */
+const L11_COACH_3 =
+  "Très bien, on laisse le suivi du portefeuille de côté. Pour ton stage de Stagiaire audit chez Cabinet Exemple Audit, peux-tu me dire dans quels secteurs ou types d'entreprises tu as participé aux missions d'audit légal, et quels outils tu utilisais pour tes tests de contrôle interne ?";
+/** L11 tour 4 : refus sur les secteurs, puis réponse sur les outils. */
+const L11_USER_4 =
+  "Je ne connais pas les secteurs précis des entreprises auditées, donc je ne peux pas les citer. Pour les tests de contrôle interne, j'utilisais surtout Excel, que je maîtrise en niveau avancé (tableaux croisés, macros simples). Au passage, je participais à 6 missions de commissariat aux comptes pendant mon stage, tu peux l'ajouter si ça t'aide.";
+const l11History = [{ role: "assistant", content: L11_COACH_3 }];
+const EXCEL = "Réalisation de tests de contrôle interne sous Excel (tableaux croisés dynamiques, macros simples)";
+
+test("chiffre : réponse partielle (refus sur les secteurs, faits sur les outils) : puce sans chiffre permise (L11, tour 4)", async () => {
+  assert.equal(intent.isNegative(L11_USER_4), true, "la première phrase reste un refus");
+  assert.equal(intent.figureNotAsked(l11History, L11_USER_4), true);
+  const finance = profile("finance-junior-fr");
+  const reply = flat({
+    section: "experience",
+    change_summary: "C'est fait.",
+    data: JSON.stringify({ id: "fj-e2", bullets: [{ index: 0, after: "Participation à 6 missions d'audit légal en commissariat aux comptes" }, { index: 1, after: EXCEL }] }),
+  });
+  const result = await turn(finance, contextFor(finance, null, { history: l11History, request: L11_USER_4 }), l11History, L11_USER_4, reply);
+  assert.equal(result.applied, 2, JSON.stringify(result.problems));
+  assert.equal(result.updated.experiences[1].bullets[1], EXCEL);
+  assert.ok(!result.text.includes("il me manque un chiffre"), result.text);
+});
+
+test("chiffre : réponse partielle, non-déclenchement (refus seul, phrase courte, tout négatif, question de chiffre)", () => {
+  for (const answer of ["Je ne sais pas.", "Je ne sais pas. Je vais vérifier ce soir.", "Non. Je n'ai pas d'outil précis.", "Je ne connais pas les secteurs. Je ne sais pas non plus pour les outils utilisés."]) {
+    assert.equal(intent.figureNotAsked(l11History, answer), false, answer);
+  }
+  // Question de chiffre suivie d'une réponse partielle : le cas reste celui de noFigure, pas de figureNotAsked.
+  const figure = [{ role: "assistant", content: "Combien de missions d'audit as-tu suivies, et avec quels outils ?" }];
+  assert.equal(intent.figureNotAsked(figure, L11_USER_4), false);
+});
