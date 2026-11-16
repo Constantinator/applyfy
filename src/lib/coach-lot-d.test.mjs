@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { contextFor, detailOf, profile } from "./coach-test-fixtures.mjs";
+import { contextFor, detailOf, flat, profile, turn } from "./coach-test-fixtures.mjs";
 
 const { coachSystem } = await import("./coach-prompt.ts");
 
@@ -125,4 +125,91 @@ test("« prêt ? » : « Pas tout à fait : » du modèle retiré quand le serve
   // « Pas encore » au milieu d'une phrase : gardé.
   const mid = listen(READY, "Ton accroche n'a pas encore de chiffre.", { score: 60 });
   assert.ok(mid.endsWith("Ton accroche n'a pas encore de chiffre."), mid);
+});
+
+// --- 4. Puce sans chiffre après une question qui n'en demandait pas (L14, tour 3) ---
+
+
+const { PROBLEM_NO_FIGURE, PROBLEM_NO_VERB, PROBLEM_NEW_NUMBER_PREFIX } = await import("./coach-proposals.ts");
+const { coachUserText } = await import("./coach-prompt.ts");
+
+const marketing = profile("marketing-junior-fr");
+const TOOLS_QUESTION =
+  "C'est fait : « Création des campagnes d'e-mailing, dont la campagne de rentrée : 28 % de taux d'ouverture » — Chargée de marketing digital chez Marque Fictive (puce 2). Pour le suivi des indicateurs de performance chez Marque Fictive, quels indicateurs suis-tu concrètement (par exemple dans Google Analytics) et sur quels outils ou fréquence de reporting ?";
+const TOOLS_ANSWER =
+  "Je suis les indicateurs dans Google Analytics et dans Meta Business Suite pour Instagram, ainsi que dans mon CRM d'e-mailing. Pour la fréquence de reporting, je ne suis pas certaine du rythme exact, je ne peux pas te le confirmer.";
+const historyWith = (question) => [
+  { role: "assistant", content: "Pour tes campagnes d'e-mailing chez Marque Fictive, combien de campagnes as-tu créées ?" },
+  { role: "user", content: "Ma campagne d'e-mailing de rentrée a obtenu un taux d'ouverture de 28 %." },
+  { role: "assistant", content: question },
+];
+const KPI = "Suivi des indicateurs de performance dans Google Analytics, Meta Business Suite (Instagram) et le CRM d'e-mailing";
+const kpiReply = (bullets) =>
+  flat({ section: "experience", change_summary: "C'est fait.", message: "Passons à ton poste chez Agence Exemple : quels contenus rédigeais-tu ?", data: JSON.stringify({ id: "mj-e1", bullets }) });
+const play = (question, answer, bullets) => {
+  const history = historyWith(question);
+  return turn(marketing, contextFor(marketing, null, { history, request: answer }), history, answer, kpiReply(bullets));
+};
+
+test("chiffre : question d'outils, réponse sans chiffre : la puce est écrite (L14, tour 3)", async () => {
+  assert.equal(intent.figureNotAsked(historyWith(TOOLS_QUESTION), TOOLS_ANSWER), true);
+  const result = await play(TOOLS_QUESTION, TOOLS_ANSWER, [{ index: 2, after: KPI }]);
+  assert.equal(result.applied, 1, JSON.stringify(result.problems));
+  assert.equal(result.updated.experiences[0].bullets[2], KPI);
+  assert.ok(!result.text.includes("il me manque un chiffre"), result.text);
+});
+
+test("chiffre : une question de détail (sans mot de chiffre) compte comme une question d'outil", () => {
+  assert.equal(intent.figureNotAsked(historyWith("Pour cet événement, quelles tâches as-tu assurées ?"), "J'ai géré le planning."), true);
+  assert.equal(intent.figureNotAsked(historyWith("Which tools did you use for reporting?"), "Google Analytics."), true);
+});
+
+test("chiffre : non-déclenchement (question de chiffre, taux, mixte, refus, sans question)", async () => {
+  for (const question of [
+    "Combien de campagnes as-tu créées ?",
+    "Quel était le taux d'ouverture de ta campagne ?",
+    "Combien de campagnes as-tu créées, et avec quels outils ?",
+    "Quels outils utilisais-tu ? Et quel budget gérais-tu ?",
+    "How many campaigns did you run?",
+  ]) {
+    assert.equal(intent.figureNotAsked(historyWith(question), TOOLS_ANSWER), false, question);
+    const refused = await play(question, TOOLS_ANSWER, [{ index: 2, after: KPI }]);
+    assert.equal(refused.applied, 0, question);
+    assert.ok(refused.problems.some((p) => p.problems.includes(PROBLEM_NO_FIGURE)), question);
+  }
+  assert.equal(intent.figureNotAsked(historyWith(TOOLS_QUESTION), "Je ne sais pas."), false, "refus : point abandonné");
+  assert.equal(intent.figureNotAsked(historyWith("C'est fait."), TOOLS_ANSWER), false, "pas de question");
+  assert.equal(intent.figureNotAsked([], TOOLS_ANSWER), false);
+});
+
+test("chiffre : après une question d'outils, verbe exigé, aucun nombre inventé, une seule puce sans chiffre", async () => {
+  const invented = await play(TOOLS_QUESTION, TOOLS_ANSWER, [{ index: 2, after: "Suivi des indicateurs de performance dans 3 outils" }]);
+  assert.equal(invented.applied, 0);
+  assert.ok(invented.problems.some((p) => p.problems.some((x) => x.startsWith(PROBLEM_NEW_NUMBER_PREFIX))), JSON.stringify(invented.problems));
+  const noVerb = await play(TOOLS_QUESTION, TOOLS_ANSWER, [{ index: 2, after: "Google Analytics, Meta Business Suite et CRM d'e-mailing" }]);
+  assert.equal(noVerb.applied, 0);
+  assert.ok(noVerb.problems.some((p) => p.problems.includes(PROBLEM_NO_VERB)), JSON.stringify(noVerb.problems));
+  const two = await play(TOOLS_QUESTION, TOOLS_ANSWER, [
+    { index: 2, after: KPI },
+    { index: -1, after: "Suivi du CRM d'e-mailing de la marque" },
+  ]);
+  assert.equal(two.applied, 1, "la seconde puce sans chiffre est refusée");
+  assert.ok(two.problems.some((p) => p.problems.includes(PROBLEM_NO_FIGURE)));
+});
+
+test("chiffre : mode demande inchangé (puce nouvelle sans chiffre déjà permise, verbe exigé)", async () => {
+  const history = historyWith("Combien de campagnes as-tu créées ?");
+  const request = "Ajoute une puce sur le suivi des indicateurs dans Google Analytics.";
+  const reply = flat({ mode: "demande", section: "experience", change_summary: "C'est fait.", data: JSON.stringify({ id: "mj-e1", bullets: [{ index: -1, after: "Suivi des indicateurs dans Google Analytics" }] }) });
+  const result = await turn(marketing, contextFor(marketing, null, { history, request }), history, request, reply);
+  assert.equal(result.applied, 1);
+});
+
+test("second essai : phrase neutre, juste pour noFigure comme pour une question sans chiffre", () => {
+  const retry = { previous: { section: "experience", data: "{}" }, problems: [{ text: "x", problems: ["y"] }], mode: "parcours", figureWaived: true };
+  const text = coachUserText([], "Je ne connais pas le budget. Je gérais le planning.", retry);
+  assert.ok(text.includes("Pour ce point, une seule puce peut rester sans chiffre, avec les seuls faits donnés par le candidat."));
+  assert.ok(text.includes("N'ajoute AUCUN nombre absent du CV et des messages du candidat, et ne demande pas de chiffre pour cette puce."));
+  assert.ok(!text.includes("Le candidat a dit ne pas avoir le chiffre"), "faux après une question d'outils");
+  assert.ok(!text.includes("termine ton message par une question précise pour obtenir ce chiffre"));
 });

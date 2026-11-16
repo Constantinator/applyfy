@@ -397,7 +397,10 @@ export type CoachRetry = {
   problems: { text: string; problems: string[] }[];
   /** Mode de la première réponse : la vérification du nouvel essai garde ce mode. */
   mode: CoachMode;
-  /** Le candidat a dit ne pas avoir le chiffre (coach-intent.ts, noFigure) : une puce peut rester sans chiffre. */
+  /**
+   * Une puce peut rester sans chiffre : le candidat a dit ne pas l'avoir (coach-intent.ts, noFigure),
+   * ou la question du coach n'en demandait pas (figureNotAsked).
+   */
   figureWaived?: boolean;
 };
 
@@ -409,7 +412,7 @@ function retryInstructions({ previous, problems, mode, figureWaived }: CoachRetr
     mode === "demande"
       ? "Corrige-la, sans dépasser les longueurs maximales, en restant en mode « demande ». Une puce modifiée garde le chiffre et le verbe ou nom d'action qu'elle avait ; une nouvelle puce commence par un verbe ou un nom d'action. N'ajoute aucune formule à éviter ni AUCUN nombre absent du CV et des messages du candidat. Ne demande aucun chiffre : si un texte ne peut pas être corrigé, retire-le de ta proposition (ou section = « aucune » s'il ne reste rien)."
       : previous.section === "experience" && figureWaived
-        ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, sans formule à éviter. Le candidat a dit ne pas avoir le chiffre : une seule puce peut rester sans chiffre, avec ses seuls faits. N'ajoute AUCUN nombre absent du CV et des messages du candidat, et ne redemande pas ce chiffre."
+        ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, sans formule à éviter. Pour ce point, une seule puce peut rester sans chiffre, avec les seuls faits donnés par le candidat. N'ajoute AUCUN nombre absent du CV et des messages du candidat, et ne demande pas de chiffre pour cette puce."
         : previous.section === "experience"
         ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, contient un chiffre ou un ordre de grandeur donné par le candidat ou déjà présent dans le CV, sans formule à éviter. N'invente AUCUN chiffre : si le candidat ne l'a pas donné, retire cette puce de ta proposition et termine ton message par une question précise pour obtenir ce chiffre (ou section = « aucune » s'il ne reste rien à proposer)."
         : "Corrige-la en respectant le format et les longueurs maximales demandés, sans ajouter de formule à éviter. Ne demande aucun chiffre : ils ne concernent que les puces d'expérience.";

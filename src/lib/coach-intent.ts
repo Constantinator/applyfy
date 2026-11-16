@@ -349,6 +349,26 @@ function saysNoFigure(history: { role: "user" | "assistant"; content: string }[]
   return asked && FIGURE_REFUSAL.test(request) && !isNegative(request);
 }
 
+/**
+ * La phrase demande un chiffre : un mot de chiffre strict (combien, chiffre, nombre, %, budget…), ou
+ * un mot de chiffre large (fréquence, taux, volume…) hors question d'outil (« sur quels outils ou
+ * fréquence de reporting ? » n'en demande pas : run 2026-11-16T03-20-31, L14).
+ */
+const asksFigure = (sentence: string) =>
+  asksFigureWord(sentence) || (FIGURE_LIKE.test(sentence.replace(NO_FIGURE_WORDS, " ")) && !TOOL_QUESTION.test(sentence));
+/**
+ * Mode parcours, puce sans chiffre permise (comme noFigure) : le dernier message du coach pose au
+ * moins une question et aucune ne demande de chiffre (outils, détails, contexte), et le candidat
+ * répond sans refuser. Les nombres restent limités à ceux du CV et des messages du candidat, une
+ * seule puce peut rester sans chiffre et le verbe d'action reste exigé (coach-proposals.ts).
+ */
+export function figureNotAsked(history: { role: "user" | "assistant"; content: string }[], request: string): boolean {
+  const last = history.at(-1);
+  if (last?.role !== "assistant") return false;
+  const questions = splitSentences(last.content).filter(isQuestion);
+  return questions.length > 0 && !questions.some(asksFigure) && !isNegative(request);
+}
+
 /** Phrases d'un texte (une majuscule ou un guillemet ouvre la suivante). */
 const splitSentences = (text: string) => text.split(/(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Ý«"“(])/).filter((s) => s.trim());
 const isQuestion = (sentence: string) => /\?\s*[»”")]*\s*$/.test(sentence.trim());

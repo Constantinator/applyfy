@@ -369,8 +369,8 @@ export type CheckOptions = {
    */
   firstPersonAsked?: boolean;
   /**
-   * Mode parcours : le candidat a dit ne pas avoir le chiffre demandé (coach-intent.ts, noFigure).
-   * Une seule puce de la proposition peut rester sans chiffre ; aucune puce ne peut contenir un
+   * Mode parcours : le candidat a dit ne pas avoir le chiffre demandé (coach-intent.ts, noFigure),
+   * ou la question du coach n'en demandait pas (figureNotAsked). Une seule puce de la proposition peut rester sans chiffre ; aucune puce ne peut contenir un
    * nombre absent du CV et des messages du candidat.
    */
   figureWaived?: boolean;
