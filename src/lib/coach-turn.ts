@@ -2,11 +2,11 @@ import type { CoachReply } from "./coach-llm";
 import { asksFirstPerson, asksToStop, listenText, removalAllowed, type Listening } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
-import { coachReplyText, quotaBlockedText, type BulletChange } from "./coach-outcome";
+import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChange } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
 import { announcementLanguage } from "./coach-language";
 import { plainCoachText } from "./coach-plain";
-import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem } from "./coach-proposals";
+import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem, type CoachChange } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
 import { scoreCv, type ScoringContext } from "./cv-score";
 import { matchKeywords } from "./keyword-match";
@@ -81,6 +81,33 @@ export function withoutTitle(reply: CoachReply): CoachReply {
   return Object.keys(rest).length
     ? { ...reply, update: { section: "personal", data: rest } }
     : { ...reply, update: null, raw: null, invalid: false, changeSummary: "" };
+}
+
+/** Mot d'école dans une puce (« école », « université », « campus », « projet de fin d'études », « school »…). */
+const SCHOOL_WORD =
+  /(?<![\p{L}\d])([ée]coles?|universit[ée]s?|campus|fac|facult[ée]|projet de fin d'[ée]tudes|pfe|schools?|universit(y|ies)|college|capstone|final[- ]year project)(?![\p{L}\d])/iu;
+/** Le candidat parle de son école (« de mon école », « ma fac », « my university »). */
+const OWN_SCHOOL =
+  /(?<![\p{L}\d])((mon|ma|notre) ([ée]cole|fac|facult[ée]|universit[ée]|campus)|projet de fin d'[ée]tudes|pfe|(my|our) (school|university|college|campus)|final[- ]year project|capstone)(?![\p{L}\d])/iu;
+/** Entreprise qui est elle-même un établissement d'enseignement. */
+const SCHOOL_ORG =
+  /(?<![\p{L}\d])([ée]cole|universit[ée]|institut|iut|lyc[ée]e|coll[èe]ge|facult[ée]|campus|insa|acad[ée]mie|school|university|college|institute|academy)(?![\p{L}\d])/iu;
+/** Stage seulement (ni alternance, ni apprentissage, ni CDI). */
+const INTERNSHIP = /(?<![\p{L}\d])(stage|stagiaire|intern|internship|trainee)(?![\p{L}\d])/iu;
+
+/**
+ * Nouvelle puce appliquée à un stage qui évoque l'école du candidat (O06 : « API REST utilisée par
+ * 3 équipes de l'école ») : le candidat parle de son école dans son dernier message, et
+ * l'entreprise du stage n'est pas un établissement. Le serveur demande si c'est un projet d'école.
+ */
+export function schoolProjectBullet(changes: CoachChange[], cv: CvData, request: string): boolean {
+  if (!OWN_SCHOOL.test(request)) return false;
+  return changes.some((change) => {
+    if (change.kind !== "bullet" || change.before !== null || change.moved) return false;
+    const experience = cv.experiences.find((e) => e.id === change.experienceId);
+    if (!experience || !INTERNSHIP.test(experience.position) || SCHOOL_ORG.test(experience.company)) return false;
+    return SCHOOL_WORD.test(change.after);
+  });
 }
 
 /** Le résumé du modèle est-il dans la langue retenue ? null si sa langue ne peut pas être décidée. */
@@ -172,6 +199,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const appliedLabels: string[] = [];
   const appliedTexts: { before: string | null; after: string }[] = [];
   const bulletChanges: BulletChange[] = [];
+  const appliedChanges: CoachChange[] = [];
   let summaryText: string | undefined;
   for (const change of proposal?.changes ?? []) {
     const next = applyCoachChange(updated, change);
@@ -180,6 +208,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       applied++;
       appliedLabels.push(change.label);
       appliedTexts.push({ before: change.before, after: change.after });
+      appliedChanges.push(change);
       if (change.kind === "bullet") bulletChanges.push({ kind: "written", text: change.after, label: change.label });
       if (change.kind === "removeBullet") bulletChanges.push({ kind: "removed", text: change.before ?? "", label: change.label });
       if (change.kind === "field" && change.target === "summary") summaryText = change.after;
@@ -251,6 +280,10 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     ...(summaryText && !check.shorten ? { summaryText } : {}),
     // CV clos et question ouverte : la réponse du modèle est gardée (sans question).
     ...(context.listening?.openQuestion ? { answerQuestion: true } : {}),
+    // Puce ajoutée à un stage qui parle de l'école du candidat : phrase fixe, jamais redite (O06).
+    ...(schoolProjectBullet(appliedChanges, current, request) && !turns.some((t) => t.role === "assistant" && SCHOOL_PROJECT_TEXTS.some((p) => t.content.includes(p)))
+      ? { schoolProject: true }
+      : {}),
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
     corrections: scored?.after.corrections.map((c) => c.message) ?? [],

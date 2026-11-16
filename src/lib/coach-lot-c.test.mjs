@@ -174,3 +174,87 @@ test("chiffre : le nouvel essai garde la dérogation, sans demander le chiffre",
   const usual = coachUserText([], "msg", { ...retry, figureWaived: undefined });
   assert.ok(usual.includes("termine ton message par une question précise pour obtenir ce chiffre"));
 });
+
+// --- 5. Phrase fixe « projet d'école » (O06 du 16/11) ---
+
+const { schoolProjectBullet } = await import("./coach-turn.ts");
+
+const SCHOOL_FR = "Si c'était un projet d'école plutôt qu'une mission de ton stage, dis-le-moi : je le mettrai dans tes projets.";
+const SCHOOL_EN = "If it was a school project rather than a task from your internship, tell me: I'll put it in your projects.";
+const techStage = profile("tech-stage-fr");
+const O06_REQUEST = "Ajoute une puce à mon stage : j'ai développé une API REST en Node.js utilisée par 3 équipes de mon école.";
+const O06_BULLET = "Développement d'une API REST en Node.js utilisée par 3 équipes de l'école";
+const addBullet = (id, after, message = "Veux-tu que je réécrive ton résumé ?") =>
+  flat({ mode: "demande", section: "experience", change_summary: "C'est fait.", message, data: JSON.stringify({ id, bullets: [{ index: -1, after }] }) });
+const withExperience = (cv, patch) => ({ ...cv, experiences: cv.experiences.map((e, i) => (i === 0 ? { ...e, ...patch } : e)) });
+const history = [{ role: "assistant", content: "Je vais t'aider à corriger ton CV point par point. Combien de bugs as-tu corrigés ?" }];
+
+async function play(cv, request, reply, h = history) {
+  return turn(cv, contextFor(cv, null, { history: h, request }), h, request, reply);
+}
+
+test("école : O06, la puce est écrite puis la phrase fixe suit l'annonce", async () => {
+  const result = await play(techStage, O06_REQUEST, addBullet("ts-e1", O06_BULLET));
+  assert.equal(result.applied, 1);
+  assert.ok(result.text.includes(`(nouvelle puce). ${SCHOOL_FR}`), result.text);
+  assert.equal(result.text.split(SCHOOL_FR).length, 2, "une seule fois");
+});
+
+test("école : CV en anglais, phrase en anglais ; jamais redite dans la session", async () => {
+  const cv = withExperience(techStage, { position: "Software Engineering Intern", company: "Example Tech" });
+  const request = "Add a bullet to my internship: I built a REST API used by 3 teams at my school.";
+  const result = await play(cv, request, addBullet("ts-e1", "Built a REST API in Node.js used by 3 teams at the school"));
+  assert.equal(result.applied, 1);
+  assert.ok(result.text.includes(SCHOOL_EN), result.text);
+  const again = await play(techStage, O06_REQUEST, addBullet("ts-e1", O06_BULLET), [...history, { role: "user", content: "x" }, { role: "assistant", content: `C'est fait. ${SCHOOL_FR}` }]);
+  assert.equal(again.applied, 1);
+  assert.ok(!again.text.includes(SCHOOL_FR), again.text);
+});
+
+test("école : CV clos, la phrase vient avant la clôture, sans question", async () => {
+  const result = await play(techStage, O06_REQUEST, addBullet("ts-e1", O06_BULLET));
+  const closing = result.text.indexOf("Ton CV est prêt");
+  if (closing >= 0) assert.ok(result.text.indexOf(SCHOOL_FR) < closing);
+  // Score forcé au-dessus du seuil : même ordre.
+  const { coachReplyText } = await import("./coach-outcome.ts");
+  const text = coachReplyText({
+    mode: "demande", section: "experience", applied: 1, stale: 0, invalid: false, firstInvalid: false, noChange: false, problems: [], firstProblems: [],
+    message: "", changeSummary: "", appliedLabels: ["x"], bulletChanges: [{ kind: "written", text: O06_BULLET, label: "Stagiaire développeur chez Startup Exemple — nouvelle puce" }],
+    schoolProject: true, scoreBefore: 78, scoreAfter: 84, corrections: [], offerKeywords: [], lang: "fr",
+  });
+  assert.ok(text.indexOf(SCHOOL_FR) < text.indexOf("Ton CV est prêt"), text);
+  assert.ok(!text.includes("?"), text);
+});
+
+test("école : non-déclenchement (alternance, CDI, université, prestataire, puce modifiée, projets, puce refusée)", async () => {
+  const cases = [
+    ["alternance", withExperience(techStage, { position: "Alternant développeur" }), O06_REQUEST, addBullet("ts-e1", O06_BULLET)],
+    ["CDI", withExperience(techStage, { position: "Développeur" }), O06_REQUEST, addBullet("ts-e1", O06_BULLET)],
+    ["stage à l'université", withExperience(techStage, { company: "Université Lyon 2" }), O06_REQUEST, addBullet("ts-e1", O06_BULLET)],
+    ["stage à University of Leeds", withExperience(techStage, { position: "Intern", company: "University of Leeds" }), "Add a bullet: I built an API used by 3 teams at my university.", addBullet("ts-e1", "Built an API used by 3 teams at the university")],
+    ["prestataire, école cliente", withExperience(techStage, { company: "EdTech Fictive" }), "Ajoute une puce : j'ai formé 3 équipes de l'école cliente à l'outil.", addBullet("ts-e1", "Formation de 3 équipes de l'école cliente à l'outil")],
+    [
+      "puce modifiée",
+      techStage,
+      O06_REQUEST,
+      flat({ mode: "demande", section: "experience", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-e1", bullets: [{ index: 2, after: "Développement de 2 nouvelles pages en React pour l'école" }] }) }),
+    ],
+    [
+      "projet",
+      techStage,
+      O06_REQUEST,
+      flat({ mode: "demande", section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description: "Application mobile pour les étudiants de l'école, utilisée par 3 équipes" }) }),
+    ],
+    ["puce refusée (sans verbe)", techStage, O06_REQUEST, addBullet("ts-e1", "API REST en Node.js de l'école, 3 équipes")],
+  ];
+  for (const [name, cv, request, reply] of cases) {
+    const result = await play(cv, request, reply);
+    // Chaque cas est une vraie modification (appliquée, sauf la puce refusée).
+    assert.equal(result.applied, name.startsWith("puce refusée") ? 0 : 1, `${name} : ${result.text}`);
+    assert.ok(!result.text.includes(SCHOOL_FR) && !result.text.includes(SCHOOL_EN), `${name} : ${result.text}`);
+  }
+  // Mots d'école sans « mon école » dans le message : aucun déclenchement.
+  const change = { kind: "bullet", experienceId: "ts-e1", before: null, moved: false, after: O06_BULLET };
+  assert.equal(schoolProjectBullet([change], techStage, O06_REQUEST), true);
+  assert.equal(schoolProjectBullet([change], techStage, "Ajoute une puce : API REST en Node.js utilisée par 3 équipes."), false);
+});

@@ -48,6 +48,7 @@ const TEXTS = {
     removalNotAsked: "je ne supprime un passage que si tu me le demandes : dis-le-moi si tu veux le retirer.",
     unsureFigure: "tu m'as donné ce chiffre avec un doute, je laisse donc la puce telle quelle.",
     firstPerson: "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »), je laisse donc ce passage tel quel.",
+    schoolProject: "Si c'était un projet d'école plutôt qu'une mission de ton stage, dis-le-moi : je le mettrai dans tes projets.",
     bulletsDone: (items: string) => `C'est fait : ${items}.`,
     bulletWritten: (quote: string, place: string) => `« ${quote} » — ${place}`,
     bulletRemoved: (quote: string, place: string) => `puce supprimée « ${quote} » — ${place}`,
@@ -112,6 +113,7 @@ const TEXTS = {
     removalNotAsked: "I only remove something if you ask me to: tell me if you want it removed.",
     unsureFigure: "you gave me this number with some doubt, so I'm leaving the bullet as it is.",
     firstPerson: "the proposed text spoke about you in the first person (“je”, “mon”, “mes”), so I'm leaving it as it is.",
+    schoolProject: "If it was a school project rather than a task from your internship, tell me: I'll put it in your projects.",
     bulletsDone: (items: string) => `Done: ${items}.`,
     bulletWritten: (quote: string, place: string) => `“${quote}” — ${place}`,
     bulletRemoved: (quote: string, place: string) => `removed bullet “${quote}” — ${place}`,
@@ -158,6 +160,8 @@ const TEXTS = {
 
 /** Question posée quand une modification attendue manque un chiffre et que le coach n'en pose pas. */
 export const MISSING_FIGURE_QUESTION = TEXTS.fr.missingFigure;
+/** Phrase « projet d'école » (O06), dans les deux langues : jamais redite dans une session. */
+export const SCHOOL_PROJECT_TEXTS = [TEXTS.fr.schoolProject, TEXTS.en.schoolProject];
 
 export type CoachOutcomeInput = {
   /** Mode de la première réponse : « demande » (demande explicite du candidat) ou « parcours ». */
@@ -201,6 +205,11 @@ export type CoachOutcomeInput = {
    * est affichée entre l'annonce et le score, si elle ne pose aucune question (run 2026-11-16T00-45-04, O05).
    */
   answerQuestion?: boolean;
+  /**
+   * Puce ajoutée à un stage qui parle de l'école du candidat (coach-turn.ts, schoolProjectBullet) :
+   * phrase fixe du serveur juste après l'annonce (run 2026-11-16T00-45-04, O06).
+   */
+  schoolProject?: boolean;
   /** Demande de raccourcir appliquée : mots avant et après, calculés par le serveur. */
   wordCounts?: { before: number; after: number };
   /** Score avant et après l'application (null après : rien n'a été appliqué). */
@@ -414,7 +423,8 @@ export function coachReplyText(i: CoachOutcomeInput): string {
       : !sorted.length && i.summaryFaithful !== false && modelSummary
       ? modelSummary
       : appliedAnnouncement(i.appliedLabels, lang);
-  const summary = i.wordCounts ? `${announced} ${t.wordCount(i.wordCounts.before, i.wordCounts.after)}` : announced;
+  const counted = i.wordCounts ? `${announced} ${t.wordCount(i.wordCounts.before, i.wordCounts.after)}` : announced;
+  const summary = i.schoolProject ? `${counted} ${t.schoolProject}` : counted;
 
   if (i.scoreAfter !== null && i.scoreAfter >= READY_SCORE) {
     // Passage du seuil : clôture complète ; déjà au-dessus avant : une ligne courte, sans nouvelle clôture.
