@@ -54,10 +54,19 @@ export const proposesRemoval = (coachMessage: string) => PROPOSES_REMOVAL.test(c
  */
 export function removalAllowed(history: { role: "user" | "assistant"; content: string }[], request: string): boolean {
   if (asksToRemove(request)) return true;
-  const lastCoach = [...history].reverse().find((t) => t.role === "assistant")?.content ?? "";
-  const lastQuestion = splitSentences(lastCoach).filter(isQuestion).pop() ?? "";
-  return proposesRemoval(lastQuestion) && AFFIRMATIVE.test(request) && !isNegative(request) && !NOT_REMOVE.test(request);
+  return lastQuestionProposesRemoval(history) && AFFIRMATIVE.test(request) && !isNegative(request) && !NOT_REMOVE.test(request);
 }
+const lastQuestionProposesRemoval = (history: { role: "user" | "assistant"; content: string }[]) => {
+  const lastCoach = [...history].reverse().find((t) => t.role === "assistant")?.content ?? "";
+  return proposesRemoval(splitSentences(lastCoach).filter(isQuestion).pop() ?? "");
+};
+/**
+ * La dernière question du coach proposait la suppression et le candidat ne l'a pas refusée : si la
+ * suppression est quand même refusée, le message demande un oui ou un non (lot E, 1d), au lieu de
+ * « je ne supprime que si tu me le demandes », faux après une proposition du coach.
+ */
+export const removalProposed = (history: { role: "user" | "assistant"; content: string }[], request: string) =>
+  lastQuestionProposesRemoval(history) && !isNegative(request) && !NOT_REMOVE.test(request);
 
 /** « Peux-tu confirmer… ? », « can you confirm…? » : le coach répond d'abord oui ou non. */
 const CONFIRMATION = /((peux|pourrais)-tu|tu (peux|pourrais)|pouvez-vous) (me )?confirmer|can you confirm|could you confirm/i;

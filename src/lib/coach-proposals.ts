@@ -363,6 +363,8 @@ export type CheckOptions = {
    * d'élément est refusée. Absent : pas de contrôle (appelants qui ne connaissent pas la conversation).
    */
   removalAllowed?: boolean;
+  /** La dernière question du coach proposait la suppression (coach-intent.ts) : refus dit « réponds oui ou non ». */
+  removalProposed?: boolean;
   /**
    * Le dernier message demande la première personne (coach-intent.ts) : « je / mon / mes » permis
    * en mode demande seulement.
@@ -378,6 +380,8 @@ export type CheckOptions = {
 
 /** Suppression (puce ou élément) que le candidat n'a ni demandée ni acceptée. */
 export const PROBLEM_REMOVAL_NOT_ASKED = "supprime un passage que le candidat n'a pas demandé de supprimer";
+/** Même refus, après une proposition de suppression du coach sans accord reconnu (lot E, 1d). */
+export const PROBLEM_REMOVAL_UNANSWERED = "supprime un passage sans réponse claire du candidat à la proposition de suppression";
 
 /**
  * Vérifications propres à un CV lié à une offre. `gap` et `sector` : écart avec l'offre et secteur
@@ -712,7 +716,11 @@ export function checkProposal(
     for (const change of proposal.changes) {
       if (change.kind !== "removeBullet" && change.kind !== "removeItem") continue;
       if (!problems.some((q) => q.changeId === change.id)) {
-        problems.push({ changeId: change.id, text: change.before ?? change.label, problems: [PROBLEM_REMOVAL_NOT_ASKED] });
+        problems.push({
+          changeId: change.id,
+          text: change.before ?? change.label,
+          problems: [options.removalProposed ? PROBLEM_REMOVAL_UNANSWERED : PROBLEM_REMOVAL_NOT_ASKED],
+        });
       }
     }
   }

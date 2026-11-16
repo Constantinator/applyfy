@@ -4,6 +4,7 @@ import {
   PROBLEM_INFLATED_TITLE_PREFIX,
   PROBLEM_NOT_CANDIDATE_VERB,
   PROBLEM_REMOVAL_NOT_ASKED,
+  PROBLEM_REMOVAL_UNANSWERED,
   PROBLEM_STUDENT_TITLE,
   PROBLEM_TITLE_OTHER_JOB,
   PROBLEM_UNSURE_FIGURE,
@@ -47,6 +48,7 @@ const TEXTS = {
     notCandidateVerb:
       "la puce gardait l'ancien verbe au lieu de celui que tu as employé. Je la laisse telle quelle pour l'instant : dis-moi si tu veux que je la reformule avec tes mots.",
     studentTitle: "le titre proposé t'orientait vers un métier que tes expériences et tes études ne montrent pas.",
+    removalUnanswered: "je n'ai rien supprimé : réponds-moi oui ou non pour ce passage.",
     removalNotAsked: "je ne supprime un passage que si tu me le demandes : dis-le-moi si tu veux le retirer.",
     unsureFigure: "tu m'as donné ce chiffre avec un doute, je laisse donc la puce telle quelle.",
     firstPerson: "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »), je laisse donc ce passage tel quel.",
@@ -114,6 +116,7 @@ const TEXTS = {
     notCandidateVerb:
       "the bullet kept the old verb instead of the one you used. I'm leaving it as it is for now: tell me if you want me to rephrase it with your words.",
     studentTitle: "the proposed title pointed you towards a job your experience and studies don't show.",
+    removalUnanswered: "I haven't removed anything: answer yes or no for this passage.",
     removalNotAsked: "I only remove something if you ask me to: tell me if you want it removed.",
     unsureFigure: "you gave me this number with some doubt, so I'm leaving the bullet as it is.",
     firstPerson: "the proposed text spoke about you in the first person (“je”, “mon”, “mes”), so I'm leaving it as it is.",
@@ -255,6 +258,7 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_TITLE_OTHER_JOB) return [{ kind: "faithful", text: t.titleOtherJob }];
     if (p === PROBLEM_NOT_CANDIDATE_VERB) return [{ kind: "faithful", text: t.notCandidateVerb }];
     if (p === PROBLEM_REMOVAL_NOT_ASKED) return [{ kind: "faithful", text: t.removalNotAsked }];
+    if (p === PROBLEM_REMOVAL_UNANSWERED) return [{ kind: "faithful", text: t.removalUnanswered }];
     if (p === PROBLEM_UNSURE_FIGURE) return [{ kind: "faithful", text: t.unsureFigure }];
     if (p === PROBLEM_FIRST_PERSON) return [{ kind: "faithful", text: t.firstPerson }];
     if (p === PROBLEM_HESITATION) return [{ kind: "faithful", text: t.hesitation }];

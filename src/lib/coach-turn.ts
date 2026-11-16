@@ -1,5 +1,5 @@
 import type { CoachReply } from "./coach-llm";
-import { asksFirstPerson, asksToStop, figureNotAsked, listenText, removalAllowed, type Listening } from "./coach-intent";
+import { asksFirstPerson, asksToStop, figureNotAsked, listenText, removalAllowed, removalProposed, type Listening } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChange } from "./coach-outcome";
@@ -164,6 +164,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     shorten: mode === "demande" && (context.listening?.shorten ?? false),
     // Suppression d'une puce ou d'un élément : seulement demandée, ou acceptée après une proposition du coach.
     removalAllowed: removalAllowed(turns, request),
+    // Refus après une proposition de suppression du coach : le message demande un oui ou un non.
+    removalProposed: removalProposed(turns, request),
     // « Je / mon / mes » permis en mode demande seulement si le candidat demande la première personne.
     firstPersonAsked: asksFirstPerson(request),
     // Mode parcours : le candidat a dit ne pas avoir le chiffre demandé, ou la question du coach

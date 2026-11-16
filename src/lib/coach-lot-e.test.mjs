@@ -77,3 +77,28 @@ test("suppression : rejeu L02 tour 8 puis « Non, garde-la » ou « oui » au mo
     assert.ok(result.updated.experiences[0].bullets.includes("Participation aux réunions d'équipe"), request);
   }
 });
+
+// --- 2. Message d'échec après une proposition de suppression du coach (1d) ---
+
+test("message d'échec : proposition du coach sans accord reconnu, « réponds-moi oui ou non »", async () => {
+  const request = "Peut-être, c'est toi qui vois.";
+  assert.equal(intent.removalAllowed(proposal, request), false);
+  assert.equal(intent.removalProposed(proposal, request), true);
+  const result = await play(proposal, request);
+  assert.equal(result.applied, 0);
+  assert.ok(result.text.includes("je n'ai rien supprimé : réponds-moi oui ou non pour ce passage"), result.text);
+  assert.ok(!result.text.includes("que si tu me le demandes"), result.text);
+});
+
+test("message d'échec : sans proposition, ou après un refus, l'ancien message reste", async () => {
+  for (const [history, request] of [
+    [unrelated, "Oui, une vingtaine."],
+    [doubleQuestion, "Oui, en mars."],
+    [proposal, "Non, garde-la."],
+  ]) {
+    assert.equal(intent.removalProposed(history, request), false, request);
+    const result = await play(history, request);
+    assert.ok(result.text.includes("je ne supprime un passage que si tu me le demandes"), `${request} : ${result.text}`);
+    assert.ok(!result.text.includes("réponds-moi oui ou non"), result.text);
+  }
+});
