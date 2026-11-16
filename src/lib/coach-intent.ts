@@ -53,9 +53,13 @@ const NEGATIVE =
 const CONTRAST = /\s(mais|par contre|en revanche|cependant|je sais (seulement|juste)|but|however|though|i only know)\b|[;:]/i;
 /** Nombre qui répond à une question (une année seule, « en 2023 », n'en est pas un). */
 const ANSWER_NUMBER = /\b(?!(?:19|20)\d\d\b)\d+/;
-/** Demande d'arrêt des questions, ou de la session (« je m'arrête là », « tu peux le finaliser »). */
+/**
+ * Demande d'arrêt des questions, ou de la session (« je m'arrête là », « tu peux le finaliser »,
+ * « puis on en reste là » : run 2026-11-15T23-04-28, O06). « On en reste là pour le résumé » ou
+ * « on en reste là ? » n'en sont pas.
+ */
 const STOP =
-  /plus (de|aucune) questions?|arr[êe]te (les|tes) questions|stop (les|tes|the|asking|with the) questions?|pas d'autres? questions?|no more questions|stop asking|\bon (peut|pourra|pourrait) (s'arr[êe]ter|finir|conclure|en rester) (là|ici)(?![a-zà-ÿ])|\b(si on peut|on peut) finir l[àa]-dessus\b|\bje m'arr[êe]te (là|ici)(?![a-zà-ÿ])|\btu peux le finaliser\b|\b(le|mon) cv me convient\b|\bwe can (stop|finish|wrap up)\b|\blet'?s (stop|wrap up)\b|\bi'?m done\b|\bi'?ll stop (here|there)\b/i;
+  /plus (de|aucune) questions?|arr[êe]te (les|tes) questions|stop (les|tes|the|asking|with the) questions?|pas d'autres? questions?|no more questions|stop asking|\bon (peut|pourra|pourrait) (s'arr[êe]ter|finir|conclure|en rester) (là|ici)(?![a-zà-ÿ])|\b(si on peut|on peut) finir l[àa]-dessus\b|\bje m'arr[êe]te (là|ici)(?![a-zà-ÿ])|\btu peux le finaliser\b|\b(le|mon) cv me convient\b|\b(on en reste|restons-en|on s'arr[êe]te) (là|ici)(?![a-zà-ÿ])(?!\s*\?)(?!\s*,?\s*(pour|sur|avec|concernant)\s+(?!aujourd'hui|l'instant|le moment|maintenant|ce soir)\S)|\bwe can (stop|finish|wrap up)\b|\blet'?s (stop|wrap up)\b|\bi'?m done\b|\bi'?ll stop (here|there)\b/i;
 /** « Je m'arrête là » qui ne vaut qu'après une action (« do it now, then I'm done ») : pas un arrêt. */
 const AFTER_ACTION = /\b(then|et après|ensuite|puis|after that)\s*,?\s*(i'?m done|im done|je m'arr[êe]te)/i;
 /** Arrêt sous condition explicite : « on pourra s'arrêter là si ton CV est prêt », « if it's ready, we can stop ». */
@@ -272,6 +276,14 @@ export type ListenInput = {
   previousCoach: string[];
   /** CV lié : mots-clés de l'offre encore absents (questions retirées après deux refus). */
   offerKeywords?: string[];
+  /**
+   * Le dernier message du candidat demande l'arrêt (`asksToStop`) : en mode demande aussi, les
+   * questions du modèle sont retirées de ce message, sauf la proposition de continuer une demande
+   * en cours. Seules les phrases de `modelMessage` (message du modèle) sont concernées : jamais un
+   * texte du serveur (annonce, échec, score, clôture, question du chiffre manquant).
+   */
+  stopNow?: boolean;
+  modelMessage?: string;
 };
 
 /**
@@ -297,9 +309,13 @@ export function listenText(i: ListenInput): string {
   const stopAll = (i.listening.stopAll || i.listening.stopIfReady === true) && i.mode === "parcours";
   const refusedType = (s: string) =>
     (i.listening.stopTypes?.includes(sentenceType(s)) ?? false) || (i.listening.stopMonths === true && sentenceType(s) === "mois");
+  const modelQuestions = new Set(splitSentences(i.modelMessage ?? "").filter(isQuestion).map(normalizeSentence));
+  const stoppedNow = (s: string) =>
+    i.stopNow === true && i.mode === "demande" && !CONTINUE_OFFER.test(s) && modelQuestions.has(normalizeSentence(s));
   const dropQuestion = (s: string) =>
     isQuestion(s) &&
     (stopAll ||
+      stoppedNow(s) ||
       (i.listening.stopFigures && FIGURE_QUESTION.test(s)) ||
       (i.listening.stopKeywords === true && isKeywordQuestion(s, i.offerKeywords ?? [])) ||
       refusedType(s));

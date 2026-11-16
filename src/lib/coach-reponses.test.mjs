@@ -120,3 +120,93 @@ test("annonce oui/non : non-déclenchement (autres débuts, message sans modific
   const ready = intent.listenText({ text: "Rien d'autre.", mode: "parcours", lang: "fr", listening: { stopAll: false, stopFigures: false, readiness: true, confirmation: false, refusal: false, shorten: false }, score: 85, scoreBefore: 85, corrections: [], previousCoach: [] });
   assert.ok(ready.startsWith("Oui : ton CV est à 85/100"), ready);
 });
+
+// --- 3. « Puis on en reste là » arrête les questions, même en mode demande ---
+
+const offer = await import("./coach-offer.ts");
+
+/** Message réel d'O06 (échange 2) et réponse affichée par le coach. */
+const O06 = "Non, je ne veux pas que tu réécrives mon résumé pour l'instant. Vérifie seulement que la puce sur l'API REST est bien ajoutée à mon stage, puis on en reste là.";
+const O06_MODEL =
+  "Oui, la puce « Développement d'une API REST en Node.js utilisée par 3 équipes de l'école » figure bien dans ton stage de Stagiaire développeur chez Startup Exemple. Pour continuer sur ce stage : tu as corrigé des bugs sur l'application web, peux-tu me dire combien de bugs environ, ou sur quelle partie de l'application ?";
+const O06_HISTORY = [
+  { role: "assistant", content: "Hugo, j'adapte ton CV à l'offre de Développeur backend junior. Es-tu d'accord pour que je réécrive ton résumé ainsi ?" },
+  { role: "user", content: "Ajoute une puce à mon stage : j'ai développé une API REST en Node.js utilisée par 3 équipes de mon école." },
+  { role: "assistant", content: "C'est fait : « Développement d'une API REST en Node.js utilisée par 3 équipes de l'école » — Stagiaire développeur chez Startup Exemple (nouvelle puce). Je reviens à ma proposition : veux-tu que je réécrive ton résumé pour l'offre ?" },
+];
+const listenO06 = (text, over = {}) =>
+  intent.listenText({
+    text,
+    mode: "demande",
+    lang: "fr",
+    listening: intent.listeningState(O06_HISTORY, O06),
+    score: 69,
+    scoreBefore: 69,
+    corrections: [],
+    previousCoach: O06_HISTORY.filter((t) => t.role === "assistant").map((t) => t.content),
+    stopNow: intent.asksToStop(O06),
+    modelMessage: text,
+    ...over,
+  });
+
+test("O06 rejoué : « puis on en reste là » est un arrêt, sans question ni étape de l'offre", () => {
+  assert.equal(intent.asksToStop(O06), true);
+  for (const message of ["Merci, on en reste là.", "On s'arrête là pour aujourd'hui, merci !", "Restons-en là, c'est très bien.", "ok on en reste là pour l'instant"]) {
+    assert.equal(intent.asksToStop(message), true, message);
+  }
+  const state = intent.listeningState(O06_HISTORY, O06);
+  assert.equal(state.stopAll, true);
+  // Plus d'étape de l'offre (l'écart « compétences manquantes » n'est plus demandé au modèle).
+  assert.equal(offer.offerStageOf({ offerSteps: ["resume", "ecart"], skipped: [], listening: state }, false), null);
+  const text = listenO06(O06_MODEL);
+  assert.ok(text.startsWith("Oui, la puce « Développement d'une API REST"), text);
+  assert.ok(!text.includes("?"), text);
+  assert.ok(!text.includes("combien de bugs"), text);
+});
+
+test("on en reste là : non-déclenchement (autre sujet, question, après une action)", () => {
+  for (const message of [
+    "On en reste là pour le résumé, passons aux expériences.",
+    "On en reste là ?",
+    "on s'arrête là sur l'accroche, continue avec les puces",
+    "on peut s'arrêter sur ce point ?",
+    "le stage s'est fini là-bas en 2023",
+    "just do both now in french. then im done",
+  ]) {
+    assert.equal(intent.asksToStop(message), false, message);
+  }
+});
+
+test("arrêt en mode demande : seules les questions du modèle sont retirées, jamais un texte du serveur", () => {
+  const server = [
+    "C'est fait : « Correction d'une vingtaine de bugs » — Stagiaire développeur chez Startup Exemple (puce 1).",
+    "Ton CV est à 69/100.",
+    "Je n'ai pas pu modifier ton CV : il me manque un chiffre ou un ordre de grandeur pour écrire cette puce.",
+    "Peux-tu me donner un ordre de grandeur (nombre, %, durée, budget) pour que je puisse l'écrire ?",
+  ];
+  const model = "Je continue avec ta formation ? Combien de bugs as-tu corrigés ?";
+  // Message d'arrêt sans refus (après « Non, … », la relance « Je continue… ? » est déjà retirée).
+  const stop = "Vérifie seulement la puce sur l'API REST, puis on en reste là.";
+  const text = listenO06([...server, model].join(" "), { modelMessage: model, listening: intent.listeningState([], stop), stopNow: intent.asksToStop(stop) });
+  for (const sentence of server) assert.ok(text.includes(sentence), sentence);
+  // La proposition de continuer une demande en cours reste.
+  assert.ok(text.includes("Je continue avec ta formation ?"), text);
+  assert.ok(!text.includes("Combien de bugs"), text);
+});
+
+test("arrêt en mode demande : sans arrêt dans ce message, rien ne change", () => {
+  const model = "Oui, la puce figure bien dans ton stage. Combien de bugs as-tu corrigés ?";
+  const text = intent.listenText({
+    text: model,
+    mode: "demande",
+    lang: "fr",
+    listening: intent.listeningState([], "Vérifie que la puce sur l'API REST est bien ajoutée."),
+    score: 69,
+    scoreBefore: 69,
+    corrections: [],
+    previousCoach: [],
+    stopNow: false,
+    modelMessage: model,
+  });
+  assert.equal(text, model);
+});

@@ -1,5 +1,5 @@
 import type { CoachReply } from "./coach-llm";
-import { listenText, removalAllowed, type Listening } from "./coach-intent";
+import { asksToStop, listenText, removalAllowed, type Listening } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, type BulletChange } from "./coach-outcome";
@@ -262,6 +262,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
         corrections: final.corrections.map((c) => c.message),
         previousCoach: turns.filter((t) => t.role === "assistant").map((t) => t.content),
         ...(context.offerSteps ? { offerKeywords: context.offerKeywords ?? [] } : {}),
+        // « Puis on en reste là » en mode demande : questions du modèle retirées de ce message.
+        ...(mode === "demande" && asksToStop(request) ? { stopNow: true, modelMessage: gap ? `${gap} ${answer.message}`.trim() : answer.message } : {}),
       })
     : text;
 
