@@ -139,6 +139,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     removalAllowed: removalAllowed(turns, request),
     // « Je / mon / mes » permis en mode demande seulement si le candidat demande la première personne.
     firstPersonAsked: asksFirstPerson(request),
+    // Mode parcours : le candidat a dit ne pas avoir le chiffre demandé, une puce peut rester sans chiffre.
+    ...(mode === "parcours" && context.listening?.noFigure ? { figureWaived: true } : {}),
     // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
     ...(context.offerSteps ? { offer: { gap: context.offerGap ?? null, sector: context.scoring.sector, student: context.offerStudent ?? false } } : {}),
   };
@@ -151,6 +153,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       previous: reply.raw,
       problems: problems.map(({ text, problems }) => ({ text, problems })),
       mode,
+      ...(check.figureWaived ? { figureWaived: true } : {}),
     });
     if (second) {
       retried = true;

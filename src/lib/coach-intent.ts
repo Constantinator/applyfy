@@ -226,6 +226,12 @@ export type Listening = {
   openQuestion?: boolean;
   /** Le dernier message exprime un doute sur un fait (« je crois », « environ », « I think »). Absent sinon. */
   uncertain?: boolean;
+  /**
+   * Le dernier message répond à une question de chiffre avec des faits, en disant ne pas avoir le
+   * chiffre (« je gérais le planning… Je ne connais pas le budget ») : une puce peut rester sans
+   * chiffre, sans aucun nombre inventé. Absent sinon (et pour un simple « je ne sais pas »).
+   */
+  noFigure?: boolean;
 };
 
 /**
@@ -270,9 +276,28 @@ export function listeningState(
   if (asksWhatToImprove(request)) listening.improve = true;
   if (asksOpenQuestion(request)) listening.openQuestion = true;
   if (expressesDoubt(request)) listening.uncertain = true;
+  if (saysNoFigure(history, request)) listening.noFigure = true;
   if (!offer) return listening;
   const refusedKeyword = (a: { question: string; answer: string }) => isNegative(a.answer) && isKeywordQuestion(a.question, offer.keywords);
   return { ...listening, stopKeywords: answers.some((a, i) => i > 0 && refusedKeyword(a) && refusedKeyword(answers[i - 1])) };
+}
+
+/**
+ * Le candidat dit ne pas avoir le chiffre demandé (« je ne connais pas le budget », « pas de
+ * chiffre », « I don't have the exact number »), n'importe où dans son message.
+ */
+const FIGURE_REFUSAL =
+  /\bpas de chiffres?\b|\baucun chiffre\b|\bje (ne )?(connais|sais) (pas|plus) (exactement |pr[ée]cis[ée]ment )?(le |la |les |l'|leur |leurs )?(nombre|budget|montant|chiffre|taux|volume|fr[ée]quence|pourcentage|dur[ée]e)|\bje (ne )?sais (pas|plus) combien\b|\bje n'ai pas (le |les |de |d')?(chiffres?|nombres?|donn[ée]es chiffr[ée]es)\b|\bje ne (peux|pourrais) pas (te )?(donner|dire) (le |de |un |d')?(chiffre|nombre|ordre de grandeur)|\bi don'?t (know|have|remember) (the |any |an |exact )*(numbers?|figures?|budget|amount|count|how many)\b|\bno (exact )?(figures?|numbers?)\b/i;
+/**
+ * Puce sans chiffre permise : la dernière question du coach demandait un chiffre (dans n'importe
+ * laquelle de ses phrases-questions), et le candidat répond avec des faits en disant ne pas avoir
+ * ce chiffre. Une simple négation (« je ne sais pas ») n'en est pas une : le point est abandonné.
+ */
+function saysNoFigure(history: { role: "user" | "assistant"; content: string }[], request: string): boolean {
+  const last = history.at(-1);
+  if (last?.role !== "assistant") return false;
+  const asked = splitSentences(last.content).some((s) => isQuestion(s) && isFigureQuestion(s));
+  return asked && FIGURE_REFUSAL.test(request) && !isNegative(request);
 }
 
 /** Phrases d'un texte (une majuscule ou un guillemet ouvre la suivante). */

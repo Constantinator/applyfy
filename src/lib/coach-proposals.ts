@@ -368,6 +368,12 @@ export type CheckOptions = {
    * en mode demande seulement.
    */
   firstPersonAsked?: boolean;
+  /**
+   * Mode parcours : le candidat a dit ne pas avoir le chiffre demandé (coach-intent.ts, noFigure).
+   * Une seule puce de la proposition peut rester sans chiffre ; aucune puce ne peut contenir un
+   * nombre absent du CV et des messages du candidat.
+   */
+  figureWaived?: boolean;
 };
 
 /** Suppression (puce ou élément) que le candidat n'a ni demandée ni acceptée. */
@@ -649,7 +655,11 @@ export function checkProposal(
   const problems =
     options.mode === "demande"
       ? requestProblems(proposal, context, numberSources([...cvStrings(current), ...(options.candidateMessages ?? [])]))
-      : textProblems(proposal, context);
+      : textProblems(
+          proposal,
+          context,
+          options.figureWaived ? numberSources([...cvStrings(current), ...(options.candidateMessages ?? [])]) : undefined,
+        );
   if (options.shorten) {
     for (const p of shortenProblems(proposal)) {
       const same = problems.find((q) => q.changeId === p.changeId);
@@ -763,14 +773,33 @@ function changeTexts(change: CoachChange): { text: string; bullet: boolean }[] {
   return [{ text: change.after, bullet: false }];
 }
 
-function textProblems(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">): ChangeProblem[] {
+/**
+ * Mode parcours. `waived` : le candidat a dit ne pas avoir le chiffre (nombres autorisés : CV et
+ * messages du candidat) ; la première puce sans chiffre est acceptée, les suivantes non, et tout
+ * nombre inventé est refusé.
+ */
+function textProblems(proposal: CoachProposal, context: Pick<ScoringContext, "actionVerbs" | "avoid">, waived?: Set<string>): ChangeProblem[] {
   const isAction = actionDetector(context.actionVerbs);
   const banned = bannedPhrases(context.avoid);
-  const check = (text: string, bullet: boolean) => [
-    ...(bullet && !isAction(text) ? [PROBLEM_NO_VERB] : []),
-    ...(bullet && !hasFigure(text) ? [PROBLEM_NO_FIGURE] : []),
-    ...findBannedPhrases(text, banned).map((phrase) => `${PROBLEM_BANNED_PREFIX}${phrase} »`),
-  ];
+  let waiverUsed = false;
+  const noFigure = (text: string) => {
+    if (hasFigure(text)) return false;
+    if (waived && !waiverUsed) {
+      waiverUsed = true;
+      return false;
+    }
+    return true;
+  };
+  const invented = (text: string) => (waived ? inventedNumbers(text, waived) : []);
+  const check = (text: string, bullet: boolean) => {
+    const numbers = bullet ? invented(text) : [];
+    return [
+      ...(bullet && !isAction(text) ? [PROBLEM_NO_VERB] : []),
+      ...(bullet && noFigure(text) ? [PROBLEM_NO_FIGURE] : []),
+      ...findBannedPhrases(text, banned).map((phrase) => `${PROBLEM_BANNED_PREFIX}${phrase} »`),
+      ...(numbers.length ? [`${PROBLEM_NEW_NUMBER_PREFIX}${numbers.join(", ")}`] : []),
+    ];
+  };
 
   return proposal.changes.flatMap((change) => {
     if (change.kind === "removeBullet" || change.kind === "removeItem") return [];

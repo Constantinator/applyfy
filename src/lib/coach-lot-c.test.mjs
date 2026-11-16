@@ -90,3 +90,87 @@ test("mois : consigne fixe dans le bloc « situation »", () => {
   const ctx = { ...contextFor(profile("tech-stage-fr")), listening };
   assert.ok(coachSystem(ctx, "").includes("Tu as déjà posé une question sur les mois des dates"));
 });
+
+// --- 4. Puce sans chiffre quand le candidat dit ne pas avoir le chiffre (L14 du 15/11) ---
+
+const { flat, turn } = await import("./coach-test-fixtures.mjs");
+const { PROBLEM_NEW_NUMBER_PREFIX, PROBLEM_NO_FIGURE } = await import("./coach-proposals.ts");
+const { coachUserText } = await import("./coach-prompt.ts");
+
+const marketing = profile("marketing-junior-fr");
+const L14_QUESTION =
+  "Passons à l'événement de lancement chez Agence Exemple : quel était ton rôle concret dans son organisation (budget, prestataires, planning, invitations) et quel était le type d'événement ou le client concerné ?";
+const L14_HISTORY = [
+  { role: "assistant", content: "Pour ton poste d'Assistante communication chez Agence Exemple, quels types de contenus as-tu rédigés ?" },
+  { role: "user", content: "Surtout des posts pour les réseaux sociaux et quelques newsletters." },
+  { role: "assistant", content: L14_QUESTION },
+];
+const L14_REQUEST =
+  "Mon rôle était de gérer le planning et les invitations, en coordonnant les prestataires avec l'équipe. Je ne connais pas le budget exact, et je ne peux pas te dire le nombre de participants. C'était un événement de lancement pour un des clients de l'agence, mais je ne me souviens plus du nom du produit.";
+const eventBullets = (bullets) =>
+  flat({
+    section: "experience",
+    change_summary: "C'est fait.",
+    message: "Passons à ta formation : as-tu réalisé un projet en lien avec l'événementiel ?",
+    data: JSON.stringify({ id: "mj-e2", bullets }),
+  });
+const EVENT = "Organisation de l'événement de lancement d'un client de l'agence : gestion du planning et des invitations, coordination des prestataires";
+
+test("chiffre : L14, le candidat donne ses faits sans chiffre : la puce est écrite, sans tour perdu", async () => {
+  const context = contextFor(marketing, null, { history: L14_HISTORY, request: L14_REQUEST });
+  assert.equal(context.listening.noFigure, true);
+  assert.ok(coachSystem(context, "").includes("Le candidat dit ne pas avoir le chiffre demandé"));
+  const result = await turn(marketing, context, L14_HISTORY, L14_REQUEST, eventBullets([{ index: 1, after: EVENT }]));
+  assert.equal(result.applied, 1);
+  assert.equal(result.updated.experiences[1].bullets[1], EVENT);
+  assert.ok(!result.text.includes("il me manque un chiffre"), result.text);
+  // Sans la dérogation (comportement d'avant) : refusée faute de chiffre.
+  const before = { ...context, listening: { ...context.listening, noFigure: undefined } };
+  const refused = await turn(marketing, before, L14_HISTORY, L14_REQUEST, eventBullets([{ index: 1, after: EVENT }]));
+  assert.equal(refused.applied, 0);
+  assert.ok(refused.problems.some((p) => p.problems.includes(PROBLEM_NO_FIGURE)));
+});
+
+test("chiffre : la dérogation n'autorise aucun nombre inventé, et une seule puce sans chiffre", async () => {
+  const context = contextFor(marketing, null, { history: L14_HISTORY, request: L14_REQUEST });
+  const invented = await turn(marketing, context, L14_HISTORY, L14_REQUEST, eventBullets([{ index: 1, after: "Coordination de 5 prestataires pour l'événement de lancement d'un client" }]));
+  assert.equal(invented.applied, 0);
+  assert.ok(invented.problems.some((p) => p.problems.some((x) => x.startsWith(PROBLEM_NEW_NUMBER_PREFIX))), JSON.stringify(invented.problems));
+  const two = await turn(
+    marketing,
+    context,
+    L14_HISTORY,
+    L14_REQUEST,
+    eventBullets([
+      { index: 1, after: EVENT },
+      { index: -1, after: "Gestion des invitations des clients de l'agence" },
+    ]),
+  );
+  assert.equal(two.applied, 1, "la seconde puce sans chiffre est refusée");
+  assert.ok(two.problems.some((p) => p.problems.includes(PROBLEM_NO_FIGURE)));
+});
+
+test("chiffre : non-déclenchement (« je sais pas », question d'outil, échange suivant, négation en tête)", () => {
+  const plain = intent.listeningState(L14_HISTORY, "je sais pas");
+  assert.ok(!("noFigure" in plain));
+  const tool = intent.listeningState([{ role: "assistant", content: "Quel outil utilisais-tu pour les invitations ?" }], "Je gérais les invitations, je n'ai pas de chiffre.");
+  assert.ok(!("noFigure" in tool), "la question ne demandait pas de chiffre");
+  const next = intent.listeningState(
+    [...L14_HISTORY, { role: "user", content: L14_REQUEST }, { role: "assistant", content: "C'est fait. Combien de clients suivais-tu ?" }],
+    "Une dizaine de clients.",
+  );
+  assert.ok(!("noFigure" in next), "le chiffre est de nouveau exigé à l'échange suivant");
+  const negativeFirst = intent.listeningState(L14_HISTORY, "Je ne connais pas le budget. Je gérais le planning.");
+  assert.ok(!("noFigure" in negativeFirst), "réponse qui commence par un refus : point abandonné, comme avant");
+  const en = intent.listeningState([{ role: "assistant", content: "How many guests attended the launch event?" }], "I managed the schedule and the invitations. I don't have the exact number of guests.");
+  assert.equal(en.noFigure, true);
+});
+
+test("chiffre : le nouvel essai garde la dérogation, sans demander le chiffre", () => {
+  const retry = { previous: { section: "experience", data: "{}" }, problems: [{ text: "x", problems: ["y"] }], mode: "parcours", figureWaived: true };
+  const text = coachUserText([], "msg", retry);
+  assert.ok(text.includes("une seule puce peut rester sans chiffre"));
+  assert.ok(!text.includes("termine ton message par une question précise pour obtenir ce chiffre"));
+  const usual = coachUserText([], "msg", { ...retry, figureWaived: undefined });
+  assert.ok(usual.includes("termine ton message par une question précise pour obtenir ce chiffre"));
+});

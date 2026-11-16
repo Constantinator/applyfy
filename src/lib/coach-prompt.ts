@@ -184,6 +184,10 @@ const SITUATION: [keyof Listening, string][] = [
     "uncertain",
     "Le candidat exprime un doute dans son dernier message : un fait ou un chiffre donné avec un doute garde ce doute dans le texte (« environ », « une quinzaine », « plutôt »), ou n'est pas écrit. Ne le présente jamais comme sûr.",
   ],
+  [
+    "noFigure",
+    "Le candidat dit ne pas avoir le chiffre demandé : pour ce point, écris la puce avec ses seuls faits, sans chiffre ni ordre de grandeur (une seule puce peut rester sans chiffre), n'ajoute aucun nombre absent du CV et de ses messages, et ne redemande pas de chiffre pour ce point.",
+  ],
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];
 
@@ -373,16 +377,20 @@ export type CoachRetry = {
   problems: { text: string; problems: string[] }[];
   /** Mode de la première réponse : la vérification du nouvel essai garde ce mode. */
   mode: CoachMode;
+  /** Le candidat a dit ne pas avoir le chiffre (coach-intent.ts, noFigure) : une puce peut rester sans chiffre. */
+  figureWaived?: boolean;
 };
 
-function retryInstructions({ previous, problems, mode }: CoachRetry) {
+function retryInstructions({ previous, problems, mode, figureWaived }: CoachRetry) {
   const reasons = problems.length
     ? problems.map((p) => `- « ${n(p.text)} » : ${n(p.problems.join(" ; "))}`).join("\n")
     : "- le contenu de « data » ne respecte pas le format demandé pour cette section";
   const fix =
     mode === "demande"
       ? "Corrige-la, sans dépasser les longueurs maximales, en restant en mode « demande ». Une puce modifiée garde le chiffre et le verbe ou nom d'action qu'elle avait ; une nouvelle puce commence par un verbe ou un nom d'action. N'ajoute aucune formule à éviter ni AUCUN nombre absent du CV et des messages du candidat. Ne demande aucun chiffre : si un texte ne peut pas être corrigé, retire-le de ta proposition (ou section = « aucune » s'il ne reste rien)."
-      : previous.section === "experience"
+      : previous.section === "experience" && figureWaived
+        ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, sans formule à éviter. Le candidat a dit ne pas avoir le chiffre : une seule puce peut rester sans chiffre, avec ses seuls faits. N'ajoute AUCUN nombre absent du CV et des messages du candidat, et ne redemande pas ce chiffre."
+        : previous.section === "experience"
         ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, contient un chiffre ou un ordre de grandeur donné par le candidat ou déjà présent dans le CV, sans formule à éviter. N'invente AUCUN chiffre : si le candidat ne l'a pas donné, retire cette puce de ta proposition et termine ton message par une question précise pour obtenir ce chiffre (ou section = « aucune » s'il ne reste rien à proposer)."
         : "Corrige-la en respectant le format et les longueurs maximales demandés, sans ajouter de formule à éviter. Ne demande aucun chiffre : ils ne concernent que les puces d'expérience.";
   return [
