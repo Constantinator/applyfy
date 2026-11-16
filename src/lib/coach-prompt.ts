@@ -357,8 +357,11 @@ export function coachSystem(
         criteria ? `Critères (analyse de l'import) : ${criteria}` : null,
         analysis.improvements.length ? `Points faibles :\n${list(analysis.improvements)}` : null,
         analysis.optimizations.length ? `Améliorations prioritaires :\n${list(analysis.optimizations)}` : null,
-        analysis.targetJob ? `Poste visé : ${n(analysis.targetJob)}` : null,
-        analysis.suggestedJobs.length ? `Postes suggérés : ${n(analysis.suggestedJobs.join(", "))}` : null,
+        // CV lié : l'offre fixe le poste visé (bloc « offre ») ; le poste visé du CV d'origine et
+        // les postes suggérés n'y sont pas repris (run 2026-11-16T03-20-31, O04 : « ton CV vise le
+        // stage développeur web » sur un CV lié à l'offre d'Analyste financier).
+        analysis.targetJob && !position ? `Poste visé : ${n(analysis.targetJob)}` : null,
+        analysis.suggestedJobs.length && !position ? `Postes suggérés : ${n(analysis.suggestedJobs.join(", "))}` : null,
         "</analyse>",
       ]
         .filter(Boolean)
