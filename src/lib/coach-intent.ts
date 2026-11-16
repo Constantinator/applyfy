@@ -58,9 +58,16 @@ const STOP =
   /plus (de|aucune) questions?|arr[êe]te (les|tes) questions|stop (les|tes|the|asking|with the) questions?|pas d'autres? questions?|no more questions|stop asking|\bon (peut|pourra|pourrait) (s'arr[êe]ter|finir|conclure|en rester) (là|ici)(?![a-zà-ÿ])|\b(si on peut|on peut) finir l[àa]-dessus\b|\bje m'arr[êe]te (là|ici)(?![a-zà-ÿ])|\btu peux le finaliser\b|\b(le|mon) cv me convient\b|\bwe can (stop|finish|wrap up)\b|\blet'?s (stop|wrap up)\b|\bi'?m done\b|\bi'?ll stop (here|there)\b/i;
 /** « Je m'arrête là » qui ne vaut qu'après une action (« do it now, then I'm done ») : pas un arrêt. */
 const AFTER_ACTION = /\b(then|et après|ensuite|puis|after that)\s*,?\s*(i'?m done|im done|je m'arr[êe]te)/i;
-/** Arrêt sous condition : « on pourra s'arrêter là si ton CV est prêt », « Si oui, on peut s'arrêter là ». */
+/** Arrêt sous condition explicite : « on pourra s'arrêter là si ton CV est prêt », « if it's ready, we can stop ». */
 const STOP_IF_READY =
-  /\b(arr[êe]ter|finir|conclure|en rester)\b[^.?!]{0,20}\bsi\b[^.?!]{0,40}\b(pr[êe]t|bon|suffit|c'est le cas)\b|\bsi (oui|c'est (bon|le cas)|(ton|mon|le) cv est pr[êe]t)\b[^.?!]{0,40}\b(arr[êe]ter|finir|conclure|en rester)\b|\bif (so|yes|it'?s ready|(my|the) cv is ready)\b[^.?!]{0,40}\b(stop|finish|wrap up|done)\b|\b(stop|finish|wrap up)\b[^.?!]{0,20}\bif (it'?s|(my|the) cv is) ready\b/i;
+  /\b(arr[êe]ter|finir|conclure|en rester)\b[^.?!]{0,20}\bsi\b[^.?!]{0,40}\b(pr[êe]t|bon|suffit)\b|\bsi (ton|mon|le) cv est pr[êe]t\b[^.?!]{0,40}\b(arr[êe]ter|finir|conclure|en rester)\b|\bif (it'?s ready|(my|the) cv is ready)\b[^.?!]{0,40}\b(stop|finish|wrap up|done)\b|\b(stop|finish|wrap up)\b[^.?!]{0,20}\bif (it'?s|(my|the) cv is) ready\b/i;
+/**
+ * Arrêt sous condition d'un « oui » (« Si oui, on peut s'arrêter là », « if yes im done ») : ne vaut
+ * « prêt ? » que si le message demande aussi si le CV est prêt (sinon le oui porte sur autre chose,
+ * par exemple la langue du CV : run 2026-11-15T23-04-28, L17).
+ */
+const STOP_IF_YES =
+  /\b(arr[êe]ter|finir|conclure|en rester)\b[^.?!]{0,20}\bsi c'est le cas\b|\bsi (oui|c'est (bon|le cas))\b[^.?!]{0,40}\b(arr[êe]ter?|finir|conclure|en rester)\b|\bif (so|yes)\b[^.?!]{0,40}\b(stop|finish|wrap up|done)\b/i;
 /**
  * Demande de raccourcir un texte : une demande, jamais un fait raconté (« mon modèle a réduit la
  * clôture ») ni une négation (« je n'ai pas demandé de raccourcir »).
@@ -112,8 +119,11 @@ export function isNegative(message: string): boolean {
   return NEGATIVE.test(answer) && !ANSWER_NUMBER.test(answer);
 }
 /** Arrêt sous condition (« si ton CV est prêt ») : réponse sur le score, pas de nouvelle question à ce message. */
-export const asksToStopIfReady = (message: string) => STOP_IF_READY.test(message);
-export const asksToStop = (message: string) => STOP.test(message) && !AFTER_ACTION.test(message) && !STOP_IF_READY.test(message);
+export const asksToStopIfReady = (message: string) =>
+  STOP_IF_READY.test(message) || (STOP_IF_YES.test(message) && isReadinessQuestion(message));
+/** Un arrêt sous condition (prêt, ou « si oui ») n'est jamais un arrêt de la session. */
+export const asksToStop = (message: string) =>
+  STOP.test(message) && !AFTER_ACTION.test(message) && !STOP_IF_READY.test(message) && !STOP_IF_YES.test(message);
 
 /** Question de chiffre au sens large (montant, volume, taux) pour le type de question. */
 const FIGURE_LIKE = /montant|volume|taux|chiffre d'affaires|encours|fr[ée]quence|amount|volume|rate|revenue/i;
