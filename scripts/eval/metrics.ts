@@ -2,6 +2,7 @@
 // causes, nombres inventés, questions répétées, langue, demande explicite, titre, secteur, injection,
 // annonce fidèle, questions directes ignorées.
 import {
+  asksMonths,
   asksToShorten,
   asksToStopIfReady,
   asksWhatToImprove,
@@ -14,6 +15,7 @@ import {
 } from "../../src/lib/coach-intent.ts";
 import { COMMON_ACTION_VERBS } from "../../src/lib/cv-sector-context.ts";
 import { offerMarker } from "../../src/lib/coach-offer.ts";
+import { SCHOOL_PROJECT_TEXTS } from "../../src/lib/coach-outcome.ts";
 import { inventedNumbers, isPartialRole, keepsOldVerbAgainstCandidate, numberSources } from "../../src/lib/coach-proposals.ts";
 import { chatContent, cvDataToText, type CvData } from "../../src/lib/cv-builder-types.ts";
 import { READY_SCORE } from "../../src/lib/cv-score.ts";
@@ -90,6 +92,10 @@ export type ConversationMetrics = {
   removedWithoutRequest: number;
   /** Puces qui ont reçu un nombre du candidat en gardant l'ancien verbe, alors qu'il en avait employé un autre (O01). */
   candidateVerbLost: number;
+  /** Messages du coach qui posent une question sur les mois des dates (lot C : 1 au plus, L15, O03, O04). */
+  monthQuestions: number;
+  /** Phrases du serveur « projet d'école » après une puce ajoutée à un stage (lot C, O06 : 1 attendue). */
+  schoolProjectPhrases: number;
 };
 
 /** Phrases de l'annonce qui disent qu'une partie n'a pas été appliquée. */
@@ -160,6 +166,10 @@ export type OfferFlow = {
   onTime: boolean | null;
   /** Questions sur un mot-clé de l'offre après deux « non » de suite (attendu : 0). */
   keywordQuestionsAfterStop: number;
+  /** Messages du coach avec une question d'expérience sur un mot-clé de l'offre (lot C : 4 au plus). */
+  keywordQuestions: number;
+  /** Mots-clés de l'offre cités dans une même phrase-question du coach, au plus (lot C : 2 au plus). */
+  keywordsPerQuestionMax: number;
   /** Mots-clés de l'offre entrés dans le CV sans être cités par le candidat. */
   keywordsWithoutFact: string[];
   /** Phrases du serveur sur la langue de l'offre, et si une était attendue (attendu : 1 ou 0). */
@@ -195,6 +205,21 @@ function inflatedRoles(start: CvData, end: CvData) {
   return count;
 }
 
+/** Mot-clé cité dans un texte, en mot entier (sans tenir compte de la casse). */
+function mentions(text: string, keyword: string) {
+  const key = keyword.trim().toLowerCase();
+  if (!key) return false;
+  const lower = text.toLowerCase();
+  let at = lower.indexOf(key);
+  while (at >= 0) {
+    const before = lower[at - 1] ?? " ";
+    const after = lower[at + key.length] ?? " ";
+    if (!/[\p{L}\d]/u.test(before) && !/[\p{L}\d]/u.test(after)) return true;
+    at = lower.indexOf(key, at + 1);
+  }
+  return false;
+}
+
 function offerFlowOf(record: ConversationRecord, allCoach: string[]): OfferFlow | null {
   const offer = record.offer;
   if (!offer) return null;
@@ -221,6 +246,11 @@ function offerFlowOf(record: ConversationRecord, allCoach: string[]): OfferFlow 
   });
   if (refusals >= 2 && isKeywordQuestion(allCoach[record.turns.length] ?? "", offer.keywords)) afterStop++;
 
+  // Plafonds du lot C : questions sur les mots-clés, et mots-clés cités dans une même question.
+  const questionSentences = (text: string) => text.split(/(?<=[.!?])\s+/).filter((s) => /\?\s*[»”")]*\s*$/.test(s.trim()));
+  const keywordQuestions = allCoach.filter((t) => questionSentences(t).some((s) => isKeywordQuestion(s, offer.keywords))).length;
+  const keywordsPerQuestionMax = Math.max(0, ...allCoach.flatMap(questionSentences).map((s) => offer.keywords.filter((k) => mentions(s, k)).length));
+
   const said = record.turns.map((t) => t.user.toLowerCase()).join(" ");
   const startText = cvDataToText(record.startCv).toLowerCase();
   const endText = cvDataToText(record.endCv).toLowerCase();
@@ -243,6 +273,8 @@ function offerFlowOf(record: ConversationRecord, allCoach: string[]): OfferFlow 
     gapAt,
     onTime,
     keywordQuestionsAfterStop: afterStop,
+    keywordQuestions,
+    keywordsPerQuestionMax,
     keywordsWithoutFact,
     languageNotes: allCoach.filter((t) => LANGUAGE_NOTE.test(t)).length,
     languageNoteExpected: offer.languageNote,
@@ -532,5 +564,7 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     contradictoryAnnouncements: contradictoryAnnouncements(record),
     removedWithoutRequest: removedWithoutRequest(record, allCoach),
     candidateVerbLost: candidateVerbLost(record),
+    monthQuestions: allCoach.filter(asksMonths).length,
+    schoolProjectPhrases: allCoach.filter((t) => SCHOOL_PROJECT_TEXTS.some((p) => t.includes(p))).length,
   };
 }

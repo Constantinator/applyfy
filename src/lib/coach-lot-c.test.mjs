@@ -345,3 +345,69 @@ test("gain : l'éditeur et la clôture du serveur gardent toutes les corrections
   const full = scoreCv(cv, scoringContextFrom(cv, null, []));
   assert.ok(full.corrections.some((x) => x.message.startsWith("Dates sans mois") && x.points === 1));
 });
+
+// --- Banc d'essai : mesures du lot C ---
+
+const evalMetrics = await import("../../scripts/eval/metrics.ts");
+
+/** Enregistrement minimal d'une conversation du banc d'essai (CV inchangé). */
+function record(cv, opening, exchanges, offer = null) {
+  return {
+    scenarioId: "X",
+    case: offer ? "lie" : "libre",
+    repeat: 0,
+    language: "fr",
+    sectorStart: "tech",
+    startScore: 60,
+    endScore: 60,
+    startCv: cv,
+    endCv: cv,
+    opening,
+    offer,
+    judge: null,
+    endReason: "fin",
+    turns: exchanges.map(([user, coachText]) => ({
+      user,
+      coachText,
+      error: null,
+      mode: "parcours",
+      scoreBefore: 60,
+      scoreAfter: 60,
+      applied: 0,
+      retried: false,
+      problems: [],
+      firstProblems: [],
+      claim: null,
+      unchangedQuoted: [],
+      skipped: [],
+      section: null,
+      offerGap: "",
+    })),
+  };
+}
+const scenario = { id: "X", case: "libre", expectedSector: "tech" };
+
+test("banc d'essai : questions de mois et phrase « projet d'école » comptées", () => {
+  const m = evalMetrics.computeMetrics(
+    record(techStage, MONTH_Q, [
+      ["Juin à août.", `C'est fait. ${SCHOOL_FR} Et à quel mois as-tu commencé ton projet ?`],
+      ["Je ne sais pas.", "Combien de dossiers traitais-tu par mois ?"],
+    ]),
+    scenario,
+  );
+  assert.equal(m.monthQuestions, 2, "l'ouverture et le 1er message ; « par mois » ne compte pas");
+  assert.equal(m.schoolProjectPhrases, 1);
+});
+
+test("banc d'essai : questions sur les mots-clés de l'offre et mots-clés par question", () => {
+  const offer = { steps: [], keywords: ["Node.js", "API REST", "Docker", "PostgreSQL"], languageNote: false, gap: null };
+  const m = evalMetrics.computeMetrics(
+    record(techStage, "As-tu déjà utilisé Docker ?", [
+      ["Oui.", "As-tu déjà travaillé avec PostgreSQL, Docker et Node.js ?"],
+      ["Non.", "Veux-tu que je réécrive ton résumé en citant ton API REST en Node.js ?"],
+    ], offer),
+    { ...scenario, case: "lie" },
+  );
+  assert.equal(m.offerFlow.keywordQuestions, 2, "la proposition de résumé n'est pas une question d'expérience");
+  assert.equal(m.offerFlow.keywordsPerQuestionMax, 3);
+});

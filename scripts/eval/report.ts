@@ -92,6 +92,9 @@ export type ScenarioAggregate = {
   offerOnTime: string;
   offerSteps: string;
   keywordQuestionsAfterStop: number;
+  /** Lot C : questions sur les mots-clés (max par lancement) et mots-clés par question (max). */
+  keywordQuestionsMax: number | null;
+  keywordsPerQuestionMax: number | null;
   keywordsWithoutFact: number;
   languageNotes: string;
   inflatedRoles: number;
@@ -102,6 +105,9 @@ export type ScenarioAggregate = {
   contradictoryAnnouncements: number;
   removedWithoutRequest: number;
   candidateVerbLost: number;
+  /** Lot C : questions de mois (max par lancement), phrases « projet d'école » (somme). */
+  monthQuestionsMax: number;
+  schoolProjectPhrases: number;
   judgeMean: number | null;
   judgeRange: [number, number] | null;
   judgeByCriterion: Record<string, number | null>;
@@ -156,6 +162,8 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       offerOnTime: ratio(m.map((x) => (x.offerFlow ? x.offerFlow.onTime : null))),
       offerSteps: offerStepsOf(m[0].offerFlow),
       keywordQuestionsAfterStop: sum(m.map((x) => x.offerFlow?.keywordQuestionsAfterStop ?? 0)),
+      keywordQuestionsMax: m[0].offerFlow ? Math.max(...m.map((x) => x.offerFlow?.keywordQuestions ?? 0)) : null,
+      keywordsPerQuestionMax: m[0].offerFlow ? Math.max(...m.map((x) => x.offerFlow?.keywordsPerQuestionMax ?? 0)) : null,
       keywordsWithoutFact: sum(m.map((x) => x.offerFlow?.keywordsWithoutFact.length ?? 0)),
       languageNotes: m[0].offerFlow ? `${m[0].offerFlow.languageNotes} (attendu ${m[0].offerFlow.languageNoteExpected ? 1 : 0})` : "—",
       inflatedRoles: sum(m.map((x) => x.offerFlow?.inflatedRoles ?? 0)),
@@ -166,6 +174,8 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       contradictoryAnnouncements: sum(m.map((x) => x.contradictoryAnnouncements)),
       removedWithoutRequest: sum(m.map((x) => x.removedWithoutRequest)),
       candidateVerbLost: sum(m.map((x) => x.candidateVerbLost)),
+      monthQuestionsMax: Math.max(...m.map((x) => x.monthQuestions)),
+      schoolProjectPhrases: sum(m.map((x) => x.schoolProjectPhrases)),
       judgeMean: median(means),
       judgeRange,
       judgeByCriterion: Object.fromEntries(JUDGE_CRITERIA.map((k) => [k, median(judged.map((j) => j[k].note))])),
@@ -211,6 +221,9 @@ function badness({ record, metrics: m }: Result) {
     m.contradictoryAnnouncements * 3 +
     m.removedWithoutRequest * 3 +
     m.candidateVerbLost * 2 +
+    Math.max(0, m.monthQuestions - 1) * 2 +
+    Math.max(0, (m.offerFlow?.keywordQuestions ?? 0) - 4) * 2 +
+    ((m.offerFlow?.keywordsPerQuestionMax ?? 0) > 2 ? 2 : 0) +
     (m.offerFlow && m.offerFlow.languageNotes !== (m.offerFlow.languageNoteExpected ? 1 : 0) ? 1 : 0) +
     m.errors * 2 +
     (record.judge ? 5 - judgeMean(record.judge) : 0)
@@ -240,6 +253,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Annonce contradictoire",
     "Suppression non demandée",
     "Verbe du candidat perdu",
+    "Questions de mois (max)",
+    "Phrase école",
     "Langue ≠",
     "Demande exécutée",
     ...(linked
@@ -249,6 +264,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
           "Étapes à temps",
           "Titre / résumé / écart (échange)",
           "Mots-clés après 2 non",
+          "Questions mots-clés (max)",
+          "Mots-clés par question (max)",
           "Mots-clés sans fait",
           "Phrase langue",
           "Rôle gonflé",
@@ -287,6 +304,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.contradictoryAnnouncements),
         String(r.removedWithoutRequest),
         String(r.candidateVerbLost),
+        String(r.monthQuestionsMax),
+        String(r.schoolProjectPhrases),
         String(r.languageMismatches),
         r.requestDone,
         ...(linked
@@ -296,6 +315,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
               r.offerOnTime,
               r.offerSteps,
               String(r.keywordQuestionsAfterStop),
+              fmt(r.keywordQuestionsMax),
+              fmt(r.keywordsPerQuestionMax),
               String(r.keywordsWithoutFact),
               r.languageNotes,
               String(r.inflatedRoles),
@@ -320,6 +341,9 @@ function transcriptMd({ record, metrics }: Result) {
       metrics.closureViolations ? `${metrics.closureViolations} question(s) après 80` : null,
       metrics.inventedNumbers.length ? `nombres inventés ${metrics.inventedNumbers.join(", ")}` : null,
       metrics.repeatedQuestions ? `${metrics.repeatedQuestions} question(s) du coach reposée(s)` : null,
+      metrics.monthQuestions > 1 ? `${metrics.monthQuestions} messages avec une question de mois` : null,
+      (metrics.offerFlow?.keywordQuestions ?? 0) > 4 ? `${metrics.offerFlow?.keywordQuestions} questions sur des mots-clés de l'offre` : null,
+      (metrics.offerFlow?.keywordsPerQuestionMax ?? 0) > 2 ? `${metrics.offerFlow?.keywordsPerQuestionMax} mots-clés de l'offre dans une même question` : null,
       metrics.announcedThenAsked ? `${metrics.announcedThenAsked} annonce(s) suivie(s) d'une demande de confirmation du même fait` : null,
       metrics.judgeUnanswered ? `${metrics.judgeUnanswered} question(s) sans réponse selon le juge` : null,
       metrics.languageMismatches ? `${metrics.languageMismatches} message(s) dans une autre langue` : null,

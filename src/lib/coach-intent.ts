@@ -180,7 +180,7 @@ export function questionType(text: string): QuestionType | null {
   return "detail";
 }
 /** Le message du coach pose une question sur les mois des dates (dans n'importe laquelle de ses phrases-questions). */
-const asksMonths = (text: string) => splitSentences(text).some((s) => isQuestion(s) && MONTH_QUESTION.test(s));
+export const asksMonths = (text: string) => splitSentences(text).some((s) => isQuestion(s) && MONTH_QUESTION.test(s));
 /** Le candidat demande d'ajouter ou de préciser les mois de ses dates (« tu peux ajouter les mois »). */
 const MONTH_REQUEST =
   /\b(ajoute[rz]?|pr[ée]cise[rz]?|mets|mettre|mettez|indique[rz]?|compl[èe]te[rz]?|add|include|put)\b[^.?!]{0,30}\b(mois|dates?|months?)\b/i;
