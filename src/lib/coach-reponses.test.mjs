@@ -215,11 +215,15 @@ test("arrêt en mode demande : sans arrêt dans ce message, rien ne change", () 
 
 const { contextFor, flat, profile, turn } = await import("./coach-test-fixtures.mjs");
 
-/** Échange réel de L14 (accroche) : texte écrit, annonce et message du modèle. */
+/**
+ * Échange réel de L14 (accroche) : annonce et message du modèle. Texte écrit sans « Je m'appuie…
+ * mes choix » : depuis le lot « consignes du coach », la première personne est refusée en mode
+ * demande sans demande explicite du candidat ; le début cité reste celui du run.
+ */
 const L14_REQUEST =
   "Oui, c'est bien vu, l'accroche parle encore de marketing digital. Tu peux la reformuler vers la gestion de projet événementiel, en gardant la part de données et de créativité ? Je ne connais pas de chiffre supplémentaire à y ajouter, donc sans chiffre c'est très bien.";
 const L14_SUMMARY =
-  "Chargée de marketing digital créative, avec 2 ans d'expérience en agence et chez l'annonceur, et une première expérience d'organisation d'événement : planning, invitations et coordination des prestataires pour un lancement client. Je m'appuie sur la donnée pour guider mes choix créatifs, avec une pratique des réseaux sociaux et de l'e-mailing.";
+  "Chargée de marketing digital créative, avec 2 ans d'expérience en agence et chez l'annonceur, et une première expérience d'organisation d'événement : planning, invitations et coordination des prestataires pour un lancement client. Appui sur la donnée pour guider les choix créatifs, avec une pratique des réseaux sociaux et de l'e-mailing.";
 const L14_REPLY = flat({
   mode: "demande",
   section: "summary",

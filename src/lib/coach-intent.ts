@@ -128,6 +128,14 @@ const DOUBT =
 export const expressesDoubt = (message: string) => DOUBT.test(message);
 
 /**
+ * Demande de première personne (« garde le « je » », « à la première personne », « keep it in the
+ * first person », « use "I" ») : seule exception au refus de « je / mon / mes » en mode demande.
+ */
+const FIRST_PERSON =
+  /premi[èe]re personne|\b1(re|[èe]re) personne|\b(garde|gardes|garder|gardez|utilise|utiliser|utilisez|mets|mettre|avec|en disant|[ée]cris|[ée]crire)\b[^.?!]{0,20}[«"“]\s*(je|j'|mon|ma|mes)\s*[»"”]|first[- ]person|\b(keep|use|using|with|write)\b[^.?!]{0,20}["“]\s*(i|my|me)\s*["”]/i;
+export const asksFirstPerson = (message: string) => FIRST_PERSON.test(message);
+
+/**
  * Le dernier message pose une question ouverte. « Prêt ? », « que reste-t-il ? » et « peux-tu
  * confirmer ? » ont déjà leur réponse du serveur : ils n'en sont pas.
  */

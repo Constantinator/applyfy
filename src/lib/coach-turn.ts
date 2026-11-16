@@ -1,5 +1,5 @@
 import type { CoachReply } from "./coach-llm";
-import { asksToStop, listenText, removalAllowed, type Listening } from "./coach-intent";
+import { asksFirstPerson, asksToStop, listenText, removalAllowed, type Listening } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, type BulletChange } from "./coach-outcome";
@@ -137,6 +137,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     shorten: mode === "demande" && (context.listening?.shorten ?? false),
     // Suppression d'une puce ou d'un élément : seulement demandée, ou acceptée après une proposition du coach.
     removalAllowed: removalAllowed(turns, request),
+    // « Je / mon / mes » permis en mode demande seulement si le candidat demande la première personne.
+    firstPersonAsked: asksFirstPerson(request),
     // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
     ...(context.offerSteps ? { offer: { gap: context.offerGap ?? null, sector: context.scoring.sector, student: context.offerStudent ?? false } } : {}),
   };

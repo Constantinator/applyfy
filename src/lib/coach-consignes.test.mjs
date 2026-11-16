@@ -212,3 +212,75 @@ test("nombres douteux : même proposition et 4 mots au plus (phrases exactes)", 
   // Donné aussi sans doute ailleurs : sûr.
   assert.deepEqual([...doubtfulNumbers(["environ 12 je crois", "Oui, c'est bien 12."])], []);
 });
+
+// --- 3. « je / mon / mes » refusés dans l'accroche, les puces et les projets ---
+
+/** L02, échange 4 : accroche réécrite par le coach en mode parcours, avec « mon ». */
+const L02_SUMMARY =
+  "Étudiant en informatique en dernière année d'école d'ingénieurs, à la recherche d'un stage de fin d'études en développement web. Maîtrise de JavaScript, React, TypeScript, Git et des bases de Docker. Développement d'une API REST en Node.js pour mon projet de fin d'études, utilisée par 3 équipes de l'école.";
+const L02_SUMMARY_REQUEST =
+  "Alors pour l'accroche, je maîtrise surtout JavaScript, React, TypeScript, Git et les bases de Docker, et côté projet j'ai développé une API REST en Node.js pour mon projet de fin d'études, utilisée par 3 équipes de mon école.";
+const summary = (data, mode = "parcours") => flat({ mode, section: "summary", change_summary: "C'est fait : accroche réécrite.", message: "", data });
+const PRONOUN_CAUSE = "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »)";
+
+test("L02 rejoué : accroche avec « mon » refusée en mode parcours, acceptée sans", async () => {
+  const refused = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY));
+  assert.equal(refused.applied, 0, refused.text);
+  assert.ok(refused.text.toLowerCase().includes(PRONOUN_CAUSE), refused.text);
+  const accepted = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY.replace("pour mon projet", "pour le projet")));
+  assert.equal(accepted.applied, 1, accepted.text);
+});
+
+test("première personne : mode parcours, refus aussi dans une puce et un projet", async () => {
+  const bulletWithMy = await play(techStage, [], "J'ai corrigé une vingtaine de bugs avec mon équipe.", bullet("ts-e1", 0, "Correction d'une vingtaine de bugs avec mon équipe"));
+  assert.equal(bulletWithMy.applied, 0, bulletWithMy.text);
+  const project = await play(
+    techStage,
+    [],
+    "Mon appli de covoiturage a eu 150 utilisateurs.",
+    flat({ section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description: "Application mobile que j'ai lancée pour 150 étudiants de l'école." }) }),
+  );
+  assert.equal(project.applied, 0, project.text);
+});
+
+test("première personne : mode demande, refus sauf si le candidat demande la première personne", async () => {
+  const refused = await play(techStage, [], "Reformule mon accroche, s'il te plaît.", summary("Je cherche un stage de fin d'études en développement web.", "demande"));
+  assert.equal(refused.applied, 0, refused.text);
+  for (const request of FIRST_PERSON_REQUESTS) {
+    const result = await play(techStage, [], request, summary("Je cherche un stage de fin d'études en développement web.", "demande"));
+    assert.equal(result.applied, 1, `${request} → ${result.text}`);
+  }
+});
+
+/** Formulations reconnues comme une demande de première personne (FR et EN). */
+const FIRST_PERSON_REQUESTS = [
+  "Peux-tu me proposer une accroche qui reste à la première personne ?",
+  "Écris mon accroche à la 1re personne.",
+  "Garde le « je » dans mon accroche.",
+  "Utilise « je » dans l'accroche, c'est plus naturel.",
+  "Réécris-la avec des « je » et des « mon ».",
+  "Écris-la en disant « je ».",
+  "Keep my summary in the first person.",
+  "Write it in first-person please.",
+  "Keep the \"I\" in my summary.",
+  "Use \"I\" and \"my\" in the summary.",
+];
+
+test("première personne : non-déclenchement (citation, nom propre déjà présent, intérêts, anglais, sans pronom)", async () => {
+  // Citation entre guillemets.
+  const quoted = await play(techStage, [], "Ajoute le nom de l'appli.", flat({ section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description: "Application « Mon Covoit » pour 150 étudiants de l'école." }) }));
+  assert.equal(quoted.applied, 1, quoted.text);
+  // Nom propre déjà présent dans le CV.
+  const named = { ...techStage, projects: [{ ...techStage.projects[0], name: "Mon Covoit Étudiant" }] };
+  const proper = await play(named, [], "Précise la description.", flat({ section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description: "Application Mon Covoit Étudiant utilisée par 150 étudiants de l'école." }) }));
+  assert.equal(proper.applied, 1, proper.text);
+  // Centres d'intérêt : section non vérifiée.
+  const interests = await play(techStage, [], "Ajoute mes centres d'intérêt : course à pied.", flat({ mode: "demande", section: "interests", change_summary: "C'est fait.", data: "Course à pied avec mon club" }));
+  assert.equal(interests.applied, 1, interests.text);
+  // CV en anglais : « I / my » ne sont pas visés (le score ne les compte pas).
+  const english = await play(techEn, [], "Rewrite my summary.", summary("I build APIs and distributed systems; my focus is B2B products, with 8 years of experience.", "demande"));
+  assert.equal(english.applied, 1, english.text);
+  // Accroche sans pronom.
+  const clean = await play(techStage, [], L02_SUMMARY_REQUEST, summary("Étudiant en informatique à la recherche d'un stage de fin d'études en développement web."));
+  assert.equal(clean.applied, 1, clean.text);
+});

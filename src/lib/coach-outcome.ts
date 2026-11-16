@@ -7,6 +7,7 @@ import {
   PROBLEM_STUDENT_TITLE,
   PROBLEM_TITLE_OTHER_JOB,
   PROBLEM_UNSURE_FIGURE,
+  PROBLEM_FIRST_PERSON,
   PROBLEM_LOST_FIGURE,
   PROBLEM_LOST_VERB,
   PROBLEM_NEW_NUMBER_PREFIX,
@@ -46,6 +47,7 @@ const TEXTS = {
     studentTitle: "le titre proposé t'orientait vers un métier que tes expériences et tes études ne montrent pas.",
     removalNotAsked: "je ne supprime un passage que si tu me le demandes : dis-le-moi si tu veux le retirer.",
     unsureFigure: "tu m'as donné ce chiffre avec un doute, je laisse donc la puce telle quelle.",
+    firstPerson: "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »).",
     bulletsDone: (items: string) => `C'est fait : ${items}.`,
     bulletWritten: (quote: string, place: string) => `« ${quote} » — ${place}`,
     bulletRemoved: (quote: string, place: string) => `puce supprimée « ${quote} » — ${place}`,
@@ -109,6 +111,7 @@ const TEXTS = {
     studentTitle: "the proposed title pointed you towards a job your experience and studies don't show.",
     removalNotAsked: "I only remove something if you ask me to: tell me if you want it removed.",
     unsureFigure: "you gave me this number with some doubt, so I'm leaving the bullet as it is.",
+    firstPerson: "the proposed text spoke about you in the first person (“je”, “mon”, “mes”).",
     bulletsDone: (items: string) => `Done: ${items}.`,
     bulletWritten: (quote: string, place: string) => `“${quote}” — ${place}`,
     bulletRemoved: (quote: string, place: string) => `removed bullet “${quote}” — ${place}`,
@@ -238,6 +241,7 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_NOT_CANDIDATE_VERB) return [{ kind: "faithful", text: t.notCandidateVerb }];
     if (p === PROBLEM_REMOVAL_NOT_ASKED) return [{ kind: "faithful", text: t.removalNotAsked }];
     if (p === PROBLEM_UNSURE_FIGURE) return [{ kind: "faithful", text: t.unsureFigure }];
+    if (p === PROBLEM_FIRST_PERSON) return [{ kind: "faithful", text: t.firstPerson }];
     if (p === PROBLEM_STUDENT_TITLE) return [{ kind: "faithful", text: t.studentTitle }];
     if (p.startsWith(PROBLEM_INFLATED_TITLE_PREFIX)) return [{ kind: "faithful", text: t.inflatedTitle(p.slice(PROBLEM_INFLATED_TITLE_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {

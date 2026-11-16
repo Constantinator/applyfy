@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import { CV_LIMITS, CvDataSchema, invalidCvField, newItemId, splitSkillGroup, type CvData } from "./cv-builder-types";
-import { actionDetector, actionWordDetector, bannedPhrases, findBannedPhrases, hasFigure, type ScoringContext } from "./cv-score";
+import { actionDetector, actionWordDetector, bannedPhrases, findBannedPhrases, hasFigure, PRONOUNS, type ScoringContext } from "./cv-score";
+import { normalizeText } from "./keyword-match";
 import { detectOfferSector } from "./cv-sector-context";
 import type { Sector } from "./sectors";
 
@@ -362,6 +363,11 @@ export type CheckOptions = {
    * d'élément est refusée. Absent : pas de contrôle (appelants qui ne connaissent pas la conversation).
    */
   removalAllowed?: boolean;
+  /**
+   * Le dernier message demande la première personne (coach-intent.ts) : « je / mon / mes » permis
+   * en mode demande seulement.
+   */
+  firstPersonAsked?: boolean;
 };
 
 /** Suppression (puce ou élément) que le candidat n'a ni demandée ni acceptée. */
@@ -387,6 +393,36 @@ export const PROBLEM_NOT_CANDIDATE_VERB = "garde l'ancien verbe alors que le can
  */
 export const PROBLEM_UNSURE_FIGURE =
   "présente comme sûr un chiffre que le candidat a donné avec un doute : garde une approximation (« environ », « une quinzaine », « about »)";
+
+/**
+ * Accroche, puce ou projet qui parle du candidat à la première personne (run 2026-11-16T00-45-04,
+ * L02 : « pour mon projet de fin d'études ») : pénalisé par le score (cv-score.ts, PRONOUNS).
+ */
+export const PROBLEM_FIRST_PERSON =
+  "parle du candidat à la première personne (« je », « mon », « mes ») : écris sans pronom personnel (« Développement de… », « pour le projet… »)";
+
+/** Passages cités entre guillemets : jamais comptés. */
+const QUOTED = /«[^»]*»|“[^”]*”|"[^"]*"/g;
+/** Nom propre qui commence par « Mon / Ma / Mes » (« Mon Covoit Étudiant »). */
+const PROPER_NAME = /\b(?:Mon|Ma|Mes)(?:\s+\p{Lu}[\p{L}'-]*)+/gu;
+
+/** Textes vérifiés pour la première personne : ceux que le score lit (accroche, puces, projets). */
+function firstPersonChecked(change: CoachChange): boolean {
+  if (change.kind === "bullet") return !change.moved;
+  if (change.kind === "field") return change.target === "summary" || (change.target === "projects" && change.field === "description");
+  if (change.kind === "item") return change.target === "experience" || change.target === "projects";
+  return false;
+}
+
+/**
+ * « je / j' / mon / ma / mes » dans le texte, comme le score les compte, hors citation et hors nom
+ * propre déjà présent dans le CV.
+ */
+function speaksInFirstPerson(text: string, cvText: string): boolean {
+  const withoutQuotes = text.replace(/\*\*|__|\*/g, "").replace(QUOTED, " ");
+  const withoutNames = withoutQuotes.replace(PROPER_NAME, (name) => (cvText.includes(name) ? " " : name));
+  return PRONOUNS.test(normalizeText(withoutNames));
+}
 
 /** Doute du candidat sur ce qu'il dit (texte sans accents, en minuscules). */
 const DOUBT =
@@ -652,6 +688,21 @@ export function checkProposal(
           if (same) same.problems.push(PROBLEM_UNSURE_FIGURE);
           else problems.push({ changeId: change.id, text, problems: [PROBLEM_UNSURE_FIGURE] });
         }
+      }
+    }
+  }
+  // Première personne (tous les CV ; en mode demande, sauf si le candidat la demande) : accroche,
+  // puces et projets sans « je / mon / mes », hors citation et nom propre déjà présent dans le CV.
+  if (!(options.mode === "demande" && options.firstPersonAsked)) {
+    const cvText = cvStrings(current).join("\n");
+    for (const change of proposal.changes) {
+      if (!firstPersonChecked(change)) continue;
+      for (const { text } of changeTexts(change)) {
+        if (!speaksInFirstPerson(text, cvText)) continue;
+        const same = problems.find((q) => q.changeId === change.id);
+        if (same) same.problems.push(PROBLEM_FIRST_PERSON);
+        else problems.push({ changeId: change.id, text, problems: [PROBLEM_FIRST_PERSON] });
+        break;
       }
     }
   }

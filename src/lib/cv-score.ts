@@ -291,7 +291,8 @@ function cvTexts(data: CvData) {
   ].filter((t) => t.text);
 }
 
-const PRONOUNS = /(^| )(je|mon|ma|mes)( |$)|(^| )j'/;
+/** « je / j' / mon / ma / mes » dans un texte normalisé (normalizeText) : aussi lu par la vérification du coach. */
+export const PRONOUNS = /(^| )(je|mon|ma|mes)( |$)|(^| )j'/;
 
 const MONTHS: [RegExp, number][] = [
   [/^(janv|jan)/, 1], [/^(fevr|fev|feb)/, 2], [/^mar/, 3], [/^(avr|apr)/, 4], [/^(mai|may)/, 5], [/^(juin|jun)/, 6],
