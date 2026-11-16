@@ -14,8 +14,10 @@ const { coachSystem } = await import("./coach-prompt.ts");
 const MONTH_Q = "Pour ton stage chez Startup Exemple, tes dates indiquent seulement l'année : peux-tu me donner les mois de début et de fin ?";
 
 test("mois : une question posée une fois, même avec une réponse, n'est plus reposée (O04 du 15/11)", () => {
+  // Tour de la réponse : consigne de réponse (monthsAnswer), pas encore monthsAsked (run du 16/11, L02).
   const state = intent.listeningState([{ role: "assistant", content: MONTH_Q }], "Le stage a duré de juin 2025 à août 2025.");
-  assert.equal(state.monthsAsked, true);
+  assert.equal(state.monthsAnswer, true);
+  assert.equal(state.monthsAsked, undefined);
   assert.equal(state.stopMonths, undefined);
   // Plus tard dans la session, toujours vrai.
   const later = intent.listeningState(
@@ -51,7 +53,7 @@ test("mois : non-déclenchement (question « par mois », aucune question de moi
   assert.ok(!("monthsAsked" in request));
   // Anglais : même règle.
   const en = intent.listeningState([{ role: "assistant", content: "Which month did you start at Example Tech?" }], "March 2021.");
-  assert.equal(en.monthsAsked, true);
+  assert.equal(en.monthsAnswer, true);
 });
 
 const listening = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: false, shorten: false, monthsAsked: true };
@@ -518,4 +520,46 @@ test("doute : CV en anglais, exemples anglais ; « je dirais » et « I'd say »
   assert.equal(intent.expressesDoubt("Je dirais une quinzaine de clients."), true);
   assert.deepEqual([...doubtful(["Je dirais 15 clients par semaine."])], ["15"]);
   assert.deepEqual([...doubtful(["I'd say 12 services."])], ["12"]);
+});
+
+// --- 3. Mois : le tour de la réponse (L02 du 16/11, tour 4) ---
+
+const L02_MONTH_Q = "Passons aux dates de ton stage de Stagiaire développeur chez Startup Exemple : tu as indiqué seulement 2025. Quels sont les mois de début et de fin de ton stage d'été ?";
+const L02_MONTH_HISTORY = [...L02_HISTORY, { role: "user", content: "Une page de liste et une page de détail." }, { role: "assistant", content: L02_MONTH_Q }];
+const datesUpdate = (startDate, endDate) =>
+  flat({ section: "experience", change_summary: "C'est fait.", message: "Ton accroche dit que tu es « passionné » : quel stage cherches-tu ?", data: JSON.stringify({ id: "ts-e1", startDate, endDate }) });
+
+test("mois, tour de la réponse : « juillet et août, je dirais » est écrit (consigne de réponse, pas monthsAsked)", async () => {
+  const request = "C'était un stage d'été, donc juillet et août, je dirais.";
+  const context = contextFor(techStage, null, { history: L02_MONTH_HISTORY, request });
+  assert.equal(context.listening.monthsAnswer, true);
+  assert.ok(!("monthsAsked" in context.listening));
+  assert.equal(context.listening.uncertain, true, "« je dirais » est un doute");
+  const system = coachSystem(context, "");
+  assert.ok(system.includes("S'il donne des mois, même avec un doute, écris-les dans les dates (mois et année)"));
+  assert.ok(!system.includes("Tu as déjà posé une question sur les mois des dates"));
+  const result = await turn(techStage, context, L02_MONTH_HISTORY, request, datesUpdate("07/2025", "08/2025"));
+  assert.equal(result.applied, 2, "début et fin écrits");
+  assert.equal(result.updated.experiences[0].startDate, "07/2025");
+  assert.equal(result.updated.experiences[0].endDate, "08/2025");
+});
+
+test("mois, tour de la réponse : « sinon garde 2025 » respecté, aucune question de mois reposée ensuite", () => {
+  const keep = contextFor(techStage, null, { history: L02_MONTH_HISTORY, request: "Je ne me souviens plus des mois, garde 2025." });
+  assert.equal(keep.listening.monthsAnswer, true);
+  assert.equal(keep.listening.stopMonths, true);
+  assert.ok(coachSystem(keep, "").includes("S'il demande de garder l'année seule, ou ne donne aucun mois, dis-le en une phrase et laisse l'année."));
+  // Sur ce tour même, une question de mois du modèle est retirée.
+  const base = { mode: "parcours", lang: "fr", score: 71, scoreBefore: 71, previousCoach: [L02_MONTH_Q], corrections: ["Formule creuse « passionné » dans ton accroche"] };
+  const shown = intent.listenText({ ...base, listening: { ...keep.listening, refusal: false, stopMonths: undefined }, text: "Je laisse 2025. Peux-tu me confirmer les mois de début et de fin ?" });
+  assert.equal(shown, "Je laisse 2025.");
+  // Tours suivants : monthsAsked, la question n'est plus jamais reposée.
+  const later = contextFor(techStage, null, {
+    history: [...L02_MONTH_HISTORY, { role: "user", content: "Juillet et août, je dirais." }, { role: "assistant", content: "C'est fait. Quel stage cherches-tu ?" }],
+    request: "Un stage de 6 mois.",
+  });
+  assert.equal(later.listening.monthsAsked, true);
+  assert.ok(!("monthsAnswer" in later.listening));
+  const again = intent.listenText({ ...base, listening: later.listening, text: "C'est noté. À quel mois as-tu commencé ton stage ?" });
+  assert.equal(again, "C'est noté.");
 });

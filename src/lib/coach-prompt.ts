@@ -175,6 +175,10 @@ const SITUATION: [keyof Listening, string][] = [
     "Le candidat ne connaît pas les mois de ses dates : ne pose plus aucune question sur les mois ou les dates exactes, pour aucun poste.",
   ],
   [
+    "monthsAnswer",
+    "Le candidat répond à ta question sur les mois de ses dates. S'il donne des mois, même avec un doute, écris-les dans les dates (mois et année) : c'est une exception à la consigne sur le doute. S'il demande de garder l'année seule, ou ne donne aucun mois, dis-le en une phrase et laisse l'année. Ne repose aucune question sur les mois.",
+  ],
+  [
     "monthsAsked",
     "Tu as déjà posé une question sur les mois des dates : n'en pose plus aucune dans cette session, pour aucun poste. Passe au point suivant.",
   ],

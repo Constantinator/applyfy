@@ -223,6 +223,11 @@ export type Listening = {
    * Absent sinon.
    */
   monthsAsked?: boolean;
+  /**
+   * Le dernier message du coach posait la question de mois : ce message y répond (mois donnés,
+   * même avec un doute, ou année gardée). Jamais en même temps que monthsAsked. Absent sinon.
+   */
+  monthsAnswer?: boolean;
   /** Le dernier message demande de s'arrêter si le CV est prêt. Absent sinon. */
   stopIfReady?: boolean;
   /** Le dernier message demande ce qu'il reste à améliorer. Absent sinon. */
@@ -273,8 +278,17 @@ export function listeningState(
   // pas seulement la dernière) ; deux refus de suite, quel que soit le type.
   const refused = answers.map((a) => (isNegative(a.answer) ? questionType(a.question) : null));
   if (answers.some((a) => isNegative(a.answer) && asksMonths(a.question))) listening.stopMonths = true;
+  // Ce message répond à la question de mois (dernier message du coach) : consigne de ce tour, et
+  // monthsAsked seulement si une question de mois avait déjà été posée avant.
+  const last = history.at(-1);
+  const answering = last?.role === "assistant" && asksMonths(last.content);
+  if (answering) listening.monthsAnswer = true;
+  const earlier = answering ? history.slice(0, -1) : history;
   // Question de mois déjà posée, sans refus : une seule fois par CV (sauf demande d'ajouter les mois).
-  else if (history.some((t) => t.role === "assistant" && asksMonths(t.content)) && !MONTH_REQUEST.test(request)) listening.monthsAsked = true;
+  if (!listening.stopMonths && earlier.some((t) => t.role === "assistant" && asksMonths(t.content)) && !MONTH_REQUEST.test(request)) {
+    listening.monthsAsked = true;
+    delete listening.monthsAnswer;
+  }
   const twoInARow = answers.some((a, i) => i > 0 && isNegative(a.answer) && isNegative(answers[i - 1].answer));
   if (twoInARow) listening.stopTypes = [...new Set(refused.filter((t): t is QuestionType => t !== null))];
   if (stopIfReady) listening.stopIfReady = true;
@@ -410,7 +424,7 @@ export function listenText(i: ListenInput): string {
   const stopAll = (i.listening.stopAll || i.listening.stopIfReady === true) && i.mode === "parcours";
   const refusedType = (s: string) =>
     (i.listening.stopTypes?.includes(sentenceType(s)) ?? false) ||
-    ((i.listening.stopMonths === true || i.listening.monthsAsked === true) && sentenceType(s) === "mois");
+    ((i.listening.stopMonths === true || i.listening.monthsAsked === true || i.listening.monthsAnswer === true) && sentenceType(s) === "mois");
   const modelQuestions = new Set(splitSentences(i.modelMessage ?? "").filter(isQuestion).map(normalizeSentence));
   const stoppedNow = (s: string) =>
     i.stopNow === true && i.mode === "demande" && !CONTINUE_OFFER.test(s) && modelQuestions.has(normalizeSentence(s));
@@ -425,7 +439,7 @@ export function listenText(i: ListenInput): string {
   // Seulement une question de mois déjà posée une fois (sans refus du candidat) : rien à « ne pas
   // insister », le parcours enchaîne sur le point suivant.
   const monthsOnce = (s: string) =>
-    i.listening.monthsAsked === true &&
+    (i.listening.monthsAsked === true || i.listening.monthsAnswer === true) &&
     !i.listening.stopMonths &&
     sentenceType(s) === "mois" &&
     !(i.listening.stopTypes?.includes("mois") ?? false) &&
