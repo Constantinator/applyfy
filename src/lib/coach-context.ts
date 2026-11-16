@@ -2,7 +2,7 @@ import { candidateLanguage, cvLanguage } from "./coach-language";
 import { isStudentProfile, offerGap, offerLanguage, offerSteps } from "./coach-offer";
 import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
-import { bannedPhrasesInCv, scoreCv, type ScoringContext } from "./cv-score";
+import { bannedPhrasesInCv, READY_SCORE, scoreCv, type CvScore, type ScoringContext } from "./cv-score";
 import { matchCvKeywords } from "./cv-keyword-match";
 import { cvTitleMismatch, type Sector } from "./cv-sector-context";
 import { readCvSuggestions } from "./cv-types";
@@ -82,6 +82,23 @@ function linkedSteps(data: CvData, sector: Sector, detail: CoachOfferDetail | nu
   };
 }
 
+/** Gain minimal d'une correction proposée au coach : les corrections à +1 pt ne lui sont pas données. */
+export const COACH_MIN_GAIN = 2;
+
+/**
+ * Corrections du score données au coach : sans celles à +1 pt (ex. « Dates sans mois », une par
+ * expérience), sauf si le CV n'est pas clos et que leur somme suffirait à atteindre le seuil
+ * (score + somme des +1 ≥ 80) : le coach ne conclut pas alors à 79. L'éditeur et les textes du
+ * serveur (clôture, « c'est prêt ? ») gardent toutes les corrections.
+ */
+export function coachCorrections(score: Pick<CvScore, "score" | "corrections">): CvScore["corrections"] {
+  const small = score.corrections.filter((c) => c.points < COACH_MIN_GAIN);
+  if (!small.length) return score.corrections;
+  const smallSum = small.reduce((total, c) => total + c.points, 0);
+  if (score.score < READY_SCORE && score.score + smallSum >= READY_SCORE) return score.corrections;
+  return score.corrections.filter((c) => c.points >= COACH_MIN_GAIN);
+}
+
 export type BuiltCoachContext = CoachContext & { contentKey: string; scoring: ScoringContext };
 
 /**
@@ -123,7 +140,7 @@ export function buildCoachContext(
     contentKey: coachContentKey(cvJson, offerKeywords, scoring.sector, offer),
     score: {
       value: score.score,
-      corrections: score.corrections.map((c) => `${c.message} (+${c.points} pts)`),
+      corrections: coachCorrections(score).map((c) => `${c.message} (+${c.points} pts)`),
       banned: bannedPhrasesInCv(data, scoring).map((b) => `« ${b.phrase} » dans ${b.where}`),
     },
     // CV importé : son analyse ; CV créé depuis zéro : seulement le poste visé.

@@ -314,3 +314,34 @@ test("mots-clés : au plus 2 mots-clés par question, dans les règles de l'offr
   assert.ok(linked.includes("Une question cite au plus 2 mots-clés de l'offre."));
   assert.ok(!coachSystem(contextFor(techStage, null), "").includes("Une question cite au plus 2 mots-clés"));
 });
+
+// --- 2a. Seuil de gain : corrections à +1 pt retirées de la liste du coach ---
+
+const { coachCorrections, COACH_MIN_GAIN } = await import("./coach-context.ts");
+
+test("gain : « Dates sans mois » à +1 retirées de la liste du coach, gardées à +2", () => {
+  assert.equal(COACH_MIN_GAIN, 2);
+  const commercial = contextFor(profile("commercial-junior-fr"), null);
+  assert.ok(!commercial.score.corrections.some((c) => c.startsWith("Dates sans mois")), commercial.score.corrections.join("\n"));
+  assert.ok(commercial.score.corrections.some((c) => c.includes("(+4 pts)")));
+  // CV à une seule expérience : dates à +2, gardées (et posées une seule fois, point 1).
+  const rh = contextFor(profile("rh-stage-fr"), null);
+  assert.ok(rh.score.corrections.some((c) => c.startsWith("Dates sans mois") && c.endsWith("(+2 pts)")));
+});
+
+test("gain : exception « score + somme des +1 ≥ 80 » (CV pas clos), et CV clos filtré", () => {
+  const c = (points) => ({ id: `x${points}`, category: "form", elementId: null, message: `m${points}`, points, request: "" });
+  const corrections = [c(3), c(1), c(1)];
+  assert.deepEqual(coachCorrections({ score: 78, corrections }).map((x) => x.points), [3, 1, 1], "78 + 2 = 80 : gardées");
+  assert.deepEqual(coachCorrections({ score: 77, corrections }).map((x) => x.points), [3], "77 + 2 < 80 : retirées");
+  assert.deepEqual(coachCorrections({ score: 85, corrections }).map((x) => x.points), [3], "CV clos : retirées des pistes");
+  assert.deepEqual(coachCorrections({ score: 50, corrections: [c(4), c(2)] }).map((x) => x.points), [4, 2], "rien à +1 : liste inchangée");
+});
+
+test("gain : l'éditeur et la clôture du serveur gardent toutes les corrections", async () => {
+  const { scoreCv } = await import("./cv-score.ts");
+  const { scoringContextFrom } = await import("./cv-scoring-context.ts");
+  const cv = profile("commercial-junior-fr");
+  const full = scoreCv(cv, scoringContextFrom(cv, null, []));
+  assert.ok(full.corrections.some((x) => x.message.startsWith("Dates sans mois") && x.points === 1));
+});
