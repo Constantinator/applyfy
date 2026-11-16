@@ -289,6 +289,13 @@ export function bulletAnnouncement(changes: BulletChange[], lang: CoachLang): st
   return t.bulletsDone(items.join(" ; "));
 }
 
+/**
+ * Réponse oui/non en tête de l'annonce du modèle (« Non : j'ai ajouté… », run 2026-11-15T23-04-28,
+ * O04) : une annonce dit ce qui a été modifié, elle ne répond pas à une question.
+ */
+const YES_NO_LEAD = /^\s*(oui|non|yes|no)\s*[:,.!]\s*/i;
+const withoutYesNo = (summary: string) => (YES_NO_LEAD.test(summary) ? upperFirst(summary.replace(YES_NO_LEAD, "").trim()) : summary);
+
 /** Annonce écrite par le serveur à partir des emplacements réellement modifiés. */
 function appliedAnnouncement(labels: string[] | undefined, lang: CoachLang) {
   const places = [...new Set(labels ?? [])];
@@ -366,10 +373,11 @@ export function coachReplyText(i: CoachOutcomeInput): string {
         ].join(" ")
       : `${experience && !request ? t.bulletsNotAdded : t.partNotApplied}${sentences(sorted, true)}`;
   // Le résumé du modèle n'est repris que si tout a été appliqué tel quel ; sinon, annonce du serveur.
+  const modelSummary = withoutYesNo(i.changeSummary);
   const announced = i.bulletChanges?.length
     ? bulletAnnouncement(i.bulletChanges, lang)
-    : !sorted.length && i.summaryFaithful !== false && i.changeSummary
-      ? i.changeSummary
+    : !sorted.length && i.summaryFaithful !== false && modelSummary
+      ? modelSummary
       : appliedAnnouncement(i.appliedLabels, lang);
   const summary = i.wordCounts ? `${announced} ${t.wordCount(i.wordCounts.before, i.wordCounts.after)}` : announced;
 
