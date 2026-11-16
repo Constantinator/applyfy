@@ -563,3 +563,50 @@ test("mois, tour de la réponse : « sinon garde 2025 » respecté, aucune quest
   const again = intent.listenText({ ...base, listening: later.listening, text: "C'est noté. À quel mois as-tu commencé ton stage ?" });
   assert.equal(again, "C'est noté.");
 });
+
+// --- 4. Faux arrêt : « je m'arrête là sur ce point » (L14 du 16/11, tour 2) ---
+
+const L14_STOP_POINT = "Je ne connais pas le nombre exact de campagnes ni de contacts, donc je m'arrête là sur ce point.";
+
+test("arrêt : « je m'arrête là sur ce point » n'arrête pas la session, le point suivant est posé (L14)", () => {
+  assert.equal(intent.asksToStop(L14_STOP_POINT), false);
+  const h = [{ role: "assistant", content: "Passons à ta puce sur la création des campagnes d'e-mailing chez Marque Fictive : combien de campagnes as-tu envoyées ?" }];
+  const state = intent.listeningState(h, `Ma campagne d'e-mailing de rentrée a obtenu un taux d'ouverture de 28 %. ${L14_STOP_POINT}`);
+  assert.equal(state.stopAll, false);
+  const shown = intent.listenText({
+    mode: "parcours",
+    lang: "fr",
+    listening: state,
+    score: 69,
+    scoreBefore: 67,
+    corrections: [],
+    previousCoach: h.map((t) => t.content),
+    text: "C'est fait. Passons à ta puce « Suivi des indicateurs de performance » : quels indicateurs suis-tu ?",
+  });
+  assert.ok(shown.endsWith("quels indicateurs suis-tu ?"), shown);
+  // Les tours suivants ne sont pas arrêtés non plus.
+  const later = intent.listeningState([...h, { role: "user", content: L14_STOP_POINT }, { role: "assistant", content: "Quels indicateurs suis-tu ?" }], "Google Analytics.");
+  assert.equal(later.stopAll, false);
+  for (const point of [
+    "Je ne sais pas, on s'arrête là sur cette question.",
+    "Je n'ai pas d'autre chiffre, je m'arrête là-dessus.",
+    "Pas de chiffre, je m'arrête là pour ce point.",
+    "I don't have the number, I'll stop there on that point.",
+    "No figure, I'm done on this one.",
+  ]) {
+    assert.equal(intent.asksToStop(point), false, point);
+  }
+});
+
+test("arrêt : non-déclenchement, les vrais arrêts restent des arrêts", () => {
+  for (const stop of [
+    "Merci, je m'arrête là.",
+    "On en reste là.",
+    "C'est bon pour moi, on s'arrête là.",
+    "I'll stop here.",
+    // Arrêt sur un point, puis vraie demande d'arrêt dans le même message.
+    "Je m'arrête là sur ce point. Plus de questions, merci.",
+  ]) {
+    assert.equal(intent.asksToStop(stop), true, stop);
+  }
+});

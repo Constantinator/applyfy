@@ -60,6 +60,14 @@ const ANSWER_NUMBER = /\b(?!(?:19|20)\d\d\b)\d+/;
  */
 const STOP =
   /plus (de|aucune) questions?|arr[êe]te (les|tes) questions|stop (les|tes|the|asking|with the) questions?|pas d'autres? questions?|no more questions|stop asking|\bon (peut|pourra|pourrait) (s'arr[êe]ter|finir|conclure|en rester) (là|ici)(?![a-zà-ÿ])|\b(si on peut|on peut) finir l[àa]-dessus\b|\bje m'arr[êe]te (là|ici)(?![a-zà-ÿ])|\btu peux le finaliser\b|\b(le|mon) cv me convient\b|\b(on en reste|restons-en|on s'arr[êe]te) (là|ici)(?![a-zà-ÿ])(?!\s*\?)(?!\s*,?\s*(pour|sur|avec|concernant)\s+(?!aujourd'hui|l'instant|le moment|maintenant|ce soir)\S)|\bwe can (stop|finish|wrap up)\b|\blet'?s (stop|wrap up)\b|\bi'?m done\b|\bi'?ll stop (here|there)\b/i;
+/**
+ * Arrêt limité au point en cours (run 2026-11-16T02-55-59, L14 : « donc je m'arrête là sur ce
+ * point ») : ce n'est pas un arrêt de la session. Retiré du message avant de chercher STOP, pour
+ * qu'une vraie demande d'arrêt dans le même message (« … Plus de questions. ») compte toujours.
+ */
+const STOP_ON_POINT =
+  /\b(je m'arr[êe]te|on s'arr[êe]te|on en reste|restons-en|on (peut|pourra|pourrait) (s'arr[êe]ter|en rester)|i'?ll stop|let'?s stop|we can stop|i'?m done)(\s+(là|ici|here|there))?\s*,?\s*(sur ce point|pour ce point|l[àa]-dessus|sur cette question|pour cette question|sur [çc]a|sur cela|on (that|this) (point|one|question)|for (that|this) (point|one|question))(?![\p{L}])/giu;
+
 /** « Je m'arrête là » qui ne vaut qu'après une action (« do it now, then I'm done ») : pas un arrêt. */
 const AFTER_ACTION = /\b(then|et après|ensuite|puis|after that)\s*,?\s*(i'?m done|im done|je m'arr[êe]te)/i;
 /** Arrêt sous condition explicite : « on pourra s'arrêter là si ton CV est prêt », « if it's ready, we can stop ». */
@@ -158,8 +166,10 @@ export function isNegative(message: string): boolean {
 export const asksToStopIfReady = (message: string) =>
   STOP_IF_READY.test(message) || (STOP_IF_YES.test(message) && isReadinessQuestion(message));
 /** Un arrêt sous condition (prêt, ou « si oui ») n'est jamais un arrêt de la session. */
-export const asksToStop = (message: string) =>
-  STOP.test(message) && !AFTER_ACTION.test(message) && !STOP_IF_READY.test(message) && !STOP_IF_YES.test(message);
+export const asksToStop = (message: string) => {
+  const text = message.replace(STOP_ON_POINT, " ");
+  return STOP.test(text) && !AFTER_ACTION.test(text) && !STOP_IF_READY.test(text) && !STOP_IF_YES.test(text);
+};
 
 /** Question de chiffre au sens large (montant, volume, taux) pour le type de question. */
 const FIGURE_LIKE = /montant|volume|taux|chiffre d'affaires|encours|fr[ée]quence|amount|volume|rate|revenue/i;
