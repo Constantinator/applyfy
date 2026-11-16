@@ -47,7 +47,7 @@ const TEXTS = {
     studentTitle: "le titre proposé t'orientait vers un métier que tes expériences et tes études ne montrent pas.",
     removalNotAsked: "je ne supprime un passage que si tu me le demandes : dis-le-moi si tu veux le retirer.",
     unsureFigure: "tu m'as donné ce chiffre avec un doute, je laisse donc la puce telle quelle.",
-    firstPerson: "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »).",
+    firstPerson: "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »), je laisse donc ce passage tel quel.",
     bulletsDone: (items: string) => `C'est fait : ${items}.`,
     bulletWritten: (quote: string, place: string) => `« ${quote} » — ${place}`,
     bulletRemoved: (quote: string, place: string) => `puce supprimée « ${quote} » — ${place}`,
@@ -111,7 +111,7 @@ const TEXTS = {
     studentTitle: "the proposed title pointed you towards a job your experience and studies don't show.",
     removalNotAsked: "I only remove something if you ask me to: tell me if you want it removed.",
     unsureFigure: "you gave me this number with some doubt, so I'm leaving the bullet as it is.",
-    firstPerson: "the proposed text spoke about you in the first person (“je”, “mon”, “mes”).",
+    firstPerson: "the proposed text spoke about you in the first person (“je”, “mon”, “mes”), so I'm leaving it as it is.",
     bulletsDone: (items: string) => `Done: ${items}.`,
     bulletWritten: (quote: string, place: string) => `“${quote}” — ${place}`,
     bulletRemoved: (quote: string, place: string) => `removed bullet “${quote}” — ${place}`,
@@ -383,7 +383,9 @@ export function coachReplyText(i: CoachOutcomeInput): string {
     if (!causes.length) causes.push(i.firstInvalid ? { kind: "format", text: t.format } : { kind: "unknown", text: t.unknown });
     const sorted = sortedCauses(causes);
     if (request) return `${t.requestFailed}${sentences(sorted, true)} ${t.requestFailedEnd}`;
-    if (!experience) return `${t.otherFailed}${sentences(sorted, false)} ${t.otherFailedEnd}`;
+    // Seule la première personne en cause : le passage est laissé tel quel, rien à reformuler.
+    const kept = sorted.every((c) => c.text === t.firstPerson);
+    if (!experience) return kept ? `${t.otherFailed}${sentences(sorted, false)}` : `${t.otherFailed}${sentences(sorted, false)} ${t.otherFailedEnd}`;
     const question = sorted.some((c) => c.kind === "figure") ? asked || t.missingFigure : asked;
     return [`${t.experienceFailed}${sentences(sorted, true)}`, question].filter(Boolean).join(" ");
   }

@@ -213,7 +213,7 @@ test("nombres douteux : même proposition et 4 mots au plus (phrases exactes)", 
   assert.deepEqual([...doubtfulNumbers(["environ 12 je crois", "Oui, c'est bien 12."])], []);
 });
 
-// --- 3. « je / mon / mes » refusés dans l'accroche, les puces et les projets ---
+// --- 3. « je / mon / mes » : refus dès un pronom en parcours, s'il y en a plus qu'avant en demande ---
 
 /** L02, échange 4 : accroche réécrite par le coach en mode parcours, avec « mon ». */
 const L02_SUMMARY =
@@ -221,36 +221,10 @@ const L02_SUMMARY =
 const L02_SUMMARY_REQUEST =
   "Alors pour l'accroche, je maîtrise surtout JavaScript, React, TypeScript, Git et les bases de Docker, et côté projet j'ai développé une API REST en Node.js pour mon projet de fin d'études, utilisée par 3 équipes de mon école.";
 const summary = (data, mode = "parcours") => flat({ mode, section: "summary", change_summary: "C'est fait : accroche réécrite.", message: "", data });
-const PRONOUN_CAUSE = "le texte proposé parlait de toi à la première personne (« je », « mon », « mes »)";
-
-test("L02 rejoué : accroche avec « mon » refusée en mode parcours, acceptée sans", async () => {
-  const refused = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY));
-  assert.equal(refused.applied, 0, refused.text);
-  assert.ok(refused.text.toLowerCase().includes(PRONOUN_CAUSE), refused.text);
-  const accepted = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY.replace("pour mon projet", "pour le projet")));
-  assert.equal(accepted.applied, 1, accepted.text);
-});
-
-test("première personne : mode parcours, refus aussi dans une puce et un projet", async () => {
-  const bulletWithMy = await play(techStage, [], "J'ai corrigé une vingtaine de bugs avec mon équipe.", bullet("ts-e1", 0, "Correction d'une vingtaine de bugs avec mon équipe"));
-  assert.equal(bulletWithMy.applied, 0, bulletWithMy.text);
-  const project = await play(
-    techStage,
-    [],
-    "Mon appli de covoiturage a eu 150 utilisateurs.",
-    flat({ section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description: "Application mobile que j'ai lancée pour 150 étudiants de l'école." }) }),
-  );
-  assert.equal(project.applied, 0, project.text);
-});
-
-test("première personne : mode demande, refus sauf si le candidat demande la première personne", async () => {
-  const refused = await play(techStage, [], "Reformule mon accroche, s'il te plaît.", summary("Je cherche un stage de fin d'études en développement web.", "demande"));
-  assert.equal(refused.applied, 0, refused.text);
-  for (const request of FIRST_PERSON_REQUESTS) {
-    const result = await play(techStage, [], request, summary("Je cherche un stage de fin d'études en développement web.", "demande"));
-    assert.equal(result.applied, 1, `${request} → ${result.text}`);
-  }
-});
+const projectDescription = (description, mode = "parcours") =>
+  flat({ mode, section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description }) });
+const marketing = profile("marketing-junior-fr");
+const refusedForPronoun = (result) => result.firstProblems.some((p) => p.problems.some((x) => x.startsWith("parle du candidat à la première personne")));
 
 /** Formulations reconnues comme une demande de première personne (FR et EN). */
 const FIRST_PERSON_REQUESTS = [
@@ -262,25 +236,97 @@ const FIRST_PERSON_REQUESTS = [
   "Écris-la en disant « je ».",
   "Keep my summary in the first person.",
   "Write it in first-person please.",
-  "Keep the \"I\" in my summary.",
-  "Use \"I\" and \"my\" in the summary.",
+  'Keep the "I" in my summary.',
+  'Use "I" and "my" in the summary.',
 ];
 
-test("première personne : non-déclenchement (citation, nom propre déjà présent, intérêts, anglais, sans pronom)", async () => {
+test("1. parcours, L02 rejoué : accroche avec 1 pronom refusée au premier essai, la même sans pronom acceptée", async () => {
+  const refused = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY));
+  assert.ok(refusedForPronoun(refused), refused.text);
+  assert.equal(refused.applied, 0, refused.text);
+  const accepted = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY.replace("pour mon projet", "pour le projet")));
+  assert.equal(accepted.firstProblems.length, 0, accepted.text);
+  assert.equal(accepted.applied, 1, accepted.text);
+});
+
+test("1. parcours : refus aussi dans une puce et un projet (un pronom suffit)", async () => {
+  const withMy = await play(techStage, [], "J'ai corrigé une vingtaine de bugs avec mon équipe.", bullet("ts-e1", 0, "Correction d'une vingtaine de bugs avec mon équipe"));
+  assert.ok(refusedForPronoun(withMy), withMy.text);
+  const project = await play(techStage, [], "Mon appli de covoiturage a eu 150 utilisateurs.", projectDescription("Application mobile que j'ai lancée pour 150 étudiants de l'école."));
+  assert.ok(refusedForPronoun(project), project.text);
+});
+
+test("2. parcours : pas de refus quand le dernier message demande la première personne", async () => {
+  for (const request of FIRST_PERSON_REQUESTS) {
+    const result = await play(techStage, [], request, summary(L02_SUMMARY));
+    assert.equal(result.applied, 1, `${request} → ${result.text}`);
+  }
+});
+
+test("3. parcours : second essai refusé aussi, accroche inchangée, message honnête dans la langue du candidat", async () => {
+  const fr = await play(techStage, [], L02_SUMMARY_REQUEST, summary(L02_SUMMARY));
+  assert.equal(fr.updated.summary, techStage.summary);
+  assert.equal(fr.text, FR_FAILED);
+  const en = await play(techStage, [], "For the summary, mention my Node.js REST API used by 3 teams at my school.", summary(L02_SUMMARY));
+  assert.equal(en.updated.summary, techStage.summary);
+  assert.equal(en.text, EN_FAILED);
+});
+
+test("4. demande : raccourci à nombre de pronoms égal ou en baisse accepté", async () => {
+  const shorten = "Raccourcis mon accroche.";
+  // Avant : « …web, je cherche un stage de fin d'études. » (1 pronom).
+  const same = await play(techStage, [], shorten, summary("Étudiant en web, je cherche un stage.", "demande"));
+  assert.equal(same.firstProblems.length, 0, same.text);
+  assert.equal(same.applied, 1, same.text);
+  const fewer = await play(techStage, [], shorten, summary("Étudiant en développement web, en recherche de stage.", "demande"));
+  assert.equal(fewer.firstProblems.length, 0, fewer.text);
+  assert.equal(fewer.applied, 1, fewer.text);
+});
+
+test("4. demande, L14 rejoué : reformulation qui passe de 1 à 2 pronoms refusée", async () => {
+  // Avant : « …J'aime les projets où la donnée guide les choix créatifs. » (1 pronom).
+  const request = "Tu peux la reformuler vers la gestion de projet événementiel, en gardant la part de données et de créativité ?";
+  const after = "Chargée de marketing digital créative, avec 2 ans d'expérience en agence et chez l'annonceur. Je m'appuie sur la donnée pour guider mes choix créatifs.";
+  const result = await play(marketing, [], request, summary(after, "demande"));
+  assert.ok(refusedForPronoun(result), result.text);
+  assert.equal(result.applied, 0, result.text);
+});
+
+test("4. demande : un pronom ajouté à une accroche qui n'en avait aucun est refusé, sauf première personne demandée", async () => {
+  // Avant : « Commercial terrain dynamique, force de proposition, orienté résultats. » (0 pronom).
+  const after = "Commercial terrain, je développe un portefeuille de clients PME.";
+  const result = await play(commercial, [], "Reformule mon accroche, s'il te plaît.", summary(after, "demande"));
+  assert.ok(refusedForPronoun(result), result.text);
+  assert.equal(result.applied, 0, result.text);
+  for (const request of FIRST_PERSON_REQUESTS) {
+    const allowed = await play(commercial, [], request, summary(after, "demande"));
+    assert.equal(allowed.applied, 1, `${request} → ${allowed.text}`);
+  }
+});
+
+test("5. parcours : non-déclenchement (citation, nom propre déjà présent, intérêts, CV en anglais, sans pronom)", async () => {
   // Citation entre guillemets.
-  const quoted = await play(techStage, [], "Ajoute le nom de l'appli.", flat({ section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description: "Application « Mon Covoit » pour 150 étudiants de l'école." }) }));
+  const quoted = await play(techStage, [], "Ajoute le nom de l'appli.", projectDescription("Application « Mon Covoit » pour 150 étudiants de l'école."));
   assert.equal(quoted.applied, 1, quoted.text);
-  // Nom propre déjà présent dans le CV.
-  const named = { ...techStage, projects: [{ ...techStage.projects[0], name: "Mon Covoit Étudiant" }] };
-  const proper = await play(named, [], "Précise la description.", flat({ section: "projects", change_summary: "C'est fait.", data: JSON.stringify({ id: "ts-p1", description: "Application Mon Covoit Étudiant utilisée par 150 étudiants de l'école." }) }));
-  assert.equal(proper.applied, 1, proper.text);
+  // Noms propres déjà présents dans le CV.
+  for (const name of ["Mon Petit Gazon", "Mon Covoit Étudiant"]) {
+    const named = { ...techStage, projects: [{ ...techStage.projects[0], name }] };
+    const proper = await play(named, [], "Précise la description.", projectDescription(`Application ${name} utilisée par 150 étudiants de l'école.`));
+    assert.equal(proper.applied, 1, `${name} → ${proper.text}`);
+  }
   // Centres d'intérêt : section non vérifiée.
   const interests = await play(techStage, [], "Ajoute mes centres d'intérêt : course à pied.", flat({ mode: "demande", section: "interests", change_summary: "C'est fait.", data: "Course à pied avec mon club" }));
   assert.equal(interests.applied, 1, interests.text);
-  // CV en anglais : « I / my » ne sont pas visés (le score ne les compte pas).
-  const english = await play(techEn, [], "Rewrite my summary.", summary("I build APIs and distributed systems; my focus is B2B products, with 8 years of experience.", "demande"));
+  // CV en anglais, mode parcours : « I / my » ne sont pas visés (le score ne les compte pas).
+  const english = await play(techEn, [], "I build APIs.", summary("I build APIs and distributed systems; my focus is B2B products, with 8 years of experience."));
   assert.equal(english.applied, 1, english.text);
   // Accroche sans pronom.
   const clean = await play(techStage, [], L02_SUMMARY_REQUEST, summary("Étudiant en informatique à la recherche d'un stage de fin d'études en développement web."));
   assert.equal(clean.applied, 1, clean.text);
 });
+
+/** Textes du serveur attendus au test 3 : constat, cause, passage laissé tel quel (pas de « reformule ta demande »). */
+const FR_FAILED =
+  "Je n'ai pas pu appliquer cette modification à ton CV. Le texte proposé parlait de toi à la première personne (« je », « mon », « mes »), je laisse donc ce passage tel quel.";
+const EN_FAILED =
+  "I couldn't apply this change to your CV. The proposed text spoke about you in the first person (“je”, “mon”, “mes”), so I'm leaving it as it is.";

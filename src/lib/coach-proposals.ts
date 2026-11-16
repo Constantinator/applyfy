@@ -414,14 +414,17 @@ function firstPersonChecked(change: CoachChange): boolean {
   return false;
 }
 
+/** Chaque « je / j' / mon / ma / mes » d'un texte normalisé (mêmes mots que PRONOUNS du score). */
+const PRONOUN_WORDS = /(?<= )(je|mon|ma|mes)(?= )|(?<= )j'/g;
 /**
- * « je / j' / mon / ma / mes » dans le texte, comme le score les compte, hors citation et hors nom
- * propre déjà présent dans le CV.
+ * Nombre de « je / j' / mon / ma / mes » du texte, comme le score les lit (PRONOUNS), hors
+ * citation et hors nom propre déjà présent dans le CV.
  */
-function speaksInFirstPerson(text: string, cvText: string): boolean {
+function pronounCount(text: string, cvText: string): number {
   const withoutQuotes = text.replace(/\*\*|__|\*/g, "").replace(QUOTED, " ");
   const withoutNames = withoutQuotes.replace(PROPER_NAME, (name) => (cvText.includes(name) ? " " : name));
-  return PRONOUNS.test(normalizeText(withoutNames));
+  const normalized = normalizeText(withoutNames);
+  return PRONOUNS.test(normalized) ? (normalized.match(PRONOUN_WORDS) ?? []).length : 0;
 }
 
 /** Doute du candidat sur ce qu'il dit (texte sans accents, en minuscules). */
@@ -691,14 +694,20 @@ export function checkProposal(
       }
     }
   }
-  // Première personne (tous les CV ; en mode demande, sauf si le candidat la demande) : accroche,
-  // puces et projets sans « je / mon / mes », hors citation et nom propre déjà présent dans le CV.
-  if (!(options.mode === "demande" && options.firstPersonAsked)) {
+  // Première personne (accroche, puces, projets ; hors citation et nom propre déjà présent dans le
+  // CV ; jamais quand le dernier message demande la première personne) :
+  // - mode parcours (le coach réécrit de lui-même) : refus dès un pronom ;
+  // - mode demande (raccourcir, reformuler) : refus seulement si le texte en a plus qu'avant.
+  if (!options.firstPersonAsked) {
     const cvText = cvStrings(current).join("\n");
+    const request = options.mode === "demande";
     for (const change of proposal.changes) {
       if (!firstPersonChecked(change)) continue;
+      const before = pronounCount(change.before ?? "", cvText);
       for (const { text } of changeTexts(change)) {
-        if (!speaksInFirstPerson(text, cvText)) continue;
+        const count = pronounCount(text, cvText);
+        const refused = request ? count > before : count >= 1;
+        if (!refused) continue;
         const same = problems.find((q) => q.changeId === change.id);
         if (same) same.problems.push(PROBLEM_FIRST_PERSON);
         else problems.push({ changeId: change.id, text, problems: [PROBLEM_FIRST_PERSON] });
