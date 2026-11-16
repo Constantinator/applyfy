@@ -137,3 +137,57 @@ test("chiffre : réponse partielle, non-déclenchement (refus seul, phrase court
   const figure = [{ role: "assistant", content: "Combien de missions d'audit as-tu suivies, et avec quels outils ?" }];
   assert.equal(intent.figureNotAsked(figure, L11_USER_4), false);
 });
+
+// --- 4. Banc d'essai : suppression proposée, acceptée, puis refusée ---
+
+const evalMetrics = await import("../../scripts/eval/metrics.ts");
+const { PROBLEM_REMOVAL_NOT_ASKED } = await import("./coach-proposals.ts");
+
+const refusedRemoval = [{ label: "puce 2 supprimée", original: "Participation aux réunions d'équipe", proposed: "Participation aux réunions d'équipe", causes: [PROBLEM_REMOVAL_NOT_ASKED] }];
+const record = (opening, exchanges) => ({
+  scenarioId: "X",
+  set: "dev",
+  case: "libre",
+  type: "parcours",
+  repeat: 0,
+  language: "fr",
+  sectorStart: "tech",
+  startScore: 60,
+  endScore: 60,
+  startCv: cv,
+  endCv: cv,
+  opening,
+  offer: null,
+  judge: null,
+  endReason: "fin",
+  turns: exchanges.map(([user, coachText, problems]) => ({
+    user,
+    coachText,
+    error: null,
+    mode: "parcours",
+    scoreBefore: 60,
+    scoreAfter: 60,
+    applied: 0,
+    retried: false,
+    problems,
+    firstProblems: problems,
+    claim: null,
+    unchangedQuoted: [],
+    skipped: [],
+    section: null,
+    offerGap: "",
+  })),
+});
+const scenario = { id: "X", case: "libre", expectedSector: "tech" };
+
+test("banc d'essai : suppression proposée, acceptée puis refusée, comptée (L02 tour 9)", () => {
+  const m = evalMetrics.computeMetrics(record(L02_COACH_8, [[L02_USER_9, "Je n'ai pas pu faire cette modification.", refusedRemoval]]), scenario);
+  assert.equal(m.removalRefusedAfterProposal, 1);
+});
+
+test("banc d'essai : non compté sans proposition, après un refus, ou sans refus du serveur", () => {
+  const count = (opening, user, problems) => evalMetrics.computeMetrics(record(opening, [[user, "…", problems]]), scenario).removalRefusedAfterProposal;
+  assert.equal(count("Combien de bugs as-tu corrigés ?", "Oui, une vingtaine.", refusedRemoval), 0, "pas de proposition");
+  assert.equal(count(L02_COACH_8, "Non, garde-la.", refusedRemoval), 0, "refus du candidat");
+  assert.equal(count(L02_COACH_8, L02_USER_9, []), 0, "suppression faite");
+});

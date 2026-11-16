@@ -111,6 +111,8 @@ export type ScenarioAggregate = {
   /** Lot D : niveaux gonflés écrits, blocs « Ce qui bloque surtout » redits (sommes). */
   inflatedLevels: number;
   readyBlocksRepeated: number;
+  /** Lot E : suppressions proposées par le coach, acceptées, puis refusées (somme). */
+  removalRefusedAfterProposal: number;
   judgeMean: number | null;
   judgeRange: [number, number] | null;
   judgeByCriterion: Record<string, number | null>;
@@ -181,6 +183,7 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       schoolProjectPhrases: sum(m.map((x) => x.schoolProjectPhrases)),
       inflatedLevels: sum(m.map((x) => x.inflatedLevels)),
       readyBlocksRepeated: sum(m.map((x) => x.readyBlocksRepeated)),
+      removalRefusedAfterProposal: sum(m.map((x) => x.removalRefusedAfterProposal)),
       judgeMean: median(means),
       judgeRange,
       judgeByCriterion: Object.fromEntries(JUDGE_CRITERIA.map((k) => [k, median(judged.map((j) => j[k].note))])),
@@ -229,6 +232,7 @@ function badness({ record, metrics: m }: Result) {
     Math.max(0, m.monthQuestions - 1) * 2 +
     m.inflatedLevels * 3 +
     m.readyBlocksRepeated +
+    m.removalRefusedAfterProposal * 3 +
     Math.max(0, (m.offerFlow?.keywordQuestions ?? 0) - 4) * 2 +
     ((m.offerFlow?.keywordsPerQuestionMax ?? 0) > 2 ? 2 : 0) +
     (m.offerFlow && m.offerFlow.languageNotes !== (m.offerFlow.languageNoteExpected ? 1 : 0) ? 1 : 0) +
@@ -264,6 +268,7 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Phrase école",
     "Niveau gonflé",
     "Bloc « prêt » redit",
+    "Suppression refusée après accord",
     "Langue ≠",
     "Demande exécutée",
     ...(linked
@@ -317,6 +322,7 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.schoolProjectPhrases),
         String(r.inflatedLevels),
         String(r.readyBlocksRepeated),
+        String(r.removalRefusedAfterProposal),
         String(r.languageMismatches),
         r.requestDone,
         ...(linked
@@ -355,6 +361,9 @@ function transcriptMd({ record, metrics }: Result) {
       metrics.monthQuestions > 1 ? `${metrics.monthQuestions} messages avec une question de mois` : null,
       metrics.inflatedLevels ? `${metrics.inflatedLevels} texte(s) avec un niveau que le candidat n'a pas dit` : null,
       metrics.readyBlocksRepeated ? `${metrics.readyBlocksRepeated} bloc(s) « Ce qui bloque surtout » redit(s) mot pour mot` : null,
+      metrics.removalRefusedAfterProposal
+        ? `${metrics.removalRefusedAfterProposal} suppression(s) proposée(s) par le coach, acceptée(s), puis refusée(s)`
+        : null,
       (metrics.offerFlow?.keywordQuestions ?? 0) > 4 ? `${metrics.offerFlow?.keywordQuestions} questions sur des mots-clés de l'offre` : null,
       (metrics.offerFlow?.keywordsPerQuestionMax ?? 0) > 2 ? `${metrics.offerFlow?.keywordsPerQuestionMax} mots-clés de l'offre dans une même question` : null,
       metrics.announcedThenAsked ? `${metrics.announcedThenAsked} annonce(s) suivie(s) d'une demande de confirmation du même fait` : null,

@@ -11,12 +11,21 @@ import {
   isReadinessQuestion,
   questionType,
   removalAllowed,
+  removalProposed,
   type QuestionType,
 } from "../../src/lib/coach-intent.ts";
 import { COMMON_ACTION_VERBS } from "../../src/lib/cv-sector-context.ts";
 import { offerMarker } from "../../src/lib/coach-offer.ts";
 import { SCHOOL_PROJECT_TEXTS } from "../../src/lib/coach-outcome.ts";
-import { inflatedLevels, inventedNumbers, isPartialRole, keepsOldVerbAgainstCandidate, numberSources } from "../../src/lib/coach-proposals.ts";
+import {
+  inflatedLevels,
+  inventedNumbers,
+  isPartialRole,
+  keepsOldVerbAgainstCandidate,
+  numberSources,
+  PROBLEM_REMOVAL_NOT_ASKED,
+  PROBLEM_REMOVAL_UNANSWERED,
+} from "../../src/lib/coach-proposals.ts";
 import { chatContent, cvDataToText, type CvData } from "../../src/lib/cv-builder-types.ts";
 import { READY_SCORE } from "../../src/lib/cv-score.ts";
 import type { ConversationRecord, TurnRecord } from "./conversation.ts";
@@ -103,6 +112,11 @@ export type ConversationMetrics = {
   inflatedLevels: number;
   /** Messages du coach qui redisent mot pour mot un « Ce qui bloque surtout : … » déjà dit (lot D, L14 ; attendu : 0). */
   readyBlocksRepeated: number;
+  /**
+   * Suppressions refusées (après le second essai) alors que la dernière question du coach la proposait
+   * et que le candidat ne l'a pas refusée (lot E, L02 tour 9 ; attendu : 0).
+   */
+  removalRefusedAfterProposal: number;
 };
 
 /** Phrases de l'annonce qui disent qu'une partie n'a pas été appliquée. */
@@ -139,6 +153,20 @@ function removedWithoutRequest(record: ConversationRecord, allCoach: string[]) {
     const after = record.endCv.experiences.find((x) => x.id === e.id);
     return n + Math.max(0, e.bullets.length - (after?.bullets.length ?? 0));
   }, 0);
+}
+
+/** Échanges où la suppression proposée par le coach, non refusée par le candidat, est quand même refusée. */
+function removalRefusedAfterProposal(record: ConversationRecord, allCoach: string[]) {
+  const removalCauses = new Set([PROBLEM_REMOVAL_NOT_ASKED, PROBLEM_REMOVAL_UNANSWERED]);
+  const history: { role: "user" | "assistant"; content: string }[] = [];
+  let count = 0;
+  record.turns.forEach((t, k) => {
+    if (allCoach[k]) history.push({ role: "assistant", content: allCoach[k] });
+    const refused = t.problems.some((p) => p.causes.some((c) => removalCauses.has(c)));
+    if (refused && removalProposed(history, t.user)) count++;
+    history.push({ role: "user", content: t.user });
+  });
+  return count;
 }
 
 /** Puces (même expérience, même place) qui gardent l'ancien verbe contre celui du candidat. */
@@ -597,5 +625,6 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     schoolProjectPhrases: allCoach.filter((t) => SCHOOL_PROJECT_TEXTS.some((p) => t.includes(p))).length,
     inflatedLevels: inflatedLevelsWritten(record),
     readyBlocksRepeated: readyBlocksRepeated(allCoach),
+    removalRefusedAfterProposal: removalRefusedAfterProposal(record, allCoach),
   };
 }
