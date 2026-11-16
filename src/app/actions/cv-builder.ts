@@ -28,7 +28,7 @@ import {
   coachOpening,
   type ImportedCvAnalysis,
 } from "@/lib/claude";
-import { buildCoachContext, type BuiltCoachContext } from "@/lib/coach-context";
+import { buildCoachContext, offerListening, type BuiltCoachContext } from "@/lib/coach-context";
 import { listeningState } from "@/lib/coach-intent";
 import { boundSkipped, withOfferLanguageNote } from "@/lib/coach-offer";
 import { plainCoachText } from "@/lib/coach-plain";
@@ -830,7 +830,7 @@ export async function refineBuilderCvAction(
       ...built,
       skipped: skippedPoints(skipped),
       // CV lié : mots-clés de l'offre encore absents (arrêt des questions après deux refus).
-      listening: listeningState(turns, request, built.offerSteps ? { keywords: built.offerKeywords ?? [] } : undefined),
+      listening: listeningState(turns, request, offerListening(built)),
     };
     reply = await coachBuilderCv(context, turns, request);
   } catch (error) {

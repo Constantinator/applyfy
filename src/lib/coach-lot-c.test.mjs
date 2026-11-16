@@ -258,3 +258,59 @@ test("école : non-déclenchement (alternance, CDI, université, prestataire, pu
   assert.equal(schoolProjectBullet([change], techStage, O06_REQUEST), true);
   assert.equal(schoolProjectBullet([change], techStage, "Ajoute une puce : API REST en Node.js utilisée par 3 équipes."), false);
 });
+
+// --- 3. Mots-clés de l'offre : 4 questions au plus (serveur), 2 mots-clés par question (prompt) ---
+
+const { detailOf } = await import("./coach-test-fixtures.mjs");
+const backend = detailOf("o-tech-backend");
+const KW_QUESTIONS = [
+  "As-tu déjà utilisé Docker dans un projet ou pendant ton stage ?",
+  "As-tu déjà travaillé avec PostgreSQL ?",
+  // Git est déjà dans le CV : la question compte quand même (tous les mots-clés de l'offre).
+  "As-tu déjà utilisé Git en équipe pendant ton stage ?",
+  "As-tu une expérience des tests automatisés ?",
+];
+const kwHistory = (questions) => questions.flatMap((q) => [{ role: "assistant", content: `C'est noté. ${q}` }, { role: "user", content: "Oui, sur mon projet de fin d'études." }]);
+
+test("mots-clés : après 4 questions du coach, keywordsDone (même pour un mot-clé déjà dans le CV)", () => {
+  const h = kwHistory(KW_QUESTIONS);
+  const ctx = contextFor(techStage, backend, { history: h, request: "Oui, sur mon projet de fin d'études." });
+  assert.ok(!ctx.offerKeywords.includes("Git") && ctx.offerKeywordsAll.includes("Git"));
+  assert.equal(ctx.listening.keywordsDone, true);
+  assert.ok(coachSystem(ctx, "").includes("Tu as déjà posé 4 questions sur les mots-clés de l'offre"));
+  const three = contextFor(techStage, backend, { history: kwHistory(KW_QUESTIONS.slice(0, 3)), request: "Oui." });
+  assert.ok(!("keywordsDone" in three.listening));
+});
+
+test("mots-clés : non-déclenchement (CV libre, mot-clé demandé par le candidat, proposition sans question d'expérience)", () => {
+  const libre = contextFor(techStage, null, { history: kwHistory(KW_QUESTIONS), request: "Oui." });
+  assert.ok(!("keywordsDone" in libre.listening));
+  const h = [
+    ...kwHistory(KW_QUESTIONS.slice(0, 3)),
+    { role: "assistant", content: "C'est fait : j'ai ajouté Docker à tes compétences, comme tu me l'as demandé." },
+    { role: "user", content: "Merci." },
+    { role: "assistant", content: "Veux-tu que je réécrive ton résumé en citant ton API REST en Node.js ?" },
+  ];
+  const ctx = contextFor(techStage, backend, { history: h, request: "Oui." });
+  assert.ok(!("keywordsDone" in ctx.listening), "seules les questions d'expérience sur un mot-clé comptent");
+});
+
+test("mots-clés : question retirée au-delà du plafond, sans « j'arrête les questions »", () => {
+  const listening = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: false, shorten: false, stopKeywords: false, keywordsDone: true };
+  const base = { mode: "parcours", lang: "fr", score: 66, scoreBefore: 66, previousCoach: [], offerKeywords: ["Node.js", "API REST", "Docker", "méthode agile"], corrections: ["4 mots-clés du métier sur 10 visés (Tech & Développement)"] };
+  const kept = intent.listenText({ ...base, listening, text: "C'est fait. As-tu déjà travaillé en méthode agile ?" });
+  assert.equal(kept, "C'est fait.");
+  const alone = intent.listenText({ ...base, listening, text: "As-tu déjà travaillé en méthode agile ?" });
+  assert.equal(alone, "On passe au point suivant : 4 mots-clés du métier sur 10 visés (Tech & Développement).");
+  const closed = intent.listenText({ ...base, score: 84, scoreBefore: 84, listening, text: "As-tu déjà travaillé en méthode agile ?" });
+  assert.equal(closed, "Dis-moi si tu veux une modification précise.");
+  // Sans plafond atteint : question gardée.
+  const free = intent.listenText({ ...base, listening: { ...listening, keywordsDone: undefined }, text: "As-tu déjà travaillé en méthode agile ?" });
+  assert.equal(free, "As-tu déjà travaillé en méthode agile ?");
+});
+
+test("mots-clés : au plus 2 mots-clés par question, dans les règles de l'offre seulement (CV lié)", () => {
+  const linked = coachSystem(contextFor(techStage, backend), "");
+  assert.ok(linked.includes("Une question cite au plus 2 mots-clés de l'offre."));
+  assert.ok(!coachSystem(contextFor(techStage, null), "").includes("Une question cite au plus 2 mots-clés"));
+});

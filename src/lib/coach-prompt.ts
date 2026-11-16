@@ -44,6 +44,8 @@ export type CoachContext = {
   offer?: { position: string; company: string } | null;
   /** Titre du CV d'un autre métier que l'offre (cvTitleMismatch). */
   titleMismatch?: boolean;
+  /** CV lié : tous les mots-clés de l'offre, présents ou non dans le CV (plafond des questions) ; absent en mode libre. */
+  offerKeywordsAll?: string[];
   /** CV lié : étapes d'adaptation à l'offre nécessaires, dans l'ordre (coach-offer.ts) ; absent en mode libre. */
   offerSteps?: OfferStep[];
   /** CV lié : candidat étudiant ou stagiaire (le titre proposé garde ce statut). */
@@ -77,7 +79,7 @@ export const isCvClosed = (score: number) => score >= READY_SCORE;
 
 /** Règles des mots-clés de l'offre : dans le bloc « mots_cles_offre », qui n'existe que pour un CV lié. */
 const OFFER_KEYWORD_RULES = [
-  "« Mots-clés de l'offre absents du CV » (si cette liste existe et que le CV n'est pas clos) : traite-en 4 au maximum sur toute la session, après les « Points à corriger ». Ne propose un mot-clé que s'il se rattache à un fait réel du CV ou des messages du candidat (un outil, une tâche, un projet proche) : cite ce fait dans ta question. Un mot-clé sans lien avec le CV ni avec les messages relève de l'écart avec l'offre : n'en parle pas de ta propre initiative. Parmi ceux qui se rattachent à un fait, choisis les plus importants pour le poste, quel que soit leur ordre dans la liste, et ignore les mots-clés génériques (soft skills comme « organisation » ou « travail en équipe »). Un mot-clé que le candidat a déjà cité dans ses messages comme une expérience réelle, intègre-le au CV sans reposer la question. Pour les autres, demande si le candidat en a une expérience réelle et laquelle. S'il confirme, intègre le mot-clé au CV (compétences, ou puce avec ses faits). Sinon, ajoute-le à « skipped_points » et passe au suivant. N'ajoute jamais un mot-clé que le candidat n'a pas confirmé.",
+  "« Mots-clés de l'offre absents du CV » (si cette liste existe et que le CV n'est pas clos) : traite-en 4 au maximum sur toute la session, après les « Points à corriger ». Une question cite au plus 2 mots-clés de l'offre. Ne propose un mot-clé que s'il se rattache à un fait réel du CV ou des messages du candidat (un outil, une tâche, un projet proche) : cite ce fait dans ta question. Un mot-clé sans lien avec le CV ni avec les messages relève de l'écart avec l'offre : n'en parle pas de ta propre initiative. Parmi ceux qui se rattachent à un fait, choisis les plus importants pour le poste, quel que soit leur ordre dans la liste, et ignore les mots-clés génériques (soft skills comme « organisation » ou « travail en équipe »). Un mot-clé que le candidat a déjà cité dans ses messages comme une expérience réelle, intègre-le au CV sans reposer la question. Pour les autres, demande si le candidat en a une expérience réelle et laquelle. S'il confirme, intègre le mot-clé au CV (compétences, ou puce avec ses faits). Sinon, ajoute-le à « skipped_points » et passe au suivant. N'ajoute jamais un mot-clé que le candidat n'a pas confirmé.",
   "La liste des mots-clés est recalculée à chaque échange : un mot-clé intégré au CV en disparaît et d'autres peuvent y apparaître. Relis la conversation et compte ceux que tu as déjà traités ou abandonnés. Une fois ta sélection terminée, n'en aborde aucun autre de ta propre initiative, même s'il en reste dans la liste. Un mot-clé que le candidat te demande lui-même d'ajouter ne compte pas dans ces 4.",
 ];
 
@@ -163,6 +165,10 @@ const SITUATION: [keyof Listening, string][] = [
   [
     "stopKeywords",
     "Le candidat a répondu non deux fois de suite à des questions sur des mots-clés de l'offre : n'en propose plus aucun dans cette session. Passe aux points qui restent, ou propose de conclure.",
+  ],
+  [
+    "keywordsDone",
+    "Tu as déjà posé 4 questions sur les mots-clés de l'offre : n'en pose plus aucune de ta propre initiative dans cette session. Un mot-clé que le candidat te demande lui-même d'ajouter reste permis.",
   ],
   [
     "stopMonths",

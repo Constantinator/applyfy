@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 await import("../../scripts/eval/register.mjs");
 for (const key of Object.keys(process.env)) if (key.startsWith("CLAUDE_MODEL_")) delete process.env[key];
 
-const { buildCoachContext } = await import("./coach-context.ts");
+const { buildCoachContext, offerListening } = await import("./coach-context.ts");
 const { listeningState } = await import("./coach-intent.ts");
 const { coachBuilderCv } = await import("./coach-llm.ts");
 const { runCoachTurn } = await import("./coach-turn.ts");
@@ -63,7 +63,7 @@ export function contextFor(cv, detail, { history = [], request = null, skipped =
   const scoring = scoringContextFrom(cv, detail ? scoringOffer(detail) : null, []);
   const base = buildCoachContext(cv, scoring, detail, request, history);
   const listening =
-    request !== null ? listeningState(history, request, base.offerSteps ? { keywords: base.offerKeywords ?? [] } : undefined) : undefined;
+    request !== null ? listeningState(history, request, offerListening(base)) : undefined;
   return { ...base, skipped, ...(listening ? { listening } : {}) };
 }
 

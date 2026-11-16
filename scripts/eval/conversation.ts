@@ -6,7 +6,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
 import { ClaudeRefusalError } from "../../src/lib/claude-structured.ts";
-import { buildCoachContext } from "../../src/lib/coach-context.ts";
+import { buildCoachContext, offerListening } from "../../src/lib/coach-context.ts";
 import { listeningState } from "../../src/lib/coach-intent.ts";
 import { boundSkipped, withOfferLanguageNote } from "../../src/lib/coach-offer.ts";
 import { plainCoachText } from "../../src/lib/coach-plain.ts";
@@ -238,7 +238,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
       };
       const turns = history.slice(-HISTORY_MAX).map(({ role, content }) => ({ role, content: content.slice(0, 2000) }));
       const built = contextFor(current, request, turns);
-      const context = { ...built, listening: listeningState(turns, request, built.offerSteps ? { keywords: built.offerKeywords ?? [] } : undefined) };
+      const context = { ...built, listening: listeningState(turns, request, offerListening(built)) };
       const scoreBefore = context.score.value;
 
       const turn: TurnRecord = {

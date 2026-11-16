@@ -205,6 +205,11 @@ export type Listening = {
   /** CV lié : deux refus de suite à des questions sur des mots-clés de l'offre (absent en mode libre). */
   stopKeywords?: boolean;
   /**
+   * CV lié : le coach a déjà posé KEYWORD_QUESTIONS_MAX questions sur des mots-clés de l'offre
+   * (comptées sur tous ses mots-clés, même intégrés depuis) : il n'en pose plus. Absent sinon.
+   */
+  keywordsDone?: boolean;
+  /**
    * Deux refus de suite, quel que soit le type de question : types des questions refusées dans la
    * session (le coach n'en repose plus ; il propose de conclure ou passe à un autre élément).
    * Absent sans deux refus de suite.
@@ -241,7 +246,7 @@ export type Listening = {
 export function listeningState(
   history: { role: "user" | "assistant"; content: string }[],
   request: string,
-  offer?: { keywords: string[] },
+  offer?: { keywords: string[]; allKeywords?: string[] },
 ): Listening {
   const messages = [...history.filter((t) => t.role === "user").map((t) => t.content), request];
   const stopFigures = messages.some((m, i) => i > 0 && isNegative(m) && isNegative(messages[i - 1]));
@@ -279,8 +284,17 @@ export function listeningState(
   if (saysNoFigure(history, request)) listening.noFigure = true;
   if (!offer) return listening;
   const refusedKeyword = (a: { question: string; answer: string }) => isNegative(a.answer) && isKeywordQuestion(a.question, offer.keywords);
-  return { ...listening, stopKeywords: answers.some((a, i) => i > 0 && refusedKeyword(a) && refusedKeyword(answers[i - 1])) };
+  const stopKeywords = answers.some((a, i) => i > 0 && refusedKeyword(a) && refusedKeyword(answers[i - 1]));
+  // Plafond imposé par le serveur : messages du coach qui posent une question sur un mot-clé de l'offre.
+  const all = offer.allKeywords?.length ? offer.allKeywords : offer.keywords;
+  const asked = history.filter(
+    (t) => t.role === "assistant" && splitSentences(t.content).some((s) => isQuestion(s) && isKeywordQuestion(s, all)),
+  ).length;
+  return { ...listening, stopKeywords, ...(asked >= KEYWORD_QUESTIONS_MAX ? { keywordsDone: true } : {}) };
 }
+
+/** Questions du coach sur les mots-clés de l'offre, au plus, dans une session (« 4 au maximum » du prompt). */
+export const KEYWORD_QUESTIONS_MAX = 4;
 
 /**
  * Le candidat dit ne pas avoir le chiffre demandé (« je ne connais pas le budget », « pas de
@@ -323,7 +337,8 @@ const TEXTS = {
     noInsist: (score: number) => `Pas de souci, je n'insiste pas. Ton CV est à ${score}/100 : tu peux t'arrêter là, ou me demander une modification précise.`,
     stopIfReady: "Tu peux t'arrêter là, ou me dire si tu veux continuer.",
     closedShort: "Dis-moi si tu veux une modification précise.",
-    nextPoint: (point: string) => `Je ne te redemande pas les mois de tes dates. On passe au point suivant : ${point}.`,
+    noMoreMonths: "Je ne te redemande pas les mois de tes dates.",
+    nextPoint: (point: string) => `On passe au point suivant : ${point}.`,
     allDone:
       "J'ai fait le tour des points à corriger. Tu peux encore modifier ton CV directement en cliquant sur n'importe quel texte dans l'aperçu, ou me demander une modification précise.",
     hints: (hints: string) => `Deux pistes facultatives, sans urgence : ${hints}.`,
@@ -339,7 +354,8 @@ const TEXTS = {
     stopIfReady: "You can stop here, or tell me if you want to continue.",
     closedShort: "Tell me if you want a specific change.",
     // Les corrections du score sont écrites en français : pas de point cité en anglais.
-    nextPoint: () => "I won't ask about the months of your dates again. Let's move on: the next point is listed under your score.",
+    noMoreMonths: "I won't ask about the months of your dates again.",
+    nextPoint: () => "Let's move on: the next point is listed under your score.",
     allDone: "I've gone through the points to fix. You can still edit your CV by clicking any text in the preview, or ask me for a specific change.",
     // Les corrections du score sont écrites en français : pas de liste en anglais.
     hints: () => "A few optional improvements remain, with no urgency: they are listed under your score.",
@@ -403,7 +419,7 @@ export function listenText(i: ListenInput): string {
     (stopAll ||
       stoppedNow(s) ||
       (i.listening.stopFigures && FIGURE_QUESTION.test(s)) ||
-      (i.listening.stopKeywords === true && isKeywordQuestion(s, i.offerKeywords ?? [])) ||
+      ((i.listening.stopKeywords === true || i.listening.keywordsDone === true) && isKeywordQuestion(s, i.offerKeywords ?? [])) ||
       refusedType(s));
   const hadQuestion = sentences.some(dropQuestion);
   // Seulement une question de mois déjà posée une fois (sans refus du candidat) : rien à « ne pas
@@ -415,7 +431,17 @@ export function listenText(i: ListenInput): string {
     !(i.listening.stopTypes?.includes("mois") ?? false) &&
     !(i.listening.stopFigures && FIGURE_QUESTION.test(s)) &&
     !stoppedNow(s);
-  const onlyMonthsOnce = !stopAll && hadQuestion && sentences.filter(dropQuestion).every(monthsOnce);
+  // Question sur un mot-clé retirée par le seul plafond (sans deux refus de suite) : idem.
+  const keywordCap = (s: string) =>
+    i.listening.keywordsDone === true &&
+    !i.listening.stopKeywords &&
+    isKeywordQuestion(s, i.offerKeywords ?? []) &&
+    !refusedType(s) &&
+    !(i.listening.stopFigures && FIGURE_QUESTION.test(s)) &&
+    !stoppedNow(s);
+  const dropped = sentences.filter(dropQuestion);
+  const onlyCapped = !stopAll && hadQuestion && dropped.every((s) => monthsOnce(s) || keywordCap(s));
+  const monthsDropped = dropped.some(monthsOnce);
   const onlyRefused = !stopAll && sentences.filter(dropQuestion).every((s) => refusedType(s) && !(i.listening.stopFigures && FIGURE_QUESTION.test(s)));
   sentences = sentences.filter((s) => !dropQuestion(s));
 
@@ -442,10 +468,12 @@ export function listenText(i: ListenInput): string {
   if (!text) {
     // Le message n'était qu'une question (ou que la clôture déjà dite).
     if (i.listening.stopIfReady && i.mode === "parcours") text = t.stopIfReady;
-    else if (onlyMonthsOnce) {
-      // CV clos : phrase courte. Sinon, point suivant (hors dates), ou clôture du parcours.
+    else if (onlyCapped) {
+      // Question déjà posée une fois (mois) ou plafond atteint (mots-clés), sans refus : CV clos,
+      // phrase courte ; sinon point suivant (hors dates), ou clôture du parcours.
       const next = i.corrections.find((c) => !DATE_CORRECTION.test(c));
-      text = i.score >= READY_SCORE ? t.closedShort : next ? t.nextPoint(next.replace(/\s*\(\+\d+ pts\)$/, "")) : t.allDone;
+      const lead = monthsDropped ? `${t.noMoreMonths} ` : "";
+      text = i.score >= READY_SCORE ? t.closedShort : next ? `${lead}${t.nextPoint(next.replace(/\s*\(\+\d+ pts\)$/, ""))}` : t.allDone;
     } else if (hadQuestion && onlyRefused) text = t.noInsist(i.score);
     else if (hadQuestion) text = i.lang === "fr" ? TEXTS.fr.stopped(i.score, gaps) : TEXTS.en.stopped(i.score);
     else text = t.closedShort;

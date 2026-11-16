@@ -44,10 +44,37 @@ function missingKeywordRows(detail: CoachOfferDetail | null, data: CvData, secto
   }
 }
 
+/**
+ * Tous les mots-clés de l'offre, présents ou absents du CV (hors ignorés) : compte des questions du
+ * coach sur les mots-clés, même ceux intégrés depuis. Sans échec : liste vide.
+ */
+function allOfferKeywords(detail: CoachOfferDetail | null, data: CvData, sector: Sector): string[] {
+  try {
+    const saved = readCvSuggestions(detail?.application.cv_suggestions);
+    return saved?.kind === "keywords"
+      ? matchCvKeywords(saved, cvDataToText(data), sector)
+          .rows.filter((r) => !r.ignored)
+          .map((r) => r.keyword)
+      : (saved?.ce_qui_manque ?? []);
+  } catch (error) {
+    console.error("[cv-builder coach] mots-clés de l'offre", error);
+    return [];
+  }
+}
+
+/**
+ * Ce que l'écoute du serveur lit de l'offre (coach-intent.ts, listeningState) : mots-clés encore
+ * absents (deux refus de suite) et tous les mots-clés (plafond de questions). undefined en mode libre.
+ */
+export function offerListening(built: Pick<CoachContext, "offerSteps" | "offerKeywords" | "offerKeywordsAll">) {
+  return built.offerSteps ? { keywords: built.offerKeywords ?? [], allKeywords: built.offerKeywordsAll ?? [] } : undefined;
+}
+
 /** CV lié : écart principal avec l'offre et étapes nécessaires (aucune une fois le CV clos). */
 function linkedSteps(data: CvData, sector: Sector, detail: CoachOfferDetail | null, closed: boolean) {
   const gap = offerGap(data, sector, missingKeywordRows(detail, data, sector).filter((r) => r.specific).length);
   return {
+    offerKeywordsAll: allOfferKeywords(detail, data, sector),
     offerGap: gap,
     offerStudent: isStudentProfile(data),
     offerSteps: closed ? [] : offerSteps(data, sector, gap),
