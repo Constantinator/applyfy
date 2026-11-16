@@ -111,6 +111,21 @@ const CONTINUE_OFFER = /je continue avec|veux-tu que je continue|on continue ave
 
 export const isReadinessQuestion = (message: string) => READINESS.test(message);
 export const isConfirmationQuestion = (message: string) => CONFIRMATION.test(message);
+
+/**
+ * Question ouverte du candidat, qui appelle un conseil ou une explication (« comment les formuler ? »,
+ * « tu me conseilles… ? », « qu'en penses-tu ? », « how should I…? ») : une phrase terminée par « ? ».
+ */
+const OPEN_QUESTION =
+  /\b(comment|pourquoi|conseill(es|erais)|qu'en penses-tu|tu en penses quoi|qu'est-ce que tu en penses|vaut-il mieux|vaut mieux|lequel|laquelle|lesquels|lesquelles|o[ùu] (le |la |les )?(mettre|placer)|how|why|should i|what do you (think|suggest|recommend)|which|would you (recommend|suggest)|where should)\b/i;
+/**
+ * Le dernier message pose une question ouverte. « Prêt ? », « que reste-t-il ? » et « peux-tu
+ * confirmer ? » ont déjà leur réponse du serveur : ils n'en sont pas.
+ */
+export function asksOpenQuestion(message: string): boolean {
+  if (isReadinessQuestion(message) || asksWhatToImprove(message) || isConfirmationQuestion(message)) return false;
+  return splitSentences(message).some((s) => isQuestion(s) && OPEN_QUESTION.test(s));
+}
 export const asksWhatToImprove = (message: string) => IMPROVE.test(message);
 /**
  * Réponse négative à la question posée : refus ou information inconnue au début du message, sans
@@ -179,6 +194,8 @@ export type Listening = {
   stopIfReady?: boolean;
   /** Le dernier message demande ce qu'il reste à améliorer. Absent sinon. */
   improve?: boolean;
+  /** Le dernier message pose une question ouverte (conseil, explication). Absent sinon. */
+  openQuestion?: boolean;
 };
 
 /**
@@ -218,6 +235,7 @@ export function listeningState(
   if (twoInARow) listening.stopTypes = [...new Set(refused.filter((t): t is QuestionType => t !== null))];
   if (stopIfReady) listening.stopIfReady = true;
   if (asksWhatToImprove(request)) listening.improve = true;
+  if (asksOpenQuestion(request)) listening.openQuestion = true;
   if (!offer) return listening;
   const refusedKeyword = (a: { question: string; answer: string }) => isNegative(a.answer) && isKeywordQuestion(a.question, offer.keywords);
   return { ...listening, stopKeywords: answers.some((a, i) => i > 0 && refusedKeyword(a) && refusedKeyword(answers[i - 1])) };

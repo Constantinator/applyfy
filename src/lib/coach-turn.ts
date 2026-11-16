@@ -244,6 +244,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     bulletChanges,
     // Accroche : idem, sauf demande de raccourcir (annonce et décompte des mots, comme avant).
     ...(summaryText && !check.shorten ? { summaryText } : {}),
+    // CV clos et question ouverte : la réponse du modèle est gardée (sans question).
+    ...(context.listening?.openQuestion ? { answerQuestion: true } : {}),
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
     corrections: scored?.after.corrections.map((c) => c.message) ?? [],

@@ -190,6 +190,11 @@ export type CoachOutcomeInput = {
    * l'annonce est écrite par le serveur et cite le texte écrit (run 2026-11-15T23-04-28, L14).
    */
   summaryText?: string;
+  /**
+   * CV clos (ou qui le devient) et question ouverte du candidat : la réponse du modèle (« message »)
+   * est affichée entre l'annonce et le score, si elle ne pose aucune question (run 2026-11-16T00-45-04, O05).
+   */
+  answerQuestion?: boolean;
   /** Demande de raccourcir appliquée : mots avant et après, calculés par le serveur. */
   wordCounts?: { before: number; after: number };
   /** Score avant et après l'application (null après : rien n'a été appliqué). */
@@ -311,6 +316,9 @@ export function summaryAnnouncement(text: string, lang: CoachLang): string {
   return quote.endsWith("…") ? TEXTS[lang].summaryStarts(quote) : TEXTS[lang].summaryWritten(quote);
 }
 
+/** Formule qui renvoie au candidat au lieu de répondre (« Dis-moi si tu veux une modification précise »). */
+const NON_ANSWER = /^(Dis-moi si tu veux|Tell me if you want)/i;
+
 /** Annonce écrite par le serveur à partir des emplacements réellement modifiés. */
 function appliedAnnouncement(labels: string[] | undefined, lang: CoachLang) {
   const places = [...new Set(labels ?? [])];
@@ -403,7 +411,10 @@ export function coachReplyText(i: CoachOutcomeInput): string {
     const end = i.scoreBefore < READY_SCORE ? closureMessage(i.scoreAfter, i.corrections, i.offerKeywords, lang) : t.scoreLine(i.scoreAfter);
     // CV déjà clos et demande explicite : la suite proposée par le coach (« Je continue avec … ? ») est gardée.
     const next = request && i.scoreBefore >= READY_SCORE ? i.message : null;
-    return [summary, partialText, end, next].filter(Boolean).join(" ");
+    // Réponse à une question ouverte : gardée sans question, jamais la formule « Dis-moi si… ».
+    const answer =
+      !next && i.answerQuestion && i.message.trim() && !i.message.includes("?") && !NON_ANSWER.test(i.message.trim()) ? i.message.trim() : null;
+    return [summary, partialText, answer, end, next].filter(Boolean).join(" ");
   }
   const needsFigure = sorted.some((c) => c.kind === "figure");
   const question = needsFigure ? asked || t.missingFigure : partialText ? asked : i.message;

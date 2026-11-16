@@ -179,6 +179,10 @@ const SITUATION: [keyof Listening, string][] = [
   ["refusal", "Le dernier message du candidat est un refus ou une absence d'information : ne propose pas de continuer une demande en cours et ne repose pas la même question."],
 ];
 
+/** CV clos et question ouverte du candidat (run 2026-11-16T00-45-04, O05). */
+const OPEN_QUESTION_CLOSED =
+  "Le candidat te pose une question : réponds-y dans « message » en une ou deux phrases concrètes, sans poser de question, même si tu modifies aussi le CV.";
+
 /** Étiquettes des types de questions (coach-intent.ts). */
 const QUESTION_TYPE_LABELS: Record<QuestionType, string> = { mois: "dates et mois", outil: "outils", chiffre: "chiffres", detail: "détails" };
 const stopTypesSentence = (types: QuestionType[]) =>
@@ -311,6 +315,8 @@ export function coachSystem(
   const situation = listening ? SITUATION.filter(([key]) => listening[key]).map(([, sentence]) => sentence) : [];
   // Deux refus de suite : types de questions refusés, étiquettes fixes du serveur.
   if (listening?.stopTypes?.length) situation.push(stopTypesSentence(listening.stopTypes));
+  // CV clos et question ouverte du candidat : une réponse, jamais une nouvelle question (O05).
+  if (closed && listening?.openQuestion) situation.push(OPEN_QUESTION_CLOSED);
   if (situation.length) parts.push(["<situation>", ...situation, "</situation>"].join("\n"));
   if (analysis) {
     const criteria = Object.entries(analysis.criteria)
