@@ -480,18 +480,32 @@ const words = (text: string) =>
   ` ${text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+#]+/g, " ").trim()} `;
 
 /**
- * Éléments d'une liste qui disparaissent (C3) : ni gardés, ni contenus dans un nouvel élément
- * (« Excel » → « Excel avancé », « Hard skills : Excel, Python »), ni contenant un nouvel élément
+ * Éléments d'une liste, aplatis (C7) : « Hard skills : Excel, Word » donne « Excel » et « Word » ;
+ * le libellé de catégorie avant « : » n'est pas un élément.
+ */
+export function flattenListItems(items: Item[]): string[] {
+  return items.flatMap((i) => {
+    const name = String(i.name ?? "");
+    const colon = name.indexOf(":");
+    return (colon >= 0 ? name.slice(colon + 1) : name)
+      .split(/[,;|•·]/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  });
+}
+
+/**
+ * Éléments d'une liste qui disparaissent (C3, C7) : l'ensemble aplati des éléments avant et après
+ * est comparé, regroupement ou non. Un élément est gardé s'il figure après, contenu dans un nouvel
+ * élément (« Excel » → « Excel avancé », « Excel » et « Word » → « Excel, Word ») ou le contenant
  * (« Excel avancé » → « Excel »). Réordonner ne retire rien.
  */
 export function droppedListItems(previous: Item[], value: Item[]): string[] {
-  const after = value.map((i) => words(String(i.name ?? "")));
-  return previous
-    .map((i) => String(i.name ?? "").trim())
-    .filter((name) => {
-      const w = words(name);
-      return w.trim() && !after.some((a) => a.trim() && (a.includes(w) || w.includes(a)));
-    });
+  const after = flattenListItems(value).map(words);
+  return flattenListItems(previous).filter((name) => {
+    const w = words(name);
+    return w.trim() && !after.some((a) => a.trim() && (a.includes(w) || w.includes(a)));
+  });
 }
 
 /** Le passage supprimé est celui cité par la proposition (l'un contient l'autre, mot à mot). */

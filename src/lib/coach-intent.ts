@@ -21,10 +21,11 @@ const IMPROVE =
 /**
  * Demande de supprimer, fusionner ou remplacer (une puce, un élément) : seule autorisation d'une
  * suppression (« supprime la puce sur les réunions », « fusionne ces deux puces »). « Je retire 40
- * dossiers par mois » (un fait) n'en est pas une.
+ * dossiers par mois » (un fait) n'en est pas une. Regrouper, réorganiser, trier, ordonner ou classer
+ * (group, reorganize, sort, order) n'est jamais une demande de suppression (C7).
  */
 const REMOVE =
-  /\b(supprime|supprimes|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|fusionne|fusionnez|fusionner|regroupe|regroupez|regrouper|remplace|remplacez|remplacer)\b[^.?!]{0,40}\b(puces?|lignes?|exp[ée]riences?|formations?|projets?|doublons?|comp[ée]tences?|langues?|certifications?|les deux|ces deux|celle|celles|la|les|l'|ça|cela)\b|\b(remove|delete|drop|merge|combine|replace)\b[^.?!]{0,40}\b(bullets?|lines?|points?|experiences?|entries|entry|projects?|skills?|languages?|certifications?|both|these|those|it|them|duplicates?)\b|\bget rid of\b|\b(supprime|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|remove|delete|drop)\s*[«“"]/i;
+  /\b(supprime|supprimes|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|fusionne|fusionnez|fusionner|remplace|remplacez|remplacer)\b[^.?!]{0,40}\b(puces?|lignes?|exp[ée]riences?|formations?|projets?|doublons?|comp[ée]tences?|langues?|certifications?|les deux|ces deux|celle|celles|la|les|l'|ça|cela)\b|\b(remove|delete|drop|merge|combine|replace)\b[^.?!]{0,40}\b(bullets?|lines?|points?|experiences?|entries|entry|projects?|skills?|languages?|certifications?|both|these|those|it|them|duplicates?)\b|\bget rid of\b|\b(supprime|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|remove|delete|drop)\s*[«“"]/i;
 /**
  * Pronom placé avant le verbe (« Tu peux la supprimer », « Peux-tu les retirer ? », run
  * 2026-11-16T05-00-26, L02 tour 9) : REMOVE ne lit que le verbe suivi de son objet.
@@ -38,7 +39,7 @@ const NOT_REMOVE =
 const REMOVE_FACT = /\b(je|j'|on|nous|il|elle|i|we)\s*(retire|retirais|retirons|ai (retiré|fusionné|regroupé|supprimé|remplacé)|avons|merged|removed|replaced)\b/i;
 /** Le coach propose une suppression ou une fusion, en question (« Veux-tu que je supprime la puce … ? »). */
 const PROPOSES_REMOVAL =
-  /(veux-tu|souhaites-tu|tu veux|est-ce que tu veux|je (peux|propose de|te propose de))[^?]{0,40}\b(supprime[rs]?|retire[rs]?|enl[èe]ve[rs]?|fusionne[rs]?|regroupe[rs]?)\b[^?]*\?|\b(shall|should|can) i (remove|delete|merge|combine)\b[^?]*\?|\bdo you want me to (remove|delete|merge|combine)\b[^?]*\?/i;
+  /(veux-tu|souhaites-tu|tu veux|est-ce que tu veux|je (peux|propose de|te propose de))[^?]{0,40}\b(supprime[rs]?|retire[rs]?|enl[èe]ve[rs]?|fusionne[rs]?)\b[^?]*\?|\b(shall|should|can) i (remove|delete|merge|combine)\b[^?]*\?|\bdo you want me to (remove|delete|merge|combine)\b[^?]*\?/i;
 /** Réponse affirmative courte, éventuellement après une interjection (« Ah oui, … », L02 tour 9). */
 const AFFIRMATIVE = /^\s*((ah|oh|bon|alors|euh|ben|bah|eh bien)\s*,?\s*)?(oui|ouais|d'accord|ok|okay|vas-y|go|yes|yep|yeah|sure|parfait|c'est bon|bien sûr|of course)\b/i;
 /** Message qui n'est qu'un « oui » ou un « ok » (« oui », « ok vas-y », « d'accord, continue ! »), sans autre demande. */
