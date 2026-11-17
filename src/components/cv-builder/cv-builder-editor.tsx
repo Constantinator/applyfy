@@ -32,7 +32,7 @@ import {
 } from "@/lib/cv-builder-types";
 import { cvLanguage } from "@/lib/cv-language";
 import { keywordKey, matchCvKeywords } from "@/lib/cv-keyword-match";
-import { offerKeywordScore, offerKeywordsLine, offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
+import { offerKeywordScore, offerKeywordsCapLine, offerKeywordsLine, offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
 import type { OfferKeyword } from "@/lib/cv-types";
 import { mergeSkipped, readSkipped, type SkippedEntry } from "@/lib/skipped-points";
 import { createClient } from "@/lib/supabase/client";
@@ -524,7 +524,7 @@ export function CvBuilderEditor({
           {tab === "keywords" && (
             <div id="panel-keywords" role="tabpanel" aria-labelledby="tab-keywords" className="ui-card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               {keywordMatch ? (
-                <MissingKeywordsPanel match={keywordMatch} summary={offerScore && offerKeywordsLine(offerScore)} onInsert={insertInChat} />
+                <MissingKeywordsPanel match={keywordMatch} summary={offerScore && offerKeywordsLine(offerScore)} capNote={offerScore && offerKeywordsCapLine(offerScore)} onInsert={insertInChat} />
               ) : (
                 <MissingPointsPanel points={missingPoints} onInsert={insertInChat} />
               )}

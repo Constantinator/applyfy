@@ -37,8 +37,18 @@ export type OfferScoreKeyword = { keyword: string; variants: string[]; refused?:
 
 /** Part des mots-clés comptés de l'offre à trouver pour la note maximale (au plus KEYWORDS_TARGET). */
 export const OFFER_KEYWORDS_RATIO = 0.6;
-/** Points de la catégorie quand le candidat a refusé tous les mots-clés comptés de l'offre (60 % de 20). */
+/**
+ * Refus : la catégorie est plafonnée à ALL_REFUSED_POINTS + 8 × (mots-clés restants / mots-clés
+ * comptés avant refus) ; tout refuser donne ALL_REFUSED_POINTS (60 % de 20). Refuser n'est jamais
+ * plus rentable que d'avoir le mot-clé : 1 trouvé et 7 refusés sur 8 donnent au plus 13.
+ */
 export const ALL_REFUSED_POINTS = 12;
+
+/** Plafond de la catégorie : 20 sans refus ; 12 + 8 × restants / comptés avant refus sinon. */
+export function offerKeywordsCap(remaining: number, total: number) {
+  if (!total || remaining >= total) return POINTS.keywords;
+  return ALL_REFUSED_POINTS + (POINTS.keywords - ALL_REFUSED_POINTS) * (remaining / total);
+}
 
 export const SCORE_CATEGORIES = [
   { id: "impact", label: "Impact", max: 35 },
@@ -410,8 +420,14 @@ export type OfferKeywordScore = {
   refused: string[];
   /** Tous les mots-clés de l'offre retirés : la catégorie vaut ALL_REFUSED_POINTS. */
   allRefused: boolean;
-  /** Nombre de mots-clés comptés (n). */
+  /** Nombre de mots-clés comptés (n), refusés absents retirés. */
   counted: number;
+  /** Nombre de mots-clés de l'offre avant refus. */
+  total: number;
+  /** Plafond de la catégorie (20 sans refus, offerKeywordsCap). */
+  cap: number;
+  /** Le plafond abaisse la note : le calcul sur les mots-clés restants donnait plus. */
+  capped: boolean;
   /** Mots-clés à trouver pour la note maximale : min(10, ⌈0,6 × n⌉). */
   target: number;
   /** Points de la catégorie, sur 20. */
@@ -451,9 +467,13 @@ export function offerKeywordScore(data: CvData, context: Pick<ScoringContext, "o
     else (g.refused ? refused : missing).push(g.keyword);
   }
   const counted = found.length + missing.length;
-  if (!counted) return { found, missing, refused, allRefused: true, counted: 0, target: 0, points: ALL_REFUSED_POINTS };
+  const total = groups.length;
+  const cap = offerKeywordsCap(counted, total);
+  if (!counted) return { found, missing, refused, allRefused: true, counted: 0, total, cap, capped: false, target: 0, points: ALL_REFUSED_POINTS };
   const target = Math.min(KEYWORDS_TARGET, Math.ceil(OFFER_KEYWORDS_RATIO * counted));
-  return { found, missing, refused, allRefused: false, counted, target, points: POINTS.keywords * Math.min(1, found.length / target) };
+  // Calcul sur les mots-clés restants, puis plafond des refus.
+  const base = POINTS.keywords * Math.min(1, found.length / target);
+  return { found, missing, refused, allRefused: false, counted, total, cap, capped: base > cap, target, points: Math.min(base, cap) };
 }
 
 /**
@@ -464,6 +484,17 @@ export function offerKeywordScore(data: CvData, context: Pick<ScoringContext, "o
  */
 export function correctionsForCoach<T extends Pick<CvCorrection, "category">>(corrections: T[], context: Pick<ScoringContext, "offerKeywords">): T[] {
   return context.offerKeywords?.length ? corrections.filter((c) => c.category !== "keywords") : corrections;
+}
+
+/**
+ * Explication du plafond dans l'onglet Mots-clés, quand il abaisse la note (null sinon) : les
+ * mots-clés retirés limitent la catégorie, seuls ceux réellement présents la font monter.
+ */
+export function offerKeywordsCapLine(score: Pick<OfferKeywordScore, "capped" | "cap" | "refused">) {
+  if (!score.capped) return null;
+  const n = score.refused.length;
+  const points = Math.round(score.cap * 10) / 10;
+  return `Plafond de ${String(points).replace(".", ",")} points sur ${POINTS.keywords} : ${n} ${n > 1 ? "mots-clés retirés" : "mot-clé retiré"} parce que tu as dit ne pas ${n > 1 ? "les " : "l'"}avoir. Seuls les mots-clés que tu as vraiment pratiqués font monter la note.`;
 }
 
 /** Ligne de détail de la catégorie : « Mots-clés de l'offre : N sur M visés ». */
@@ -596,8 +627,9 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   if (offerScore) {
     totals.keywords += offerScore.points;
     // Tous refusés : rien à demander au candidat, pas de correction.
+    // Gain possible : jusqu'au plafond des refus (20 sans refus).
     if (!offerScore.allRefused && offerScore.found.length < offerScore.target)
-      lose("keywords", POINTS.keywords - offerScore.points, {
+      lose("keywords", offerScore.cap - offerScore.points, {
         elementId: null,
         message: offerKeywordsLine(offerScore),
         request: `Ajoute à mon CV les mots-clés de l'offre que j'ai vraiment pratiqués (seulement ceux-là), par exemple : ${offerScore.missing.slice(0, 5).join(", ")}`,

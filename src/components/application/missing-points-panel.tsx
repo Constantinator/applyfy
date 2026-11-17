@@ -22,11 +22,14 @@ const PROMPTS: Record<KeywordGroup, (keyword: string) => string> = {
 export function MissingKeywordsPanel({
   match,
   summary,
+  capNote,
   onInsert,
 }: {
   match: KeywordMatch;
   /** Ligne de détail de la catégorie du score (CV lié dont l'offre a des mots-clés comptés). */
   summary?: string | null;
+  /** Plafond des refus qui abaisse la note (offerKeywordsCapLine), null sinon. */
+  capNote?: string | null;
   onInsert?: (text: string) => void;
 }) {
   const groupOf = new Map(match.rows.map((r) => [r.keyword, r.group]));
@@ -35,6 +38,7 @@ export function MissingKeywordsPanel({
   return (
     <div className="space-y-4">
       {summary && <p className="text-sm font-medium text-prose dark:text-slate-200">{summary}</p>}
+      {capNote && <p className="text-xs text-muted dark:text-slate-400">{capNote}</p>}
       <KeywordRate rate={match.rate} />
       <KeywordMatchView
         match={match}

@@ -75,14 +75,16 @@ test("offerRefusals : ajoute aux refus connus, sans doublon ; null si rien de no
   assert.equal(offerRefusals(null, question("As-tu déjà utilisé Kafka ?"), "Non."), null, "CV libre");
 });
 
-test("refus partiel : retiré du numérateur et du dénominateur", () => {
+test("refus partiel : retiré du numérateur et du dénominateur, puis plafond des refus", () => {
   const cv = withSkills(["Docker", "PostgreSQL"]);
   const before = offerKeywordScore(cv, scoringOf(cv, detail(KEYWORDS)));
   assert.deepEqual([before.found.length, before.counted, before.target], [2, 5, 3]);
   const after = offerKeywordScore(cv, scoringOf(cv, detail(KEYWORDS, ["Kafka", "Java"])));
   assert.deepEqual([after.found.length, after.counted, after.target], [2, 3, 2]);
   assert.deepEqual(after.refused, ["Kafka", "Java"]);
-  assert.equal(after.points, 20);
+  // 2 trouvés sur 2 visés (20), plafonné à 12 + 8 × 3/5 = 16,8 (S7 : refuser n'est jamais rentable).
+  assert.equal(after.points, 16.8);
+  assert.equal(after.capped, true);
 });
 
 test("refusé mais présent dans le CV : compte comme trouvé", () => {
