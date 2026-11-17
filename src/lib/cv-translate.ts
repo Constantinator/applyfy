@@ -198,6 +198,9 @@ const hasToken = (text: string, token: string) =>
 
 function tokenKept(token: string, after: string) {
   if (hasToken(after, token)) return true;
+  // Sigle au pluriel d'une langue à l'autre : « APIs » = « API » (invariable en français), et inversement.
+  if (/^\p{Lu}{2,}s$/u.test(token) && hasToken(after, token.slice(0, -1))) return true;
+  if (/^\p{Lu}{2,}$/u.test(token) && hasToken(after, `${token}s`)) return true;
   const group = ACRONYM_EQUIVALENTS.find((g) => g.some((t) => t.toLowerCase() === token.toLowerCase()));
   return Boolean(group?.some((t) => hasToken(after.toLowerCase(), t.toLowerCase())));
 }

@@ -92,6 +92,9 @@ test("accepté : traduction fidèle (nombres, sigles équivalents, ville, rôle 
     [field("Analyse 1 200 lignes par jour"), "Analysis of 1,200 rows per day"],
   ];
   for (const [f, after] of ok) assert.deepEqual(translationProblems(f, after, "en"), [], `${f.text} → ${after}`);
+  // Sigle au pluriel (banc d'essai --dry, tech-confirme-en) : « APIs » = « API » invariable en français.
+  assert.deepEqual(translationProblems(bullet("Developed 25 REST APIs in Go for B2B customers"), "Développement de 25 API REST en Go pour des clients B2B", "fr"), []);
+  assert.deepEqual(translationProblems(bullet("Suivi de 12 KPI mensuels"), "Tracked 12 monthly KPIs", "en"), []);
 });
 
 test("refusé : nombre ajouté ou perdu, sigle perdu, niveau ajouté, rôle gonflé, mise en forme, première personne, formule creuse, longueur, non traduit", () => {
