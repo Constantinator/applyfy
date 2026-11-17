@@ -12,7 +12,7 @@ import { formatSectorContext, getSectorContext } from "./cv-sector-context";
 // (scripts/eval) sinon. Aucune lecture de clé ni de base ici.
 
 /** Format attendu dans « data », section par section (décrit au modèle, validé par COACH_DATA_SCHEMAS). */
-const COACH_DATA_FORMAT = `Ta modification de la section choisie ; chaîne vide si section = « aucune ». N'y mets que ce qui change. Longueurs maximales : puce 500 caractères, 12 puces par élément, dates 40, langues 60, accroche et description de projet 2000, autres champs 300. Une information qui dépasse va ailleurs : par exemple, une durée va dans une puce, pas dans une date.
+const COACH_DATA_FORMAT = `Ta modification de cette section. N'y mets que ce qui change. Longueurs maximales : puce 500 caractères, 12 puces par élément, dates 40, langues 60, accroche et description de projet 2000, autres champs 300. Une information qui dépasse va ailleurs : par exemple, une durée va dans une puce, pas dans une date.
 - summary, interests : le nouveau texte lui-même.
 - personal : JSON des seuls champs modifiés, parmi {"firstName","lastName","jobTitle","email","phone","city","linkedin","website","github"} ; jobTitle est le titre du CV.
 - experience : JSON {"id": id de l'expérience, "bullets": [{"index": position de la puce remplacée (0 = première), ou -1 pour une nouvelle puce, "after": "la puce proposée"}], "bullets_to_remove": [positions des puces à supprimer]} ; seulement les puces modifiées, ajoutées ou supprimées. Supprimer l'expérience entière : {"id", "remove": true}. Nouvelle expérience : "id" vide, avec "position","company","startDate","endDate","current" (booléen),"location" et ses puces (index -1).
@@ -78,7 +78,8 @@ const flatUpdatesFields: Record<string, z.ZodTypeAny> = Object.fromEntries(
             : `« aucune » si tu ne modifies pas de ${n}e section ; sinon la ${n}e section que tu modifies`,
         ),
     ],
-    [`data_${n}`, z.string().describe(n === 1 ? COACH_DATA_FORMAT : `Comme data_1, pour section_${n} ; chaîne vide si section_${n} = « aucune »`)],
+    [`data_${n}`, z.string().describe(n === 1 ? `${COACH_DATA_FORMAT}
+Chaîne vide si section_1 = « aucune ».` : `Comme data_1, pour section_${n} ; chaîne vide si section_${n} = « aucune »`)],
   ]),
 );
 const updateFields = () => (process.env.COACH_UPDATES_FLAT === "1" ? flatUpdatesFields : updatesField);
