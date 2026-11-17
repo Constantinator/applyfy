@@ -495,6 +495,42 @@ export function offerScoreTable(results: Result[]) {
   ].join("\n");
 }
 
+/**
+ * Dernier lot du coach : garde-fous par conversation (attendus : 0 « prêt » sous 80, poste visé
+ * demandé quand il est inconnu, titre et écart après un pivot, 0 question sur un chiffre déjà donné).
+ */
+export function lastLotTable(results: Result[]) {
+  const rows = results.filter((r) => r.metrics.lastLot);
+  if (!rows.length) return "Aucune mesure (run d'avant le lot).";
+  const yes = (v: boolean | null) => (v === null ? "—" : v ? "oui" : "non");
+  return [
+    "| Scénario (lancement) | « Prêt » sous 80 | Poste visé demandé | Pivot : titre proposé / écart dit | Suppressions hors portée | Détails nouveaux refusés | Chiffres redemandés |",
+    "|---|---|---|---|---|---|---|",
+    ...rows.map(({ record, metrics }) => {
+      const m = metrics.lastLot!;
+      const pivot = m.pivot ? `${yes(m.pivot.titleProposed)} / ${yes(m.pivot.gapSaid)}` : "—";
+      return `| ${record.scenarioId} (${record.repeat}) | ${m.readyClaimsUnder80} | ${yes(m.targetAsked)} | ${pivot} | ${m.removalsOutOfScope} | ${m.newDetailRefusals} | ${m.givenFigureQuestions} |`;
+    }),
+  ].join("\n");
+}
+
+/**
+ * Faux positifs connus du juge : le reproche ne tient pas compte des données du scénario. Affichés
+ * à côté des notes, sans les modifier (la note du juge reste celle qu'il a donnée).
+ */
+export const JUDGE_CORRECTIONS: { scenario: RegExp; note: string }[] = [
+  {
+    scenario: /^L16-/,
+    note: "le profil tech-confirme-en a un poste visé connu (« Senior Backend Engineer », titre et poste visé) : le reproche « ne demande pas le poste visé » est un faux positif ; le coach n'a pas à le redemander.",
+  },
+];
+
+export function judgeCorrections(results: Result[]): string | null {
+  const ids = new Set(results.filter((r) => r.record.judge).map((r) => r.record.scenarioId));
+  const lines = JUDGE_CORRECTIONS.flatMap((c) => [...ids].filter((id) => c.scenario.test(id)).map((id) => `- ${id} : ${c.note}`));
+  return lines.length ? lines.join("\n") : null;
+}
+
 function caseSection(title: string, results: Result[], linked: boolean) {
   const rows = aggregate(results);
   if (!rows.length) return `## ${title}\n\nAucun scénario.\n`;
@@ -515,6 +551,11 @@ function caseSection(title: string, results: Result[], linked: boolean) {
     scenarioTable(rows, linked),
     "",
     ...(linked ? ["### Mots-clés de l'offre dans le score", "", offerScoreTable(results), ""] : []),
+    "### Garde-fous du dernier lot du coach",
+    "",
+    lastLotTable(results),
+    "",
+    ...((notes) => (notes ? ["### Corrections connues du jugement", "", notes, ""] : []))(judgeCorrections(results)),
     "### Pistes (propositions, rien n'est modifié automatiquement)",
     "",
     pistes(results, rows),

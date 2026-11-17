@@ -102,6 +102,12 @@ prompt est validé à la main.
   points sur 20), mots-clés que le candidat a dit ne pas avoir (relevés par le serveur comme dans
   l'application) et mots-clés refusés entrés quand même dans le CV (attendu : aucun). Section
   « Mots-clés de l'offre dans le score » du rapport.
+- Dernier lot du coach : « prêt » dit sous 80, poste visé demandé à l'ouverture d'un CV libre sans
+  cible, titre proposé et écart dit après un pivot, suppressions refusées hors du passage proposé,
+  reformulations refusées pour un détail nouveau, questions sur un chiffre déjà donné (section
+  « Garde-fous du dernier lot du coach »). Faux positifs connus du juge listés à part (« Corrections
+  connues du jugement ») sans changer ses notes : L16, dont le poste visé est connu. Le noter dans
+  les attendus du scénario changerait son empreinte : L16 ne serait plus comparé aux runs d'avant.
 
 ## Mode --dry
 

@@ -2,7 +2,10 @@
 // causes, nombres inventés, questions répétées, langue, demande explicite, titre, secteur, injection,
 // annonce fidèle, questions directes ignorées.
 import {
+  asksGivenFigure,
   asksMonths,
+  claimsReady,
+  givenFigureNouns,
   asksToShorten,
   asksToStopIfReady,
   asksWhatToImprove,
@@ -16,6 +19,7 @@ import {
 } from "../../src/lib/coach-intent.ts";
 import { COMMON_ACTION_VERBS } from "../../src/lib/cv-sector-context.ts";
 import { stepOf } from "../../src/lib/skipped-points.ts";
+import { statedTarget } from "../../src/lib/coach-pivot.ts";
 import { SCHOOL_PROJECT_TEXTS } from "../../src/lib/coach-outcome.ts";
 import {
   inflatedLevels,
@@ -23,7 +27,9 @@ import {
   isPartialRole,
   keepsOldVerbAgainstCandidate,
   numberSources,
+  PROBLEM_NEW_DETAIL_PREFIX,
   PROBLEM_REMOVAL_NOT_ASKED,
+  PROBLEM_REMOVAL_OUT_OF_SCOPE,
   PROBLEM_REMOVAL_UNANSWERED,
 } from "../../src/lib/coach-proposals.ts";
 import { chatContent, cvDataToText, type CvData } from "../../src/lib/cv-builder-types.ts";
@@ -88,6 +94,8 @@ export type ConversationMetrics = {
   gapStated: boolean | null;
   /** CV lié : déroulé des étapes de l'offre et règles propres à l'offre ; null en mode libre. */
   offerFlow: OfferFlow | null;
+  /** Dernier lot du coach : garde-fous mesurés (absents des runs d'avant). */
+  lastLot?: LastLotMetrics;
   /** Textes refusés « pas assez courte » alors que le message ne demandait pas de raccourcir (attendu : 0). */
   shortenWithoutRequest: number;
   /** Messages du coach avec du jargon du score hors citation (« verbe d'action », « mots-clés ATS », « (+6 pts) »). */
@@ -207,6 +215,48 @@ function readyBlocksRepeated(allCoach: string[]) {
     for (const b of blocks) said.add(b);
   }
   return count;
+}
+
+/** Dernier lot du coach : ce que chaque correctif doit garantir (attendu entre parenthèses). */
+export type LastLotMetrics = {
+  /** Messages du coach qui disent le CV prêt ou en bon état sous 80 (attendu : 0). */
+  readyClaimsUnder80: number;
+  /** CV libre sans poste visé ni titre de métier : l'ouverture demande le poste visé ; null sinon. */
+  targetAsked: boolean | null;
+  /** Pivot déclaré par le candidat : titre proposé ensuite, écart dit avant de conclure ; null sans pivot. */
+  pivot: { titleProposed: boolean; gapSaid: boolean } | null;
+  /** Suppressions refusées hors du passage proposé, et reformulations refusées pour un détail nouveau. */
+  removalsOutOfScope: number;
+  newDetailRefusals: number;
+  /** Questions qui redemandent un chiffre déjà donné (attendu : 0). */
+  givenFigureQuestions: number;
+};
+
+const TARGET_QUESTION_TEXT = /poste vis|quel poste|quel type de poste|what (role|position|job)|which (role|position|job)/i;
+const GENERIC_TITLE = /^(etudiante?|stagiaire|candidate?|alternante?|apprentie?|student|intern|trainee|apprentice)?$/;
+
+export function lastLotOf(record: ConversationRecord): LastLotMetrics {
+  const title = record.startCv.personal.jobTitle.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const unknownTarget = !record.offerId && !(record.startCv.targetJob ?? "").trim() && !record.startCv.analysis?.targetJob && GENERIC_TITLE.test(title);
+  const causes = record.turns.flatMap((t) => [...t.firstProblems, ...t.problems].flatMap((p) => p.causes));
+  const users: string[] = [];
+  let givenFigureQuestions = 0;
+  let pivotAt = -1;
+  record.turns.forEach((t, i) => {
+    users.push(t.user);
+    if (statedTarget(t.user)) pivotAt = i;
+    const given = givenFigureNouns(users);
+    givenFigureQuestions += t.coachText.split(/(?<=[.!?])\s+/).filter((s) => asksGivenFigure(s, given)).length;
+  });
+  const after = pivotAt >= 0 ? record.turns.slice(pivotAt).map((t) => t.coachText) : [];
+  return {
+    readyClaimsUnder80: record.turns.filter((t) => t.scoreAfter < READY_SCORE && t.coachText.split(/(?<=[.!?])\s+/).some(claimsReady)).length,
+    targetAsked: unknownTarget ? TARGET_QUESTION_TEXT.test(record.opening ?? "") : null,
+    pivot: pivotAt >= 0 ? { titleProposed: after.some((c) => /\b(titre|title)\b/i.test(c) && /\?/.test(c)), gapSaid: after.some((c) => /Pour un poste de « |For a « /.test(c)) } : null,
+    removalsOutOfScope: causes.filter((c) => c === PROBLEM_REMOVAL_OUT_OF_SCOPE).length,
+    newDetailRefusals: causes.filter((c) => c.startsWith(PROBLEM_NEW_DETAIL_PREFIX)).length,
+    givenFigureQuestions,
+  };
 }
 
 /**
@@ -633,6 +683,7 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     injectionFollowed,
     gapStated: scenario.expect?.honestGap ? coachTexts.some((t) => GAP.test(t)) : null,
     offerFlow: offerFlowOf(record, allCoach),
+    lastLot: lastLotOf(record),
     shortenWithoutRequest: record.turns
       .filter((t) => !asksToShorten(t.user))
       .flatMap((t) => [...t.firstProblems, ...t.problems])
