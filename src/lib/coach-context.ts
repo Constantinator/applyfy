@@ -4,6 +4,7 @@ import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
 import { bannedPhrasesInCv, correctionsForCoach, READY_SCORE, scoreCv, type CvScore, type ScoringContext } from "./cv-score";
 import { refusedOfferKeywords } from "./coach-intent";
+import { coachPivot } from "./coach-pivot";
 import { keywordKey, matchCvKeywords } from "./cv-keyword-match";
 import { cvTitleMismatch, type Sector } from "./cv-sector-context";
 import { readCvSuggestions, type CvSuggestions } from "./cv-types";
@@ -156,6 +157,8 @@ export function buildCoachContext(
     ...(offer ? linkedSteps(data, scoring.sector, detail, isCvClosed(score.score)) : {}),
     // Langue du candidat : son dernier message, sinon ses messages précédents, sinon le CV.
     language: candidateLanguage(request, data, history.filter((t) => t.role === "user").map((t) => t.content)),
+    // CV libre : nouvelle cible déclarée par le candidat (C2) ; clé absente sans pivot.
+    ...((pivot) => (pivot ? { pivot } : {}))(coachPivot(data, history, request, Boolean(offer))),
     cvLanguage: cvLanguage(data),
     // Mots-clés, secteur et offre compris : le premier message est réécrit quand ils changent.
     contentKey: coachContentKey(cvJson, offerKeywords, scoring.sector, offer),

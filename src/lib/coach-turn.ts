@@ -12,6 +12,7 @@ import {
 } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import { mergeSkipped, type SkippedEntry } from "./skipped-points";
+import { pivotGapSentence, type CoachPivot } from "./coach-pivot";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChange } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
@@ -41,6 +42,8 @@ export type CoachTurnInput = {
     offerGap?: OfferGap | null;
     offerStudent?: boolean;
     skipped?: SkippedEntry[];
+    /** CV libre : nouvelle cible déclarée par le candidat (coach-pivot.ts). */
+    pivot?: CoachPivot;
   };
   /** Échanges précédents et dernier message du candidat. */
   turns: CoachTurn[];
@@ -397,6 +400,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
         corrections: correctionsForCoach(final.corrections, context.scoring).map((c) => c.message),
         previousCoach: turns.filter((t) => t.role === "assistant").map((t) => t.content),
         ...(context.offerSteps ? { offerKeywords: context.offerKeywords ?? [] } : {}),
+        // Pivot d'un CV libre (C2) : écart avec la nouvelle cible, dit une fois avant de conclure.
+        ...(context.pivot?.gap ? { pivotGap: pivotGapSentence(context.pivot.target, current.personal.jobTitle, context.language ?? "fr") } : {}),
         // « Puis on en reste là » en mode demande : questions du modèle retirées de ce message.
         ...(mode === "demande" && asksToStop(request) ? { stopNow: true, modelMessage: gap ? `${gap} ${answer.message}`.trim() : answer.message } : {}),
       })

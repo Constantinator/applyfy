@@ -530,6 +530,11 @@ export type ListenInput = {
    * texte du serveur (annonce, échec, score, clôture, question du chiffre manquant).
    */
   stopNow?: boolean;
+  /**
+   * Pivot d'un CV libre (coach-pivot.ts) : phrase d'écart du serveur, insérée une fois avant la
+   * première phrase qui conclut ou dit le CV prêt. Absente sinon.
+   */
+  pivotGap?: string;
   modelMessage?: string;
 };
 
@@ -658,8 +663,19 @@ export function listenText(i: ListenInput): string {
     }
     text = `${answer} ${text}`;
   }
+  // Pivot : l'écart avec la nouvelle cible est dit avant de conclure ou de dire le CV prêt (C2).
+  if (i.pivotGap) {
+    const all = splitSentences(text);
+    const at = all.findIndex((s) => CLOSURE.test(s) || CONCLUDES.test(s) || claimsReady(s) || READY_YES.test(s));
+    if (at >= 0) text = [...all.slice(0, at), i.pivotGap, ...all.slice(at)].join(" ");
+  }
   return text;
 }
+
+/** Phrase qui conclut le parcours (« J'ai fait le tour… », « I've gone through the points… »). */
+const CONCLUDES = /j'ai fait le tour|i'?ve (gone through|covered)|je n'ai plus de question|i have no more questions/i;
+/** Réponse « oui, c'est prêt » du serveur. */
+const READY_YES = /^(Oui : ton CV est à|Yes: your CV is at)/;
 
 // ---------------------------------------------------------------------------
 // Traduction (lot traduction) : demande sur tout le CV, ou demande de traduction en général

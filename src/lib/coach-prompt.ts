@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Listening, QuestionType } from "./coach-intent";
+import type { CoachPivot } from "./coach-pivot";
 import type { SkippedEntry } from "./skipped-points";
 import { isGenericStudentTitle, offerStageOf, withoutOfferMarkers, type OfferGap, type OfferStage, type OfferStep, type ProposedStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
@@ -57,6 +58,8 @@ export type CoachContext = {
   offerGap?: OfferGap | null;
   /** Premier message du coach (rien n'a encore été proposé au candidat). */
   opening?: boolean;
+  /** CV libre : nouvelle cible déclarée par le candidat (coach-pivot.ts) ; absent sinon. */
+  pivot?: CoachPivot;
   /**
    * Premier message d'un CV libre sans poste visé connu (needsTargetQuestion) : demander une fois
    * le poste visé. Posé par coachOpening seulement ; absent sinon.
@@ -148,6 +151,10 @@ function offerStageBlock(stage: OfferStage, { opening, refusal, gap }: { opening
     .filter(Boolean)
     .join("\n");
 }
+
+/** Pivot (C2) : le titre du CV est proposé une fois pour la nouvelle cible, jamais écrit sans accord. */
+export const pivotTitleSentence = (target: string) =>
+  `Le candidat vise maintenant « ${n(target)} » (CV libre) : propose-lui une seule fois de changer le titre du CV pour un intitulé honnête lié à cette cible et à son parcours réel ; ne l'écris pas sans son accord. L'écart éventuel avec cette cible est dit par l'application : ne le répète pas.`;
 
 /** Premier message d'un CV libre sans poste visé connu (bloc « situation », ouverture seulement). */
 export const TARGET_QUESTION =
@@ -371,6 +378,8 @@ export function coachSystem(
   if (listening?.stopTypes?.length) situation.push(stopTypesSentence(listening.stopTypes));
   // CV clos et question ouverte du candidat : une réponse, jamais une nouvelle question (O05).
   if (closed && listening?.openQuestion) situation.push(OPEN_QUESTION_CLOSED);
+  // Pivot d'un CV libre (C2) : proposer une fois un titre lié à la nouvelle cible.
+  if (context.pivot && !context.pivot.titleProposed && !listening?.stopAll) situation.push(pivotTitleSentence(context.pivot.target));
   // Premier message d'un CV libre sans poste visé (C1) : la question du poste visé, une fois.
   if (context.targetQuestion) situation.push(TARGET_QUESTION);
   if (situation.length) parts.push(["<situation>", ...situation, "</situation>"].join("\n"));
