@@ -89,6 +89,13 @@ export function withoutTitle(reply: CoachReply): CoachReply {
   return updates.length ? { ...reply, updates } : { ...reply, updates: [], raw: [], invalid: false, changeSummary: "" };
 }
 
+/** Section d'un changement (annonce sur plusieurs sections). */
+export function changeSection(change: CoachChange): string {
+  if (change.kind === "bullet" || change.kind === "removeBullet") return "experience";
+  if (change.kind === "educationBullets") return "education";
+  return change.target;
+}
+
 /** Plafond de mises à jour par réponse en mode demande. */
 export const COACH_MAX_UPDATES = 3;
 
@@ -311,6 +318,14 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const scored =
     applied > 0 ? { before: scoreCv(current, context.scoring).score, after: scoreCv(updated, context.scoring) } : null;
   const offerKeywords = context.offerKeywords ?? [];
+  // Plusieurs sections modifiées : emplacements que l'annonce des puces et de l'accroche ne cite pas.
+  const announcedSummary = Boolean(summaryText) && !check.shorten;
+  const alsoLabels =
+    new Set(appliedChanges.map(changeSection)).size > 1
+      ? appliedChanges
+          .filter((c) => c.kind !== "bullet" && c.kind !== "removeBullet" && !(announcedSummary && c.kind === "field" && c.target === "summary"))
+          .map((c) => c.label)
+      : undefined;
   const present = scored && offerKeywords.length ? new Set(matchKeywords(cvDataToText(updated), offerKeywords, context.scoring.sector)) : null;
   const firstLabels: Record<string, string> = Object.fromEntries((firstBuilt?.changes ?? []).map((c) => [c.id, c.label]));
   const text = coachReplyText({
@@ -342,6 +357,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     wordCounts: check.shorten && applied > 0 ? wordCounts(appliedTexts) : undefined,
     // Puces d'expérience : annonce écrite par le serveur, texte réellement écrit cité.
     bulletChanges,
+    ...(alsoLabels ? { alsoLabels } : {}),
+    // Mode demande : mises à jour au-delà du plafond, proposées pour la suite.
+    ...(mode === "demande" && dropped.length ? { overflow: { kept: cap, sections: dropped } } : {}),
     // Accroche : idem, sauf demande de raccourcir (annonce et décompte des mots, comme avant).
     ...(summaryText && !check.shorten ? { summaryText } : {}),
     // CV clos et question ouverte : la réponse du modèle est gardée (sans question).

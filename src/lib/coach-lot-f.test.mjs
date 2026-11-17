@@ -120,3 +120,38 @@ test("second essai : changements valides du premier essai gardés, seule la cibl
   assert.equal(result.applied, 2);
   assert.deepEqual(result.problems, []);
 });
+
+// --- 3. Annonce combinée et dépassement du plafond ---
+
+test("L14 : titre et puce annoncés tous les deux, dans la langue du candidat", async () => {
+  const result = await play(L14_REQUEST, demande([title("Analyste crédit"), bullet(1, "Préparation de 6 comités de crédit par mois")]));
+  assert.match(result.text, /^C'est fait : « Préparation de 6 comités de crédit par mois » — Analyste crédit junior chez Banque Fictive \(puce 2\)\. J'ai aussi modifié : Titre du CV\./);
+  assert.ok(result.text.endsWith("On continue avec ton stage ?"), result.text);
+
+  const en = "Set “Credit analyst” as my title and rephrase my 2nd bullet at Banque Fictive: I prepared 6 credit committees a month.";
+  const english = await play(en, demande([title("Analyste crédit"), bullet(1, "Préparation de 6 comités de crédit par mois")], { message: "Shall we move on to your internship?" }));
+  assert.ok(english.text.includes("I also updated: CV title."), english.text);
+});
+
+test("annonce combinée : accroche et compétences ; une seule section, annonce inchangée", async () => {
+  const both = await play("Remplace mon accroche par « Analyste crédit junior, banque et audit » et ajoute SQL à mes compétences.", demande([summary("Analyste crédit junior, banque et audit."), skills(["Excel", "Analyse financière", "Travail en équipe", "SQL"])]));
+  assert.equal(both.applied, 2, both.text);
+  assert.match(both.text, /^C'est fait : ton accroche est maintenant « Analyste crédit junior, banque et audit »\. J'ai aussi modifié : Compétences\./);
+  const one = await play("Reformule ma 2e puce chez Banque Fictive : je préparais 6 comités de crédit par mois.", demande([bullet(1, "Préparation de 6 comités de crédit par mois")]));
+  assert.ok(!one.text.includes("aussi modifié"), one.text);
+});
+
+test("plafond dépassé : « Je n'ai fait que les 3 premières ; je continue avec … ? » à la place de la question", async () => {
+  const four = demande([title("Analyste crédit"), summary("Analyste crédit junior, banque et audit."), skills(["Excel", "SQL"]), { section: "interests", data: "Course à pied" }]);
+  const many = await play("Mets Analyste crédit en titre, raccourcis l'accroche, ajoute SQL et mets la course à pied dans mes centres d'intérêt.", four);
+  assert.ok(many.text.endsWith("Je n'ai fait que les 3 premières ; je continue avec tes centres d'intérêt ?"), many.text);
+  assert.ok(!many.text.includes("On continue avec ton stage ?"), many.text);
+
+  const history = [{ role: "assistant", content: "C'est fait pour ton titre. Je continue avec ton accroche et tes compétences ?" }];
+  const yes = await play("oui", demande([summary("Analyste crédit junior, banque et audit."), skills(["Excel", "SQL"])]), history);
+  assert.ok(yes.text.endsWith("Je n'ai fait que la première ; je continue avec tes compétences ?"), yes.text);
+
+  // Parcours : la mise à jour en trop est retirée sans phrase.
+  const path = await play("Je préparais 6 comités de crédit par mois.", flat({ message: "Et pour ton stage ?", updates: [bullet(1, "Préparation de 6 comités de crédit par mois"), title("Analyste crédit")] }));
+  assert.ok(!path.text.includes("Je n'ai fait que"), path.text);
+});

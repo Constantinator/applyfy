@@ -61,6 +61,11 @@ const TEXTS = {
     bulletsMore: (n: number) => `et ${n} autre${n > 1 ? "s" : ""} modification${n > 1 ? "s" : ""}`,
     summaryWritten: (quote: string) => `C'est fait : ton accroche est maintenant « ${quote} ».`,
     summaryStarts: (quote: string) => `C'est fait : ton accroche commence maintenant par « ${quote} ».`,
+    summaryAlsoWritten: (quote: string) => `Ton accroche est maintenant « ${quote} ».`,
+    summaryAlsoStarts: (quote: string) => `Ton accroche commence maintenant par « ${quote} ».`,
+    announceAlso: (places: string) => `J'ai aussi modifié : ${places}.`,
+    overflow: (kept: number, rest: string) => `Je n'ai fait que ${kept > 1 ? `les ${kept} premières` : "la première"} ; je continue avec ${rest} ?`,
+    and: " et ",
     titleOtherJob: "le titre proposé présentait un métier que ton CV ne montre pas.",
     inflatedRole: "ta puce d'origine disait que tu avais participé : je ne peux pas écrire que tu l'as mené seul.",
     inflatedTitle: (words: string) => `le titre proposé annonçait un niveau (${words}) que ton CV ne montre pas.`,
@@ -129,6 +134,11 @@ const TEXTS = {
     bulletsMore: (n: number) => `and ${n} other change${n > 1 ? "s" : ""}`,
     summaryWritten: (quote: string) => `Done: your summary now reads “${quote}”.`,
     summaryStarts: (quote: string) => `Done: your summary now starts with “${quote}”.`,
+    summaryAlsoWritten: (quote: string) => `Your summary now reads “${quote}”.`,
+    summaryAlsoStarts: (quote: string) => `Your summary now starts with “${quote}”.`,
+    announceAlso: (places: string) => `I also updated: ${places}.`,
+    overflow: (kept: number, rest: string) => `I only made the first ${kept > 1 ? kept : "one"}; shall I continue with ${rest}?`,
+    and: " and ",
     titleOtherJob: "the proposed title presented a job your CV doesn't show.",
     inflatedRole: "your original bullet said you took part in it: I can't write that you led it alone.",
     inflatedTitle: (words: string) => `the proposed title claimed a level (${words}) that your CV doesn't show.`,
@@ -219,6 +229,16 @@ export type CoachOutcomeInput = {
    * phrase fixe du serveur juste après l'annonce (run 2026-11-16T00-45-04, O06).
    */
   schoolProject?: boolean;
+  /**
+   * Réponse appliquée sur plusieurs sections (L14 : titre et puce) : emplacements modifiés que
+   * l'annonce des puces ou de l'accroche ne cite pas, annoncés à la suite (« J'ai aussi modifié : … »).
+   */
+  alsoLabels?: string[];
+  /**
+   * Mode demande : mises à jour retirées au-delà du plafond (kept : nombre gardé ; sections des
+   * mises à jour retirées) ; le texte propose de continuer avec elles, à la place de la question.
+   */
+  overflow?: { kept: number; sections: string[] };
   /** Demande de raccourcir appliquée : mots avant et après, calculés par le serveur. */
   wordCounts?: { before: number; after: number };
   /** Score avant et après l'application (null après : rien n'a été appliqué). */
@@ -385,11 +405,38 @@ export function quotaBlockedText({ mode, section, message, lang = "fr" }: { mode
   return message.includes("?") ? `${blocked} ${message}` : blocked;
 }
 
+/** Phrase de dépassement du plafond : « Je n'ai fait que les 3 premières ; je continue avec … ? ». */
+function overflowText(overflow: { kept: number; sections: string[] }, lang: CoachLang) {
+  const t = TEXTS[lang];
+  const names = [...new Set(overflow.sections.map((s) => t.sections[s] ?? t.anySection))];
+  const rest = names.length > 1 ? `${names.slice(0, -1).join(", ")}${t.and}${names[names.length - 1]}` : names[0];
+  return t.overflow(overflow.kept, rest);
+}
+
+/** Annonce des modifications sur plusieurs sections : puces, accroche, puis les autres emplacements. */
+function combinedAnnouncement(i: CoachOutcomeInput, lang: CoachLang): string {
+  const t = TEXTS[lang];
+  const parts: string[] = [];
+  if (i.bulletChanges?.length) parts.push(bulletAnnouncement(i.bulletChanges, lang));
+  if (i.summaryText) {
+    const quote = quoted(i.summaryText).replace(/\.$/, "");
+    parts.push(
+      parts.length
+        ? quote.endsWith("…") ? t.summaryAlsoStarts(quote) : t.summaryAlsoWritten(quote)
+        : summaryAnnouncement(i.summaryText, lang),
+    );
+  }
+  const places = [...new Set(i.alsoLabels ?? [])];
+  if (places.length) parts.push(t.announceAlso(places.map((l) => placeName(l, lang)).join(" ; ")));
+  return parts.join(" ");
+}
+
 /** Texte de la réponse du coach affiché au candidat. */
 export function coachReplyText(i: CoachOutcomeInput): string {
   if (i.section === null) return i.message;
   const lang = i.lang ?? "fr";
   const t = TEXTS[lang];
+  const more = i.overflow?.sections.length ? overflowText(i.overflow, lang) : null;
   const request = i.mode === "demande";
   const experience = i.section === "experience";
   const asked = i.message.includes("?") ? i.message : "";
@@ -403,7 +450,7 @@ export function coachReplyText(i: CoachOutcomeInput): string {
     if (i.noChange) causes.push({ kind: "noop", text: t.noop });
     if (!causes.length) causes.push(i.firstInvalid ? { kind: "format", text: t.format } : { kind: "unknown", text: t.unknown });
     const sorted = sortedCauses(causes);
-    if (request) return `${t.requestFailed}${sentences(sorted, true)} ${t.requestFailedEnd}`;
+    if (request) return [`${t.requestFailed}${sentences(sorted, true)} ${t.requestFailedEnd}`, more].filter(Boolean).join(" ");
     // Seule la première personne en cause : le passage est laissé tel quel, rien à reformuler.
     const kept = sorted.every((c) => c.text === t.firstPerson);
     if (!experience) return kept ? `${t.otherFailed}${sentences(sorted, false)}` : `${t.otherFailed}${sentences(sorted, false)} ${t.otherFailedEnd}`;
@@ -428,7 +475,11 @@ export function coachReplyText(i: CoachOutcomeInput): string {
       : `${experience && !request ? t.bulletsNotAdded : t.partNotApplied}${sentences(sorted, true)}`;
   // Le résumé du modèle n'est repris que si tout a été appliqué tel quel ; sinon, annonce du serveur.
   const modelSummary = withoutYesNo(i.changeSummary);
-  const announced = i.bulletChanges?.length
+  // Plusieurs sections avec puces ou accroche : chaque emplacement est annoncé (L14 : titre et puce).
+  const combined = i.alsoLabels && (i.bulletChanges?.length || i.summaryText);
+  const announced = combined
+    ? combinedAnnouncement(i, lang)
+    : i.bulletChanges?.length
     ? bulletAnnouncement(i.bulletChanges, lang)
     : i.summaryText
       ? summaryAnnouncement(i.summaryText, lang)
@@ -446,9 +497,9 @@ export function coachReplyText(i: CoachOutcomeInput): string {
     // Réponse à une question ouverte : gardée sans question, jamais la formule « Dis-moi si… ».
     const answer =
       !next && i.answerQuestion && i.message.trim() && !i.message.includes("?") && !NON_ANSWER.test(i.message.trim()) ? i.message.trim() : null;
-    return [summary, partialText, answer, end, next].filter(Boolean).join(" ");
+    return [summary, partialText, answer, end, more ?? next].filter(Boolean).join(" ");
   }
   const needsFigure = sorted.some((c) => c.kind === "figure");
-  const question = needsFigure ? asked || t.missingFigure : partialText ? asked : i.message;
+  const question = more ?? (needsFigure ? asked || t.missingFigure : partialText ? asked : i.message);
   return [summary, partialText, question].filter(Boolean).join(" ");
 }
