@@ -112,7 +112,8 @@ type CvShape = {
 };
 
 /**
- * Secteur du candidat, d'après le poste visé et le titre du CV (poids fort), puis les
+ * Secteur du candidat : celui du titre du CV quand il désigne un métier reconnu sans ambiguïté
+ * (pivot) ; sinon d'après le poste visé et le titre du CV (poids fort), puis les
  * intitulés et entreprises des expériences. Sans indice, compte les mots-clés ATS de chaque
  * secteur dans tout le CV ; à défaut, « etudiant » (CV sans expérience ou peu renseigné).
  */
@@ -125,6 +126,13 @@ export function detectSector(cvJson: string, targetJob?: string | null): Sector 
   }
   const str = (value: unknown) => (typeof value === "string" ? value : "");
   const experiences = Array.isArray(cv.experiences) ? cv.experiences : [];
+
+  // Pivot (lot score) : le titre du CV désigne un métier reconnu sans ambiguïté → ce métier, même
+  // si le poste visé à l'import ou les expériences sont d'un autre (« Développeur backend » sur un
+  // CV de commercial). Titre vide, d'étudiant ou ambigu : règle ci-dessous, inchangée.
+  const jobTitle = str(cv.personal?.jobTitle).trim();
+  const fromTitle = jobTitle ? detectOfferSector(jobTitle) : null;
+  if (fromTitle && fromTitle !== "etudiant") return fromTitle;
 
   const titles = normalize([targetJob ?? "", str(cv.personal?.jobTitle)].join(" | "));
   const positions = normalize(experiences.map((e) => `${str(e.position)} | ${str(e.company)}`).join(" | "));
