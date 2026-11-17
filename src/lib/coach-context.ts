@@ -2,7 +2,7 @@ import { candidateLanguage, cvLanguage } from "./coach-language";
 import { isStudentProfile, offerGap, offerLanguage, offerSteps } from "./coach-offer";
 import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
-import { bannedPhrasesInCv, READY_SCORE, scoreCv, type CvScore, type ScoringContext } from "./cv-score";
+import { bannedPhrasesInCv, correctionsForCoach, READY_SCORE, scoreCv, type CvScore, type ScoringContext } from "./cv-score";
 import { refusedOfferKeywords } from "./coach-intent";
 import { keywordKey, matchCvKeywords } from "./cv-keyword-match";
 import { cvTitleMismatch, type Sector } from "./cv-sector-context";
@@ -161,7 +161,7 @@ export function buildCoachContext(
     contentKey: coachContentKey(cvJson, offerKeywords, scoring.sector, offer),
     score: {
       value: score.score,
-      corrections: coachCorrections(score).map((c) => `${c.message} (+${c.points} pts)`),
+      corrections: coachCorrections({ ...score, corrections: correctionsForCoach(score.corrections, scoring) }).map((c) => `${c.message} (+${c.points} pts)`),
       banned: bannedPhrasesInCv(data, scoring).map((b) => `« ${b.phrase} » dans ${b.where}`),
     },
     // CV importé : son analyse ; CV créé depuis zéro : seulement le poste visé.

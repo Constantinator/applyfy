@@ -371,8 +371,12 @@ export function coachSystem(
   return parts.join("\n\n");
 }
 
-/** Version du premier message d'un CV lié (étapes de l'offre). */
-const OFFER_OPENING_VERSION = "offre-v2";
+/**
+ * Version du premier message d'un CV lié : v2, étapes de l'offre ; v3 (lot score), score calculé
+ * sur les mots-clés de l'offre (un premier message « CV prêt » d'avant le lot est réécrit). Les CV
+ * libres n'en ont pas : leur clé ne change pas.
+ */
+export const OFFER_OPENING_VERSION = "offre-v3";
 
 /**
  * Empreinte du premier message du coach : il est réécrit quand le contenu du CV, les mots-clés de

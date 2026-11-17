@@ -18,7 +18,7 @@ import { announcementLanguage } from "./coach-language";
 import { plainCoachText } from "./coach-plain";
 import { applyCoachChange, buildProposals, changeSection, checkProposal, isReorganization, updateTarget, withoutProblems, type ChangeProblem, type CoachChange, type CoachUpdate } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
-import { scoreCv, type ScoringContext } from "./cv-score";
+import { correctionsForCoach, scoreCv, type ScoringContext } from "./cv-score";
 import { matchKeywords } from "./keyword-match";
 
 // Un échange du coach du CV Builder, une fois sa première réponse reçue : vérification par le
@@ -376,7 +376,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       : {}),
     scoreBefore: scored?.before ?? 0,
     scoreAfter: scored?.after.score ?? null,
-    corrections: scored?.after.corrections.map((c) => c.message) ?? [],
+    corrections: correctionsForCoach(scored?.after.corrections ?? [], context.scoring).map((c) => c.message),
     offerKeywords: present ? offerKeywords.filter((k) => !present.has(k)) : [],
     lang: context.language,
   });
@@ -393,7 +393,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
         listening: context.listening,
         score: final.score,
         scoreBefore: before.score,
-        corrections: final.corrections.map((c) => c.message),
+        corrections: correctionsForCoach(final.corrections, context.scoring).map((c) => c.message),
         previousCoach: turns.filter((t) => t.role === "assistant").map((t) => t.content),
         ...(context.offerSteps ? { offerKeywords: context.offerKeywords ?? [] } : {}),
         // « Puis on en reste là » en mode demande : questions du modèle retirées de ce message.

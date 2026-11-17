@@ -456,6 +456,16 @@ export function offerKeywordScore(data: CvData, context: Pick<ScoringContext, "o
   return { found, missing, refused, allRefused: false, counted, target, points: POINTS.keywords * Math.min(1, found.length / target) };
 }
 
+/**
+ * Corrections données au coach et à ses textes (bloc score, « Ce qui bloque surtout », clôture) :
+ * pour un CV lié dont l'offre a des mots-clés comptés, sans la correction « mots-clés » ; le bloc
+ * des mots-clés de l'offre s'en charge (4 au plus, seulement ceux qui se rattachent à un fait du
+ * CV). CV libre : toutes les corrections. L'éditeur garde toutes les corrections.
+ */
+export function correctionsForCoach<T extends Pick<CvCorrection, "category">>(corrections: T[], context: Pick<ScoringContext, "offerKeywords">): T[] {
+  return context.offerKeywords?.length ? corrections.filter((c) => c.category !== "keywords") : corrections;
+}
+
 /** Ligne de détail de la catégorie : « Mots-clés de l'offre : N sur M visés ». */
 export function offerKeywordsLine(score: Pick<OfferKeywordScore, "found" | "target" | "allRefused">) {
   if (score.allRefused) return `Mots-clés de l'offre : tous retirés (tu as dit ne pas les avoir), ${ALL_REFUSED_POINTS} points sur ${POINTS.keywords}`;
