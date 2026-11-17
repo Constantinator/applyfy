@@ -132,15 +132,15 @@ const reply = (patch = {}) => ({
   message: "Combien de rendez-vous par semaine ?",
   changeSummary: "C'est fait : j'ai ajouté une puce.",
   skippedPoints: [],
-  update: null,
+  updates: [],
   invalid: false,
-  raw: null,
+  raw: [],
   ...patch,
 });
 const withBullet = (after, patch = {}) =>
   reply({
-    update: { section: "experience", data: { id: "e1", bullets: [{ index: -1, after }], bullets_to_remove: [] } },
-    raw: { section: "experience", data: "{}" },
+    updates: [{ section: "experience", data: { id: "e1", bullets: [{ index: -1, after }], bullets_to_remove: [] } }],
+    raw: [{ section: "experience", data: "{}" }],
     ...patch,
   });
 const turnInput = (first, retry, patch = {}) => ({
@@ -229,11 +229,13 @@ test(
   quiet(async () => {
     const first = reply({
       changeSummary: "C'est fait : j'ai ajouté tes deux résultats.",
-      update: {
-        section: "experience",
-        data: { id: "e1", bullets: [{ index: -1, after: `${VERB} 12 contrats par mois` }, { index: -1, after: "Signature de contrats" }], bullets_to_remove: [] },
-      },
-      raw: { section: "experience", data: "{}" },
+      updates: [
+        {
+          section: "experience",
+          data: { id: "e1", bullets: [{ index: -1, after: `${VERB} 12 contrats par mois` }, { index: -1, after: "Signature de contrats" }], bullets_to_remove: [] },
+        },
+      ],
+      raw: [{ section: "experience", data: "{}" }],
     });
     const turn = await runCoachTurn(turnInput(first, async () => null));
     assert.equal(turn.kind, "done");
@@ -250,7 +252,7 @@ test(
   quiet(async () => {
     const { PROBLEM_NOT_SHORTER } = await import("./coach-proposals.ts");
     const listening = { stopAll: false, stopFigures: false, readiness: false, confirmation: false, refusal: false, shorten: true };
-    const summaryReply = (text) => reply({ mode: "demande", update: { section: "summary", data: text }, raw: { section: "summary", data: text } });
+    const summaryReply = (text) => reply({ mode: "demande", updates: [{ section: "summary", data: text }], raw: [{ section: "summary", data: text }] });
     const calls = [];
     const turn = await runCoachTurn(
       turnInput(summaryReply("Commercial terrain, 3 ans de prospection auprès de PME."), async (retry) => {
@@ -302,9 +304,9 @@ function fakeClient(output, stopReason = "end_turn") {
 
 test("coach : appels sur le client donné, mêmes paramètres qu'avant, mots-clés du marché du contexte", async () => {
   const context = buildCoachContext(cv, scoringContextFrom(cv, null, ["motcle-marche-fictif"]), null);
-  const client = fakeClient({ mode: "demande", message: " Fait. ", change_summary: "", skipped_points: [], section: "aucune", data: "" });
+  const client = fakeClient({ mode: "demande", message: " Fait. ", change_summary: "", skipped_points: [], updates: [] });
   const answer = await coachBuilderCv(client, context, [], "Raccourcis mon accroche");
-  assert.deepEqual(answer, { mode: "demande", message: "Fait.", changeSummary: "", skippedPoints: [], update: null, invalid: false, raw: null });
+  assert.deepEqual(answer, { mode: "demande", message: "Fait.", changeSummary: "", skippedPoints: [], updates: [], invalid: false, raw: [] });
   const [params] = client.requests;
   assert.equal(params.model, "claude-sonnet-5-5");
   assert.equal(params.max_tokens, 16000);

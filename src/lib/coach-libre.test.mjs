@@ -53,7 +53,8 @@ function fakeClient(output) {
   };
 }
 
-const flat = (patch) => ({ mode: "parcours", change_summary: "", message: "", skipped_points: [], section: "aucune", data: "", ...patch });
+// Sortie du modèle : une mise à jour (section, data), ou la liste « updates » donnée telle quelle.
+const flat = ({ section = "aucune", data = "", ...patch } = {}) => ({ mode: "parcours", change_summary: "", message: "", skipped_points: [], updates: section === "aucune" ? [] : [{ section, data }], ...patch });
 
 /** Situations jouées pour chaque profil : historique, message, points abandonnés, réponse du modèle. */
 function situations(cv) {

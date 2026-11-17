@@ -83,7 +83,8 @@ export function fakeClient(output) {
   };
 }
 
-export const flat = (patch) => ({ mode: "parcours", change_summary: "", message: "", skipped_points: [], section: "aucune", data: "", ...patch });
+// Sortie du modèle : une mise à jour (section, data), ou la liste « updates » donnée telle quelle.
+export const flat = ({ section = "aucune", data = "", ...patch } = {}) => ({ mode: "parcours", change_summary: "", message: "", skipped_points: [], updates: section === "aucune" ? [] : [{ section, data }], ...patch });
 
 /** Journal du coach coupé pendant l'appel. */
 export async function quiet(fn) {

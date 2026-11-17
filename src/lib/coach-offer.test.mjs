@@ -68,7 +68,8 @@ function fakeClient(output) {
     },
   };
 }
-const flat = (patch) => ({ mode: "parcours", change_summary: "", message: "", skipped_points: [], section: "aucune", data: "", ...patch });
+// Sortie du modèle : une mise à jour (section, data), ou la liste « updates » donnée telle quelle.
+const flat = ({ section = "aucune", data = "", ...patch } = {}) => ({ mode: "parcours", change_summary: "", message: "", skipped_points: [], updates: section === "aucune" ? [] : [{ section, data }], ...patch });
 const quiet = async (fn) => {
   const { warn, error } = console;
   console.warn = console.error = () => {};
@@ -299,7 +300,7 @@ test("écart : consigne et champ dédié pour un CV lié seulement, affiché ava
 
   // Hors de l'étape écart : le champ est ignoré, même rempli.
   const early = contextFor(studentCv, analyste, { history: opening, request });
-  const off = await coachBuilderCv(fakeClient({ ...reply, section: "aucune", data: "" }), early, opening, request);
+  const off = await coachBuilderCv(fakeClient({ ...reply, updates: [] }), early, opening, request);
   const shown = await quiet(() => runCoachTurn({ current: studentCv, context: early, turns: opening, request, reply: off, limitReached: false, retry: async () => null }));
   assert.ok(!shown.text.includes("parcours en finance"));
 

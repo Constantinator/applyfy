@@ -33,7 +33,7 @@ const coachReplyFields = {
   change_summary: z
     .string()
     .describe(
-      "Quand section n'est pas « aucune » : une phrase courte qui dit ce que tu as modifié, suppressions comprises, en les nommant (ex. « C'est fait : j'ai ajouté tes résultats à ton stage chez X. », « C'est fait : j'ai supprimé la puce en doublon de ton stage chez X. ») ; sinon chaîne vide",
+      "Quand tu modifies le CV : une phrase courte qui dit ce que tu as modifié, suppressions comprises, en les nommant (ex. « C'est fait : j'ai ajouté tes résultats à ton stage chez X. », « C'est fait : j'ai supprimé la puce en doublon de ton stage chez X. ») ; sinon chaîne vide",
     ),
   message: z
     .string()
@@ -45,12 +45,43 @@ const coachReplyFields = {
     .describe(
       "Points que tu abandonnes dans cette réponse : le candidat ne sait pas ou ne veut pas répondre, ou tu as déjà posé la question 2 fois sans réponse directe. Pour chacun, nomme l'élément et l'information demandée (ex. « Stage chez X : nombre d'heures de tutorat ») ; liste vide sinon",
     ),
-  section: z
-    .enum([...COACH_SECTIONS, "aucune"])
-    .describe("« aucune » tant que tu n'as pas assez d'informations ; sinon la section que tu modifies"),
-  data: z.string().describe(COACH_DATA_FORMAT),
 };
-const CoachReplyFlatSchema = z.object({ mode: z.enum(["demande", "parcours"]).describe(MODE_DESCRIPTION), ...coachReplyFields });
+/** Nombre de mises à jour du repli à plat (COACH_UPDATES_FLAT=1). */
+export const COACH_FLAT_UPDATES = 3;
+/** Mises à jour de la réponse : une liste d'objets { section, data }. */
+const updatesField = {
+  updates: z
+    .array(
+      z.object({
+        section: z.enum(COACH_SECTIONS).describe("La section que tu modifies"),
+        data: z.string().describe(COACH_DATA_FORMAT),
+      }),
+    )
+    .describe(
+      "Tes modifications du CV : liste vide tant que tu n'as pas assez d'informations ; sinon une mise à jour par section modifiée (et par expérience, formation ou projet modifié)",
+    ),
+};
+/**
+ * Repli si l'API refusait la grammaire de la liste d'objets : COACH_FLAT_UPDATES couples
+ * section_N / data_N à plat (« aucune » et chaîne vide pour une place libre), activé par
+ * COACH_UPDATES_FLAT=1. Pas activé par défaut.
+ */
+const flatUpdatesFields: Record<string, z.ZodTypeAny> = Object.fromEntries(
+  Array.from({ length: COACH_FLAT_UPDATES }, (_, i) => i + 1).flatMap((n) => [
+    [
+      `section_${n}`,
+      z
+        .enum([...COACH_SECTIONS, "aucune"])
+        .describe(
+          n === 1
+            ? "« aucune » tant que tu n'as pas assez d'informations ; sinon la première section que tu modifies"
+            : `« aucune » si tu ne modifies pas de ${n}e section ; sinon la ${n}e section que tu modifies`,
+        ),
+    ],
+    [`data_${n}`, z.string().describe(n === 1 ? COACH_DATA_FORMAT : `Comme data_1, pour section_${n} ; chaîne vide si section_${n} = « aucune »`)],
+  ]),
+);
+const updateFields = () => (process.env.COACH_UPDATES_FLAT === "1" ? flatUpdatesFields : updatesField);
 /** CV lié à une offre : écart avec l'offre, dit une fois quand le bloc « etape_offre » le demande. */
 const offerFields = {
   ecart_offre: z
@@ -59,21 +90,44 @@ const offerFields = {
       "Seulement si le bloc « etape_offre » te le demande : l'écart principal entre le CV et l'offre, dit honnêtement en une ou deux phrases, sans question ; sinon chaîne vide",
     ),
 };
-const CoachReplyOfferSchema = z.object({ mode: z.enum(["demande", "parcours"]).describe(MODE_DESCRIPTION), ...coachReplyFields, ...offerFields });
 /**
- * Repli si l'API refusait l'énumération « mode » (grammaire trop grande) : un booléen à la place,
- * activé par COACH_MODE_BOOLEAN=1, sans autre changement de comportement.
+ * Schéma de la réponse : CV lié ou non (champ « ecart_offre »), et replis par variable
+ * d'environnement, aucun activé par défaut : COACH_MODE_BOOLEAN=1 (booléen à la place de
+ * l'énumération « mode », si l'API la refusait) ; COACH_UPDATES_FLAT=1 (mises à jour à plat).
  */
-const CoachReplyBooleanSchema = z.object({
-  demande_explicite: z.boolean().describe(`true = mode « demande », false = mode « parcours ». ${MODE_DESCRIPTION}`),
-  ...coachReplyFields,
-});
-const CoachReplyOfferBooleanSchema = CoachReplyBooleanSchema.extend(offerFields);
-type CoachReplyFlat = z.infer<typeof CoachReplyFlatSchema> & { ecart_offre?: string };
+function coachReplySchema(linked: boolean, boolean: boolean) {
+  const mode = boolean
+    ? { demande_explicite: z.boolean().describe(`true = mode « demande », false = mode « parcours ». ${MODE_DESCRIPTION}`) }
+    : { mode: z.enum(["demande", "parcours"]).describe(MODE_DESCRIPTION) };
+  return z.object({ ...mode, ...coachReplyFields, ...updateFields(), ...(linked ? offerFields : {}) });
+}
+type CoachReplyFlat = {
+  mode: CoachMode;
+  change_summary: string;
+  message: string;
+  skipped_points: string[];
+  ecart_offre?: string;
+  updates?: { section: CoachSection; data: string }[];
+} & Record<string, unknown>;
+
+/** Mises à jour écrites par le modèle (liste, ou repli à plat sans ses places libres). */
+function rawUpdates(flat: CoachReplyFlat): RawUpdate[] {
+  if (Array.isArray(flat.updates)) return flat.updates.map((u) => ({ section: u.section, data: u.data }));
+  const list: RawUpdate[] = [];
+  for (let n = 1; n <= COACH_FLAT_UPDATES; n++) {
+    const section = flat[`section_${n}`];
+    if (typeof section === "string" && section !== "aucune") list.push({ section: section as CoachSection, data: String(flat[`data_${n}`] ?? "") });
+  }
+  return list;
+}
+
+/** Mise à jour telle qu'écrite par le modèle (nouvel essai) ; `invalid` : contenu illisible ou invalide. */
+export type RawUpdate = { section: CoachSection; data: string; invalid?: true };
 
 /**
- * Réponse du coach. `update` : modification proposée, validée ; `invalid` : la section demandée
- * avait un contenu illisible ou invalide ; `raw` : la proposition telle qu'écrite (nouvel essai).
+ * Réponse du coach. `updates` : modifications proposées, validées (une par section ou élément) ;
+ * `invalid` : au moins une mise à jour avait un contenu illisible ou invalide ; `raw` : les mises
+ * à jour telles qu'écrites (nouvel essai), vide si aucune.
  */
 export type CoachReply = {
   /** « demande » : réponse à une demande explicite du candidat ; « parcours » : suite des points à corriger. */
@@ -86,9 +140,9 @@ export type CoachReply = {
   skippedPoints: string[];
   /** CV lié : écart avec l'offre dit dans cette réponse (vide sinon) ; absent pour un CV libre. */
   gap?: string;
-  update: CoachUpdate | null;
+  updates: CoachUpdate[];
   invalid: boolean;
-  raw: { section: CoachSection; data: string } | null;
+  raw: RawUpdate[];
 };
 
 const TEXT_SECTIONS = new Set<CoachSection>(["summary", "interests"]);
@@ -117,9 +171,14 @@ function toCoachReply(flat: CoachReplyFlat): CoachReply {
     skippedPoints: flat.skipped_points.map((p) => p.trim()).filter(Boolean),
     ...(flat.ecart_offre !== undefined ? { gap: flat.ecart_offre.trim() } : {}),
   };
-  if (flat.section === "aucune") return { ...reply, update: null, invalid: false, raw: null };
-  const update = readCoachData(flat.section, flat.data);
-  return { ...reply, update, invalid: update === null, raw: { section: flat.section, data: flat.data } };
+  // Chaque mise à jour est lue seule : un contenu invalide n'écarte que la sienne.
+  const updates: CoachUpdate[] = [];
+  const raw = rawUpdates(flat).map((r): RawUpdate => {
+    const update = readCoachData(r.section, r.data);
+    if (update) updates.push(update);
+    return update ? r : { ...r, invalid: true };
+  });
+  return { ...reply, updates, invalid: raw.some((r) => r.invalid), raw };
 }
 
 /**
@@ -174,18 +233,16 @@ export async function coachBuilderCv(
   const system = coachSystem(ctx, coachSectorContext(ctx));
   // 16 000 tokens : la réflexion du modèle compte dans la limite.
   const options = { effort: "low", maxTokens: 16000 } as const;
-  // CV lié : schéma avec le champ « ecart_offre » ; CV libre : schéma inchangé.
+  // CV lié : schéma avec le champ « ecart_offre » ; CV libre : sans.
   const linked = Boolean(context.offerSteps);
   if (process.env.COACH_MODE_BOOLEAN === "1") {
-    const reply = linked
-      ? await parseStructured(client, "coachBuilderCv", CoachReplyOfferBooleanSchema, system, text, options)
-      : await parseStructured(client, "coachBuilderCv", CoachReplyBooleanSchema, system, text, options);
+    const reply = (await parseStructured(client, "coachBuilderCv", coachReplySchema(linked, true), system, text, options)) as
+      | ({ demande_explicite: boolean } & Record<string, unknown>)
+      | null;
     if (!reply) return null;
     const { demande_explicite, ...fields } = reply;
-    return toCoachReply({ mode: demande_explicite ? "demande" : "parcours", ...fields });
+    return toCoachReply({ mode: demande_explicite ? "demande" : "parcours", ...fields } as CoachReplyFlat);
   }
-  const flat = linked
-    ? await parseStructured(client, "coachBuilderCv", CoachReplyOfferSchema, system, text, options)
-    : await parseStructured(client, "coachBuilderCv", CoachReplyFlatSchema, system, text, options);
+  const flat = (await parseStructured(client, "coachBuilderCv", coachReplySchema(linked, false), system, text, options)) as CoachReplyFlat | null;
   return flat && toCoachReply(flat);
 }

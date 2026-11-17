@@ -102,7 +102,7 @@ export type Clients = { coach: ParseClient; simulator: ParseClient; judge: Parse
  * (buildProposal, pur) et chaque refus retrouvé par son texte proposé.
  */
 function refusedTexts(current: CvData, reply: CoachReply | null, problems: ChangeProblem[]): RefusedText[] {
-  const changes = reply?.update ? (buildProposal(current, reply.update)?.changes ?? []) : [];
+  const changes = (reply?.updates ?? []).flatMap((update) => buildProposal(current, update)?.changes ?? []);
   return problems.map((p) => {
     const change = changes.find((c) => c.after === p.text) ?? changes.find((c) => c.after.includes(p.text) || p.text.includes(c.after));
     return { label: change?.label ?? null, original: change?.before ?? null, proposed: p.text, causes: p.problems };

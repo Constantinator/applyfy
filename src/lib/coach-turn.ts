@@ -6,7 +6,7 @@ import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChan
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
 import { announcementLanguage } from "./coach-language";
 import { plainCoachText } from "./coach-plain";
-import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem, type CoachChange } from "./coach-proposals";
+import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem, type CoachChange, type CoachUpdate } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
 import { scoreCv, type ScoringContext } from "./cv-score";
 import { matchKeywords } from "./keyword-match";
@@ -73,14 +73,16 @@ export type CoachTurnResult =
 
 /** Réponse sans changement du titre du CV (refusé par le candidat) ; telle quelle sinon. */
 export function withoutTitle(reply: CoachReply): CoachReply {
-  const update = reply.update;
-  if (update?.section !== "personal" || !("jobTitle" in update.data)) return reply;
-  const rest = { ...update.data };
-  delete rest.jobTitle;
+  const isTitle = (u: CoachUpdate) => u.section === "personal" && "jobTitle" in u.data;
+  if (!reply.updates.some(isTitle)) return reply;
+  const updates = reply.updates.flatMap((update): CoachUpdate[] => {
+    if (update.section !== "personal" || !("jobTitle" in update.data)) return [update];
+    const rest = { ...update.data };
+    delete rest.jobTitle;
+    return Object.keys(rest).length ? [{ section: "personal", data: rest }] : [];
+  });
   console.warn("[cv-builder coach] changement de titre retiré : le candidat l'a refusé");
-  return Object.keys(rest).length
-    ? { ...reply, update: { section: "personal", data: rest } }
-    : { ...reply, update: null, raw: null, invalid: false, changeSummary: "" };
+  return updates.length ? { ...reply, updates } : { ...reply, updates: [], raw: [], invalid: false, changeSummary: "" };
 }
 
 /** Mot d'école dans une puce (« école », « université », « campus », « projet de fin d'études », « school »…). */
@@ -148,7 +150,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const titleLocked = stage?.resolve === "titre" && (context.listening?.refusal ?? false);
   if (titleLocked) reply = withoutTitle(reply);
   let answer = reply;
-  let proposal = reply.update ? buildProposal(current, reply.update) : null;
+  let proposal = reply.updates[0] ? buildProposal(current, reply.updates[0]) : null;
   // Proposition telle que construite : null alors que le coach a bien proposé quelque chose = « ne change rien ».
   let built = proposal;
   // Première proposition : emplacements de ses textes refusés (annonce après un second essai).
@@ -179,9 +181,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const firstProblems = problems;
   const firstRefused = problems.length;
   let retried = false;
-  if (reply.raw && !limitReached && (reply.invalid || problems.length)) {
+  if (reply.raw.length && !limitReached && (reply.invalid || problems.length)) {
     const second = await retry({
-      previous: reply.raw,
+      previous: reply.raw[0],
       problems: problems.map(({ text, problems }) => ({ text, problems })),
       mode,
       ...(check.figureWaived ? { figureWaived: true } : {}),
@@ -189,7 +191,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     if (second) {
       retried = true;
       answer = titleLocked ? withoutTitle(second) : second;
-      proposal = answer.update ? buildProposal(current, answer.update) : null;
+      proposal = answer.updates[0] ? buildProposal(current, answer.updates[0]) : null;
       built = proposal;
       problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
     }
@@ -230,17 +232,17 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const reorganized = applied > 0 && isReorganization(current, updated);
 
   // Adaptations du mois épuisées : pas de modification, le coach continue avec sa question.
-  if (reply.raw && limitReached && !reorganized) {
+  if (reply.raw.length && limitReached && !reorganized) {
     return {
       kind: "quotaBlocked",
-      text: plainCoachText(quotaBlockedText({ mode, section: reply.raw.section, message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }), context.language),
+      text: plainCoachText(quotaBlockedText({ mode, section: reply.raw[0].section, message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }), context.language),
       mode,
       skippedPoints: markers.length ? [...new Set([...reply.skippedPoints, ...markers])] : reply.skippedPoints,
     };
   }
 
   console.warn(
-    `[cv-builder coach] réponse : mode=${mode}, section=${reply.raw?.section ?? "aucune"}, changements appliqués=${applied}, ` +
+    `[cv-builder coach] réponse : mode=${mode}, section=${reply.raw[0]?.section ?? "aucune"}, changements appliqués=${applied}, ` +
       `textes refusés=${firstRefused} (après le second essai : ${problems.length}), second essai=${retried ? "oui" : "non"}, ` +
       `passages introuvables=${stale}, contenu invalide=${reply.invalid ? "oui" : "non"}, réorganisation=${reorganized ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
   );
@@ -253,12 +255,12 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const firstLabels: Record<string, string> = Object.fromEntries((firstBuilt?.changes ?? []).map((c) => [c.id, c.label]));
   const text = coachReplyText({
     mode,
-    section: reply.raw?.section ?? null,
+    section: reply.raw[0]?.section ?? null,
     applied,
     stale,
     invalid: answer.invalid,
     firstInvalid: reply.invalid,
-    noChange: Boolean(answer.update) && !built,
+    noChange: answer.updates.length > 0 && !built,
     problems,
     // Seul un texte réellement refusé au final figure dans « pas appliqué » : un premier refus dont
     // l'emplacement a été écrit au second essai (L04 : accroche raccourcie à 23 %) n'est plus cité ;
@@ -330,7 +332,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     invalid: answer.invalid,
     reorganized,
     skippedPoints: skippedNow,
-    section: reply.raw?.section ?? null,
+    section: reply.raw[0]?.section ?? null,
     scoreBefore: scored?.before ?? null,
     scoreAfter: scored?.after.score ?? null,
     ...(context.offerSteps ? { offerGap: gap } : {}),
