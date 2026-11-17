@@ -409,6 +409,12 @@ export type CheckOptions = {
   /** La dernière question du coach proposait la suppression (coach-intent.ts) : refus dit « réponds oui ou non ». */
   removalProposed?: boolean;
   /**
+   * Suppression acceptée après une proposition du coach (coach-intent.ts, removalScope) : seuls les
+   * passages cités par cette proposition peuvent être supprimés ([] : une seule suppression).
+   * Absent : pas de limite (suppression demandée par le candidat, ou non autorisée).
+   */
+  removalScope?: string[];
+  /**
    * Le dernier message demande la première personne (coach-intent.ts) : « je / mon / mes » permis
    * en mode demande seulement.
    */
@@ -426,11 +432,39 @@ export type CheckOptions = {
   translation?: boolean;
 };
 
+/** Texte comparé mot à mot : minuscules sans accents, ponctuation remplacée par des espaces. */
+const words = (text: string) =>
+  ` ${text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9+#]+/g, " ").trim()} `;
+
+/**
+ * Éléments d'une liste qui disparaissent (C3) : ni gardés, ni contenus dans un nouvel élément
+ * (« Excel » → « Excel avancé », « Hard skills : Excel, Python »), ni contenant un nouvel élément
+ * (« Excel avancé » → « Excel »). Réordonner ne retire rien.
+ */
+export function droppedListItems(previous: Item[], value: Item[]): string[] {
+  const after = value.map((i) => words(String(i.name ?? "")));
+  return previous
+    .map((i) => String(i.name ?? "").trim())
+    .filter((name) => {
+      const w = words(name);
+      return w.trim() && !after.some((a) => a.trim() && (a.includes(w) || w.includes(a)));
+    });
+}
+
+/** Le passage supprimé est celui cité par la proposition (l'un contient l'autre, mot à mot). */
+const samePassage = (text: string, quote: string) => {
+  const t = words(text);
+  const q = words(quote);
+  return q.trim().length > 0 && (t.includes(q) || q.includes(t));
+};
+
 /** Traduction : l'intitulé d'un diplôme garde sa langue d'origine. */
 export const PROBLEM_DEGREE_TRANSLATED = "traduit l'intitulé d'un diplôme : un diplôme garde son intitulé d'origine, ne le change pas";
 
 /** Suppression (puce ou élément) que le candidat n'a ni demandée ni acceptée. */
 export const PROBLEM_REMOVAL_NOT_ASKED = "supprime un passage que le candidat n'a pas demandé de supprimer";
+/** Suppression d'un autre passage que celui que le coach a proposé et que le candidat a accepté (C3). */
+export const PROBLEM_REMOVAL_OUT_OF_SCOPE = "supprime un autre passage que celui que tu as proposé au candidat";
 /** Même refus, après une proposition de suppression du coach sans accord reconnu (lot E, 1d). */
 export const PROBLEM_REMOVAL_UNANSWERED = "supprime un passage sans réponse claire du candidat à la proposition de suppression";
 
@@ -771,18 +805,27 @@ export function checkProposal(
       else problems.push({ changeId: change.id, text: change.after, problems: [PROBLEM_DEGREE_TRANSLATED] });
     }
   }
-  // Suppression non demandée (tous les CV, tous les modes) : refusée.
-  if (options.removalAllowed === false) {
-    for (const change of proposal.changes) {
-      if (change.kind !== "removeBullet" && change.kind !== "removeItem") continue;
-      if (!problems.some((q) => q.changeId === change.id)) {
-        problems.push({
-          changeId: change.id,
-          text: change.before ?? change.label,
-          problems: [options.removalProposed ? PROBLEM_REMOVAL_UNANSWERED : PROBLEM_REMOVAL_NOT_ASKED],
-        });
-      }
+  // Suppressions : puces, éléments, et éléments retirés d'une liste (C3 ; jamais pendant une
+  // traduction). Non demandées : refusées. Acceptées après une proposition du coach : seulement le
+  // passage proposé (une seule suppression si la proposition ne citait rien).
+  const removals = proposal.changes.flatMap((change): { change: CoachChange; text: string }[] =>
+    change.kind === "removeBullet" || change.kind === "removeItem"
+      ? [{ change, text: change.before ?? change.label }]
+      : change.kind === "list" && !options.translation
+        ? droppedListItems(change.previous, change.value).map((text) => ({ change, text }))
+        : [],
+  );
+  let scopedRemovals = 0;
+  for (const { change, text } of removals) {
+    if (problems.some((q) => q.changeId === change.id)) continue;
+    let problem: string | null = null;
+    if (options.removalAllowed === false) problem = options.removalProposed ? PROBLEM_REMOVAL_UNANSWERED : PROBLEM_REMOVAL_NOT_ASKED;
+    else if (options.removalScope) {
+      const allowed = options.removalScope.length ? options.removalScope.some((q) => samePassage(text, q)) : scopedRemovals === 0;
+      scopedRemovals++;
+      if (!allowed) problem = PROBLEM_REMOVAL_OUT_OF_SCOPE;
     }
+    if (problem) problems.push({ changeId: change.id, text: change.kind === "list" ? text : (change.before ?? change.label), problems: [problem] });
   }
   // Verbe du candidat (tous les CV, tous les modes) : une puce existante qui reçoit son nombre garde
   // le verbe qu'il a employé, pas celui de l'ancienne puce.

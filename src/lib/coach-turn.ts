@@ -8,6 +8,7 @@ import {
   listenText,
   removalAllowed,
   removalProposed,
+  removalScope,
   type Listening,
 } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
@@ -226,6 +227,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     removalAllowed: removalAllowed(turns, request),
     // Refus après une proposition de suppression du coach : le message demande un oui ou un non.
     removalProposed: removalProposed(turns, request),
+    // Accord après une proposition du coach : seulement le passage proposé (C3).
+    ...((scope) => (scope ? { removalScope: scope } : {}))(removalScope(turns, request)),
     // « Je / mon / mes » permis en mode demande seulement si le candidat demande la première personne.
     firstPersonAsked: asksFirstPerson(request),
     // Mode parcours : le candidat a dit ne pas avoir le chiffre demandé, ou la question du coach

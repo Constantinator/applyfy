@@ -24,7 +24,7 @@ const IMPROVE =
  * dossiers par mois » (un fait) n'en est pas une.
  */
 const REMOVE =
-  /\b(supprime|supprimes|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|fusionne|fusionnez|fusionner|regroupe|regroupez|regrouper|remplace|remplacez|remplacer)\b[^.?!]{0,40}\b(puces?|lignes?|exp[ée]riences?|formations?|projets?|doublons?|les deux|ces deux|celle|celles|la|les|l'|ça|cela)\b|\b(remove|delete|drop|merge|combine|replace)\b[^.?!]{0,40}\b(bullets?|lines?|points?|experiences?|entries|entry|projects?|both|these|those|it|them|duplicates?)\b|\bget rid of\b/i;
+  /\b(supprime|supprimes|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|fusionne|fusionnez|fusionner|regroupe|regroupez|regrouper|remplace|remplacez|remplacer)\b[^.?!]{0,40}\b(puces?|lignes?|exp[ée]riences?|formations?|projets?|doublons?|comp[ée]tences?|langues?|certifications?|les deux|ces deux|celle|celles|la|les|l'|ça|cela)\b|\b(remove|delete|drop|merge|combine|replace)\b[^.?!]{0,40}\b(bullets?|lines?|points?|experiences?|entries|entry|projects?|skills?|languages?|certifications?|both|these|those|it|them|duplicates?)\b|\bget rid of\b|\b(supprime|supprimez|supprimer|enl[èe]ve|enlevez|enlever|retire|retirez|retirer|efface|effacez|effacer|remove|delete|drop)\s*[«“"]/i;
 /**
  * Pronom placé avant le verbe (« Tu peux la supprimer », « Peux-tu les retirer ? », run
  * 2026-11-16T05-00-26, L02 tour 9) : REMOVE ne lit que le verbe suivi de son objet.
@@ -71,6 +71,23 @@ const lastQuestionProposesRemoval = (history: { role: "user" | "assistant"; cont
  */
 export const removalProposed = (history: { role: "user" | "assistant"; content: string }[], request: string) =>
   lastQuestionProposesRemoval(history) && !isNegative(request) && !NOT_REMOVE.test(request);
+
+/**
+ * Suppression acceptée après une proposition du coach (C3) : passages cités entre guillemets dans
+ * la question qui la proposait (ou, à défaut, dans la phrase juste avant) ; seuls ceux-là peuvent
+ * être supprimés. [] : la proposition ne cite rien, une seule suppression permise. null : pas de
+ * limite (suppression demandée par le candidat lui-même) ou suppression non autorisée.
+ */
+export function removalScope(history: { role: "user" | "assistant"; content: string }[], request: string): string[] | null {
+  if (asksToRemove(request) || !removalAllowed(history, request)) return null;
+  const lastCoach = [...history].reverse().find((t) => t.role === "assistant")?.content ?? "";
+  const sentences = splitSentences(lastCoach);
+  const at = sentences.map((s, i) => (isQuestion(s) ? i : -1)).filter((i) => i >= 0).pop() ?? -1;
+  const quotes = (text: string) =>
+    [...text.matchAll(/«\s*([^»]+?)\s*»|“([^”]+)”|"([^"]+)"/g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim()).filter((q) => q.length >= 2);
+  const inQuestion = at >= 0 ? quotes(sentences[at]) : [];
+  return inQuestion.length || at < 1 ? inQuestion : quotes(sentences[at - 1]);
+}
 
 /** « Peux-tu confirmer… ? », « can you confirm…? » : le coach répond d'abord oui ou non. */
 const CONFIRMATION = /((peux|pourrais)-tu|tu (peux|pourrais)|pouvez-vous) (me )?confirmer|can you confirm|could you confirm/i;

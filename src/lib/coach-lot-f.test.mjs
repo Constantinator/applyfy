@@ -72,7 +72,7 @@ test("L14 : titre et puce demandés en un message, les deux appliqués", async (
 });
 
 test("plafond : 4 mises à jour demandées, 3 appliquées ; « oui » à « je continue » et parcours : une seule", async () => {
-  const four = demande([title("Analyste crédit"), summary("Analyste crédit junior, banque et audit."), skills(["Excel", "SQL"]), { section: "interests", data: "Course à pied" }]);
+  const four = demande([title("Analyste crédit"), summary("Analyste crédit junior, banque et audit."), skills(["Excel", "Analyse financière", "Travail en équipe", "SQL"]), { section: "interests", data: "Course à pied" }]);
   const many = await play("Mets Analyste crédit en titre, raccourcis l'accroche, ajoute SQL et mets la course à pied dans mes centres d'intérêt.", four);
   assert.equal(many.applied, 3);
   assert.deepEqual(many.droppedSections, ["interests"]);
