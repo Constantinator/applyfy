@@ -35,6 +35,8 @@ export const CLAUDE_FUNCTIONS = {
   improveCvBullet: { tier: "standard", group: "CV" },
   generateCvSummary: { tier: "standard", group: "CV" },
   adaptCvToOffer: { tier: "standard", group: "CV" },
+  // Traduction de tout le CV (français <-> anglais), une réponse.
+  translateCv: { tier: "standard", group: "CV" },
   generateCoverLetter: { tier: "standard", group: "LETTER" },
   transcribeLetter: { tier: "standard", group: "LETTER" },
   refineDocument: { tier: "standard", group: "REFINE" },

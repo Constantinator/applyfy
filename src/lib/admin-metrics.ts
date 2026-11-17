@@ -37,6 +37,7 @@ const UNKNOWN_PLAN = { name: "Ancien prix", monthlyPrice: 8, billedAmount: 8, in
  * euros : base ramenée au modèle réellement utilisé par chaque appel (AI_ACTION_COSTS).
  * cvb_coach : réponses du coach sans modification. lettre : génération et import (même modèle).
  * cvb_import : extraction du fichier, puis conseils sur le CV extrait (sans le fichier).
+ * cvb_traduction : traduction de tout le CV (second essai éventuel compris).
  */
 const ACTION_CALLS: Record<AiUsageKind, [ClaudeFunction, number][]> = {
   resume_offre: [["summarizeOffer", 0.02]],
@@ -55,6 +56,8 @@ const ACTION_CALLS: Record<AiUsageKind, [ClaudeFunction, number][]> = {
   ],
   cvb_chat: [["coachBuilderCv", 0.05]],
   cvb_coach: [["coachBuilderCv", 0.03]],
+  // Tout le CV en une réponse, et parfois un second essai sur les champs refusés.
+  cvb_traduction: [["translateCv", 0.1]],
 };
 
 /** Prix par million de tokens (entrée + sortie, $) ; un modèle inconnu est compté au prix d'Opus. */

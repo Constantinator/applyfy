@@ -1,6 +1,6 @@
 // Promesses de prix : listes d'avantages et textes publics. Lancé par `npm test` (Node 22.18 ou plus).
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { test } from "node:test";
 
@@ -78,7 +78,7 @@ test("les quotas gratuits viennent de la source des quotas", () => {
   assert.deepEqual(FREE_FEATURES.slice(0, 3), [
     `Lumeo : ${CVB_COACH_DAILY_LIMIT} questions par jour`,
     `Adaptation de CV : ${AI_MONTHLY_LIMITS.cvb_chat} par mois`,
-    `Import de CV : ${AI_MONTHLY_LIMITS.cvb_import} par mois`,
+    `Import et traduction de CV : ${AI_MONTHLY_LIMITS.cvb_import} par mois chacun`,
   ]);
 });
 
@@ -127,7 +127,11 @@ test("source unique : /premium et la landing affichent les mêmes listes et les 
 
 test("FAQ de la landing : mêmes quotas, sans fonctionnalité disparue", () => {
   assert.ok(LANDING_FREE_ANSWER.includes(`${CVB_COACH_DAILY_LIMIT} questions par jour à Lumeo`));
-  assert.ok(LANDING_FREE_ANSWER.includes(`${AI_MONTHLY_LIMITS.cvb_chat} adaptations et ${AI_MONTHLY_LIMITS.cvb_import} import de CV par mois`));
+  assert.ok(
+    LANDING_FREE_ANSWER.includes(
+      `${AI_MONTHLY_LIMITS.cvb_chat} adaptations, ${AI_MONTHLY_LIMITS.cvb_import} import et ${AI_MONTHLY_LIMITS.cvb_traduction} traduction de CV par mois`,
+    ),
+  );
   assert.doesNotMatch(LANDING_FREE_ANSWER, /analyses? de CV|action IA par type/i);
 });
 
@@ -144,4 +148,22 @@ test("messages de limite : nombres lus aux constantes, limite commune rappelée"
 test("remises à zéro : Lumeo par jour, le reste par mois", () => {
   assert.match(RESET_NOTE, /Lumeo.*chaque jour.*minuit/);
   assert.match(RESET_NOTE, /1er de chaque mois/);
+});
+
+test("« chacun » reste vrai : import et traduction de CV ont le même quota gratuit", () => {
+  assert.equal(AI_MONTHLY_LIMITS.cvb_traduction, AI_MONTHLY_LIMITS.cvb_import);
+  assert.equal(PREMIUM_FEATURES[2], "Adaptation, import et traduction de CV : sans quota mensuel");
+});
+
+test("quotas alignés avec la base : la dernière migration qui définit record_ai_usage a les mêmes limites", () => {
+  const dir = new URL("../../supabase/migrations/", import.meta.url);
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .filter((f) => /create or replace function record_ai_usage/.test(readFileSync(new URL(f, dir), "utf8")));
+  const sql = readFileSync(new URL(files.at(-1), dir), "utf8");
+  const limits = Object.fromEntries([...sql.matchAll(/when '([a-z_]+)' then (\d+)/g)].map((m) => [m[1], Number(m[2])]));
+  assert.deepEqual(limits, AI_MONTHLY_LIMITS);
+  assert.ok(sql.includes(`if v_used_today >= ${AI_DAILY_LIMIT} then`));
+  assert.match(sql, /and not is_premium\(v_user\)/);
 });

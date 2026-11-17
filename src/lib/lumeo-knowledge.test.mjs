@@ -100,9 +100,11 @@ test("quotas restants : compte gratuit", () => {
 
 test("quotas du mois : seulement ceux de l'offre, jamais d'ancienne fonction sans interface", () => {
   const block = lumeoUserPlanBlock({ kind: "gratuit", counts: counts(), usedToday: 1, coachToday: 1 });
-  assert.equal((block.match(/^- /gm) ?? []).length, 6);
+  // 7 depuis le lot traduction : la traduction du CV est un quota de l'offre (« Import et traduction de CV »).
+  assert.equal((block.match(/^- /gm) ?? []).length, 7);
   assert.doesNotMatch(block, /CV ouvert|analyses? de CV|Affiner avec l'IA » — CV|points d'expérience|résumés de profil/i);
   assert.match(block, /imports de CV/);
+  assert.match(block, /traductions du CV/);
   assert.match(block, /Lettres de motivation/);
   assert.match(block, /Résumés d'offre/);
 });

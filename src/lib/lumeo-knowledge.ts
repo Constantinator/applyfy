@@ -94,6 +94,7 @@ const left = (limit: number, used: number) => Math.max(0, limit - used);
 export const LUMEO_MONTHLY_QUOTA_KINDS = [
   "cvb_chat",
   "cvb_import",
+  "cvb_traduction",
   "lettre",
   "affinage_lettre",
   "resume_offre",
