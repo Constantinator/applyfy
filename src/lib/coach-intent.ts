@@ -595,3 +595,39 @@ export function listenText(i: ListenInput): string {
   }
   return text;
 }
+
+// ---------------------------------------------------------------------------
+// Traduction (lot traduction) : demande sur tout le CV, ou demande de traduction en général
+// ---------------------------------------------------------------------------
+
+/** Demande de traduction (impératif, question, nom) ; jamais un fait passé (« j'ai traduit », « translated »). */
+const TRANSLATE_ASK = /(?<![\p{L}])(tradui[st]|traduire|traduction|translate|translation)(?![\p{L}])/iu;
+/** Tout le CV (« mon CV », « my resume ») ; « résumé » avec accent est la section accroche. */
+const WHOLE_CV = /(?<![\p{L}])(cv|curriculum|resume)(?![\p{L}])/iu;
+/** Tout, en entier (« traduis tout », « translate everything »). */
+const EVERYTHING = /(?<![\p{L}])(tout|entier|entièrement|ensemble|whole|entire|everything|all)(?![\p{L}])/iu;
+/** Partie précise du CV : la demande vise une section, pas tout le CV. */
+const CV_PART =
+  /(?<![\p{L}])(accroche|résumé|profil|titre|puces?|expériences?|stages?|formations?|compétences?|langues?|projets?|intérêts?|sections?|parties?|rubriques?|summary|headline|title|bullets?|experiences?|education|skills?|languages?|projects?|interests?|parts?)(?![\p{L}])/iu;
+/** Récit d'un fait passé, pas une demande (« j'ai traduit des contrats », « I translated »). */
+const PAST_FACT = /(?<![\p{L}])(j['’]ai traduit|nous avons traduit|i translated|i have translated|i've translated)(?![\p{L}])/iu;
+
+/** Le dernier message demande une traduction (de tout le CV ou d'une partie). */
+export function isTranslationRequest(message: string): boolean {
+  return TRANSLATE_ASK.test(message) && !PAST_FACT.test(message);
+}
+
+/**
+ * Le dernier message demande de traduire tout le CV (« traduis tout mon CV en anglais »,
+ * « can you translate my resume? ») : le serveur répond par un texte fixe qui renvoie au bouton
+ * « Traduire en anglais / en français » (copie traduite en une fois), sans appel au modèle.
+ * Une partie nommée sans « tout » (« traduis mon accroche ») reste traitée par le coach.
+ */
+export function isWholeCvTranslationRequest(message: string): boolean {
+  if (!isTranslationRequest(message)) return false;
+  const cv = WHOLE_CV.test(message);
+  const everything = EVERYTHING.test(message);
+  if (cv && everything) return true;
+  if (cv) return !CV_PART.test(message);
+  return everything && !CV_PART.test(message);
+}

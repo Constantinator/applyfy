@@ -1,5 +1,15 @@
 import type { CoachReply } from "./coach-llm";
-import { asksFirstPerson, asksToStop, figureNotAsked, isBareYes, listenText, removalAllowed, removalProposed, type Listening } from "./coach-intent";
+import {
+  asksFirstPerson,
+  asksToStop,
+  figureNotAsked,
+  isBareYes,
+  isTranslationRequest,
+  listenText,
+  removalAllowed,
+  removalProposed,
+  type Listening,
+} from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChange } from "./coach-outcome";
@@ -218,6 +228,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     // n'en demandait pas (outils, détails : run 2026-11-16T03-20-31, L14) : une puce peut rester
     // sans chiffre, sans aucun nombre inventé.
     ...(mode === "parcours" && (context.listening?.noFigure || figureNotAsked(turns, request)) ? { figureWaived: true } : {}),
+    // Traduction demandée : l'intitulé d'un diplôme n'est jamais traduit.
+    ...(isTranslationRequest(request) ? { translation: true } : {}),
     // CV lié : vérifications de l'adaptation à l'offre (absentes en mode libre).
     ...(context.offerSteps ? { offer: { gap: context.offerGap ?? null, sector: context.scoring.sector, student: context.offerStudent ?? false } } : {}),
   };

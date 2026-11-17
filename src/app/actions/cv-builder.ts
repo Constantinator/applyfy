@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { getAccountName } from "@/lib/account";
-import { checkAiAccess, checkAiRateLimit, countAiUsageToday, recordAiUsage } from "@/lib/ai-usage";
+import { checkAiAccess, checkAiRateLimit, countAiUsageToday, readAiUsage, recordAiUsage } from "@/lib/ai-usage";
 import {
   CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
   CVB_COACH_DAILY_LIMIT,
@@ -30,10 +30,11 @@ import {
   type ImportedCvAnalysis,
 } from "@/lib/claude";
 import { buildCoachContext, offerListening, type BuiltCoachContext } from "@/lib/coach-context";
-import { listeningState } from "@/lib/coach-intent";
+import { isWholeCvTranslationRequest, listeningState } from "@/lib/coach-intent";
+import { candidateLanguage } from "@/lib/coach-language";
 import { boundSkipped, withOfferLanguageNote } from "@/lib/coach-offer";
 import { plainCoachText } from "@/lib/coach-plain";
-import { closedOpening } from "@/lib/coach-outcome";
+import { closedOpening, wholeCvTranslationReply } from "@/lib/coach-outcome";
 import { isCvClosed } from "@/lib/coach-prompt";
 import { runCoachTurn } from "@/lib/coach-turn";
 import {
@@ -923,9 +924,24 @@ export async function refineBuilderCvAction(
   const shown = await readShownCv(id, json);
   if (typeof shown === "string") return { ok: false, error: shown };
   const current = shown.data;
+  const turns = coachTurns(history);
+
+  // « Traduis tout mon CV » : texte fixe du serveur qui renvoie au bouton de l'onglet Style, sans
+  // appel au modèle et sans décompte (ni cvb_coach, ni limite des questions du jour).
+  if (isWholeCvTranslationRequest(request)) {
+    const previous = turns.filter((t) => t.role === "user").map((t) => t.content);
+    const usage = await readAiUsage();
+    return {
+      ok: true,
+      reply: wholeCvTranslationReply(candidateLanguage(request, current, previous)),
+      html: null,
+      usage: usage.counts.cvb_chat,
+      skippedPoints: skippedPoints(skipped),
+    };
+  }
+
   const gate = await coachGate();
   if (!gate.ok) return gate;
-  const turns = coachTurns(history);
 
   let context: BuiltCoachContext;
   let reply;

@@ -133,14 +133,17 @@ const LANGUAGE_NAMES: Record<CoachLang, Record<CoachLang, string>> = {
 
 /**
  * Offre et CV dans deux langues différentes : une phrase fixe du serveur, dans la langue du
- * candidat, qui propose la traduction sans la faire ; null sinon.
+ * candidat, qui renvoie au bouton de traduction de l'onglet Style (copie traduite, lot traduction)
+ * sans rien traduire ; null sinon.
  */
 export function offerLanguageNote(offer: CoachLang | null | undefined, cv: CoachLang | undefined, lang: CoachLang = "fr"): string | null {
   if (!offer || !cv || offer === cv) return null;
   const name = LANGUAGE_NAMES[lang];
+  // Libellé du bouton, toujours en français (interface de l'application).
+  const button = `« Traduire en ${LANGUAGE_NAMES.fr[offer]} »`;
   return lang === "en"
-    ? `The job offer is in ${name[offer]} while your CV is in ${name[cv]}: if you like, I can translate your CV, just ask.`
-    : `L'offre est en ${name[offer]} alors que ton CV est en ${name[cv]} : si tu veux, je peux traduire ton CV, il suffit de me le demander.`;
+    ? `The job offer is in ${name[offer]} while your CV is in ${name[cv]}: to translate your whole CV, use the ${button} button in the Style tab (it creates a translated copy, your CV stays as it is).`
+    : `L'offre est en ${name[offer]} alors que ton CV est en ${name[cv]} : pour le traduire en entier, utilise le bouton ${button} de l'onglet Style (une copie traduite est créée, ton CV ne change pas).`;
 }
 
 /** Premier message du coach précédé, s'il y a lieu, de la phrase sur la langue de l'offre (dite une seule fois). */

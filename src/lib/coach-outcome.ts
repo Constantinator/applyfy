@@ -319,6 +319,24 @@ const LABEL_EN: [RegExp, string][] = [
   [/^Langues$/, "Languages"],
   [/^Certifications$/, "Certifications"],
   [/^Centres d'intérêt$/, "Interests"],
+  // Champs d'une expérience, d'une formation ou d'un projet (lot traduction : « MSc Computer
+  // Science (Diplôme) » dans une annonce anglaise).
+  [/— Poste$/, "— job title"],
+  [/— Entreprise$/, "— company"],
+  [/— Début$/, "— start date"],
+  [/— Fin$/, "— end date"],
+  [/— Lieu$/, "— location"],
+  [/— École$/, "— school"],
+  [/— Intitulé du diplôme$/, "— degree title"],
+  [/— Mention$/, "— honours"],
+  [/— Nom$/, "— name"],
+  [/— Description$/, "— description"],
+  [/— Lien$/, "— link"],
+  [/^Prénom$/, "First name"],
+  [/^Nom$/, "Last name"],
+  [/^Téléphone$/, "Phone"],
+  [/^Ville$/, "City"],
+  [/^Site web$/, "Website"],
 ];
 
 /** Libellé d'un changement lisible dans une phrase : « Stage chez X — puce 2 » → « Stage chez X (puce 2) ». */
@@ -506,4 +524,14 @@ export function coachReplyText(i: CoachOutcomeInput): string {
   const needsFigure = sorted.some((c) => c.kind === "figure");
   const question = more ?? (needsFigure ? asked || t.missingFigure : partialText ? asked : i.message);
   return [summary, partialText, question].filter(Boolean).join(" ");
+}
+
+/**
+ * « Traduis tout mon CV » (lot traduction) : texte fixe du serveur, sans appel au modèle ni
+ * décompte, qui renvoie au bouton de l'onglet Style (copie traduite en une fois).
+ */
+export function wholeCvTranslationReply(lang: CoachLang): string {
+  return lang === "en"
+    ? "To translate your whole CV, use the « Traduire en anglais » or « Traduire en français » button in the Style tab: it creates a translated copy in one go, and your current CV stays as it is. Here, I can translate a specific part for you (your summary, one experience…)."
+    : "Pour traduire tout ton CV, utilise le bouton « Traduire en anglais » ou « Traduire en français » de l'onglet Style : il crée une copie traduite en une fois, sans toucher à ton CV actuel. Ici, je peux traduire une partie précise (ton accroche, une expérience…).";
 }

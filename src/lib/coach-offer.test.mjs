@@ -397,9 +397,14 @@ test("langue : offre et CV dans deux langues, signalé une fois par le serveur, 
   const ctx = contextFor(financeCv, english);
   assert.equal(ctx.offerLanguage, "en");
   assert.equal(ctx.cvLanguage, "fr");
-  const note = "L'offre est en anglais alors que ton CV est en français : si tu veux, je peux traduire ton CV, il suffit de me le demander.";
+  // Lot traduction : la phrase renvoie au bouton de l'onglet Style (copie traduite), plus à une demande au coach.
+  const note =
+    "L'offre est en anglais alors que ton CV est en français : pour le traduire en entier, utilise le bouton « Traduire en anglais » de l'onglet Style (une copie traduite est créée, ton CV ne change pas).";
   assert.equal(offer.withOfferLanguageNote("Je te propose un titre ?", ctx), `${note} Je te propose un titre ?`);
-  assert.equal(offer.offerLanguageNote("fr", "en", "en"), "The job offer is in French while your CV is in English: if you like, I can translate your CV, just ask.");
+  assert.equal(
+    offer.offerLanguageNote("fr", "en", "en"),
+    "The job offer is in French while your CV is in English: to translate your whole CV, use the « Traduire en français » button in the Style tab (it creates a translated copy, your CV stays as it is).",
+  );
   // Même langue, langue inconnue ou CV libre : rien.
   assert.equal(offer.withOfferLanguageNote("Bonjour.", contextFor(financeCv, backend)), "Bonjour.");
   assert.equal(offer.offerLanguageNote(null, "fr"), null);

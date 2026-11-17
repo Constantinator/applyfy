@@ -145,7 +145,8 @@ const ITEM_FIELD_LABELS: Record<string, string> = {
   endDate: "Fin",
   location: "Lieu",
   school: "École",
-  degree: "Diplôme",
+  // « MSc Computer Science (Intitulé du diplôme) » : l'élément est nommé par son diplôme.
+  degree: "Intitulé du diplôme",
   honors: "Mention",
   name: "Nom",
   description: "Description",
@@ -418,7 +419,15 @@ export type CheckOptions = {
    * nombre absent du CV et des messages du candidat.
    */
   figureWaived?: boolean;
+  /**
+   * Le dernier message demande une traduction (coach-intent.ts, isTranslationRequest) : l'intitulé
+   * d'un diplôme n'est jamais traduit (lot traduction).
+   */
+  translation?: boolean;
 };
+
+/** Traduction : l'intitulé d'un diplôme garde sa langue d'origine. */
+export const PROBLEM_DEGREE_TRANSLATED = "traduit l'intitulé d'un diplôme : un diplôme garde son intitulé d'origine, ne le change pas";
 
 /** Suppression (puce ou élément) que le candidat n'a ni demandée ni acceptée. */
 export const PROBLEM_REMOVAL_NOT_ASKED = "supprime un passage que le candidat n'a pas demandé de supprimer";
@@ -751,6 +760,15 @@ export function checkProposal(
       const same = problems.find((q) => q.changeId === p.changeId);
       if (same) same.problems.push(...p.problems);
       else problems.push(p);
+    }
+  }
+  // Traduction (tous les CV, tous les modes) : l'intitulé d'un diplôme ne change pas.
+  if (options.translation) {
+    for (const change of proposal.changes) {
+      if (change.kind !== "field" || change.target !== "education" || change.field !== "degree") continue;
+      const same = problems.find((q) => q.changeId === change.id);
+      if (same) same.problems.push(PROBLEM_DEGREE_TRANSLATED);
+      else problems.push({ changeId: change.id, text: change.after, problems: [PROBLEM_DEGREE_TRANSLATED] });
     }
   }
   // Suppression non demandée (tous les CV, tous les modes) : refusée.
