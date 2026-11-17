@@ -300,6 +300,13 @@ export const CV_SECTION_TITLES: Record<CvLang, Record<CvTitleKey, string>> = {
   },
 };
 
+/**
+ * Espaces fines (U+202F, U+2009 : « 15 % » en typographie française) absentes de 8 des 15
+ * polices du CV : remplacées par une espace insécable (U+00A0, présente partout) dans une
+ * traduction et au rendu du PDF, sinon le PDF affiche un carré vide.
+ */
+export const normalizeSpaces = (text: string) => text.replace(/[\u202F\u2009]/g, "\u00A0");
+
 /** Nom d'une copie traduite : « Mon CV (EN) », sans empiler les suffixes (« Mon CV (EN) » → « Mon CV (FR) »). */
 export function translatedCvTitle(title: string, to: CvLang): string {
   const base = title.replace(/\s*\((FR|EN)\)\s*$/i, "").trim() || "Mon CV";

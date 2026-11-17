@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { inflatedLevels, isPartialRole } from "./coach-proposals";
-import { CV_LIMITS, CvDataSchema, type CvData, type CvLang } from "./cv-builder-types";
+import { CV_LIMITS, CvDataSchema, normalizeSpaces, type CvData, type CvLang } from "./cv-builder-types";
 import { detectLanguage } from "./cv-language";
 import { GENERIC_JARGON } from "./cv-score";
 
@@ -109,8 +109,8 @@ export function translationMessage(fields: TranslatableField[], problems?: Map<s
 // Contrôles déterministes d'un champ traduit
 // ---------------------------------------------------------------------------
 
-/** Espaces fines absentes de plusieurs polices du PDF : remplacées par une espace insécable. */
-export const normalizeSpaces = (text: string) => text.replace(/[\u202F\u2009]/g, "\u00A0");
+/** Espaces fines absentes de plusieurs polices du PDF (cv-builder-types.ts, aussi au rendu du PDF). */
+export { normalizeSpaces };
 
 const NUMBER_WORDS: Record<string, number> = {
   un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11,

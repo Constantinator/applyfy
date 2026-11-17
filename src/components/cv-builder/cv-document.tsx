@@ -11,7 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import { useContext, type ComponentProps } from "react";
 
-import { CV_FONTS, cvFontFile, densityFactor, fullName, type CvData, type CvLang, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_FONTS, cvFontFile, densityFactor, fullName, normalizeSpaces, type CvData, type CvLang, type CvTemplateId } from "@/lib/cv-builder-types";
 import { parseRich } from "@/lib/cv-rich-text";
 
 import { DensityContext, densityStyle, PrimitivesContext, type CvPrimitives, type StyleProp } from "./cv-primitives";
@@ -56,8 +56,9 @@ const RUN_STYLES = {
   underline: { textDecoration: "underline" },
 } as const;
 
-/** Texte avec sa mise en forme (gras, italique, souligné). */
-function RichRuns({ text }: { text: string }) {
+/** Texte avec sa mise en forme (gras, italique, souligné), sans espace fine absente des polices. */
+function RichRuns({ text: raw }: { text: string }) {
+  const text = normalizeSpaces(raw);
   const runs = parseRich(text);
   if (runs.length === 1 && !runs[0].format) return text;
   return runs.map((run, i) =>
