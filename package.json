@@ -13,6 +13,7 @@
     "test": "node --test src/lib/*.test.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "eval:coach": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/eval/register.mjs scripts/eval/run.ts",
+    "eval:translate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/eval/register.mjs scripts/eval/translate.ts",
     "eval:typecheck": "tsc --noEmit -p scripts/eval"
   },
   "dependencies": {

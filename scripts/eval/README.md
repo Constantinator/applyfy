@@ -105,3 +105,25 @@ Faux coach, faux candidat et faux juge déterministes, sans réseau. Le faux coa
 les cas d'échec (puce refusée, second essai, nombre inventé, question répétée, injection suivie,
 réponse en français à un candidat anglophone) : le rapport doit les montrer. Le coût affiché est
 simulé, et le plafond est vérifié comme pour un vrai run.
+
+## Traduction du CV (`translate.ts`, lot traduction)
+
+```bash
+npm run eval:translate -- --dry                       # traductions simulées : aucun appel, 0 €
+npm run eval:translate -- --only finance-junior-fr    # vrai run (mêmes règles que ci-dessus)
+```
+
+Chaque profil est traduit dans l'autre langue (aller), puis la copie est retraduite (retour), avec
+le vrai déroulé de l'application (`runTranslation` de `src/lib/cv-translate.ts` : contrôles, second
+essai sur les champs refusés, seuil de 30 %), au modèle de `translateCv`. Vrai run : mêmes
+garde-fous que le banc du coach (seules `EVAL_ANTHROPIC_API_KEY` et `EVAL_MAX_COST_EUR` sont lues,
+estimation, confirmation `o/N`, arrêt avant tout appel qui dépasserait le plafond).
+
+Rapport `eval-runs/<date>-translate/report.md` : secteur avant et après, score avant → traduit →
+retour (Δ aller, Δ aller-retour), champs refusés au premier essai, champs gardés dans la langue
+d'origine (avec leurs défauts), nombres du CV changés, appels, coût et durée.
+
+En `--dry`, le faux traducteur rend les traductions écrites à la main
+(`fixtures/translated/`) pour `finance-junior-fr` et `tech-confirme-en`, et le texte d'origine
+ailleurs : les refus « texte resté dans la langue d'origine » et l'échec au-delà de 30 % sont donc
+attendus pour les autres profils.
