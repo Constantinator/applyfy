@@ -413,7 +413,10 @@ function overflowText(overflow: { kept: number; sections: string[] }, lang: Coac
   return t.overflow(overflow.kept, rest);
 }
 
-/** Annonce des modifications sur plusieurs sections : puces, accroche, puis les autres emplacements. */
+/**
+ * Annonce des modifications sur plusieurs sections : puces, accroche, puis les autres emplacements
+ * (« J'ai aussi modifié : … ») ; sans puce ni accroche citée, tous les emplacements modifiés.
+ */
 function combinedAnnouncement(i: CoachOutcomeInput, lang: CoachLang): string {
   const t = TEXTS[lang];
   const parts: string[] = [];
@@ -426,6 +429,8 @@ function combinedAnnouncement(i: CoachOutcomeInput, lang: CoachLang): string {
         : summaryAnnouncement(i.summaryText, lang),
     );
   }
+  // Sans puce ni accroche citée : tous les emplacements, annonce du serveur (jamais le résumé du modèle).
+  if (!parts.length) return appliedAnnouncement(i.alsoLabels, lang);
   const places = [...new Set(i.alsoLabels ?? [])];
   if (places.length) parts.push(t.announceAlso(places.map((l) => placeName(l, lang)).join(" ; ")));
   return parts.join(" ");
@@ -475,9 +480,8 @@ export function coachReplyText(i: CoachOutcomeInput): string {
       : `${experience && !request ? t.bulletsNotAdded : t.partNotApplied}${sentences(sorted, true)}`;
   // Le résumé du modèle n'est repris que si tout a été appliqué tel quel ; sinon, annonce du serveur.
   const modelSummary = withoutYesNo(i.changeSummary);
-  // Plusieurs sections avec puces ou accroche : chaque emplacement est annoncé (L14 : titre et puce).
-  const combined = i.alsoLabels && (i.bulletChanges?.length || i.summaryText);
-  const announced = combined
+  // Plusieurs sections : chaque emplacement est annoncé par le serveur (L14 : titre et puce).
+  const announced = i.alsoLabels
     ? combinedAnnouncement(i, lang)
     : i.bulletChanges?.length
     ? bulletAnnouncement(i.bulletChanges, lang)

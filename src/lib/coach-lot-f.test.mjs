@@ -155,3 +155,29 @@ test("plafond dépassé : « Je n'ai fait que les 3 premières ; je continue ave
   const path = await play("Je préparais 6 comités de crédit par mois.", flat({ message: "Et pour ton stage ?", updates: [bullet(1, "Préparation de 6 comités de crédit par mois"), title("Analyste crédit")] }));
   assert.ok(!path.text.includes("Je n'ai fait que"), path.text);
 });
+
+// --- 4. Raccourcissement limité : plusieurs sections, la liste n'est pas vérifiée ---
+
+test("raccourcis l'accroche et ajoute SQL : les deux appliqués, décompte des mots sur l'accroche seule", async () => {
+  const result = await play(
+    "Raccourcis mon accroche et ajoute SQL à mes compétences.",
+    demande([summary("Analyste crédit junior, banque et audit."), skills(["Excel", "Analyse financière", "Travail en équipe", "SQL"])]),
+  );
+  assert.equal(result.applied, 2, result.text);
+  assert.deepEqual(result.problems, []);
+  assert.ok(result.updated.skills.some((s) => s.name === "SQL"));
+  assert.ok(result.text.includes("Le texte passe de 15 à 6 mots."), result.text);
+  assert.match(result.text, /^C'est fait, j'ai modifié : Accroche ; Compétences. Le texte passe de 15 à 6 mots./);
+});
+
+test("raccourcissement : une liste seule reste vérifiée, l'accroche aussi quand plusieurs sections", async () => {
+  const { checkProposal, buildProposals, PROBLEM_NOT_SHORTER } = await import("./coach-proposals.ts");
+  const longer = [...cv.skills.map((s) => s.name), "SQL", "Python"].map((name) => ({ name, level: "" }));
+  const list = buildProposals(cv, [{ section: "skills", data: longer }]).proposal;
+  const ctx = { actionVerbs: [], avoid: [] };
+  assert.deepEqual(checkProposal(list, ctx, cv, { mode: "demande", shorten: true }).flatMap((p) => p.problems), [PROBLEM_NOT_SHORTER]);
+  const both = buildProposals(cv, [{ section: "summary", data: `${cv.summary} Encore plus.` }, { section: "skills", data: longer }]).proposal;
+  const problems = checkProposal(both, ctx, cv, { mode: "demande", shorten: true });
+  assert.equal(problems.length, 1);
+  assert.equal(problems[0].text, `${cv.summary} Encore plus.`);
+});

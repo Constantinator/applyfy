@@ -6,7 +6,7 @@ import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChan
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
 import { announcementLanguage } from "./coach-language";
 import { plainCoachText } from "./coach-plain";
-import { applyCoachChange, buildProposals, checkProposal, isReorganization, updateTarget, withoutProblems, type ChangeProblem, type CoachChange, type CoachUpdate } from "./coach-proposals";
+import { applyCoachChange, buildProposals, changeSection, checkProposal, isReorganization, updateTarget, withoutProblems, type ChangeProblem, type CoachChange, type CoachUpdate } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
 import { scoreCv, type ScoringContext } from "./cv-score";
 import { matchKeywords } from "./keyword-match";
@@ -87,13 +87,6 @@ export function withoutTitle(reply: CoachReply): CoachReply {
   });
   console.warn("[cv-builder coach] changement de titre retiré : le candidat l'a refusé");
   return updates.length ? { ...reply, updates } : { ...reply, updates: [], raw: [], invalid: false, changeSummary: "" };
-}
-
-/** Section d'un changement (annonce sur plusieurs sections). */
-export function changeSection(change: CoachChange): string {
-  if (change.kind === "bullet" || change.kind === "removeBullet") return "experience";
-  if (change.kind === "educationBullets") return "education";
-  return change.target;
 }
 
 /** Plafond de mises à jour par réponse en mode demande. */
@@ -270,7 +263,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   let applied = 0;
   let stale = 0;
   const appliedLabels: string[] = [];
-  const appliedTexts: { before: string | null; after: string }[] = [];
+  const appliedTexts: { before: string | null; after: string; list: boolean }[] = [];
   const bulletChanges: BulletChange[] = [];
   const appliedChanges: CoachChange[] = [];
   let summaryText: string | undefined;
@@ -280,7 +273,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       updated = next;
       applied++;
       appliedLabels.push(change.label);
-      appliedTexts.push({ before: change.before, after: change.after });
+      appliedTexts.push({ before: change.before, after: change.after, list: change.kind === "list" });
       appliedChanges.push(change);
       if (change.kind === "bullet") bulletChanges.push({ kind: "written", text: change.after, label: change.label });
       if (change.kind === "removeBullet") bulletChanges.push({ kind: "removed", text: change.before ?? "", label: change.label });
@@ -354,7 +347,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       // Résumé du modèle dans une autre langue que celle retenue pour le candidat (L17, ou langue
       // tirée du seul CV) : annonce du serveur, dans cette langue, seule.
       !(context.language && sameLanguage(answer.changeSummary, context.language) === false),
-    wordCounts: check.shorten && applied > 0 ? wordCounts(appliedTexts) : undefined,
+    // Plusieurs sections : une liste n'entre pas dans le décompte (elle n'est pas raccourcie).
+    wordCounts: check.shorten && applied > 0 ? wordCounts(alsoLabels ? appliedTexts.filter((t) => !t.list) : appliedTexts) : undefined,
     // Puces d'expérience : annonce écrite par le serveur, texte réellement écrit cité.
     bulletChanges,
     ...(alsoLabels ? { alsoLabels } : {}),

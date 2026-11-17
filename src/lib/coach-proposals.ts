@@ -309,6 +309,13 @@ export function buildProposal(current: CvData, update: CoachUpdate, makeId: () =
   return changes.length ? { id: makeId(), changes } : null;
 }
 
+/** Section d'un changement (plusieurs sections dans une réponse). */
+export function changeSection(change: CoachChange): CoachSection {
+  if (change.kind === "bullet" || change.kind === "removeBullet") return "experience";
+  if (change.kind === "educationBullets") return "education";
+  return change.target;
+}
+
 /**
  * Cible d'une mise à jour : sa section, et l'id de l'élément pour une expérience, une formation ou
  * un projet (« experience:e1 »). Une mise à jour au contenu illisible n'a que sa section.
@@ -864,7 +871,11 @@ const wordsIn = (text: string) => text.split(/\s+/).filter((w) => /[\p{L}\d]/u.t
  * refusé (un ajout ou une suppression n'est pas concerné).
  */
 function shortenProblems(proposal: CoachProposal): ChangeProblem[] {
+  // Plusieurs sections (« raccourcis l'accroche et ajoute SQL ») : une liste (compétences, langues,
+  // certifications) n'est pas vérifiée, elle n'est pas visée par la demande de raccourcir.
+  const several = new Set(proposal.changes.map(changeSection)).size > 1;
   return proposal.changes.flatMap((change) => {
+    if (several && change.kind === "list") return [];
     if (change.before === null || change.kind === "removeBullet" || change.kind === "removeItem") return [];
     if (change.kind === "bullet" && change.moved) return [];
     const before = wordsIn(change.before);
