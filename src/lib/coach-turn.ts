@@ -405,6 +405,8 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
         corrections: correctionsForCoach(final.corrections, context.scoring).map((c) => c.message),
         previousCoach: turns.filter((t) => t.role === "assistant").map((t) => t.content),
         ...(context.offerSteps ? { offerKeywords: context.offerKeywords ?? [] } : {}),
+        // Chiffres déjà donnés : la question qui en redemande un est retirée (C5).
+        candidateMessages: [...turns.filter((t) => t.role === "user").map((t) => t.content), request],
         // Pivot d'un CV libre (C2) : écart avec la nouvelle cible, dit une fois avant de conclure.
         ...(context.pivot?.gap ? { pivotGap: pivotGapSentence(context.pivot.target, current.personal.jobTitle, context.language ?? "fr") } : {}),
         // « Puis on en reste là » en mode demande : questions du modèle retirées de ce message.

@@ -563,6 +563,8 @@ export type ListenInput = {
    * première phrase qui conclut ou dit le CV prêt. Absente sinon.
    */
   pivotGap?: string;
+  /** Messages du candidat (historique, puis dernier message) : chiffres déjà donnés (C5). */
+  candidateMessages?: string[];
   modelMessage?: string;
 };
 
@@ -637,6 +639,11 @@ export function listenText(i: ListenInput): string {
   const onlyRefused = !stopAll && sentences.filter(dropQuestion).every((s) => refusedType(s) && !(i.listening.stopFigures && asksFigureWord(s)));
   sentences = sentences.filter((s) => !dropQuestion(s));
 
+  // Chiffre déjà donné (C5, O01 : « 40 dossiers » puis « sur combien de dossiers… ? ») : la question
+  // qui le redemande est retirée ; une question sur un autre chiffre (par mois, dont…) reste.
+  const given = givenFigureNouns(i.candidateMessages ?? []);
+  if (given.size) sentences = sentences.filter((s) => !asksGivenFigure(s, given));
+
   // CV déjà clos : la clôture n'est pas redite si elle a déjà été affichée.
   const closureSaid = i.previousCoach.some((m) => CLOSURE.test(m));
   if (i.scoreBefore >= READY_SCORE && closureSaid) sentences = sentences.filter((s) => !CLOSURE.test(s));
@@ -698,6 +705,29 @@ export function listenText(i: ListenInput): string {
     if (at >= 0) text = [...all.slice(0, at), i.pivotGap, ...all.slice(at)].join(" ");
   }
   return text;
+}
+
+/** Texte sans accents ni majuscules. */
+const plainLower = (text: string) => text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+/** Nombre suivi d'un nom (« 40 dossiers », « 3 stagiaires », « 12 % de clients ») : préfixe de 5 lettres du nom. */
+const FIGURE_NOUN = /\d[\d\s.,]*\s*(?:%\s*)?(?:de |d'|des |of )?([a-z]{4,})/g;
+/** Chiffres donnés par le candidat dans ses messages : noms comptés (5 premières lettres). */
+export function givenFigureNouns(messages: string[]): Set<string> {
+  return new Set(messages.flatMap((m) => [...plainLower(m).matchAll(FIGURE_NOUN)].map((g) => g[1].slice(0, 5))));
+}
+/** « Combien de X », « how many X » : le nom demandé. */
+const HOW_MANY = /\b(?:combien|how many|how much)\s+(?:de |d'|des |of )?([a-z]{4,})/;
+/**
+ * Question qui demande un autre chiffre sur le même nom (« combien de clients par mois », « dont »,
+ * « sur combien de temps ») : jamais retirée.
+ */
+const OTHER_FIGURE = /\b(par (mois|an|annee|semaine|jour|trimestre|mission|client|personne)|dont|sur combien de temps|en combien de temps|per (month|year|week|day)|a (month|year|week|day)|of which|how long|how often)\b/;
+/** La question redemande un chiffre déjà donné (même nom compté). */
+export function asksGivenFigure(sentence: string, given: Set<string>): boolean {
+  if (!isQuestion(sentence)) return false;
+  const text = plainLower(sentence);
+  const asked = text.match(HOW_MANY)?.[1];
+  return Boolean(asked) && given.has(asked!.slice(0, 5)) && !OTHER_FIGURE.test(text);
 }
 
 /** Phrase qui conclut le parcours (« J'ai fait le tour… », « I've gone through the points… »). */
