@@ -121,7 +121,7 @@ test("compétences comportementales : exclues du score et du seuil (catégorie d
 });
 
 test("mots-clés ignorés : retirés du score", () => {
-  const keywords = offerScoreKeywords({ kind: "keywords", keywords: [{ keyword: "Docker", group: "technique", variants: [], weight: 1 }, { keyword: "Kafka", group: "technique", variants: [], weight: 1 }], ignored: ["kafka"], conseils: [], titre_cv: "", cvText: null });
+  const keywords = offerScoreKeywords({ kind: "keywords", keywords: [{ keyword: "Docker", group: "technique", variants: [], weight: 1 }, { keyword: "Kafka", group: "technique", variants: [], weight: 1 }], ignored: ["kafka"], refused: [], conseils: [], titre_cv: "", cvText: null });
   assert.deepEqual(keywords.map((k) => k.keyword), ["Docker"]);
 });
 

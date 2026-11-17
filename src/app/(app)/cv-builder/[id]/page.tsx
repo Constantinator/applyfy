@@ -38,7 +38,7 @@ export default async function CvBuilderEditorPage({ params, searchParams }: Page
           detail && {
             id: detail.application.id,
             label: [detail.application.position, detail.application.company].filter(Boolean).join(" — "),
-            keywords: analysis?.kind === "keywords" ? { keywords: analysis.keywords, ignored: analysis.ignored } : null,
+            keywords: analysis?.kind === "keywords" ? { keywords: analysis.keywords, ignored: analysis.ignored, refused: analysis.refused } : null,
             missingPoints: analysis?.kind === "legacy" ? analysis.ce_qui_manque : [],
           }
         }

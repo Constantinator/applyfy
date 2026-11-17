@@ -3,9 +3,10 @@ import { isStudentProfile, offerGap, offerLanguage, offerSteps } from "./coach-o
 import { coachContentKey, isCvClosed, type CoachContext } from "./coach-prompt";
 import { chatContent, CV_CRITERIA, cvDataToText, targetJobOf, type CvData } from "./cv-builder-types";
 import { bannedPhrasesInCv, READY_SCORE, scoreCv, type CvScore, type ScoringContext } from "./cv-score";
-import { matchCvKeywords } from "./cv-keyword-match";
+import { refusedOfferKeywords } from "./coach-intent";
+import { keywordKey, matchCvKeywords } from "./cv-keyword-match";
 import { cvTitleMismatch, type Sector } from "./cv-sector-context";
-import { readCvSuggestions } from "./cv-types";
+import { readCvSuggestions, type CvSuggestions } from "./cv-types";
 
 // Contexte du coach du CV Builder, sans aucune lecture : la candidature et le contexte du score
 // sont lus par l'appelant (action coachContext, avec les droits de l'utilisateur ; banc d'essai
@@ -35,7 +36,8 @@ function missingKeywordRows(detail: CoachOfferDetail | null, data: CvData, secto
     const saved = readCvSuggestions(detail?.application.cv_suggestions);
     return saved?.kind === "keywords"
       ? matchCvKeywords(saved, cvDataToText(data), sector)
-          .rows.filter((r) => !r.present && !r.ignored)
+          // Refusés : le candidat a dit ne pas les avoir, le coach ne les propose plus.
+          .rows.filter((r) => !r.present && !r.ignored && !r.refused)
           .map((r) => ({ keyword: r.keyword, specific: r.group === "technique" }))
       : (saved?.ce_qui_manque ?? []).map((keyword) => ({ keyword, specific: true }));
   } catch (error) {
@@ -80,6 +82,25 @@ function linkedSteps(data: CvData, sector: Sector, detail: CoachOfferDetail | nu
     offerSteps: closed ? [] : offerSteps(data, sector, gap),
     offerLanguage: detail ? offerLanguage(detail.application) : null,
   };
+}
+
+/**
+ * CV lié : mots-clés de l'offre que le candidat dit ne pas avoir dans ce message (décidé par le
+ * serveur, coach-intent.ts), ajoutés à cv_suggestions.refused. Null si rien de nouveau (CV libre,
+ * ancienne analyse, aucun refus ou refus déjà connu). L'appelant enregistre les suggestions.
+ */
+export function offerRefusals(
+  detail: CoachOfferDetail | null,
+  history: { role: "user" | "assistant"; content: string }[],
+  request: string,
+): { suggestions: CvSuggestions; added: string[] } | null {
+  const saved = readCvSuggestions(detail?.application.cv_suggestions);
+  if (saved?.kind !== "keywords") return null;
+  const ignored = new Set(saved.ignored.map(keywordKey));
+  const known = new Set(saved.refused.map(keywordKey));
+  const keywords = saved.keywords.map((k) => k.keyword).filter((k) => !ignored.has(keywordKey(k)));
+  const added = [...new Set(refusedOfferKeywords(history, request, keywords))].filter((k) => !known.has(keywordKey(k)));
+  return added.length ? { suggestions: { ...saved, refused: [...saved.refused, ...added] }, added } : null;
 }
 
 /** Gain minimal d'une correction proposée au coach : les corrections à +1 pt ne lui sont pas données. */

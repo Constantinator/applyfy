@@ -50,7 +50,8 @@ export function weighKeywords(
   return keywords.sort((a, b) => b.weight - a.weight);
 }
 
-export type KeywordMatchRow = OfferKeyword & { present: boolean; ignored: boolean };
+/** `refused` : le candidat a dit ne pas l'avoir (cv_suggestions.refused). */
+export type KeywordMatchRow = OfferKeyword & { present: boolean; ignored: boolean; refused: boolean };
 
 export type KeywordMatch = {
   rows: KeywordMatchRow[];
@@ -63,15 +64,17 @@ export type KeywordMatch = {
  * du secteur comprises) et taux de correspondance, pondéré, hors mots-clés ignorés.
  */
 export function matchCvKeywords(
-  analysis: Pick<CvSuggestions, "keywords" | "ignored">,
+  analysis: Pick<CvSuggestions, "keywords" | "ignored"> & { refused?: string[] },
   cvText: string | null,
   sector: Sector,
 ): KeywordMatch {
   const ignored = new Set(analysis.ignored.map(keywordKey));
+  const refused = new Set((analysis.refused ?? []).map(keywordKey));
   const rows = analysis.keywords.map((k) => ({
     ...k,
     present: Boolean(cvText) && matchKeywords(cvText ?? "", [k.keyword, ...k.variants], sector).length > 0,
     ignored: ignored.has(keywordKey(k.keyword)),
+    refused: refused.has(keywordKey(k.keyword)),
   }));
   const counted = rows.filter((r) => !r.ignored);
   const total = counted.reduce((sum, r) => sum + r.weight, 0);
@@ -107,13 +110,15 @@ export function isBehaviouralKeyword(k: Pick<OfferKeyword, "keyword" | "group">)
 }
 
 /**
- * Mots-clés de l'offre comptés par le score d'un CV lié : ni comportementaux, ni ignorés ; vide
+ * Mots-clés de l'offre comptés par le score d'un CV lié : ni comportementaux, ni ignorés (avec
+ * `refused` pour ceux que le candidat a dit ne pas avoir) ; vide
  * pour une ancienne analyse à deux listes (repli sur les mots-clés du secteur).
  */
-export function offerScoreKeywords(saved: SavedCvSuggestions | null): { keyword: string; variants: string[] }[] {
+export function offerScoreKeywords(saved: SavedCvSuggestions | null): { keyword: string; variants: string[]; refused?: boolean }[] {
   if (saved?.kind !== "keywords") return [];
   const ignored = new Set(saved.ignored.map(keywordKey));
+  const refused = new Set(saved.refused.map(keywordKey));
   return saved.keywords
     .filter((k) => !ignored.has(keywordKey(k.keyword)) && !isBehaviouralKeyword(k))
-    .map((k) => ({ keyword: k.keyword, variants: k.variants }));
+    .map((k) => ({ keyword: k.keyword, variants: k.variants, ...(refused.has(keywordKey(k.keyword)) ? { refused: true } : {}) }));
 }

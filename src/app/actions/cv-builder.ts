@@ -13,7 +13,7 @@ import {
   type AiUsageKind,
 } from "@/lib/ai-usage-limits";
 import { applicationCvDraft, applicationCvTitle, ensureOfferKeywords } from "@/lib/application-cv";
-import { getApplicationDetail, type ApplicationDetailResult } from "@/lib/applications";
+import { getApplicationDetail, saveCvSuggestions, type ApplicationDetailResult } from "@/lib/applications";
 import { getCurrentUser } from "@/lib/auth";
 import {
   adaptCvToOffer,
@@ -29,7 +29,7 @@ import {
   translateCvFields,
   type ImportedCvAnalysis,
 } from "@/lib/claude";
-import { buildCoachContext, offerListening, type BuiltCoachContext } from "@/lib/coach-context";
+import { buildCoachContext, offerListening, offerRefusals, type BuiltCoachContext } from "@/lib/coach-context";
 import { isWholeCvTranslationRequest, listeningState } from "@/lib/coach-intent";
 import { candidateLanguage } from "@/lib/coach-language";
 import { boundSkipped, withOfferLanguageNote } from "@/lib/coach-offer";
@@ -776,8 +776,10 @@ async function coachContext(
   applicationId: string | null,
   request: string | null = null,
   history: { role: "user" | "assistant"; content: string }[] = [],
+  /** Candidature déjà lue (refus enregistrés) ; lue ici sinon. */
+  read?: ApplicationDetailResult | null,
 ): Promise<BuiltCoachContext> {
-  const detail = applicationId ? await getApplicationDetail(applicationId) : null;
+  const detail = read !== undefined ? read : applicationId ? await getApplicationDetail(applicationId) : null;
   // Score calculé par le code, le même que celui affiché dans l'éditeur (secteur de l'offre pour un CV lié).
   const scoring = await loadBuilderCvScoring(data, applicationId, detail);
   return buildCoachContext(data, scoring, detail, request, history);
@@ -945,8 +947,20 @@ export async function refineBuilderCvAction(
 
   let context: BuiltCoachContext;
   let reply;
+  let refusedKeywords: string[] | undefined;
   try {
-    const built = await coachContext(current, shown.applicationId, request, turns);
+    // CV lié : mots-clés que le candidat dit ne pas avoir dans ce message (décidé par le serveur,
+    // jamais par le modèle), enregistrés avant le calcul du score de cet échange.
+    let detail = shown.applicationId ? await getApplicationDetail(shown.applicationId) : null;
+    const refusal = detail ? offerRefusals(detail, turns, request) : null;
+    if (detail && refusal) {
+      detail = { ...detail, application: { ...detail.application, cv_suggestions: refusal.suggestions } };
+      refusedKeywords = refusal.suggestions.refused;
+      await saveCvSuggestions(detail.application.id, refusal.suggestions, { keepDate: true }).catch((error) =>
+        console.error("[cv-builder coach] mots-clés refusés : enregistrement", error),
+      );
+    }
+    const built = await coachContext(current, shown.applicationId, request, turns, detail);
     context = {
       ...built,
       skipped: skippedPoints(skipped),
@@ -990,6 +1004,7 @@ export async function refineBuilderCvAction(
       usage: gate.chat,
       limitNotice: CVB_CHAT_UPDATE_BLOCKED_MESSAGE,
       skippedPoints: turn.skippedPoints,
+      ...(refusedKeywords ? { refusedKeywords } : {}),
     };
   }
 
@@ -1001,8 +1016,9 @@ export async function refineBuilderCvAction(
       html: JSON.stringify(chatContent(turn.updated)),
       usage: turn.reorganized ? gate.chat : { used: gate.chat.used + 1, limit: gate.chat.limit },
       skippedPoints: turn.skippedPoints,
+      ...(refusedKeywords ? { refusedKeywords } : {}),
     };
   }
   await recordAiUsage("cvb_coach");
-  return { ok: true, reply: turn.text, html: null, usage: gate.chat, skippedPoints: turn.skippedPoints };
+  return { ok: true, reply: turn.text, html: null, usage: gate.chat, skippedPoints: turn.skippedPoints, ...(refusedKeywords ? { refusedKeywords } : {}) };
 }

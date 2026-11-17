@@ -21,6 +21,12 @@ export type CvSuggestions = {
   keywords: OfferKeyword[];
   /** Mots-clés ignorés par l'utilisateur (retirés du calcul). */
   ignored: string[];
+  /**
+   * Mots-clés que le candidat a dit ne pas avoir, relevés par le serveur dans le chat du coach
+   * (coach-intent.ts, refusedOfferKeywords) : retirés du score sauf s'ils sont dans le CV. Gardés à
+   * chaque nouvelle analyse de l'offre.
+   */
+  refused: string[];
   conseils: string[];
   titre_cv: string;
   cvText: string | null;
@@ -71,6 +77,7 @@ export function readCvSuggestions(raw: unknown): SavedCvSuggestions | null {
       kind: "keywords",
       keywords: value.keywords.map(readKeyword).filter((k): k is OfferKeyword => k !== null),
       ignored: strings(value.ignored),
+      refused: strings(value.refused),
       conseils: strings(value.conseils),
       titre_cv: typeof value.titre_cv === "string" ? value.titre_cv : "",
       cvText: typeof value.cvText === "string" ? value.cvText : null,

@@ -101,6 +101,8 @@ export async function adaptCvAction(
     }),
     // Mots-clés ignorés lors d'une analyse précédente : toujours ignorés s'ils reviennent.
     ignored: previous?.kind === "keywords" ? previous.ignored : [],
+    // Mots-clés que le candidat a dit ne pas avoir : toujours retirés s'ils reviennent.
+    refused: previous?.kind === "keywords" ? previous.refused : [],
     conseils: analysis.conseils.map((c) => c.trim()).filter(Boolean).slice(0, 4),
     titre_cv: analysis.titre_cv.trim().slice(0, 80),
     cvText: cvText || null,

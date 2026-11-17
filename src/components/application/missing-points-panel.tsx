@@ -15,19 +15,40 @@ const PROMPTS: Record<KeywordGroup, (keyword: string) => string> = {
 };
 
 /**
- * Onglet « Mots-clés » du CV Builder : taux de correspondance et mots-clés de l'offre absents du
- * CV. Un clic prépare une phrase à compléter dans le chat : rien n'est envoyé.
+ * Onglet « Mots-clés » du CV Builder : ligne du score (« Mots-clés de l'offre : N sur M visés »),
+ * taux de correspondance, mots-clés de l'offre absents du CV, puis ceux que le candidat a dit ne
+ * pas avoir (retirés du calcul). Un clic prépare une phrase à compléter dans le chat : rien n'est envoyé.
  */
-export function MissingKeywordsPanel({ match, onInsert }: { match: KeywordMatch; onInsert?: (text: string) => void }) {
+export function MissingKeywordsPanel({
+  match,
+  summary,
+  onInsert,
+}: {
+  match: KeywordMatch;
+  /** Ligne de détail de la catégorie du score (CV lié dont l'offre a des mots-clés comptés). */
+  summary?: string | null;
+  onInsert?: (text: string) => void;
+}) {
   const groupOf = new Map(match.rows.map((r) => [r.keyword, r.group]));
+  const refused = match.rows.filter((r) => r.refused && !r.present && !r.ignored);
 
   return (
     <div className="space-y-4">
+      {summary && <p className="text-sm font-medium text-prose dark:text-slate-200">{summary}</p>}
       <KeywordRate rate={match.rate} />
       <KeywordMatchView
         match={match}
         onPick={onInsert ? (keyword) => onInsert(PROMPTS[groupOf.get(keyword) ?? "technique"](keyword)) : undefined}
       />
+      {refused.length > 0 && (
+        <ul className="space-y-1 text-sm text-muted dark:text-slate-400">
+          {refused.map((r) => (
+            <li key={r.keyword}>
+              <span className="line-through">{r.keyword}</span> — retiré : tu as dit ne pas l&apos;avoir
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

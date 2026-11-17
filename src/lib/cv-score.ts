@@ -29,11 +29,16 @@ export type ScoringContext = {
   offerKeywords?: OfferScoreKeyword[];
 };
 
-/** Mot-clé de l'offre compté par le score, avec ses variantes (offre) pour le reconnaître dans le CV. */
-export type OfferScoreKeyword = { keyword: string; variants: string[] };
+/**
+ * Mot-clé de l'offre compté par le score, avec ses variantes (offre) pour le reconnaître dans le
+ * CV ; `refused` : le candidat a dit ne pas l'avoir (cv_suggestions.refused).
+ */
+export type OfferScoreKeyword = { keyword: string; variants: string[]; refused?: boolean };
 
 /** Part des mots-clés comptés de l'offre à trouver pour la note maximale (au plus KEYWORDS_TARGET). */
 export const OFFER_KEYWORDS_RATIO = 0.6;
+/** Points de la catégorie quand le candidat a refusé tous les mots-clés comptés de l'offre (60 % de 20). */
+export const ALL_REFUSED_POINTS = 12;
 
 export const SCORE_CATEGORIES = [
   { id: "impact", label: "Impact", max: 35 },
@@ -401,6 +406,10 @@ export type OfferKeywordScore = {
   found: string[];
   /** Mots-clés comptés absents du CV, les plus importants d'abord. */
   missing: string[];
+  /** Mots-clés retirés du calcul : le candidat a dit ne pas les avoir, et ils sont absents du CV. */
+  refused: string[];
+  /** Tous les mots-clés de l'offre retirés : la catégorie vaut ALL_REFUSED_POINTS. */
+  allRefused: boolean;
   /** Nombre de mots-clés comptés (n). */
   counted: number;
   /** Mots-clés à trouver pour la note maximale : min(10, ⌈0,6 × n⌉). */
@@ -420,26 +429,36 @@ export function offerKeywordScore(data: CvData, context: Pick<ScoringContext, "o
   if (!list?.length) return null;
   const text = keywordText(data);
   // Groupes de mots-clés équivalents (formes communes), dans l'ordre de l'offre.
-  const groups: { keyword: string; forms: Set<string> }[] = [];
+  const groups: { keyword: string; forms: Set<string>; refused: boolean }[] = [];
   for (const k of list) {
     const forms = [k.keyword, ...k.variants, ...keywordAliasesOf(k.keyword, context.sector)]
       .map((f) => normalizeText(f).trim())
       .filter(Boolean);
     if (!forms.length) continue;
     const group = groups.find((g) => forms.some((f) => g.forms.has(f)));
-    if (group) forms.forEach((f) => group.forms.add(f));
-    else groups.push({ keyword: k.keyword.trim(), forms: new Set(forms) });
+    if (group) {
+      forms.forEach((f) => group.forms.add(f));
+      group.refused ||= Boolean(k.refused);
+    } else groups.push({ keyword: k.keyword.trim(), forms: new Set(forms), refused: Boolean(k.refused) });
   }
   if (!groups.length) return null;
   const found: string[] = [];
   const missing: string[] = [];
-  for (const g of groups) (matchKeywords(text, [...g.forms], context.sector).length > 0 ? found : missing).push(g.keyword);
-  const target = Math.min(KEYWORDS_TARGET, Math.ceil(OFFER_KEYWORDS_RATIO * groups.length));
-  return { found, missing, counted: groups.length, target, points: POINTS.keywords * Math.min(1, found.length / target) };
+  const refused: string[] = [];
+  for (const g of groups) {
+    // Présent dans le CV : compte comme trouvé, même refusé ; refusé et absent : retiré du calcul.
+    if (matchKeywords(text, [...g.forms], context.sector).length > 0) found.push(g.keyword);
+    else (g.refused ? refused : missing).push(g.keyword);
+  }
+  const counted = found.length + missing.length;
+  if (!counted) return { found, missing, refused, allRefused: true, counted: 0, target: 0, points: ALL_REFUSED_POINTS };
+  const target = Math.min(KEYWORDS_TARGET, Math.ceil(OFFER_KEYWORDS_RATIO * counted));
+  return { found, missing, refused, allRefused: false, counted, target, points: POINTS.keywords * Math.min(1, found.length / target) };
 }
 
 /** Ligne de détail de la catégorie : « Mots-clés de l'offre : N sur M visés ». */
-export function offerKeywordsLine(score: Pick<OfferKeywordScore, "found" | "target">) {
+export function offerKeywordsLine(score: Pick<OfferKeywordScore, "found" | "target" | "allRefused">) {
+  if (score.allRefused) return `Mots-clés de l'offre : tous retirés (tu as dit ne pas les avoir), ${ALL_REFUSED_POINTS} points sur ${POINTS.keywords}`;
   return `Mots-clés de l'offre : ${Math.min(score.found.length, score.target)} sur ${score.target} visés`;
 }
 
@@ -566,7 +585,8 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   const offerScore = offerKeywordScore(data, context);
   if (offerScore) {
     totals.keywords += offerScore.points;
-    if (offerScore.found.length < offerScore.target)
+    // Tous refusés : rien à demander au candidat, pas de correction.
+    if (!offerScore.allRefused && offerScore.found.length < offerScore.target)
       lose("keywords", POINTS.keywords - offerScore.points, {
         elementId: null,
         message: offerKeywordsLine(offerScore),

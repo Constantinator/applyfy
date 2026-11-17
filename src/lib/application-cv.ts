@@ -67,7 +67,7 @@ export async function ensureOfferKeywords(detail: ApplicationDetailResult): Prom
       company: app.company,
     });
     if (!keywords.length) return;
-    await saveCvSuggestions(app.id, { kind: "keywords", keywords, ignored: [], conseils: [], titre_cv: "", cvText: null });
+    await saveCvSuggestions(app.id, { kind: "keywords", keywords, ignored: [], refused: [], conseils: [], titre_cv: "", cvText: null });
   } catch (error) {
     unstable_rethrow(error);
     claudeErrorMessage(error, "CV de la candidature : mots-clés de l'offre"); // journalisation

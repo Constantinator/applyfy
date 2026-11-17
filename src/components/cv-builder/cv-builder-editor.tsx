@@ -31,8 +31,8 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { cvLanguage } from "@/lib/cv-language";
-import { matchCvKeywords } from "@/lib/cv-keyword-match";
-import { offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
+import { keywordKey, matchCvKeywords } from "@/lib/cv-keyword-match";
+import { offerKeywordScore, offerKeywordsLine, offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
 import type { OfferKeyword } from "@/lib/cv-types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -135,7 +135,7 @@ export function CvBuilderEditor({
     id: string;
     /** « Poste — Entreprise », pour la confirmation de la traduction. */
     label: string;
-    keywords: { keywords: OfferKeyword[]; ignored: string[] } | null;
+    keywords: { keywords: OfferKeyword[]; ignored: string[]; refused: string[] } | null;
     missingPoints: string[];
   } | null;
 }) {
@@ -234,15 +234,34 @@ export function CvBuilderEditor({
   const [scoringContext, setScoringContext] = useState(scoring);
   const score = useMemo(() => scoreCv(data, scoringContext), [data, scoringContext]);
 
-  // Candidature liée : mots-clés de l'offre comparés au CV affiché, onglet tant qu'il en manque.
-  const offerKeywords = application?.keywords;
+  // Candidature liée : mots-clés de l'offre comparés au CV affiché, onglet tant qu'il en manque ou
+  // qu'un mot-clé est retiré. Refus relevés par le serveur dans le chat : mis à jour à chaque échange.
+  const [refusedKeywords, setRefusedKeywords] = useState<string[]>(application?.keywords?.refused ?? []);
+  const savedKeywords = application?.keywords;
+  const offerKeywords = useMemo(
+    () => (savedKeywords ? { ...savedKeywords, refused: refusedKeywords } : null),
+    [savedKeywords, refusedKeywords],
+  );
   const sector = scoringContext.sector;
   const keywordMatch = useMemo(
     () => (offerKeywords ? matchCvKeywords(offerKeywords, cvDataToText(data), sector) : null),
     [offerKeywords, data, sector],
   );
+  const offerScore = useMemo(() => offerKeywordScore(data, scoringContext), [data, scoringContext]);
   const missingPoints = offerKeywords ? [] : (application?.missingPoints ?? []);
-  const showKeywords = Boolean(keywordMatch?.rows.some((r) => !r.present && !r.ignored)) || missingPoints.length > 0;
+  const showKeywords =
+    Boolean(keywordMatch?.rows.some((r) => !r.present && !r.ignored)) || missingPoints.length > 0;
+
+  /** Refus enregistrés par le serveur : score et onglet recalculés tout de suite. */
+  function applyRefused(list: string[]) {
+    const refused = new Set(list.map(keywordKey));
+    setRefusedKeywords(list);
+    setScoringContext((ctx) =>
+      ctx.offerKeywords
+        ? { ...ctx, offerKeywords: ctx.offerKeywords.map((k) => ({ ...k, refused: refused.has(keywordKey(k.keyword)) })) }
+        : ctx,
+    );
+  }
   const tabs: [TabId, string][] = showKeywords ? [...baseTabs, ["keywords", "Mots-clés"]] : baseTabs;
   // Dernier mot-clé ajouté au CV depuis l'aperçu : l'onglet disparaît, retour au chat.
   const tab = chosenTab === "keywords" && !showKeywords ? "chat" : chosenTab;
@@ -311,6 +330,7 @@ export function CvBuilderEditor({
     const result = await refineBuilderCvAction(id, json, message, history, skipped.current);
     if (!result.ok) return result;
     if (result.skippedPoints?.length) skipped.current = [...new Set([...skipped.current, ...result.skippedPoints])];
+    if (result.refusedKeywords) applyRefused(result.refusedKeywords);
     if (SUPABASE_CONFIGURED) {
       const turns: ChatTurn[] = [
         ...readTurns(history),
@@ -507,7 +527,7 @@ export function CvBuilderEditor({
           {tab === "keywords" && (
             <div id="panel-keywords" role="tabpanel" aria-labelledby="tab-keywords" className="ui-card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               {keywordMatch ? (
-                <MissingKeywordsPanel match={keywordMatch} onInsert={insertInChat} />
+                <MissingKeywordsPanel match={keywordMatch} summary={offerScore && offerKeywordsLine(offerScore)} onInsert={insertInChat} />
               ) : (
                 <MissingPointsPanel points={missingPoints} onInsert={insertInChat} />
               )}

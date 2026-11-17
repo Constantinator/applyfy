@@ -6,7 +6,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
 import { ClaudeRefusalError } from "../../src/lib/claude-structured.ts";
-import { buildCoachContext, offerListening } from "../../src/lib/coach-context.ts";
+import { buildCoachContext, offerListening, offerRefusals } from "../../src/lib/coach-context.ts";
 import { listeningState } from "../../src/lib/coach-intent.ts";
 import { boundSkipped, withOfferLanguageNote } from "../../src/lib/coach-offer.ts";
 import { plainCoachText } from "../../src/lib/coach-plain.ts";
@@ -74,6 +74,8 @@ export type TurnRecord = {
    */
   modelChangeSummary?: string;
   modelMessage?: string;
+  /** Lot score : mots-clés de l'offre que le candidat a dit ne pas avoir dans ce message (serveur). */
+  refusedKeywords?: string[];
 };
 
 export type ConversationRecord = {
@@ -151,7 +153,8 @@ function unchangedQuoted(claim: string | null, before: CvData, after: CvData) {
 export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: number, clients: Clients, maxTurns: number): Promise<ConversationRecord> {
   const profile = fx.profiles.get(scenario.profile)!;
   const offer = scenario.offer ? fx.offers.get(scenario.offer)! : null;
-  const detail = offer?.detail ?? null;
+  // Copie : les mots-clés refusés (cv_suggestions.refused) s'ajoutent pendant la conversation.
+  let detail = offer ? structuredClone(offer.detail) : null;
   const applicationId = detail?.application.id ?? null;
   const coach = clients.coach as unknown as Anthropic;
 
@@ -261,6 +264,9 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         coach: null,
       };
       const turns = history.slice(-HISTORY_MAX).map(({ role, content }) => ({ role, content: content.slice(0, 2000) }));
+      // Comme l'action : refus du candidat relevés par le serveur et enregistrés avant le score de l'échange.
+      const refusal = detail ? offerRefusals(detail, turns, request) : null;
+      if (detail && refusal) detail = { ...detail, application: { ...detail.application, cv_suggestions: refusal.suggestions } };
       const built = contextFor(current, request, turns);
       const context = { ...built, listening: listeningState(turns, request, offerListening(built)) };
       const scoreBefore = context.score.value;
@@ -283,6 +289,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
         scoreBefore,
         scoreAfter: scoreBefore,
         offerGap: "",
+        ...(refusal ? { refusedKeywords: refusal.added } : {}),
       };
       let reply: CoachReply | null = null;
       try {

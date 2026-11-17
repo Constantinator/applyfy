@@ -39,6 +39,8 @@ export type DocumentChatResult =
       limitNotice?: string;
       /** Coach du CV Builder : points abandonnés dans cette réponse (gardés par l'éditeur pour la session). */
       skippedPoints?: string[];
+      /** Coach du CV Builder, CV lié : mots-clés que le candidat a dit ne pas avoir (liste complète, si elle a changé). */
+      refusedKeywords?: string[];
       /** Lumeo : réponse d'excuse (erreur, limite) affichée avec l'expression « désolé », sans bulle d'erreur. */
       sorry?: boolean;
       /** Lumeo : action proposée (carte de confirmation) ; rien n'est exécuté sans le clic. */
@@ -69,7 +71,7 @@ function refineAnalysis(raw: unknown, html: string, position: string): RefineAna
   const cvText = htmlToText(html);
   const { rows } = matchCvKeywords(saved, cvText, detectSector(cvText ?? "", position));
   return {
-    mots_cles_manquants: rows.filter((r) => !r.present && !r.ignored).map((r) => r.keyword),
+    mots_cles_manquants: rows.filter((r) => !r.present && !r.ignored && !r.refused).map((r) => r.keyword),
     conseils: saved.conseils,
     titre_cv: saved.titre_cv || undefined,
   };

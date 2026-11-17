@@ -357,6 +357,47 @@ export function listeningState(
 export const KEYWORD_QUESTIONS_MAX = 4;
 
 /**
+ * Refus net d'un mot-clé demandé (« non », « jamais », « je n'ai pas… », « je ne connais pas »).
+ * « Je ne sais pas » n'en est pas un : le candidat n'a pas dit qu'il ne l'avait pas.
+ */
+const KEYWORD_DENIAL_ANSWER =
+  /^\s*(non|nan|no|nope|pas du tout|jamais|never|aucune?)\b|\bje n'ai (jamais|pas (d'exp[ée]rience|utilis|pratiqu|travaill|eu l'occasion))|\bje n'en ai (pas|jamais)\b|\bje ne l'ai jamais\b|\bje (ne )?connais pas\b|\bje ne (ma[îi]trise|pratique|l'ai|les ai) (pas|jamais)\b|\bi (have )?never\b|\bi haven'?t\b|\bi don'?t (know|have|use)\b/i;
+/** Ce qui précède un mot-clé dans une phrase où le candidat dit ne pas l'avoir pratiqué. */
+const DENIAL_BEFORE =
+  "(?:je n'ai (?:jamais|pas) (?:encore )?(?:utilis[ée]|fait|pratiqu[ée]|travaill[ée] (?:avec|sur|en|dans))|je ne (?:connais|ma[îi]trise|pratique) pas|(?:pas|aucune) d'exp[ée]rience (?:en|avec|sur|de|dans)|jamais (?:utilis[ée]|pratiqu[ée]|fait|travaill[ée] (?:avec|sur|en|dans))|i(?: have|'ve)? never (?:used|done|worked (?:with|on|in))|i haven'?t (?:used|done|worked (?:with|on|in))|i don'?t know|no experience (?:with|in))";
+const ARTICLE = "(?:du |de la |de l'|des |de |d'|le |la |les |l'|en |avec |with |in )?";
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * CV lié : mots-clés de l'offre que le candidat dit ne pas avoir, décidés par le serveur (jamais
+ * par le modèle) : (1) réponse négative nette à la dernière question du coach sur des mots-clés
+ * de l'offre, sans citer de mot-clé (« non ») ; (2) phrase où il dit ne pas avoir pratiqué un
+ * mot-clé (« je n'ai jamais utilisé Kafka », « pas d'expérience en Docker »). Une réponse mitigée
+ * (« Docker oui, Kubernetes non ») ou une incertitude (« je ne sais pas ») ne retire rien.
+ */
+export function refusedOfferKeywords(
+  history: { role: "user" | "assistant"; content: string }[],
+  request: string,
+  keywords: string[],
+): string[] {
+  const refused = new Set<string>();
+  const last = history.at(-1);
+  if (last?.role === "assistant") {
+    const asked = splitSentences(last.content).filter((s) => isQuestion(s) && isKeywordQuestion(s, keywords));
+    const cited = keywords.filter((k) => asked.some((s) => mentionsKeyword(s, [k])));
+    const answer = (request.trim().split(/(?<=[.!?])\s/)[0] ?? "").split(CONTRAST)[0] ?? "";
+    if (cited.length && KEYWORD_DENIAL_ANSWER.test(answer) && !mentionsKeyword(request, keywords)) cited.forEach((k) => refused.add(k));
+  }
+  for (const k of keywords) {
+    const key = k.trim();
+    if (!key) continue;
+    const pattern = new RegExp(`${DENIAL_BEFORE}\\s+${ARTICLE}${escapeRegExp(key)}(?![\\p{L}\\d])`, "iu");
+    if (pattern.test(request)) refused.add(k);
+  }
+  return [...refused];
+}
+
+/**
  * Le candidat dit ne pas avoir le chiffre demandé (« je ne connais pas le budget », « pas de
  * chiffre », « I don't have the exact number »), n'importe où dans son message.
  */

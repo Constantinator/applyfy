@@ -13,7 +13,8 @@ const TAG = "rounded-full bg-red-50 px-3 py-1 text-sm text-red-700 dark:bg-red-9
 
 /** Mots-clés de l'offre absents du CV, par catégorie. `onPick` : les mots-clés deviennent cliquables. */
 export function KeywordMatchView({ match, onPick }: { match: KeywordMatch; onPick?: (keyword: string) => void }) {
-  const rows = match.rows.filter((r) => !r.present && !r.ignored);
+  // Refusés (le candidat a dit ne pas les avoir) : affichés à part, plus proposés.
+  const rows = match.rows.filter((r) => !r.present && !r.ignored && !r.refused);
   const groups = KEYWORD_GROUPS.map((g) => ({ ...g, rows: rows.filter((r) => r.group === g.id) })).filter((g) => g.rows.length > 0);
 
   return (
