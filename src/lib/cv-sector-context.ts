@@ -58,7 +58,8 @@ const TITLE_KEYWORDS: Record<Sector, string[]> = {
     "motion", "illustrat", "photographe", "video", "monteur", "creatif", "creative", "architecte d'interieur",
   ],
   commercial: [
-    "commercial", "vente", "sales", "business developer", "business development", "account executive",
+    "commercial", "vente", "sales", "business developer", "business development", "developpeur d'affaires",
+    "developpeur commercial", "developpement commercial", "account executive",
     "account manager", "key account", "sdr", "bdr", "charge d'affaires", "technico-commercial",
     "ingenieur d'affaires", "responsable grands comptes", "customer success",
   ],
@@ -85,6 +86,20 @@ const TITLE_KEYWORDS: Record<Sector, string[]> = {
 /** Minuscules sans accents, pour comparer les mots-clés. */
 function normalize(text: string) {
   return ` ${text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()} `;
+}
+
+/**
+ * Expressions d'un autre métier retirées avant de compter les mots d'un secteur : « Business
+ * developer » ou « développeur d'affaires » est un poste commercial, pas de développeur (tech).
+ */
+const TITLE_MASKS: Partial<Record<Sector, RegExp>> = {
+  tech: /business developw*|developpe(ur|ment) (d'affaires|commercial)/g,
+};
+
+/** Mots d'un secteur dans un intitulé normalisé (normalize), expressions d'un autre métier retirées. */
+function titleScore(text: string, sector: Sector) {
+  const mask = TITLE_MASKS[sector];
+  return countMatches(mask ? text.replace(mask, " ") : text, TITLE_KEYWORDS[sector]);
 }
 
 function countMatches(text: string, keywords: string[]) {
@@ -139,7 +154,7 @@ export function detectSector(cvJson: string, targetJob?: string | null): Sector 
 
   const scores = SECTORS.map((sector) => ({
     sector,
-    score: countMatches(titles, TITLE_KEYWORDS[sector]) * 3 + countMatches(positions, TITLE_KEYWORDS[sector]),
+    score: titleScore(titles, sector) * 3 + titleScore(positions, sector),
   }));
   // « etudiant » ne l'emporte que si aucun métier n'est reconnu (un stage en audit reste de la finance).
   const job = scores.filter((s) => s.sector !== "etudiant" && s.score > 0).sort((a, b) => b.score - a.score)[0];
@@ -161,7 +176,7 @@ export function detectOfferSector(title: string, description?: string | null): S
   const titles = normalize(title);
   // Métiers d'abord : « stage » / « alternance » (etudiant) ne l'emporte jamais sur un métier reconnu.
   const jobs = SECTORS.filter((s) => s !== "etudiant")
-    .map((sector) => ({ sector, score: countMatches(titles, TITLE_KEYWORDS[sector]) }))
+    .map((sector) => ({ sector, score: titleScore(titles, sector) }))
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score);
   if (jobs.length) return uniqueTop(jobs, titles);
