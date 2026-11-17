@@ -117,6 +117,10 @@ export type ConversationMetrics = {
    * et que le candidat ne l'a pas refusée (lot E, L02 tour 9 ; attendu : 0).
    */
   removalRefusedAfterProposal: number;
+  /** Lot F : échanges dont les changements appliqués touchent au moins deux sections (L14 : titre et puce ; attendu : 1 au moins). */
+  multiSectionTurns: number;
+  /** Lot F : mises à jour retirées au-delà du plafond (3 en demande, 1 en parcours ou après un « oui » seul). */
+  droppedUpdates: number;
 };
 
 /** Phrases de l'annonce qui disent qu'une partie n'a pas été appliquée. */
@@ -287,7 +291,8 @@ function offerFlowOf(record: ConversationRecord, allCoach: string[]): OfferFlow 
     const i = record.turns.findIndex((t) => t.skipped.includes(offerMarker(step)));
     return i >= 0 ? i + 1 : null;
   };
-  const summaryChanged = record.turns.findIndex((t) => t.section === "summary" && t.applied > 0);
+  // Lot F : une réponse peut modifier plusieurs sections (runs d'avant : la section de la réponse).
+  const summaryChanged = record.turns.findIndex((t) => t.applied > 0 && (t.appliedSections ?? (t.section ? [t.section] : [])).includes("summary"));
   const summaryAt = summaryChanged >= 0 ? Math.min(summaryChanged + 1, exchangeOf("resume") ?? Infinity) : exchangeOf("resume");
   // Écart réellement affiché (un écart abandonné après deux réponses vides ne compte pas).
   const gapTurn = record.turns.findIndex((t) => (t.offerGap ?? "").trim() !== "");
@@ -626,5 +631,7 @@ export function computeMetrics(record: ConversationRecord, scenario: Scenario): 
     inflatedLevels: inflatedLevelsWritten(record),
     readyBlocksRepeated: readyBlocksRepeated(allCoach),
     removalRefusedAfterProposal: removalRefusedAfterProposal(record, allCoach),
+    multiSectionTurns: record.turns.filter((t) => (t.appliedSections?.length ?? 0) >= 2).length,
+    droppedUpdates: record.turns.reduce((n, t) => n + (t.droppedSections?.length ?? 0), 0),
   };
 }

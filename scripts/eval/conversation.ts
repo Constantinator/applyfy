@@ -46,6 +46,13 @@ export type TurnRecord = {
   error: "refus" | "sans-reponse" | "erreur" | null;
   mode: CoachReply["mode"] | null;
   section: string | null;
+  /**
+   * Lot F : sections des mises à jour de la réponse, sections réellement modifiées dans le CV, et
+   * sections retirées au-delà du plafond (absentes des runs d'avant le lot F).
+   */
+  sections?: string[];
+  appliedSections?: string[];
+  droppedSections?: string[];
   applied: number;
   stale: number;
   retried: boolean;
@@ -107,6 +114,23 @@ function refusedTexts(current: CvData, reply: CoachReply | null, problems: Chang
     const change = changes.find((c) => c.after === p.text) ?? changes.find((c) => c.after.includes(p.text) || p.text.includes(c.after));
     return { label: change?.label ?? null, original: change?.before ?? null, proposed: p.text, causes: p.problems };
   });
+}
+
+/** Sections du CV qui diffèrent entre deux versions (lot F : réponses sur plusieurs sections). */
+const CV_SECTIONS: [string, (cv: CvData) => unknown][] = [
+  ["personal", (cv) => ({ ...cv.personal, photo: null })],
+  ["summary", (cv) => cv.summary],
+  ["experience", (cv) => cv.experiences],
+  ["education", (cv) => cv.education],
+  ["skills", (cv) => cv.skills],
+  ["languages", (cv) => cv.languages],
+  ["certifications", (cv) => cv.certifications],
+  ["projects", (cv) => cv.projects],
+  ["interests", (cv) => cv.interests],
+];
+export function changedSections(before: CvData, after: CvData): string[] {
+  if (before === after) return [];
+  return CV_SECTIONS.filter(([, of]) => JSON.stringify(of(before)) !== JSON.stringify(of(after))).map(([name]) => name);
 }
 
 const ANNOUNCE = /^(c'est fait|c’est fait|done|it's done)\b/i;
@@ -298,6 +322,9 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
           turn.coachText = result.applied && notice ? `${notice} ${result.text}` : result.text;
           turn.mode = result.mode;
           turn.section = result.section;
+          turn.sections = result.sections;
+          turn.appliedSections = changedSections(current, result.updated);
+          turn.droppedSections = result.droppedSections;
           turn.applied = result.applied;
           turn.stale = result.stale;
           turn.retried = result.retried;

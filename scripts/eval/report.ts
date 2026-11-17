@@ -113,6 +113,9 @@ export type ScenarioAggregate = {
   readyBlocksRepeated: number;
   /** Lot E : suppressions proposées par le coach, acceptées, puis refusées (somme). */
   removalRefusedAfterProposal: number;
+  /** Lot F : échanges sur plusieurs sections, mises à jour retirées au-delà du plafond (sommes). */
+  multiSectionTurns: number;
+  droppedUpdates: number;
   judgeMean: number | null;
   judgeRange: [number, number] | null;
   judgeByCriterion: Record<string, number | null>;
@@ -184,6 +187,8 @@ export function aggregate(results: Result[]): ScenarioAggregate[] {
       inflatedLevels: sum(m.map((x) => x.inflatedLevels)),
       readyBlocksRepeated: sum(m.map((x) => x.readyBlocksRepeated)),
       removalRefusedAfterProposal: sum(m.map((x) => x.removalRefusedAfterProposal)),
+      multiSectionTurns: sum(m.map((x) => x.multiSectionTurns)),
+      droppedUpdates: sum(m.map((x) => x.droppedUpdates)),
       judgeMean: median(means),
       judgeRange,
       judgeByCriterion: Object.fromEntries(JUDGE_CRITERIA.map((k) => [k, median(judged.map((j) => j[k].note))])),
@@ -269,6 +274,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
     "Niveau gonflé",
     "Bloc « prêt » redit",
     "Suppression refusée après accord",
+    "Plusieurs sections",
+    "Au-delà du plafond",
     "Langue ≠",
     "Demande exécutée",
     ...(linked
@@ -323,6 +330,8 @@ function scenarioTable(rows: ScenarioAggregate[], linked: boolean) {
         String(r.inflatedLevels),
         String(r.readyBlocksRepeated),
         String(r.removalRefusedAfterProposal),
+        String(r.multiSectionTurns),
+        String(r.droppedUpdates),
         String(r.languageMismatches),
         r.requestDone,
         ...(linked
@@ -384,7 +393,7 @@ function transcriptMd({ record, metrics }: Result) {
   ];
   if (record.opening) lines.push(`> **Coach** : ${record.opening.replace(/\n/g, " ")}`, ">");
   for (const t of record.turns) {
-    const detail = [t.mode, t.section, t.applied ? `${t.applied} changement(s)` : null, t.retried ? "second essai" : null, t.problems.length ? `${t.problems.length} texte(s) refusé(s)` : null, t.error]
+    const detail = [t.mode, t.sections?.length ? t.sections.join(" + ") : t.section, t.droppedSections?.length ? `${t.droppedSections.length} mise(s) à jour au-delà du plafond` : null, t.applied ? `${t.applied} changement(s)` : null, t.retried ? "second essai" : null, t.problems.length ? `${t.problems.length} texte(s) refusé(s)` : null, t.error]
       .filter(Boolean)
       .join(", ");
     lines.push(`> **Candidat** : ${t.user.replace(/\n/g, " ")}`, ">", `> **Coach** (${t.scoreBefore} → ${t.scoreAfter}${detail ? `, ${detail}` : ""}) : ${t.coachText.replace(/\n/g, " ")}`, ">");

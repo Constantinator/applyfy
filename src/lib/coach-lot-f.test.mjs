@@ -181,3 +181,33 @@ test("raccourcissement : une liste seule reste vérifiée, l'accroche aussi quan
   assert.equal(problems.length, 1);
   assert.equal(problems[0].text, `${cv.summary} Encore plus.`);
 });
+
+// --- 6. Banc d'essai : réponses sur plusieurs sections, mises à jour au-delà du plafond ---
+
+const evalMetrics = await import("../../scripts/eval/metrics.ts");
+const { changedSections } = await import("../../scripts/eval/conversation.ts");
+
+const turnRecord = (patch) => ({
+  user: "…", coachText: "…", error: null, mode: "demande", scoreBefore: 60, scoreAfter: 60, applied: 1, retried: false,
+  problems: [], firstProblems: [], claim: null, unchangedQuoted: [], skipped: [], section: null, offerGap: "", ...patch,
+});
+const evalRecord = (turns) => ({
+  scenarioId: "X", set: "dev", case: "libre", type: "demande", repeat: 0, language: "fr", sectorStart: "finance",
+  startScore: 60, endScore: 60, startCv: cv, endCv: cv, opening: "Bonjour", offer: null, judge: null, endReason: "fin", turns,
+});
+
+test("banc d'essai : sections réellement modifiées, échanges sur plusieurs sections et mises à jour au-delà du plafond", async () => {
+  const result = await play(L14_REQUEST, demande([title("Analyste crédit"), bullet(1, "Préparation de 6 comités de crédit par mois")]));
+  assert.deepEqual(changedSections(cv, result.updated), ["personal", "experience"]);
+  assert.deepEqual(changedSections(cv, cv), []);
+  const m = evalMetrics.computeMetrics(
+    evalRecord([
+      turnRecord({ appliedSections: ["personal", "experience"], sections: ["personal", "experience"] }),
+      turnRecord({ appliedSections: ["summary"], sections: ["summary"], droppedSections: ["skills"] }),
+      turnRecord({ section: "summary" }), // run d'avant le lot F : champs absents
+    ]),
+    { id: "X", case: "libre", expectedSector: "finance" },
+  );
+  assert.equal(m.multiSectionTurns, 1);
+  assert.equal(m.droppedUpdates, 1);
+});
