@@ -1,0 +1,34 @@
+{
+  "_note": "Traduction à la main de profiles/dev/finance-junior-fr.json (lot traduction) : score du CV traduit comparé à l'original (cv-score-language.test.mjs).",
+  "personal": { "firstName": "Léa", "lastName": "Exemple", "jobTitle": "Junior Financial Analyst", "email": "lea.exemple@example.com", "city": "Lyon" },
+  "summary": "Junior financial analyst, rigorous and motivated, with first experience in banking and audit.",
+  "targetJob": "Analyste financière",
+  "experiences": [
+    {
+      "id": "fj-e1",
+      "position": "Junior Credit Analyst",
+      "company": "Banque Fictive",
+      "startDate": "2024",
+      "endDate": "",
+      "current": true,
+      "location": "Lyon",
+      "bullets": ["Analysis of SME credit applications", "Preparation of credit committees", "Monitoring of the client portfolio"]
+    },
+    {
+      "id": "fj-e2",
+      "position": "Audit Intern",
+      "company": "Cabinet Exemple Audit",
+      "startDate": "2023",
+      "endDate": "2023",
+      "location": "Lyon",
+      "bullets": ["Participation in statutory audit engagements", "Testing of internal controls"]
+    }
+  ],
+  "education": [{ "id": "fj-d1", "school": "École de Commerce Exemple", "degree": "Master Finance d'entreprise", "startDate": "2021", "endDate": "2023" }],
+  "skills": [
+    { "id": "fj-s1", "name": "Excel", "level": "avance" },
+    { "id": "fj-s2", "name": "Financial analysis", "level": "" },
+    { "id": "fj-s3", "name": "Teamwork", "level": "" }
+  ],
+  "languages": [{ "id": "fj-l1", "name": "English", "level": "B2" }]
+}

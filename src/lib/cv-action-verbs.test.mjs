@@ -93,6 +93,8 @@ test("verbes : la même règle dans tous les secteurs (liste commune du contexte
 
 // Scores des CV de test du banc d'essai (scripts/eval/fixtures), avec ses mots-clés du marché
 // figés : la nouvelle règle les change de -5 à +6 points (moyenne +1,8) ; aucun ne passe 80.
+// Lot traduction (équivalents anglais des mots-clés, verbes anglais, longueur visée en anglais) :
+// seuls les 2 CV anglais changent (tech 73 → 75, finance 50 → 59).
 const EXPECTED = {
   "commercial-junior-fr": 45,
   "conseil-confirme-fr": 85,
@@ -100,11 +102,11 @@ const EXPECTED = {
   "marketing-junior-fr": 63,
   "rh-stage-fr": 56,
   "sante-junior-fr": 53,
-  "tech-confirme-en": 73,
+  "tech-confirme-en": 75,
   "tech-stage-fr": 59,
   "creatif-confirme-fr": 66,
   "etudiant-stage-fr": 62,
-  "finance-confirme-en": 50,
+  "finance-confirme-en": 59,
   "luxe-junior-fr": 65,
 };
 

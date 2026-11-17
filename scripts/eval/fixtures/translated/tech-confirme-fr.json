@@ -1,0 +1,42 @@
+{
+  "_note": "Traduction à la main de profiles/dev/tech-confirme-en.json (lot traduction) : score du CV traduit comparé à l'original (cv-score-language.test.mjs).",
+  "personal": { "firstName": "Sam", "lastName": "Example", "jobTitle": "Ingénieur backend senior", "email": "sam.example@example.com", "city": "Paris" },
+  "summary": "Ingénieur backend senior avec 8 ans d'expérience dans la conception d'API et de systèmes distribués pour des produits B2B.",
+  "targetJob": "Senior Backend Engineer",
+  "experiences": [
+    {
+      "id": "te-e1",
+      "position": "Ingénieur backend senior",
+      "company": "Fictional Software Ltd",
+      "startDate": "2021",
+      "endDate": "",
+      "current": true,
+      "location": "Paris",
+      "bullets": [
+        "Pilotage de la migration de 12 services d'un monolithe vers Kubernetes",
+        "Réduction de 40 % du temps de réponse de l'API grâce à une nouvelle couche de cache",
+        "Mentorat d'ingénieurs juniors"
+      ]
+    },
+    {
+      "id": "te-e2",
+      "position": "Ingénieur backend",
+      "company": "Example Tech SAS",
+      "startDate": "2017",
+      "endDate": "2021",
+      "location": "Lyon",
+      "bullets": ["Développement de 25 API REST en Go pour des clients B2B", "Maintenance des bases de données PostgreSQL"]
+    }
+  ],
+  "education": [{ "id": "te-d1", "school": "Example Engineering School", "degree": "MSc Computer Science", "startDate": "2012", "endDate": "2017" }],
+  "skills": [
+    { "id": "te-s1", "name": "Go", "level": "expert" },
+    { "id": "te-s2", "name": "TypeScript", "level": "avance" },
+    { "id": "te-s3", "name": "PostgreSQL", "level": "avance" },
+    { "id": "te-s4", "name": "Kubernetes", "level": "avance" },
+    { "id": "te-s5", "name": "Travail en équipe", "level": "" },
+    { "id": "te-s6", "name": "AWS", "level": "avance" },
+    { "id": "te-s7", "name": "Docker", "level": "avance" }
+  ],
+  "languages": [{ "id": "te-l1", "name": "Anglais", "level": "C1" }, { "id": "te-l2", "name": "Français", "level": "Langue maternelle" }]
+}

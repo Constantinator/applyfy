@@ -2,6 +2,8 @@ import type { CvData, CvExperience } from "./cv-builder-types";
 import type { Sector } from "./cv-sector-context";
 import { SECTOR_LABELS } from "./sectors";
 import { hasPhrase, matchKeywords, normalizeText } from "./keyword-match";
+import { cvLanguage } from "./cv-language";
+import { KEYWORD_ALIASES } from "./cv-keyword-aliases";
 
 // Score du CV sur 100, calculé par le code à partir de son contenu (sans IA), dans l'éditeur du
 // CV Builder (recalculé à chaque modification) et à l'import. Cinq catégories : impact 35,
@@ -124,6 +126,15 @@ const GENERAL_VERBS = [
   "corriger", "transmettre", "accueillir", "présélectionner", "trier", "assurer", "prendre en charge", "résoudre",
   "maintenir", "soutenir", "collaborer",
   "cut", "maintain", "fix", "fixed", "resolve", "support", "handle", "assist", "collaborate",
+  // Verbes anglais d'un CV traduit (lot traduction) : formes choisies pour ne commencer aucun mot
+  // français courant (« performed » et non « perform » : « Performance… » ; « saved » : « Savoir… »).
+  "draft", "review", "monitor", "track", "conduct", "assess", "execute", "oversee", "oversaw", "streamline",
+  "establish", "performed", "processed", "processing", "reconcile", "research", "planned", "advise", "recruit",
+  "onboard", "sell", "sold", "secured", "spearhead", "partnered", "teach", "taught", "tutor", "coach", "deploy",
+  "architected", "refactor", "debug", "configure", "forecast", "budgeted", "audit", "evaluate", "identify",
+  "define", "edited", "editing", "publish", "translate", "welcome", "achieve", "boost", "expand", "saved",
+  "raised", "acquire", "liaised", "headed", "facilitate", "introduce", "pitch", "modelled", "modeled",
+  "prepare", "test", "oversight", "deliver", "negotiated", "mentored",
 ];
 
 /**
@@ -195,8 +206,27 @@ const POINTS = {
 };
 /** Mots-clés à trouver dans le CV pour la note maximale. */
 const KEYWORDS_TARGET = 10;
-const WORDS_MIN = 400;
-const WORDS_MAX = 1600;
+/**
+ * Longueur visée, selon la langue du contenu : un texte anglais compte environ 12 % de mots de
+ * moins que le même texte en français (lot traduction : un CV traduit garde sa note de longueur).
+ */
+const WORD_BOUNDS = { fr: { min: 400, max: 1600 }, en: { min: 350, max: 1400 } } as const;
+
+/**
+ * Équivalents anglais des mots-clés français du secteur (cv-keyword-aliases.ts) : un mot-clé
+ * est trouvé si lui-même ou l'un de ses équivalents figure dans le CV, et compte une fois.
+ */
+const ALIASES_BY_KEY = Object.fromEntries(
+  Object.entries(KEYWORD_ALIASES).map(([sector, aliases]) => [
+    sector,
+    new Map(Object.entries(aliases).map(([keyword, list]) => [normalizeText(keyword).trim(), list])),
+  ]),
+) as Partial<Record<Sector, Map<string, string[]>>>;
+
+/** Équivalents d'un mot-clé dans un secteur (aucun si le mot-clé n'en a pas). */
+export function keywordAliasesOf(keyword: string, sector: Sector): string[] {
+  return ALIASES_BY_KEY[sector]?.get(normalizeText(keyword).trim()) ?? [];
+}
 const BULLET_MAX_WORDS = 30;
 
 /** Texte sans la mise en forme de l'éditeur (**gras**, *italique*, __souligné__). */
@@ -476,7 +506,11 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
     seen.add(key);
     return true;
   });
-  const found = new Set(matchKeywords(cvText, keywords, context.sector).map((k) => normalizeText(k).trim()));
+  const found = new Set(
+    keywords
+      .filter((k) => matchKeywords(cvText, [k, ...keywordAliasesOf(k, context.sector)], context.sector).length > 0)
+      .map((k) => normalizeText(k).trim()),
+  );
   totals.keywords += POINTS.keywords * Math.min(1, found.size / KEYWORDS_TARGET);
   if (found.size < KEYWORDS_TARGET) {
     const missing = keywords.filter((k) => !found.has(normalizeText(k).trim())).slice(0, 5);
@@ -501,12 +535,13 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
       data.interests,
     ].join(" "),
   );
+  const { min: WORDS_MIN, max: WORDS_MAX } = WORD_BOUNDS[cvLanguage(data)];
   const wordRatio = words < WORDS_MIN ? words / WORDS_MIN : words > WORDS_MAX ? WORDS_MAX / words : 1;
   totals.concision += POINTS.words * wordRatio;
   if (wordRatio < 1)
     lose("concision", POINTS.words * (1 - wordRatio), {
       elementId: null,
-      message: `${words} mots : ${words < WORDS_MIN ? "trop court" : "trop long"} (vise ${WORDS_MIN} à 1 600)`,
+      message: `${words} mots : ${words < WORDS_MIN ? "trop court" : "trop long"} (vise ${WORDS_MIN} à ${String(WORDS_MAX).replace(/\B(?=(\d{3})+$)/g, " ")})`,
       request: words < WORDS_MIN ? "Mon CV est trop court : aide-moi à le développer" : "Mon CV est trop long : aide-moi à le raccourcir",
     });
 
