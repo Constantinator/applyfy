@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Listening, QuestionType } from "./coach-intent";
 import type { SkippedEntry } from "./skipped-points";
-import { offerStageOf, withoutOfferMarkers, type OfferGap, type OfferStage, type OfferStep, type ProposedStep } from "./coach-offer";
+import { isGenericStudentTitle, offerStageOf, withoutOfferMarkers, type OfferGap, type OfferStage, type OfferStep, type ProposedStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import type { CoachMode, CoachSection } from "./coach-proposals";
 import { GENERIC_JARGON, READY_SCORE } from "./cv-score";
@@ -57,6 +57,11 @@ export type CoachContext = {
   offerGap?: OfferGap | null;
   /** Premier message du coach (rien n'a encore été proposé au candidat). */
   opening?: boolean;
+  /**
+   * Premier message d'un CV libre sans poste visé connu (needsTargetQuestion) : demander une fois
+   * le poste visé. Posé par coachOpening seulement ; absent sinon.
+   */
+  targetQuestion?: boolean;
   /** Langue du candidat (messages) et langue du contenu du CV (coach-language.ts). */
   language?: CoachLang;
   cvLanguage?: CoachLang;
@@ -142,6 +147,25 @@ function offerStageBlock(stage: OfferStage, { opening, refusal, gap }: { opening
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/** Premier message d'un CV libre sans poste visé connu (bloc « situation », ouverture seulement). */
+export const TARGET_QUESTION =
+  "Poste visé inconnu (CV libre, sans poste visé ni titre de métier) : dans ce premier message, demande une seule fois quel poste le candidat vise, comme ta seule question ; s'il ne sait pas, continue ensuite sans insister.";
+
+/**
+ * CV libre dont le poste visé est inconnu : pas d'offre, pas de poste visé (analyse ou carte de
+ * l'import), titre vide ou seulement « Étudiant », « Stagiaire »… ; CV pas encore clos.
+ */
+export function needsTargetQuestion(context: Pick<CoachContext, "offer" | "analysis" | "cvJson" | "score">): boolean {
+  if (context.offer || context.analysis?.targetJob?.trim() || isCvClosed(context.score.value)) return false;
+  let title = "";
+  try {
+    title = String((JSON.parse(context.cvJson) as { personal?: { jobTitle?: unknown } }).personal?.jobTitle ?? "").trim();
+  } catch {
+    // CV illisible : titre inconnu.
+  }
+  return !title || isGenericStudentTitle(title);
 }
 
 /** Consignes fixes du bloc « situation », selon ce que le serveur a compris (coach-intent.ts). */
@@ -347,6 +371,8 @@ export function coachSystem(
   if (listening?.stopTypes?.length) situation.push(stopTypesSentence(listening.stopTypes));
   // CV clos et question ouverte du candidat : une réponse, jamais une nouvelle question (O05).
   if (closed && listening?.openQuestion) situation.push(OPEN_QUESTION_CLOSED);
+  // Premier message d'un CV libre sans poste visé (C1) : la question du poste visé, une fois.
+  if (context.targetQuestion) situation.push(TARGET_QUESTION);
   if (situation.length) parts.push(["<situation>", ...situation, "</situation>"].join("\n"));
   if (analysis) {
     const criteria = Object.entries(analysis.criteria)

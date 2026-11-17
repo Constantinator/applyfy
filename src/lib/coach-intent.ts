@@ -353,6 +353,15 @@ export function listeningState(
   return { ...listening, stopKeywords, ...(asked >= KEYWORD_QUESTIONS_MAX ? { keywordsDone: true } : {}) };
 }
 
+/**
+ * Phrase qui dit le CV prêt ou en bon état (« ton CV est prêt / solide », « prêt à postuler »,
+ * « your CV is in good shape », « ready to send »). Une partie du CV (« ta puce est prête »,
+ * « ton accroche est bonne ») n'en est pas une.
+ */
+const READY_CLAIM =
+  /\b(ton|ce|le|votre) cv (est|reste|semble|me semble|para[îi]t)( maintenant| d[ée]sormais| bien| vraiment| tout à fait)* (pr[êe]t|bon|solide|complet|finalis[ée]|abouti|en (bon|tr[èe]s bon|excellent) [ée]tat)\b|\bpr[êe]t (à|a) (postuler|[êe]tre envoy[ée]|l'envoi|envoyer)\b|\btu peux (maintenant |d[ée]sormais )?(l'envoyer|postuler)\b|\b(your|the) cv (is|looks|seems)( now| really)? (ready|good|solid|strong|complete|in (good|great|solid|excellent) shape|good to go)\b|\bin (good|great) shape\b|\bready to (send|apply|go)\b|\byou can (now )?(send it|apply)\b/i;
+export const claimsReady = (sentence: string) => READY_CLAIM.test(sentence);
+
 /** Questions du coach sur les mots-clés de l'offre, au plus, dans une session (« 4 au maximum » du prompt). */
 export const KEYWORD_QUESTIONS_MAX = 4;
 
@@ -465,6 +474,7 @@ const normalizeSentence = (s: string) => s.toLowerCase().replace(/\s+/g, " ").tr
 const TEXTS = {
   fr: {
     readyYes: (score: number) => `Oui : ton CV est à ${score}/100, au-dessus du seuil de ${READY_SCORE}. Tu peux l'envoyer.`,
+    belowReady: (score: number) => `Ton CV est à ${score}/100 (seuil de ${READY_SCORE}).`,
     readyNo: (score: number, gaps: string) =>
       `Pas encore : ton CV est à ${score}/100 (seuil de ${READY_SCORE}).${gaps ? ` Ce qui bloque surtout : ${gaps}.` : ""}`,
     stopped: (score: number, gaps: string) =>
@@ -482,6 +492,7 @@ const TEXTS = {
   },
   en: {
     readyYes: (score: number) => `Yes: your CV is at ${score}/100, above the ${READY_SCORE} threshold. You can send it.`,
+    belowReady: (score: number) => `Your CV is at ${score}/100 (threshold ${READY_SCORE}).`,
     // Les corrections du score sont écrites en français : pas de liste en anglais.
     readyNo: (score: number) => `Not yet: your CV is at ${score}/100 (threshold ${READY_SCORE}).`,
     stopped: (score: number) => `OK, I'll stop asking questions. Your CV is at ${score}/100: you can stop here, or ask me for a specific change.`,
@@ -535,6 +546,19 @@ export function listenText(i: ListenInput): string {
   const t = TEXTS[i.lang];
   const gaps = i.corrections.slice(0, 2).map((c) => c.replace(/\s*\(\+\d+ pts\)$/, "")).join(" ; ");
   let sentences = splitSentences(i.text);
+
+  // Sous le seuil, le CV n'est jamais dit « prêt » (L16 : « in good shape » à 77) : seule la phrase
+  // du modèle qui l'affirme est remplacée par le score, une fois ; le reste du message est gardé.
+  if (i.score < READY_SCORE && sentences.some(claimsReady)) {
+    let replaced = false;
+    sentences = sentences.flatMap((s) => {
+      if (!claimsReady(s)) return [s];
+      // « C'est prêt ? » : la réponse du serveur donne déjà le score (plus bas).
+      if (replaced || i.listening.readiness || i.text.includes(`${i.score}/100`)) return [];
+      replaced = true;
+      return [t.belowReady(i.score)];
+    });
+  }
 
   // Après un refus : pas de relance pour continuer une demande en cours.
   if (i.listening.refusal) sentences = sentences.filter((s) => !(isQuestion(s) && CONTINUE_OFFER.test(s)));

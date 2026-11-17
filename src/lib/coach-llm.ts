@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { parseStructured } from "./claude-structured";
 import { offerStageOf } from "./coach-offer";
-import { coachSystem, coachUserText, isCvClosed, neutralizeCoachData, type CoachContext, type CoachRetry, type CoachTurn } from "./coach-prompt";
+import { coachSystem, coachUserText, isCvClosed, needsTargetQuestion, neutralizeCoachData, type CoachContext, type CoachRetry, type CoachTurn } from "./coach-prompt";
 import { COACH_DATA_SCHEMAS, COACH_SECTIONS, type CoachMode, type CoachSection, type CoachUpdate } from "./coach-proposals";
 import { formatSectorContext, getSectorContext } from "./cv-sector-context";
 import { isLegacyStepMarker } from "./skipped-points";
@@ -209,7 +209,9 @@ function withOpening(context: CoachContext, opening: boolean): CoachContext {
 
 /** Premier message du coach : le premier point dans l'ordre de traitement (ou l'étape de l'offre) et une première question. */
 export async function coachOpening(client: Anthropic, context: CoachContext): Promise<string | null> {
-  const ctx = withOpening(context, true);
+  const opening = withOpening(context, true);
+  // CV libre sans poste visé : la question du poste visé, dans ce premier message seulement (C1).
+  const ctx = needsTargetQuestion(opening) ? { ...opening, targetQuestion: true } : opening;
   const offerFirst = !isCvClosed(ctx.score.value) && Boolean(offerStageOf(ctx, true)?.propose);
   const result = await parseStructured(
     client,
