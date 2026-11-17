@@ -26,6 +26,7 @@ import {
   isClaudeConfigured,
   coachBuilderCv,
   coachOpening,
+  translateCvFields,
   type ImportedCvAnalysis,
 } from "@/lib/claude";
 import { buildCoachContext, offerListening, type BuiltCoachContext } from "@/lib/coach-context";
@@ -36,12 +37,15 @@ import { closedOpening } from "@/lib/coach-outcome";
 import { isCvClosed } from "@/lib/coach-prompt";
 import { runCoachTurn } from "@/lib/coach-turn";
 import {
+  CV_BUILDER_MAX,
   CvBuilderError,
+  countBuilderCvs,
   createBuilderCv,
   deleteBuilderCv,
   getBuilderCv,
   getBuilderCvByApplication,
   linkBuilderCvToApplication,
+  moveApplicationLink,
   saveBuilderCv,
   setBuilderCvLanguage,
 } from "@/lib/cv-builder";
@@ -61,12 +65,15 @@ import {
   interestList,
   isCvLang,
   isTemplateId,
+  translatedCvTitle,
   type CvAnalysis,
   type CvData,
   type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { cvLanguage } from "@/lib/cv-language";
 import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
+import { runTranslation } from "@/lib/cv-translate";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { htmlToText } from "@/lib/cv-html";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
@@ -387,6 +394,77 @@ export async function adaptToOfferAction(rawData: CvData, offer: string) {
   });
 }
 
+
+// ---------------------------------------------------------------------------
+// « Traduire le CV » : copie traduite (français <-> anglais), jamais en place
+// ---------------------------------------------------------------------------
+
+export type TranslateCvValue = {
+  id: string;
+  title: string;
+  /** Champs gardés dans la langue d'origine (refusés après le second essai). */
+  kept: { label: string; text: string }[];
+  /** CV lié : « moved » si la copie a repris la candidature, « failed » si elle reste non liée. */
+  link: "moved" | "failed" | null;
+};
+
+/**
+ * Traduit tout le CV dans l'autre langue (français <-> anglais) et crée une copie à son nom
+ * (« Mon CV (EN) »), langue fixée ; l'original ne change pas. Vérifié avant l'appel au modèle :
+ * quota cvb_traduction, limite du jour, anti-rafale, limite de CV_BUILDER_MAX CV. Compté
+ * seulement si la copie est créée ; échec du modèle ou plus de 30 % de champs refusés : aucune
+ * copie, rien n'est compté. CV lié : la copie reprend la candidature, l'original reste non lié.
+ */
+export async function translateCvAction(id: string): Promise<AiResult<TranslateCvValue>> {
+  if (!isClaudeConfigured()) return { ok: false, error: "L'IA n'est pas activée (clé API Claude manquante)." };
+  const source = await getBuilderCv(String(id)).catch(() => null);
+  if (!source) return { ok: false, error: "Ce CV n'existe plus." };
+  const from = source.language ?? cvLanguage(source.data);
+  const to = from === "fr" ? "en" : "fr";
+
+  const gate = await checkAiAccess("cvb_traduction");
+  if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };
+  if ((await countBuilderCvs()) >= CV_BUILDER_MAX) {
+    return { ok: false, error: `Tu as atteint la limite de ${CV_BUILDER_MAX} CV : supprime un CV pour créer la copie traduite. Rien n'a été décompté.` };
+  }
+
+  let run: Awaited<ReturnType<typeof runTranslation>>;
+  try {
+    run = await runTranslation(source.data, from, to, (fields, problems) => translateCvFields(fields, to, problems));
+  } catch (error) {
+    unstable_rethrow(error);
+    return { ok: false, error: `${claudeErrorMessage(error, "cv-builder traduction")} Rien n'a été créé ni décompté.` };
+  }
+  if (!run.ok) {
+    return {
+      ok: false,
+      error:
+        run.reason === "model"
+          ? "La traduction n'a pas abouti. Rien n'a été créé ni décompté : réessaie dans un instant."
+          : `La traduction n'est pas assez fiable (${run.kept.length} champs sur ${run.total} refusés par nos vérifications). Rien n'a été créé ni décompté : réessaie dans un instant.`,
+    };
+  }
+
+  let copyId: string;
+  const title = translatedCvTitle(source.title, to);
+  try {
+    // Nouvelle conversation pour la copie : le coach repart de zéro, dans la langue du CV.
+    copyId = await createBuilderCv({ ...run.data, coach: null }, title, source.templateId, to);
+  } catch (error) {
+    if (error instanceof CvBuilderError) return { ok: false, error: `${error.message} Rien n'a été décompté.` };
+    console.error("[cv-builder] copie traduite", error);
+    return { ok: false, error: "La copie traduite n'a pas pu être créée. Rien n'a été décompté : réessaie dans un instant." };
+  }
+  await recordAiUsage("cvb_traduction");
+
+  let link: TranslateCvValue["link"] = null;
+  if (source.applicationId) {
+    link = (await moveApplicationLink(source.id, copyId, source.applicationId).catch(() => false)) ? "moved" : "failed";
+    revalidatePath(`/candidatures/${source.applicationId}`);
+  }
+  revalidatePath("/cv-builder");
+  return { ok: true, value: { id: copyId, title, kept: run.kept.map(({ label, text }) => ({ label, text })), link } };
+}
 
 // ---------------------------------------------------------------------------
 // « Importer un CV » : PDF ou Word lu par l'IA, puis nouveau CV pré-rempli

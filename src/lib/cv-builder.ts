@@ -263,6 +263,63 @@ export async function saveBuilderCv(
   return row.updated_at as string;
 }
 
+/** Nombre de CV de l'utilisateur (limite de CV_BUILDER_MAX vérifiée avant un appel à l'IA). */
+export async function countBuilderCvs(): Promise<number> {
+  if (!isSupabaseConfigured()) return demoCvs.length;
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { count, error } = await supabase.from("cv_builder").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+  if (error) throw new Error(`Comptage des CV impossible : ${error.message}`);
+  return count ?? 0;
+}
+
+/**
+ * Copie traduite d'un CV lié : le lien de la candidature passe de l'original à la copie. Ordre sûr
+ * pour l'index unique cv_builder(application_id) : l'original est détaché, puis la copie liée ; si
+ * cette seconde écriture échoue, l'original est relié (la copie reste non liée). True : copie liée.
+ */
+export async function moveApplicationLink(fromId: string, toId: string, applicationId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    const from = demoCvs.find((c) => c.id === fromId);
+    const to = demoCvs.find((c) => c.id === toId);
+    if (!from || !to || from.applicationId !== applicationId) return false;
+    from.applicationId = null;
+    to.applicationId = applicationId;
+    return true;
+  }
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data: detached, error: detachError } = await supabase
+    .from("cv_builder")
+    .update({ application_id: null })
+    .eq("id", fromId)
+    .eq("user_id", user.id)
+    .eq("application_id", applicationId)
+    .select("id");
+  if (detachError || !detached?.length) {
+    if (detachError) console.error("[cv-builder] lien de la copie traduite : détachement", detachError.message);
+    return false;
+  }
+  const { data: linked, error } = await supabase
+    .from("cv_builder")
+    .update({ application_id: applicationId })
+    .eq("id", toId)
+    .eq("user_id", user.id)
+    .is("application_id", null)
+    .select("id");
+  if (!error && linked?.length) return true;
+  console.error("[cv-builder] lien de la copie traduite : liaison", error?.message ?? "copie introuvable");
+  const { error: relinkError } = await supabase
+    .from("cv_builder")
+    .update({ application_id: applicationId })
+    .eq("id", fromId)
+    .eq("user_id", user.id)
+    .is("application_id", null);
+  if (relinkError) console.error("[cv-builder] lien de la copie traduite : original non relié", relinkError.message);
+  return false;
+}
+
 /** Fixe la langue du CV (sélecteur « Langue du CV ») : titres des rubriques, sans traduire le contenu. */
 export async function setBuilderCvLanguage(id: string, language: CvLang): Promise<void> {
   if (!isSupabaseConfigured()) {

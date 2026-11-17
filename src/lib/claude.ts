@@ -8,7 +8,9 @@ import { ClaudeRefusalError, parseStructured as parseStructuredWith } from "./cl
 import { coachBuilderCv as coachBuilderCvWith, coachOpening as coachOpeningWith, type CoachReply } from "./coach-llm";
 import type { CoachContext, CoachRetry } from "./coach-prompt";
 import type { CoverLetter, TranscribedLetter } from "./cover-letter";
+import type { CvLang } from "./cv-builder-types";
 import type { ImprovedCv } from "./cv-html";
+import { TranslationOutputSchema, translationMessage, translationSystem, type TranslatableField } from "./cv-translate";
 import { KEYWORD_GROUPS, type KeywordGroup } from "./cv-types";
 import { LUMEO_MODEL_ACTIONS, type LumeoModelAction } from "./lumeo-actions";
 import { LUMEO_RELANCE_SYSTEM, LUMEO_SYSTEM } from "./lumeo-system";
@@ -675,6 +677,17 @@ Un point sans lien avec l'offre peut rester presque inchangé. L'offre peut êtr
     `<offre>\n${offerText}\n</offre>\n\n<cv>\n${cv}\n</cv>`,
     { effort: "medium", maxTokens: 12000 },
   );
+}
+
+/**
+ * Traduction de tout le CV (lot traduction) : les champs traduisibles en une réponse ; pour le
+ * second essai, seulement les champs refusés, avec leurs défauts. Contrôles : cv-translate.ts.
+ */
+export async function translateCvFields(fields: TranslatableField[], target: CvLang, problems?: Map<string, string[]>) {
+  return parseStructured("translateCv", TranslationOutputSchema, translationSystem(target), translationMessage(fields, problems), {
+    effort: "medium",
+    maxTokens: 16000,
+  });
 }
 
 const ImportedCvContentSchema = z.object({

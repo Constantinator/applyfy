@@ -40,12 +40,15 @@ import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
 import { CvContentPanel } from "./cv-content-panel";
 import { CvLanguagePanel } from "./cv-language-panel";
+import { CvTranslatePanel } from "./cv-translate-panel";
 import { CvStylePanel } from "./cv-style-panel";
 import { FieldEditingContext, FieldInput } from "./form-controls";
 
 export type CvBuilderUsage = {
   /** Chat « Affiner avec l'IA » : utilisation du mois. */
   chat: AiUsageCount;
+  /** Traductions du CV du mois (cvb_traduction). */
+  translation: AiUsageCount;
   resetLabel: string;
   /** Clé API Claude configurée. */
   aiEnabled: boolean;
@@ -130,6 +133,8 @@ export function CvBuilderEditor({
   /** Candidature liée : retour à sa fiche et mots-clés de son analyse (points d'une ancienne analyse). */
   application?: {
     id: string;
+    /** « Poste — Entreprise », pour la confirmation de la traduction. */
+    label: string;
     keywords: { keywords: OfferKeyword[]; ignored: string[] } | null;
     missingPoints: string[];
   } | null;
@@ -521,7 +526,16 @@ export function CvBuilderEditor({
                 }}
                 onAccent={(accent) => edit((d) => ({ ...d, style: { ...d.style, accent } }))}
               />
-              <CvLanguagePanel language={language} saving={languageSaving} error={languageError} onChange={changeLanguage} />
+              <CvLanguagePanel language={language} saving={languageSaving} error={languageError} onChange={changeLanguage}>
+                <CvTranslatePanel
+                  cvId={cv.id}
+                  title={title}
+                  language={language}
+                  usage={usage.translation}
+                  aiEnabled={usage.aiEnabled}
+                  application={application ? { label: application.label } : null}
+                />
+              </CvLanguagePanel>
             </div>
           )}
         </div>

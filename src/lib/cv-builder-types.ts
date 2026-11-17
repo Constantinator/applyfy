@@ -300,6 +300,12 @@ export const CV_SECTION_TITLES: Record<CvLang, Record<CvTitleKey, string>> = {
   },
 };
 
+/** Nom d'une copie traduite : « Mon CV (EN) », sans empiler les suffixes (« Mon CV (EN) » → « Mon CV (FR) »). */
+export function translatedCvTitle(title: string, to: CvLang): string {
+  const base = title.replace(/\s*\((FR|EN)\)\s*$/i, "").trim() || "Mon CV";
+  return `${base.slice(0, 115)} (${to.toUpperCase()})`;
+}
+
 export type BuilderCv = {
   id: string;
   title: string;

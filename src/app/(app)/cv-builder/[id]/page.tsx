@@ -37,12 +37,14 @@ export default async function CvBuilderEditorPage({ params, searchParams }: Page
         application={
           detail && {
             id: detail.application.id,
+            label: [detail.application.position, detail.application.company].filter(Boolean).join(" — "),
             keywords: analysis?.kind === "keywords" ? { keywords: analysis.keywords, ignored: analysis.ignored } : null,
             missingPoints: analysis?.kind === "legacy" ? analysis.ce_qui_manque : [],
           }
         }
         usage={{
           chat: usage.counts.cvb_chat,
+          translation: usage.counts.cvb_traduction,
           resetLabel: formatResetDate(usage.resetsOn),
           aiEnabled: isClaudeConfigured(),
         }}
