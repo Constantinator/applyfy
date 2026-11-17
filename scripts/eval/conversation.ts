@@ -17,7 +17,7 @@ import { isCvClosed, type CoachTurn } from "../../src/lib/coach-prompt.ts";
 import { buildProposal, type ChangeProblem } from "../../src/lib/coach-proposals.ts";
 import { runCoachTurn } from "../../src/lib/coach-turn.ts";
 import { chatContent, fitCvData, targetJobOf, withoutEmptyLines, type CvData } from "../../src/lib/cv-builder-types.ts";
-import { scoreCv } from "../../src/lib/cv-score.ts";
+import { offerKeywordScore, scoreCv, type ScoringContext } from "../../src/lib/cv-score.ts";
 import { cvScoringSector, scoringOfferFor } from "../../src/lib/cv-sector-context.ts";
 import { scoringContextForSector } from "../../src/lib/cv-scoring-context.ts";
 import { REFINE_MESSAGE_MAX_LENGTH } from "../../src/lib/cv-types.ts";
@@ -98,13 +98,31 @@ export type ConversationRecord = {
   startCv: CvData;
   endCv: CvData;
   opening: string | null;
-  /** CV lié : étapes de l'offre décidées au départ, mots-clés absents, phrase de langue attendue ; null en mode libre. */
-  offer: { steps: string[]; keywords: string[]; languageNote: boolean; gap: string | null } | null;
+  /**
+   * CV lié : étapes de l'offre décidées au départ, mots-clés absents, phrase de langue attendue ;
+   * null en mode libre. `score` (lot score) : mots-clés de l'offre dans le score au début et à la
+   * fin, et ceux que le candidat a dit ne pas avoir (absent des runs d'avant ; null : repli secteur).
+   */
+  offer: {
+    steps: string[];
+    keywords: string[];
+    languageNote: boolean;
+    gap: string | null;
+    score?: { start: OfferScoreSnapshot; end: OfferScoreSnapshot | null; refused: string[] } | null;
+  } | null;
   turns: TurnRecord[];
   endReason: "candidat" | "max-tours" | "cloture" | "erreur" | "plafond";
   error: string | null;
   judge: JudgeVerdict | null;
 };
+
+/** Mots-clés de l'offre dans le score d'un CV (lot score) : trouvés, visés, points sur 20. */
+export type OfferScoreSnapshot = { found: number; target: number; counted: number; points: number; allRefused: boolean };
+
+function offerScoreSnapshot(data: CvData, scoring: ScoringContext): OfferScoreSnapshot | null {
+  const s = offerKeywordScore(data, scoring);
+  return s && { found: s.found.length, target: s.target, counted: s.counted, points: Math.round(s.points), allRefused: s.allRefused };
+}
 
 export type Clients = { coach: ParseClient; simulator: ParseClient; judge: ParseClient | null };
 
@@ -205,6 +223,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
           keywords: [...(start.offerKeywords ?? [])],
           languageNote: Boolean(start.offerLanguage && start.offerLanguage !== start.cvLanguage),
           gap: start.offerGap ?? null,
+          score: ((snapshot) => (snapshot ? { start: snapshot, end: null, refused: [] } : null))(offerScoreSnapshot(cv, start.scoring)),
         }
       : null,
     turns: [],
@@ -379,6 +398,10 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
   record.endCv = cv;
   record.endScore = scoreCv(cv, end).score;
   record.sectorEnd = end.sector;
+  if (record.offer?.score) {
+    record.offer.score.end = offerScoreSnapshot(cv, end);
+    record.offer.score.refused = record.turns.flatMap((t) => t.refusedKeywords ?? []);
+  }
 
   // Juge : seulement pour une conversation complète (pas après le plafond).
   if (clients.judge && record.endReason !== "plafond" && record.turns.length) {

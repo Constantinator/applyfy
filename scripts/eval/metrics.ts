@@ -28,7 +28,7 @@ import {
 } from "../../src/lib/coach-proposals.ts";
 import { chatContent, cvDataToText, type CvData } from "../../src/lib/cv-builder-types.ts";
 import { READY_SCORE } from "../../src/lib/cv-score.ts";
-import type { ConversationRecord, TurnRecord } from "./conversation.ts";
+import type { ConversationRecord, OfferScoreSnapshot, TurnRecord } from "./conversation.ts";
 import type { Scenario } from "./fixtures.ts";
 import type { JudgeVerdict } from "./judge.ts";
 
@@ -238,6 +238,17 @@ export type OfferFlow = {
   languageNoteExpected: boolean;
   /** Puces « Participation à… » devenues un rôle de pleine responsabilité (attendu : 0). */
   inflatedRoles: number;
+  /**
+   * Lot score : mots-clés de l'offre dans le score au début et à la fin, refus enregistrés par le
+   * serveur, et mots-clés refusés qui sont pourtant entrés dans le CV (attendu : aucun). Null :
+   * repli sur le secteur, ou run d'avant le lot.
+   */
+  offerScore: {
+    start: OfferScoreSnapshot;
+    end: OfferScoreSnapshot | null;
+    refused: string[];
+    refusedThenWritten: string[];
+  } | null;
   /** Écart « métier » : messages du coach qui proposent un titre (attendu : 0) ; null sans écart « métier ». */
   metierTitleProposals: number | null;
 };
@@ -341,6 +352,12 @@ function offerFlowOf(record: ConversationRecord, allCoach: string[]): OfferFlow 
     languageNotes: allCoach.filter((t) => LANGUAGE_NOTE.test(t)).length,
     languageNoteExpected: offer.languageNote,
     inflatedRoles: inflatedRoles(record.startCv, record.endCv),
+    offerScore: offer.score
+      ? {
+          ...offer.score,
+          refusedThenWritten: offer.score.refused.filter((k) => mentions(endText, k) && !mentions(startText, k)),
+        }
+      : null,
     metierTitleProposals: offer.gap === "metier" ? allCoach.filter((t) => TITLE.test(t) && /\?/.test(t) && /propos|align|chang/i.test(t)).length : null,
   };
 }

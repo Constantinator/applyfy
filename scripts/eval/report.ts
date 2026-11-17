@@ -476,6 +476,25 @@ function refusedTable(results: Result[]) {
   ].join("\n");
 }
 
+/**
+ * Lot score : mots-clés de l'offre dans le score des CV liés (début → fin), refus enregistrés par
+ * le serveur, et mots-clés refusés entrés quand même dans le CV (attendu : aucun).
+ */
+export function offerScoreTable(results: Result[]) {
+  const rows = results.filter((r) => r.metrics.offerFlow?.offerScore);
+  if (!rows.length) return "Aucun CV lié noté sur les mots-clés de l'offre (repli sur le secteur, ou run d'avant le lot).";
+  const shot = (s: { found: number; target: number; points: number; allRefused: boolean } | null) =>
+    !s ? "—" : s.allRefused ? `tous retirés (${s.points}/20)` : `${Math.min(s.found, s.target)}/${s.target} (${s.points}/20)`;
+  return [
+    "| Scénario (lancement) | Début | Fin | Refusés (serveur) | Refusé puis écrit |",
+    "|---|---|---|---|---|",
+    ...rows.map(({ record, metrics }) => {
+      const o = metrics.offerFlow!.offerScore!;
+      return `| ${record.scenarioId} (${record.repeat}) | ${shot(o.start)} | ${shot(o.end)} | ${o.refused.join(", ") || "—"} | ${o.refusedThenWritten.join(", ") || "—"} |`;
+    }),
+  ].join("\n");
+}
+
 function caseSection(title: string, results: Result[], linked: boolean) {
   const rows = aggregate(results);
   if (!rows.length) return `## ${title}\n\nAucun scénario.\n`;
@@ -495,6 +514,7 @@ function caseSection(title: string, results: Result[], linked: boolean) {
     "",
     scenarioTable(rows, linked),
     "",
+    ...(linked ? ["### Mots-clés de l'offre dans le score", "", offerScoreTable(results), ""] : []),
     "### Pistes (propositions, rien n'est modifié automatiquement)",
     "",
     pistes(results, rows),
