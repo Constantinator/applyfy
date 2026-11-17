@@ -34,6 +34,7 @@ import { cvLanguage } from "@/lib/cv-language";
 import { keywordKey, matchCvKeywords } from "@/lib/cv-keyword-match";
 import { offerKeywordScore, offerKeywordsLine, offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
 import type { OfferKeyword } from "@/lib/cv-types";
+import { mergeSkipped, readSkipped, type SkippedEntry } from "@/lib/skipped-points";
 import { createClient } from "@/lib/supabase/client";
 
 import { CvHtmlPreview } from "./cv-html-preview";
@@ -89,10 +90,6 @@ function readTurns(value: unknown): ChatTurn[] {
         .slice(-HISTORY_MAX)
         .map(({ role, content }) => ({ role, content: content.slice(0, MESSAGE_MAX_LENGTH) }))
     : [];
-}
-
-function readStrings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [];
 }
 
 type TabId = "content" | "chat" | "style" | "keywords";
@@ -293,7 +290,7 @@ export function CvBuilderEditor({
   // pas répondre), enregistrés dans cv_coach_history (migration 0033) pour être repris à la
   // prochaine ouverture. null : lecture en cours (le chat s'affiche une fois l'historique lu).
   const [coachHistory, setCoachHistory] = useState<ChatTurn[] | null>(SUPABASE_CONFIGURED ? null : []);
-  const skipped = useRef<string[]>([]);
+  const skipped = useRef<SkippedEntry[]>([]);
   useEffect(() => {
     if (!SUPABASE_CONFIGURED) return;
     let cancelled = false;
@@ -306,7 +303,7 @@ export function CvBuilderEditor({
       // Sans historique (ou table pas encore créée) : la conversation démarre vide.
       if (error) console.error("[cv-builder] historique du coach : lecture", error.message);
       if (cancelled) return;
-      skipped.current = readStrings(row?.skipped_points);
+      skipped.current = readSkipped(row?.skipped_points);
       setCoachHistory(readTurns(row?.messages));
     })();
     return () => {
@@ -329,7 +326,7 @@ export function CvBuilderEditor({
   async function refineWithHistory(id: string, json: string, message: string, history: unknown) {
     const result = await refineBuilderCvAction(id, json, message, history, skipped.current);
     if (!result.ok) return result;
-    if (result.skippedPoints?.length) skipped.current = [...new Set([...skipped.current, ...result.skippedPoints])];
+    if (result.skippedPoints?.length) skipped.current = mergeSkipped(skipped.current, result.skippedPoints);
     if (result.refusedKeywords) applyRefused(result.refusedKeywords);
     if (SUPABASE_CONFIGURED) {
       const turns: ChatTurn[] = [

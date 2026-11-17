@@ -11,6 +11,7 @@ import {
   type Listening,
 } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
+import { mergeSkipped, type SkippedEntry } from "./skipped-points";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChange } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
@@ -39,7 +40,7 @@ export type CoachTurnInput = {
     offerSteps?: OfferStep[];
     offerGap?: OfferGap | null;
     offerStudent?: boolean;
-    skipped?: string[];
+    skipped?: SkippedEntry[];
   };
   /** Échanges précédents et dernier message du candidat. */
   turns: CoachTurn[];
@@ -54,7 +55,7 @@ export type CoachTurnInput = {
 
 export type CoachTurnResult =
   /** Adaptations du mois épuisées et modification proposée : le coach continue avec sa question. */
-  | { kind: "quotaBlocked"; text: string; mode: CoachReply["mode"]; skippedPoints: string[] }
+  | { kind: "quotaBlocked"; text: string; mode: CoachReply["mode"]; skippedPoints: SkippedEntry[] }
   | {
       kind: "done";
       /** Texte affiché, décidé par le code (cause exacte d'un échec, clôture au seuil). */
@@ -73,7 +74,7 @@ export type CoachTurnResult =
       invalid: boolean;
       /** Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées. */
       reorganized: boolean;
-      skippedPoints: string[];
+      skippedPoints: SkippedEntry[];
       /** Première section modifiée (null : aucune), et toutes les sections de la réponse. */
       section: string | null;
       sections: string[];
@@ -299,7 +300,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   // Écart avec l'offre : affiché seulement quand le serveur l'a demandé, avant la question.
   const gap = stage?.sayGap ? (answer.gap ?? "") : "";
   const markers = offerMarkersAfter(stage, mode, gap !== "");
-  const skippedNow = [...new Set([...reply.skippedPoints, ...answer.skippedPoints, ...markers])];
+  const skippedNow = mergeSkipped([...reply.skippedPoints, ...answer.skippedPoints], markers);
   // Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées.
   const reorganized = applied > 0 && isReorganization(current, updated);
 
@@ -309,7 +310,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
       kind: "quotaBlocked",
       text: plainCoachText(quotaBlockedText({ mode, section: sections.length === 1 ? sections[0] : "", message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }), context.language),
       mode,
-      skippedPoints: markers.length ? [...new Set([...reply.skippedPoints, ...markers])] : reply.skippedPoints,
+      skippedPoints: markers.length ? mergeSkipped(reply.skippedPoints, markers) : reply.skippedPoints,
     };
   }
 

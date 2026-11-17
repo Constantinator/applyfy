@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Listening, QuestionType } from "./coach-intent";
+import type { SkippedEntry } from "./skipped-points";
 import { offerStageOf, withoutOfferMarkers, type OfferGap, type OfferStage, type OfferStep, type ProposedStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import type { CoachMode, CoachSection } from "./coach-proposals";
@@ -33,7 +34,7 @@ export type CoachContext = {
   /** Score, points à corriger (du plus rentable au moins rentable) et formules à éviter du CV. */
   score: { value: number; corrections: string[]; banned: string[] };
   /** Points abandonnés pendant la session (le candidat ne sait pas ou ne veut pas répondre). */
-  skipped?: string[];
+  skipped?: SkippedEntry[];
   /** CV lié à une candidature : mots-clés de l'offre absents du CV, les plus importants d'abord. */
   offerKeywords?: string[];
   /** Secteur du score (celui de l'offre pour un CV lié) : contexte sectoriel du coach. */

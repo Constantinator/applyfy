@@ -117,7 +117,7 @@ test("étape : proposée au premier message, résolue à l'échange suivant, pui
 
 test("marqueurs : ajoutés en mode parcours seulement, gardés hors de la limite, jamais montrés au modèle", () => {
   const stage = { resolve: "titre", propose: null };
-  assert.deepEqual(offer.offerMarkersAfter(stage, "parcours"), ["offre:titre"]);
+  assert.deepEqual(offer.offerMarkersAfter(stage, "parcours"), [{ step: "titre" }]);
   assert.deepEqual(offer.offerMarkersAfter(stage, "demande"), []);
   assert.deepEqual(offer.offerMarkersAfter(null, "parcours"), []);
 
@@ -179,7 +179,7 @@ test("échange : titre accepté, appliqué et marqué ; titre refusé, retiré p
   const first = await coachBuilderCv(client, ctx, opening, accept);
   const done = await quiet(() => runCoachTurn({ current: studentCv, context: ctx, turns: opening, request: accept, reply: first, limitReached: false, retry: async () => null }));
   assert.equal(done.updated.personal.jobTitle, "Étudiant en informatique, stage en analyse financière");
-  assert.ok(done.skippedPoints.includes("offre:titre"));
+  assert.ok(done.skippedPoints.some((p) => p.step === "titre"));
 
   const refuse = "Non, je préfère garder mon titre.";
   const ctx2 = contextFor(studentCv, analyste, { history: opening, request: refuse });
@@ -188,7 +188,7 @@ test("échange : titre accepté, appliqué et marqué ; titre refusé, retiré p
   assert.equal(kept.updated.personal.jobTitle, studentCv.personal.jobTitle);
   // Le changement de titre est retiré sans message d'échec : le candidat voit la suite.
   assert.equal(kept.text, "Passons à ton résumé.");
-  assert.ok(kept.skippedPoints.includes("offre:titre"));
+  assert.ok(kept.skippedPoints.some((p) => p.step === "titre"));
 });
 
 test("échange : une demande explicite laisse l'étape en attente", async () => {
@@ -196,7 +196,7 @@ test("échange : une demande explicite laisse l'étape en attente", async () => 
   const ctx = contextFor(financeCv, backend, { history: opening, request });
   const reply = await coachBuilderCv(fakeClient(flat({ mode: "demande", message: "Je change ton titre ?" })), ctx, opening, request);
   const result = await quiet(() => runCoachTurn({ current: financeCv, context: ctx, turns: opening, request, reply, limitReached: false, retry: async () => null }));
-  assert.ok(!result.skippedPoints.includes("offre:titre"));
+  assert.ok(!result.skippedPoints.some((p) => p.step === "titre"));
 });
 
 // --- Résumé et atouts ---
@@ -228,7 +228,7 @@ test("échange : résumé de l'offre sans nombre inventé ; déplacement de puce
   const invented = await run(summary("Analyste avec 5 ans d'automatisation en Python et 40 dossiers par mois"));
   assert.equal(invented.updated.summary, financeCv.summary);
   assert.ok(invented.text.includes("ni de ton CV ni de tes messages"));
-  assert.ok(invented.skippedPoints.includes("offre:resume"));
+  assert.ok(invented.skippedPoints.some((p) => p.step === "resume"));
   const faithful = await run(summary("Analyste crédit junior qui automatise ses fichiers avec Python"));
   assert.equal(faithful.updated.summary, "Analyste crédit junior qui automatise ses fichiers avec Python");
   // CV libre : pas de vérification du résumé en mode parcours (inchangé).
@@ -270,9 +270,9 @@ test("écart : dit avec la réponse au résumé, sans être proposé", () => {
   assert.deepEqual(offer.offerStage(steps, new Set(["titre", "resume"]), { opening: false, stopAll: false }), { resolve: null, propose: null, sayGap: true });
   assert.equal(offer.offerStage(["ecart"], new Set(), { opening: true, stopAll: false }), null);
   // Dit : fait. Vide : redemandé une fois, puis abandonné.
-  assert.deepEqual(offer.offerMarkersAfter({ resolve: "resume", propose: null, sayGap: true }, "parcours", true), ["offre:resume", "offre:ecart"]);
-  assert.deepEqual(offer.offerMarkersAfter({ resolve: "resume", propose: null, sayGap: true }, "parcours", false), ["offre:resume"]);
-  assert.deepEqual(offer.offerMarkersAfter({ resolve: null, propose: null, sayGap: true }, "parcours", false), ["offre:ecart"]);
+  assert.deepEqual(offer.offerMarkersAfter({ resolve: "resume", propose: null, sayGap: true }, "parcours", true), [{ step: "resume" }, { step: "ecart" }]);
+  assert.deepEqual(offer.offerMarkersAfter({ resolve: "resume", propose: null, sayGap: true }, "parcours", false), [{ step: "resume" }]);
+  assert.deepEqual(offer.offerMarkersAfter({ resolve: null, propose: null, sayGap: true }, "parcours", false), [{ step: "ecart" }]);
 });
 
 test("écart : consigne et champ dédié pour un CV lié seulement, affiché avant la question", async () => {
@@ -293,7 +293,7 @@ test("écart : consigne et champ dédié pour un CV lié seulement, affiché ava
   const result = await quiet(() => runCoachTurn({ current: financeCv, context: ctx, turns: opening, request, reply: first, limitReached: false, retry: async () => null }));
   assert.ok(result.text.indexOf("parcours en finance") < result.text.indexOf("As-tu déjà utilisé Python"));
   assert.ok(result.text.indexOf("parcours en finance") > result.text.indexOf("C'est fait"));
-  assert.ok(result.skippedPoints.includes("offre:ecart"));
+  assert.ok(result.skippedPoints.some((p) => p.step === "ecart"));
 
   // Hors de l'étape écart : le champ est ignoré, même rempli.
   const early = contextFor(studentCv, analyste, { history: opening, request });

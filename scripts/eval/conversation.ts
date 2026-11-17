@@ -9,6 +9,7 @@ import { ClaudeRefusalError } from "../../src/lib/claude-structured.ts";
 import { buildCoachContext, offerListening, offerRefusals } from "../../src/lib/coach-context.ts";
 import { listeningState } from "../../src/lib/coach-intent.ts";
 import { boundSkipped, withOfferLanguageNote } from "../../src/lib/coach-offer.ts";
+import { mergeSkipped, type SkippedEntry } from "../../src/lib/skipped-points.ts";
 import { plainCoachText } from "../../src/lib/coach-plain.ts";
 import { coachBuilderCv, coachOpening, type CoachReply } from "../../src/lib/coach-llm.ts";
 import { closedOpening } from "../../src/lib/coach-outcome.ts";
@@ -60,7 +61,8 @@ export type TurnRecord = {
   /** Textes refusés à la première vérification, et encore refusés après le second essai. */
   firstProblems: RefusedText[];
   problems: RefusedText[];
-  skipped: string[];
+  /** Points abandonnés : textes, et étapes de l'offre par identifiant (anciens runs : marqueurs « offre:x »). */
+  skipped: SkippedEntry[];
   /** Annonce « C'est fait… » affichée (première phrase du texte), null sinon. */
   claim: string | null;
   /** Textes cités entre « » dans l'annonce qui sont des puces restées identiques. */
@@ -172,7 +174,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
     const sector = cvScoringSector(JSON.stringify(chatContent(data)), targetJobOf(data), scoringOffer);
     return scoringContextForSector(sector, scoringOffer, fx.marketKeywords[sector] ?? []);
   };
-  let skipped: string[] = [];
+  let skipped: SkippedEntry[] = [];
   const contextFor = (data: CvData, request: string | null = null, turns: CoachTurn[] = []) => ({
     ...buildCoachContext(data, scoringFor(data), detail, request, turns),
     skipped: boundSkipped(skipped, SKIPPED_MAX),
@@ -348,7 +350,7 @@ export async function runConversation(fx: Fixtures, scenario: Scenario, repeat: 
           turn.mode = result.mode;
           turn.skipped = result.skippedPoints;
         }
-        if (turn.skipped.length) skipped = [...new Set([...skipped, ...turn.skipped])];
+        if (turn.skipped.length) skipped = mergeSkipped(skipped, turn.skipped);
       }
       turn.scoreAfter = scoreCv(cv, scoringFor(cv)).score;
       record.turns.push(turn);

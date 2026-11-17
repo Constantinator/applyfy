@@ -15,7 +15,7 @@ import {
   type QuestionType,
 } from "../../src/lib/coach-intent.ts";
 import { COMMON_ACTION_VERBS } from "../../src/lib/cv-sector-context.ts";
-import { offerMarker } from "../../src/lib/coach-offer.ts";
+import { stepOf } from "../../src/lib/skipped-points.ts";
 import { SCHOOL_PROJECT_TEXTS } from "../../src/lib/coach-outcome.ts";
 import {
   inflatedLevels,
@@ -288,7 +288,7 @@ function offerFlowOf(record: ConversationRecord, allCoach: string[]): OfferFlow 
   const expectGap = offer.steps.includes("ecart");
   const titleAt = allCoach.findIndex((text) => TITLE.test(text) && /\?/.test(text));
   const exchangeOf = (step: "resume") => {
-    const i = record.turns.findIndex((t) => t.skipped.includes(offerMarker(step)));
+    const i = record.turns.findIndex((t) => t.skipped.some((entry) => stepOf(entry) === step));
     return i >= 0 ? i + 1 : null;
   };
   // Lot F : une réponse peut modifier plusieurs sections (runs d'avant : la section de la réponse).

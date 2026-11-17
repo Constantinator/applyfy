@@ -19,6 +19,7 @@ import { matchCvKeywords } from "./cv-keyword-match";
 import { detectSector } from "./cv-sector-context";
 import { readCvSuggestions, REFINE_MESSAGE_MAX_LENGTH } from "./cv-types";
 import { getLatestProfileCvText } from "./profile";
+import type { SkippedEntry } from "./skipped-points";
 
 // Chat « Affiner avec l'IA » (CV amélioré et lettre) : logique commune aux deux Server
 // Actions. Le document n'est pas enregistré : l'éditeur affiche le résultat, que le
@@ -38,7 +39,7 @@ export type DocumentChatResult =
       /** Modification non appliquée (limite du mois) : message affiché avant `reply`, avec le lien Premium. */
       limitNotice?: string;
       /** Coach du CV Builder : points abandonnés dans cette réponse (gardés par l'éditeur pour la session). */
-      skippedPoints?: string[];
+      skippedPoints?: SkippedEntry[];
       /** Coach du CV Builder, CV lié : mots-clés que le candidat a dit ne pas avoir (liste complète, si elle a changé). */
       refusedKeywords?: string[];
       /** Lumeo : réponse d'excuse (erreur, limite) affichée avec l'expression « désolé », sans bulle d'erreur. */

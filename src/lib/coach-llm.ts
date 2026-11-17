@@ -6,6 +6,7 @@ import { offerStageOf } from "./coach-offer";
 import { coachSystem, coachUserText, isCvClosed, neutralizeCoachData, type CoachContext, type CoachRetry, type CoachTurn } from "./coach-prompt";
 import { COACH_DATA_SCHEMAS, COACH_SECTIONS, type CoachMode, type CoachSection, type CoachUpdate } from "./coach-proposals";
 import { formatSectorContext, getSectorContext } from "./cv-sector-context";
+import { isLegacyStepMarker } from "./skipped-points";
 
 // Appels du coach du CV Builder à Claude, sur le client donné : celui de claude.ts dans
 // l'application (sa clé, côté serveur), celui du banc d'essai du coach
@@ -169,7 +170,8 @@ function toCoachReply(flat: CoachReplyFlat): CoachReply {
     mode: flat.mode,
     message: flat.message.trim(),
     changeSummary: flat.change_summary.trim(),
-    skippedPoints: flat.skipped_points.map((p) => p.trim()).filter(Boolean),
+    // Textes seulement : un « offre:… » écrit par le modèle ne valide jamais une étape de l'offre.
+    skippedPoints: flat.skipped_points.map((p) => p.trim()).filter((p) => p && !isLegacyStepMarker(p)),
     ...(flat.ecart_offre !== undefined ? { gap: flat.ecart_offre.trim() } : {}),
   };
   // Chaque mise à jour est lue seule : un contenu invalide n'écarte que la sienne.

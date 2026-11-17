@@ -3,32 +3,32 @@ import type { CoachLang } from "./coach-outcome";
 import type { CvData } from "./cv-builder-types";
 import { cvTitleMismatch, detectOfferSector } from "./cv-sector-context";
 import type { Sector } from "./sectors";
+import { OFFER_STEPS, stepEntry, stepOf, type OfferStep, type OfferStepEntry, type SkippedEntry } from "./skipped-points";
+
+export { OFFER_STEPS, type OfferStep };
 
 // CV lié à une offre (lot « CV lié à l'offre ») : étapes d'adaptation à l'offre, traitées avant
 // les points à corriger, dans un ordre fixé par le serveur (le modèle rédige seulement). Une
 // étape est proposée dans un message du coach, puis résolue à l'échange suivant (le candidat
 // accepte ou refuse) ; l'écart avec l'offre est seulement dit, une fois. Les étapes faites sont
-// notées par des marqueurs fixes dans les points abandonnés (renvoyés par l'éditeur et
-// enregistrés avec la conversation) ; jamais pour un CV libre.
+// notées par identifiant ({ step }, skipped-points.ts) dans les points abandonnés (renvoyés par
+// l'éditeur et enregistrés avec la conversation), créé par le serveur seul : un texte du modèle ne
+// peut pas valider une étape. Jamais pour un CV libre.
 
-export const OFFER_STEPS = ["titre", "resume", "ecart"] as const;
-export type OfferStep = (typeof OFFER_STEPS)[number];
-
-const MARKER_PREFIX = "offre:";
-export const offerMarker = (step: OfferStep) => `${MARKER_PREFIX}${step}`;
-export const isOfferMarker = (point: string) => OFFER_STEPS.some((step) => point === offerMarker(step));
-export const withoutOfferMarkers = (points: string[]) => points.filter((point) => !isOfferMarker(point));
-/** Étapes déjà faites, d'après les marqueurs. */
-export const doneOfferSteps = (points: string[]) => new Set<OfferStep>(OFFER_STEPS.filter((step) => points.includes(offerMarker(step))));
+/** Points abandonnés en texte libre (sans les étapes de l'offre). */
+export const withoutOfferMarkers = (points: SkippedEntry[]): string[] =>
+  points.filter((point): point is string => typeof point === "string" && stepOf(point) === null);
+/** Étapes déjà faites (identifiants, et anciens marqueurs d'une conversation enregistrée avant). */
+export const doneOfferSteps = (points: SkippedEntry[]) => new Set<OfferStep>(points.map(stepOf).filter((s): s is OfferStep => s !== null));
 
 /**
- * Points abandonnés bornés aux `max` plus récents ; les marqueurs des étapes sont gardés à part
- * (sans marqueur, exactement `points.slice(-max)`).
+ * Points abandonnés bornés aux `max` textes plus récents ; les étapes de l'offre sont gardées à
+ * part, en tête (sans étape, exactement `points.slice(-max)`).
  */
-export function boundSkipped(points: string[], max: number): string[] {
-  const markers = [...new Set(points.filter(isOfferMarker))];
+export function boundSkipped(points: SkippedEntry[], max: number): SkippedEntry[] {
+  const steps = points.filter((point) => stepOf(point) !== null);
   const rest = withoutOfferMarkers(points).slice(-max);
-  return markers.length ? [...markers, ...rest] : rest;
+  return steps.length ? [...steps, ...rest] : rest;
 }
 
 /**
@@ -153,7 +153,7 @@ export function withOfferLanguageNote(message: string, context: { offerLanguage?
 }
 
 /** Contexte du coach réduit à ce qui décide l'étape (coach-prompt.ts, coach-turn.ts). */
-export type OfferStageInput = { offerSteps?: OfferStep[]; skipped?: string[]; listening?: { stopAll: boolean } };
+export type OfferStageInput = { offerSteps?: OfferStep[]; skipped?: SkippedEntry[]; listening?: { stopAll: boolean } };
 
 /** Étape de l'échange pour ce contexte ; null pour un CV libre ou sans étape restante. */
 export function offerStageOf(context: OfferStageInput, opening: boolean): OfferStage | null {
@@ -167,10 +167,10 @@ export function offerStageOf(context: OfferStageInput, opening: boolean): OfferS
  * du candidat la laisse en attente. L'écart est fait s'il a été dit (`gapSaid`) ; resté vide, il
  * est redemandé une fois, puis abandonné pour ne pas bloquer le parcours.
  */
-export function offerMarkersAfter(stage: OfferStage | null, mode: "demande" | "parcours", gapSaid = false): string[] {
+export function offerMarkersAfter(stage: OfferStage | null, mode: "demande" | "parcours", gapSaid = false): OfferStepEntry[] {
   if (!stage) return [];
   const done: OfferStep[] = [];
   if (stage.resolve && mode === "parcours") done.push(stage.resolve);
   if (stage.sayGap && (gapSaid || (!stage.resolve && mode === "parcours"))) done.push("ecart");
-  return done.map(offerMarker);
+  return done.map(stepEntry);
 }

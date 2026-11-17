@@ -83,6 +83,7 @@ import { extractDocxText } from "@/lib/docx";
 import { importOfferFromUrl, OfferImportError } from "@/lib/offer-import";
 import type { DocumentChatResult } from "@/lib/refine";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { readSkipped, type SkippedEntry } from "@/lib/skipped-points";
 import { recordUserJobOffer } from "@/lib/user-job-offers";
 
 /** Page du CV Builder où revenir : celle de la candidature si l'action en vient, avec son erreur éventuelle. */
@@ -835,17 +836,12 @@ async function coachGate() {
 }
 
 /**
- * Points abandonnés pendant la session, renvoyés par l'éditeur : revalidés et bornés (les
- * marqueurs des étapes de l'offre, coach-offer.ts, sont gardés à part).
+ * Points abandonnés pendant la session, renvoyés par l'éditeur : revalidés et bornés (les étapes
+ * de l'offre, par identifiant, sont gardées à part ; skipped-points.ts).
  */
 const SKIPPED_MAX = 50;
-function skippedPoints(value: unknown): string[] {
-  return Array.isArray(value)
-    ? boundSkipped(
-        value.filter((p): p is string => typeof p === "string" && p.trim() !== ""),
-        SKIPPED_MAX,
-      ).map((p) => p.trim().slice(0, 200))
-    : [];
+function skippedPoints(value: unknown): SkippedEntry[] {
+  return boundSkipped(readSkipped(value), SKIPPED_MAX).map((p) => (typeof p === "string" ? p.trim().slice(0, 200) : p));
 }
 
 /**
