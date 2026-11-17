@@ -309,6 +309,41 @@ export function buildProposal(current: CvData, update: CoachUpdate, makeId: () =
   return changes.length ? { id: makeId(), changes } : null;
 }
 
+/**
+ * Cible d'une mise à jour : sa section, et l'id de l'élément pour une expérience, une formation ou
+ * un projet (« experience:e1 »). Une mise à jour au contenu illisible n'a que sa section.
+ */
+export function updateTarget(section: CoachSection, data?: unknown): string {
+  if (section !== "experience" && section !== "education" && section !== "projects") return section;
+  const id = data && typeof data === "object" && "id" in data ? String((data as { id: unknown }).id ?? "") : "";
+  return `${section}:${id}`;
+}
+
+/**
+ * Proposition construite à partir de plusieurs mises à jour (une réponse peut modifier plusieurs
+ * sections), chacune lue sur le CV actuel, celui que le modèle a vu ; `targets` : cible de la mise
+ * à jour d'origine de chaque changement. Une seule mise à jour : exactement buildProposal.
+ */
+export function buildProposals(
+  current: CvData,
+  updates: CoachUpdate[],
+  makeId: () => string = newItemId,
+): { proposal: CoachProposal | null; targets: Record<string, string> } {
+  const targets: Record<string, string> = {};
+  let id: string | null = null;
+  const changes: CoachChange[] = [];
+  for (const update of updates) {
+    const built = buildProposal(current, update, makeId);
+    if (!built) continue;
+    id ??= built.id;
+    for (const change of built.changes) {
+      targets[change.id] = updateTarget(update.section, update.data);
+      changes.push(change);
+    }
+  }
+  return { proposal: id ? { id, changes } : null, targets };
+}
+
 /** Nouvelle expérience, formation ou projet : un seul bloc à accepter ou refuser. */
 function newItemChange(target: ItemTarget, data: Record<string, unknown>, makeId: () => string): CoachChange[] {
   const value: Item = { id: makeId() };

@@ -206,7 +206,7 @@ test("chiffre : mode demande inchangé (puce nouvelle sans chiffre déjà permis
 });
 
 test("second essai : phrase neutre, juste pour noFigure comme pour une question sans chiffre", () => {
-  const retry = { previous: { section: "experience", data: "{}" }, problems: [{ text: "x", problems: ["y"] }], mode: "parcours", figureWaived: true };
+  const retry = { previous: [{ section: "experience", data: "{}" }], problems: [{ text: "x", problems: ["y"] }], mode: "parcours", figureWaived: true };
   const text = coachUserText([], "Je ne connais pas le budget. Je gérais le planning.", retry);
   assert.ok(text.includes("Pour ce point, une seule puce peut rester sans chiffre, avec les seuls faits donnés par le candidat."));
   assert.ok(text.includes("N'ajoute AUCUN nombre absent du CV et des messages du candidat, et ne demande pas de chiffre pour cette puce."));

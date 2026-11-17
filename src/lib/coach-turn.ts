@@ -1,12 +1,12 @@
 import type { CoachReply } from "./coach-llm";
-import { asksFirstPerson, asksToStop, figureNotAsked, listenText, removalAllowed, removalProposed, type Listening } from "./coach-intent";
+import { asksFirstPerson, asksToStop, figureNotAsked, isBareYes, listenText, removalAllowed, removalProposed, type Listening } from "./coach-intent";
 import { offerMarkersAfter, offerStageOf, type OfferGap, type OfferStep } from "./coach-offer";
 import type { CoachLang } from "./coach-outcome";
 import { coachReplyText, quotaBlockedText, SCHOOL_PROJECT_TEXTS, type BulletChange } from "./coach-outcome";
 import type { CoachRetry, CoachTurn } from "./coach-prompt";
 import { announcementLanguage } from "./coach-language";
 import { plainCoachText } from "./coach-plain";
-import { applyCoachChange, buildProposal, checkProposal, isReorganization, withoutProblems, type ChangeProblem, type CoachChange, type CoachUpdate } from "./coach-proposals";
+import { applyCoachChange, buildProposals, checkProposal, isReorganization, updateTarget, withoutProblems, type ChangeProblem, type CoachChange, type CoachUpdate } from "./coach-proposals";
 import { cvDataToText, type CvData } from "./cv-builder-types";
 import { scoreCv, type ScoringContext } from "./cv-score";
 import { matchKeywords } from "./keyword-match";
@@ -64,7 +64,11 @@ export type CoachTurnResult =
       /** Contenu seulement réorganisé : gratuit, même une fois les adaptations du mois épuisées. */
       reorganized: boolean;
       skippedPoints: string[];
+      /** Première section modifiée (null : aucune), et toutes les sections de la réponse. */
       section: string | null;
+      sections: string[];
+      /** Sections des mises à jour retirées au-delà du plafond (updatesCap). */
+      droppedSections: string[];
       scoreBefore: number | null;
       scoreAfter: number | null;
       /** CV lié : écart avec l'offre affiché dans cet échange (vide sinon) ; absent en mode libre. */
@@ -83,6 +87,37 @@ export function withoutTitle(reply: CoachReply): CoachReply {
   });
   console.warn("[cv-builder coach] changement de titre retiré : le candidat l'a refusé");
   return updates.length ? { ...reply, updates } : { ...reply, updates: [], raw: [], invalid: false, changeSummary: "" };
+}
+
+/** Plafond de mises à jour par réponse en mode demande. */
+export const COACH_MAX_UPDATES = 3;
+
+/**
+ * Mises à jour gardées dans une réponse : 3 en mode demande, 1 en parcours (un point à la fois) ou
+ * quand le dernier message n'est qu'un « oui » ou un « ok » (proposition de continuer acceptée).
+ */
+export function updatesCap(mode: CoachReply["mode"], request: string): number {
+  return mode === "demande" && !isBareYes(request) ? COACH_MAX_UPDATES : 1;
+}
+
+/**
+ * Réponse limitée à ses `cap` premières mises à jour, dans l'ordre écrit par le modèle (contenus
+ * invalides compris) ; `dropped` : sections des mises à jour retirées.
+ */
+export function capUpdates(reply: CoachReply, cap: number): { reply: CoachReply; dropped: string[] } {
+  // Réponse sans « raw » aligné (construite à la main) : la limite porte sur les mises à jour lues.
+  if (reply.raw.filter((r) => !r.invalid).length !== reply.updates.length) {
+    return reply.updates.length <= cap
+      ? { reply, dropped: [] }
+      : { reply: { ...reply, updates: reply.updates.slice(0, cap) }, dropped: reply.updates.slice(cap).map((u) => u.section) };
+  }
+  if (reply.raw.length <= cap) return { reply, dropped: [] };
+  const raw = reply.raw.slice(0, cap);
+  const valid = raw.filter((r) => !r.invalid).length;
+  return {
+    reply: { ...reply, raw, updates: reply.updates.slice(0, valid), invalid: raw.some((r) => r.invalid) },
+    dropped: reply.raw.slice(cap).map((r) => r.section),
+  };
 }
 
 /** Mot d'école dans une puce (« école », « université », « campus », « projet de fin d'études », « school »…). */
@@ -148,16 +183,25 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   // le titre proposé : un changement de titre est retiré de la réponse, sans autre effet.
   const stage = offerStageOf(context, !turns.some((t) => t.role === "assistant"));
   const titleLocked = stage?.resolve === "titre" && (context.listening?.refusal ?? false);
+  // Le mode est celui de la première réponse : le nouvel essai ne peut pas en changer pour passer
+  // la vérification. Nombres autorisés en mode demande : ceux du CV et des messages du candidat.
+  const mode = reply.mode;
+  // Mises à jour au-delà du plafond (3 en mode demande, 1 en parcours ou pour un « oui » seul) :
+  // retirées, jamais écrites ; le texte affiché propose de continuer avec elles.
+  const cap = updatesCap(mode, request);
+  const firstCapped = capUpdates(reply, cap);
+  reply = firstCapped.reply;
+  const dropped = firstCapped.dropped;
+  if (dropped.length) console.warn(`[cv-builder coach] mises à jour au-delà du plafond (${cap}) retirées : ${dropped.join(", ")}`);
   if (titleLocked) reply = withoutTitle(reply);
+  const sections = [...new Set(reply.raw.map((r) => r.section))];
   let answer = reply;
-  let proposal = reply.updates[0] ? buildProposal(current, reply.updates[0]) : null;
+  const first = buildProposals(current, reply.updates);
+  let proposal = first.proposal;
   // Proposition telle que construite : null alors que le coach a bien proposé quelque chose = « ne change rien ».
   let built = proposal;
   // Première proposition : emplacements de ses textes refusés (annonce après un second essai).
   const firstBuilt = proposal;
-  // Le mode est celui de la première réponse : le nouvel essai ne peut pas en changer pour passer
-  // la vérification. Nombres autorisés en mode demande : ceux du CV et des messages du candidat.
-  const mode = reply.mode;
   const check = {
     mode,
     candidateMessages: [request, ...turns.filter((t) => t.role === "user").map((t) => t.content)],
@@ -183,15 +227,31 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   let retried = false;
   if (reply.raw.length && !limitReached && (reply.invalid || problems.length)) {
     const second = await retry({
-      previous: reply.raw[0],
+      previous: reply.raw.map(({ section, data }) => ({ section, data })),
       problems: problems.map(({ text, problems }) => ({ text, problems })),
       mode,
       ...(check.figureWaived ? { figureWaived: true } : {}),
     });
     if (second) {
       retried = true;
-      answer = titleLocked ? withoutTitle(second) : second;
-      proposal = answer.updates[0] ? buildProposal(current, answer.updates[0]) : null;
+      const capped = capUpdates(second, cap).reply;
+      answer = titleLocked ? withoutTitle(capped) : capped;
+      if (reply.raw.length <= 1) {
+        // Une seule mise à jour : le second essai remplace la réponse entière.
+        proposal = buildProposals(current, answer.updates).proposal;
+      } else {
+        // Plusieurs mises à jour : les changements des cibles acceptées au premier essai sont gardés ;
+        // du second essai, seules les cibles refusées (même section, même id) ou au contenu invalide.
+        const refused = new Set(problems.map((p) => first.targets[p.changeId]));
+        const invalid = new Set(reply.raw.filter((r) => r.invalid).map((r) => r.section));
+        const kept = (first.proposal?.changes ?? []).filter((c) => !refused.has(first.targets[c.id]));
+        const redone = buildProposals(
+          current,
+          answer.updates.filter((u) => refused.has(updateTarget(u.section, u.data)) || invalid.has(u.section)),
+        ).proposal;
+        const changes = [...kept, ...(redone?.changes ?? [])];
+        proposal = changes.length ? { id: redone?.id ?? first.proposal?.id ?? "", changes } : null;
+      }
       built = proposal;
       problems = proposal ? checkProposal(proposal, context.scoring, current, check) : [];
     }
@@ -235,14 +295,14 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   if (reply.raw.length && limitReached && !reorganized) {
     return {
       kind: "quotaBlocked",
-      text: plainCoachText(quotaBlockedText({ mode, section: reply.raw[0].section, message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }), context.language),
+      text: plainCoachText(quotaBlockedText({ mode, section: sections.length === 1 ? sections[0] : "", message: gap ? `${gap} ${reply.message}`.trim() : reply.message, lang: context.language }), context.language),
       mode,
       skippedPoints: markers.length ? [...new Set([...reply.skippedPoints, ...markers])] : reply.skippedPoints,
     };
   }
 
   console.warn(
-    `[cv-builder coach] réponse : mode=${mode}, section=${reply.raw[0]?.section ?? "aucune"}, changements appliqués=${applied}, ` +
+    `[cv-builder coach] réponse : mode=${mode}, sections=${sections.join("+") || "aucune"}, changements appliqués=${applied}, ` +
       `textes refusés=${firstRefused} (après le second essai : ${problems.length}), second essai=${retried ? "oui" : "non"}, ` +
       `passages introuvables=${stale}, contenu invalide=${reply.invalid ? "oui" : "non"}, réorganisation=${reorganized ? "oui" : "non"}, points abandonnés=${skippedNow.length}`,
   );
@@ -255,7 +315,7 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
   const firstLabels: Record<string, string> = Object.fromEntries((firstBuilt?.changes ?? []).map((c) => [c.id, c.label]));
   const text = coachReplyText({
     mode,
-    section: reply.raw[0]?.section ?? null,
+    section: sections[0] ?? null,
     applied,
     stale,
     invalid: answer.invalid,
@@ -332,7 +392,9 @@ export async function runCoachTurn({ current, context, turns, request, reply, li
     invalid: answer.invalid,
     reorganized,
     skippedPoints: skippedNow,
-    section: reply.raw[0]?.section ?? null,
+    section: sections[0] ?? null,
+    sections,
+    droppedSections: dropped,
     scoreBefore: scored?.before ?? null,
     scoreAfter: scored?.after.score ?? null,
     ...(context.offerSteps ? { offerGap: gap } : {}),

@@ -169,7 +169,7 @@ test("chiffre : non-déclenchement (« je sais pas », question d'outil, échang
 });
 
 test("chiffre : le nouvel essai garde la dérogation, sans demander le chiffre", () => {
-  const retry = { previous: { section: "experience", data: "{}" }, problems: [{ text: "x", problems: ["y"] }], mode: "parcours", figureWaived: true };
+  const retry = { previous: [{ section: "experience", data: "{}" }], problems: [{ text: "x", problems: ["y"] }], mode: "parcours", figureWaived: true };
   const text = coachUserText([], "msg", retry);
   assert.ok(text.includes("une seule puce peut rester sans chiffre"));
   assert.ok(!text.includes("termine ton message par une question précise pour obtenir ce chiffre"));

@@ -41,6 +41,10 @@ const PROPOSES_REMOVAL =
   /(veux-tu|souhaites-tu|tu veux|est-ce que tu veux|je (peux|propose de|te propose de))[^?]{0,40}\b(supprime[rs]?|retire[rs]?|enl[èe]ve[rs]?|fusionne[rs]?|regroupe[rs]?)\b[^?]*\?|\b(shall|should|can) i (remove|delete|merge|combine)\b[^?]*\?|\bdo you want me to (remove|delete|merge|combine)\b[^?]*\?/i;
 /** Réponse affirmative courte, éventuellement après une interjection (« Ah oui, … », L02 tour 9). */
 const AFFIRMATIVE = /^\s*((ah|oh|bon|alors|euh|ben|bah|eh bien)\s*,?\s*)?(oui|ouais|d'accord|ok|okay|vas-y|go|yes|yep|yeah|sure|parfait|c'est bon|bien sûr|of course)\b/i;
+/** Message qui n'est qu'un « oui » ou un « ok » (« oui », « ok vas-y », « d'accord, continue ! »), sans autre demande. */
+const BARE_YES =
+  /^\s*((ah|oh|bon|alors|euh|ben|bah|eh bien)\s*,?\s*)?(oui|ouais|d'accord|ok|okay|vas-y|go|yes|yep|yeah|sure|parfait|c'est bon|bien sûr|of course)(\s*,?\s*(oui|ok|vas-y|go|continue|continues|go on|merci|thanks|stp|s'il te plaît|please))*\s*[.!]*\s*$/i;
+export const isBareYes = (message: string) => BARE_YES.test(message);
 
 /** Le dernier message demande de supprimer, fusionner ou remplacer. */
 export const asksToRemove = (message: string) =>

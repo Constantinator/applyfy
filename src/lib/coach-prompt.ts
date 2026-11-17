@@ -391,8 +391,8 @@ export function coachContentKey(
 
 /** Proposition refusée par la vérification du code : renvoyée au coach pour un nouvel essai. */
 export type CoachRetry = {
-  /** Proposition refusée, telle qu'écrite par le coach. */
-  previous: { section: CoachSection; data: string };
+  /** Mises à jour de la réponse refusée, telles qu'écrites par le coach. */
+  previous: { section: CoachSection; data: string }[];
   /** Textes refusés et leurs défauts ; vide si le contenu de « data » était invalide. */
   problems: { text: string; problems: string[] }[];
   /** Mode de la première réponse : la vérification du nouvel essai garde ce mode. */
@@ -405,23 +405,30 @@ export type CoachRetry = {
 };
 
 function retryInstructions({ previous, problems, mode, figureWaived }: CoachRetry) {
+  const experience = previous.some((p) => p.section === "experience");
+  const several = previous.length > 1;
   const reasons = problems.length
     ? problems.map((p) => `- « ${n(p.text)} » : ${n(p.problems.join(" ; "))}`).join("\n")
     : "- le contenu de « data » ne respecte pas le format demandé pour cette section";
   const fix =
     mode === "demande"
       ? "Corrige-la, sans dépasser les longueurs maximales, en restant en mode « demande ». Une puce modifiée garde le chiffre et le verbe ou nom d'action qu'elle avait ; une nouvelle puce commence par un verbe ou un nom d'action. N'ajoute aucune formule à éviter ni AUCUN nombre absent du CV et des messages du candidat. Ne demande aucun chiffre : si un texte ne peut pas être corrigé, retire-le de ta proposition (ou section = « aucune » s'il ne reste rien)."
-      : previous.section === "experience" && figureWaived
+      : experience && figureWaived
         ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, sans formule à éviter. Pour ce point, une seule puce peut rester sans chiffre, avec les seuls faits donnés par le candidat. N'ajoute AUCUN nombre absent du CV et des messages du candidat, et ne demande pas de chiffre pour cette puce."
-        : previous.section === "experience"
+        : experience
         ? "Corrige-la, sans dépasser les longueurs maximales. Chaque puce commence par un verbe ou un nom d'action, contient un chiffre ou un ordre de grandeur donné par le candidat ou déjà présent dans le CV, sans formule à éviter. N'invente AUCUN chiffre : si le candidat ne l'a pas donné, retire cette puce de ta proposition et termine ton message par une question précise pour obtenir ce chiffre (ou section = « aucune » s'il ne reste rien à proposer)."
         : "Corrige-la en respectant le format et les longueurs maximales demandés, sans ajouter de formule à éviter. Ne demande aucun chiffre : ils ne concernent que les puces d'expérience.";
   return [
     "<verification>",
-    `Ta modification précédente (section ${previous.section}) a été refusée par la vérification automatique :`,
+    several
+      ? `Tes modifications précédentes (sections ${previous.map((p) => p.section).join(", ")}) ont été refusées en partie par la vérification automatique :`
+      : `Ta modification précédente (section ${previous[0]?.section}) a été refusée par la vérification automatique :`,
     reasons,
-    `Proposition refusée : ${n(previous.data)}`,
+    ...(several ? previous.map((p) => `Proposition (section ${p.section}) : ${n(p.data)}`) : [`Proposition refusée : ${n(previous[0]?.data ?? "")}`]),
     fix,
+    ...(several
+      ? ["Les autres mises à jour sont déjà acceptées : dans « updates », renvoie seulement les mises à jour corrigées des passages refusés (même section, même id)."]
+      : []),
     "</verification>",
   ].join("\n");
 }
