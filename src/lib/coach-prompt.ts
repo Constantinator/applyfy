@@ -191,6 +191,10 @@ const SITUATION: [keyof Listening, string][] = [
   ],
   ["confirmation", "Le candidat te demande une confirmation : commence « message » par une réponse directe (oui ou non, et pourquoi), avant toute autre phrase."],
   [
+    "rephrase",
+    "Le candidat demande une reformulation : garde exactement les mêmes faits en d'autres mots. N'ajoute aucune étape, méthode, outil, public, résultat ou détail absent du CV et de ses messages.",
+  ],
+  [
     "shorten",
     "Le candidat demande de raccourcir : le texte visé doit perdre au moins 20 % de ses mots, en gardant ses chiffres et ses faits. Si c'est impossible sans retirer une information, dis-le honnêtement et demande ce qu'il accepte d'enlever.",
   ],

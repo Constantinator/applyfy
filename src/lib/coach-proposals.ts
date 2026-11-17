@@ -430,7 +430,50 @@ export type CheckOptions = {
    * d'un diplôme n'est jamais traduit (lot traduction).
    */
   translation?: boolean;
+  /** Le dernier message demande une reformulation (coach-intent.ts, asksToRephrase) : aucun détail nouveau (C4). */
+  rephrase?: boolean;
 };
+
+/** Reformulation : détail ajouté, absent du CV et des messages du candidat (C4). */
+export const PROBLEM_NEW_DETAIL_PREFIX = "ajoute un détail absent du CV et des messages du candidat, garde les mêmes faits : ";
+/** Mots de contenu nouveaux à partir desquels une reformulation est refusée. */
+export const NEW_DETAIL_MIN = 2;
+/** Mots outils et de liaison (6 lettres ou plus) qui n'ajoutent aucun fait. */
+const FILLER_WORDS = new Set([
+  "aupres", "depuis", "ensemble", "notamment", "plusieurs", "chaque", "travers", "permettant", "permettre",
+  "egalement", "durant", "pendant", "autour", "ensuite", "lorsque", "contre", "parmi", "toutes", "autres",
+  "certains", "certaines", "concernant", "within", "across", "through", "including", "throughout", "during",
+  "alongside", "between", "various", "several",
+  // Vocabulaire générique d'un CV (statut, cadre), sans fait nouveau.
+  "recherche", "derniere", "dernier", "premiere", "premier", "specialise", "specialisee", "titulaire", "diplome",
+  "diplomee", "experience", "experiences", "junior", "senior", "quotidien", "quotidienne", "quotidiens",
+  "oriente", "orientee", "approche", "profil", "pratique", "solide", "partir", "nouvelle", "nouveau", "nouvelles",
+  "nouveaux", "semble", "situation", "charge", "chargee",
+]);
+
+/**
+ * Mots de contenu (6 lettres ou plus, hors mots outils et vocabulaire générique d'un CV) d'un
+ * texte que les sources ne contiennent pas, comparés par leurs 5 premières lettres (« gestion » /
+ * « gérer », « clients » / « clientèle » ne sont pas nouveaux). Un verbe ou un nom d'action en tête
+ * de proposition (« Gestion de… », « …, animation de… ») est une façon de dire, pas un fait ; au
+ * milieu d'une proposition (« de l'analyse sectorielle à la formulation de… »), il compte.
+ */
+export function newDetailWords(text: string, sources: string[], isAction: (word: string) => boolean = () => false): string[] {
+  const plainText = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const split = (t: string) => plainText(t).split(/[^a-z]+/).filter(Boolean);
+  const known = new Set(sources.flatMap(split).filter((w) => w.length >= 5).map((w) => w.slice(0, 5)));
+  // Premier mot de chaque proposition : début du texte, après « : ; , » ou « et / and ».
+  const leading = new Set(
+    plainText(text)
+      .split(/[:;,()]|\s(?:et|and)\s/)
+      .map((part) => split(part)[0])
+      .filter(Boolean),
+  );
+  const fresh = split(text).filter(
+    (w) => w.length >= 6 && !FILLER_WORDS.has(w) && !known.has(w.slice(0, 5)) && !(leading.has(w) && isAction(w)),
+  );
+  return [...new Set(fresh)];
+}
 
 /** Texte comparé mot à mot : minuscules sans accents, ponctuation remplacée par des espaces. */
 const words = (text: string) =>
@@ -789,6 +832,21 @@ export function checkProposal(
           context,
           options.figureWaived ? numberSources([...cvStrings(current), ...(options.candidateMessages ?? [])]) : undefined,
         );
+  // Reformulation demandée (C4) : un texte reformulé n'ajoute aucun détail absent du CV et des
+  // messages du candidat (au moins 2 mots de contenu nouveaux : refusé).
+  if (options.rephrase) {
+    const isActionWord = actionWordDetector(context.actionVerbs);
+    const sources = [...cvStrings(current), ...(options.candidateMessages ?? [])];
+    for (const change of proposal.changes) {
+      if ((change.kind !== "bullet" && change.kind !== "field") || change.before === null) continue;
+      const added = newDetailWords(change.after, sources, isActionWord);
+      if (added.length < NEW_DETAIL_MIN) continue;
+      const problem = `${PROBLEM_NEW_DETAIL_PREFIX}${added.join(", ")}`;
+      const same = problems.find((q) => q.changeId === change.id);
+      if (same) same.problems.push(problem);
+      else problems.push({ changeId: change.id, text: change.after, problems: [problem] });
+    }
+  }
   if (options.shorten) {
     for (const p of shortenProblems(proposal)) {
       const same = problems.find((q) => q.changeId === p.changeId);

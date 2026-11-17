@@ -252,6 +252,14 @@ const sentenceType = (sentence: string): QuestionType =>
   MONTH_QUESTION.test(sentence) ? "mois" : TOOL_QUESTION.test(sentence) ? "outil" : isFigureQuestion(sentence) ? "chiffre" : "detail";
 export const asksToShorten = (message: string) => SHORTEN.test(message) && !NOT_SHORTEN.test(message);
 
+/**
+ * Demande de reformuler un texte (O05 : « reformule ces deux puces sans chiffre ») : mêmes faits en
+ * d'autres mots. Raccourcir est une autre demande (asksToShorten).
+ */
+const REPHRASE =
+  /\b(reformul\w*|r[ée][ée]cri(s|re|vez|ts?)\s+(cette|ces|la|les|ma|mes|ta|tes|mon|ton)\s+(puces?|phrases?|accroche|lignes?|r[ée]sum[ée])|sans (aucun )?chiffres?|rephrase|reword|rewrite\s+(this|these|the|my)\s+(bullets?|sentences?|summary|lines?)|without (any )?(numbers?|figures?))\b/i;
+export const asksToRephrase = (message: string) => REPHRASE.test(message) && !asksToShorten(message);
+
 /** Ce que le serveur a compris de la session (messages du candidat, dernier compris). */
 export type Listening = {
   /** « Plus de questions » : le parcours s'arrête (seules les demandes explicites sont traitées). */
@@ -297,6 +305,8 @@ export type Listening = {
   improve?: boolean;
   /** Le dernier message pose une question ouverte (conseil, explication). Absent sinon. */
   openQuestion?: boolean;
+  /** Le dernier message demande de reformuler (mêmes faits en d'autres mots, C4). Absent sinon. */
+  rephrase?: boolean;
   /** Le dernier message exprime un doute sur un fait (« je crois », « environ », « I think »). Absent sinon. */
   uncertain?: boolean;
   /**
@@ -357,6 +367,7 @@ export function listeningState(
   if (stopIfReady) listening.stopIfReady = true;
   if (asksWhatToImprove(request)) listening.improve = true;
   if (asksOpenQuestion(request)) listening.openQuestion = true;
+  if (asksToRephrase(request)) listening.rephrase = true;
   if (expressesDoubt(request)) listening.uncertain = true;
   if (saysNoFigure(history, request)) listening.noFigure = true;
   if (!offer) return listening;

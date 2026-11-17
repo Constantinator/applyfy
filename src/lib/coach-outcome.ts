@@ -2,6 +2,7 @@ import {
   PROBLEM_BANNED_PREFIX,
   PROBLEM_INFLATED_ROLE,
   PROBLEM_INFLATED_TITLE_PREFIX,
+  PROBLEM_NEW_DETAIL_PREFIX,
   PROBLEM_NOT_CANDIDATE_VERB,
   PROBLEM_REMOVAL_NOT_ASKED,
   PROBLEM_REMOVAL_UNANSWERED,
@@ -71,6 +72,7 @@ const TEXTS = {
     titleOtherJob: "le titre proposé présentait un métier que ton CV ne montre pas.",
     inflatedRole: "ta puce d'origine disait que tu avais participé : je ne peux pas écrire que tu l'as mené seul.",
     inflatedTitle: (words: string) => `le titre proposé annonçait un niveau (${words}) que ton CV ne montre pas.`,
+    newDetail: (words: string) => `la reformulation ajoutait un détail (${words}) qui n'est ni dans ton CV ni dans tes messages.`,
     wordCount: (before: number, after: number) => `Le texte passe de ${before} à ${after} mots.`,
     notShorter: "je n'ai pas réussi à le raccourcir d'au moins 20 % sans retirer une information. Dis-moi ce que je peux enlever.",
     requestFailed: "Je n'ai pas pu faire cette modification : ",
@@ -145,6 +147,7 @@ const TEXTS = {
     titleOtherJob: "the proposed title presented a job your CV doesn't show.",
     inflatedRole: "your original bullet said you took part in it: I can't write that you led it alone.",
     inflatedTitle: (words: string) => `the proposed title claimed a level (${words}) that your CV doesn't show.`,
+    newDetail: (words: string) => `the rewording added a detail (${words}) that is neither in your CV nor in your messages.`,
     wordCount: (before: number, after: number) => `The text goes from ${before} to ${after} words.`,
     notShorter: "I couldn't shorten it by at least 20% without removing information. Tell me what I can cut.",
     requestFailed: "I couldn't make this change: ",
@@ -288,6 +291,7 @@ function problemCauses(problem: ChangeProblem, lang: CoachLang): Cause[] {
     if (p === PROBLEM_HESITATION) return [{ kind: "faithful", text: t.hesitation }];
     if (p === PROBLEM_INFLATED_LEVEL) return [{ kind: "faithful", text: t.inflatedLevel }];
     if (p === PROBLEM_STUDENT_TITLE) return [{ kind: "faithful", text: t.studentTitle }];
+    if (p.startsWith(PROBLEM_NEW_DETAIL_PREFIX)) return [{ kind: "faithful", text: t.newDetail(p.slice(PROBLEM_NEW_DETAIL_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_INFLATED_TITLE_PREFIX)) return [{ kind: "faithful", text: t.inflatedTitle(p.slice(PROBLEM_INFLATED_TITLE_PREFIX.length)) }];
     if (p.startsWith(PROBLEM_BANNED_PREFIX)) {
       return [{ kind: "banned", text: t.banned(p.slice(PROBLEM_BANNED_PREFIX.length).replace(/\s*»\s*$/, "")) }];

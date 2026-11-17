@@ -234,8 +234,15 @@ const L14_REPLY = flat({
 
 test("L14 rejoué : l'annonce de l'accroche cite le début du texte réellement écrit", async () => {
   const cv = profile("marketing-junior-fr");
-  const context = contextFor(cv, null, { request: L14_REQUEST });
-  const result = await turn(cv, context, [], L14_REQUEST, L14_REPLY);
+  // Faits de l'événement donnés plus tôt par la candidate (run 2026-11-15T23-04-28, L14, U6) : sans
+  // eux, la reformulation demandée ajouterait des détails absents (contrôle C4 du dernier lot).
+  const history = [
+    { role: "assistant", content: "Quel était ton rôle dans l'organisation de l'événement de lancement ?" },
+    { role: "user", content: "Mon rôle était de gérer le planning et les invitations, en coordonnant les prestataires avec l'équipe." },
+    { role: "assistant", content: "Merci. Veux-tu que je reformule ton accroche vers l'événementiel ?" },
+  ];
+  const context = contextFor(cv, null, { history, request: L14_REQUEST });
+  const result = await turn(cv, context, history, L14_REQUEST, L14_REPLY);
   assert.equal(result.updated.summary, L14_SUMMARY);
   assert.ok(result.text.startsWith("C'est fait : ton accroche commence maintenant par « Chargée de marketing digital créative, avec 2 ans"), result.text);
 });
