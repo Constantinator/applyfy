@@ -4,12 +4,14 @@ import { requireUser } from "./auth";
 import {
   CV_BUILDER_MAX,
   CvDataSchema,
+  isCvLang,
   isTemplateId,
   readCvData,
   withoutEmptyLines,
   type BuilderCv,
   type BuilderCvSummary,
   type CvData,
+  type CvLang,
   type CvTemplateId,
 } from "./cv-builder-types";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
@@ -28,6 +30,8 @@ type Row = {
   data: unknown;
   /** Absente avant la migration 0034 (lignes lues sans cette colonne). */
   application_id?: string | null;
+  /** Absente avant la migration 0039 (lignes lues sans cette colonne) : langue détectée. */
+  language?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -38,6 +42,7 @@ const toCv = (row: Row): BuilderCv => ({
   templateId: isTemplateId(row.template_id) ? row.template_id : "minimaliste",
   data: readCvData(row.data),
   applicationId: row.application_id ?? null,
+  language: isCvLang(row.language) ? row.language : null,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -188,11 +193,15 @@ export async function linkBuilderCvIfFree(id: string, applicationId: string): Pr
   return (data?.length ?? 0) === 1;
 }
 
-/** Nouveau CV pré-rempli (nom, email, ou CV importé) ; renvoie son identifiant. */
+/**
+ * Nouveau CV pré-rempli (nom, email, ou CV importé) ; renvoie son identifiant. `language` : langue
+ * fixée (copie traduite, import) ; sans elle, la colonne n'est pas écrite (langue détectée).
+ */
 export async function createBuilderCv(
   initial: CvData,
   rawTitle = "Mon CV",
   templateId: CvTemplateId = "minimaliste",
+  language: CvLang | null = null,
 ): Promise<string> {
   const data = withoutEmptyLines(CvDataSchema.parse(initial));
   const title = rawTitle.trim().slice(0, 120) || "Mon CV";
@@ -201,7 +210,7 @@ export async function createBuilderCv(
     if (demoCvs.length >= CV_BUILDER_MAX) throw new CvBuilderError(`Tu as atteint la limite de ${CV_BUILDER_MAX} CV.`);
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
-    demoCvs.push({ id, title, templateId, data, applicationId: null, createdAt: now, updatedAt: now });
+    demoCvs.push({ id, title, templateId, data, applicationId: null, language, createdAt: now, updatedAt: now });
     return id;
   }
 
@@ -216,7 +225,7 @@ export async function createBuilderCv(
 
   const { data: row, error } = await supabase
     .from("cv_builder")
-    .insert({ user_id: user.id, title, template_id: templateId, data })
+    .insert({ user_id: user.id, title, template_id: templateId, data, ...(language ? { language } : {}) })
     .select("id")
     .single();
   if (error) throw new Error(`Création du CV impossible : ${error.message}`);
@@ -252,6 +261,28 @@ export async function saveBuilderCv(
   if (error) throw new Error(`Enregistrement du CV impossible : ${error.message}`);
   if (!row) throw new CvBuilderError("Ce CV n'existe plus.");
   return row.updated_at as string;
+}
+
+/** Fixe la langue du CV (sélecteur « Langue du CV ») : titres des rubriques, sans traduire le contenu. */
+export async function setBuilderCvLanguage(id: string, language: CvLang): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    const cv = demoCvs.find((c) => c.id === id);
+    if (!cv) throw new CvBuilderError("Ce CV n'existe plus.");
+    cv.language = language;
+    return;
+  }
+
+  const user = await requireUser();
+  if (!isUuid(id)) throw new CvBuilderError("Ce CV n'existe plus.");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cv_builder")
+    .update({ language })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id");
+  if (error) throw new Error(`Changement de langue impossible : ${error.message}`);
+  if (!data?.length) throw new CvBuilderError("Ce CV n'existe plus.");
 }
 
 export async function deleteBuilderCv(id: string): Promise<void> {

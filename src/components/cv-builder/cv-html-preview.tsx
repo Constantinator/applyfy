@@ -25,6 +25,7 @@ import {
   keepsCaretOnBlank,
   readField,
   type CvData,
+  type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { parseRich, type RichFormat } from "@/lib/cv-rich-text";
@@ -411,6 +412,7 @@ const EDITABLE_CSS = `
 export function CvHtmlPreview({
   data,
   templateId,
+  language = "fr",
   onEdit,
   onChange,
   onLineLimit,
@@ -420,6 +422,8 @@ export function CvHtmlPreview({
 }: {
   data: CvData;
   templateId: CvTemplateId;
+  /** Langue du CV : titres des rubriques et « Aujourd'hui / Present ». */
+  language?: CvLang;
   onEdit: (path: EditPath, value: string) => void;
   /** Entrée ou Retour arrière dans une ligne de liste (cf. useLineEditing). */
   onChange: (fn: (d: CvData) => CvData) => void;
@@ -499,7 +503,7 @@ export function CvHtmlPreview({
                     <PrimitivesContext value={HTML_PRIMITIVES}>
                       <DensityContext value={densityFactor(data.style.density)}>
                         <HighlightContext value={highlight}>
-                          <CvPages data={shownData} templateId={templateId} />
+                          <CvPages data={shownData} templateId={templateId} language={language} />
                         </HighlightContext>
                       </DensityContext>
                     </PrimitivesContext>

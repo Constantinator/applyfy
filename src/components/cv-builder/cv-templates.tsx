@@ -8,7 +8,9 @@ import {
   SKILL_LEVELS,
   skillLevelValue,
   splitSkillGroup,
+  CV_SECTION_TITLES,
   type CvData,
+  type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 
@@ -24,6 +26,8 @@ const BOLD = { fontWeight: "bold" };
 const AlignContext = createContext<"left" | "justify">("left");
 /** Couleur d'accent choisie dans « Style du CV » ; vide : couleur du modèle. */
 const AccentContext = createContext("");
+/** Titres des rubriques dans la langue du CV. */
+const TitlesContext = createContext(CV_SECTION_TITLES.fr);
 
 /** Paragraphe modifiable (profil, description de projet), à l'alignement choisi. */
 function Paragraph({ edit, children, style }: { edit: string; children: string; style?: StyleProp }) {
@@ -109,15 +113,16 @@ function Name({ data, style }: { data: CvData; style?: StyleProp }) {
   );
 }
 
-/** « 09/2022 – Aujourd'hui », début et fin modifiables. */
+/** « 09/2022 – Aujourd'hui » (« Present » en anglais), début et fin modifiables. */
 function Dates({ base, start, end, current, style }: { base: string; start: string; end?: string; current?: boolean; style?: StyleProp }) {
+  const t = useContext(TitlesContext);
   const hasEnd = current || !!end?.trim();
   if (!start.trim() && !hasEnd) return null;
   return (
     <Text style={style}>
       {start.trim() ? <Text edit={`${base}.startDate`}>{start}</Text> : null}
       {start.trim() && hasEnd ? " – " : null}
-      {current ? "Aujourd'hui" : end?.trim() ? <Text edit={`${base}.endDate`}>{end}</Text> : null}
+      {current ? t.present : end?.trim() ? <Text edit={`${base}.endDate`}>{end}</Text> : null}
     </Text>
   );
 }
@@ -193,6 +198,7 @@ type Theme = {
 };
 
 function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; variant: CvTemplateId }) {
+  const t = useContext(TitlesContext);
   const s = sections(data);
   const items = contacts(data);
   const center = theme.headerAlign === "center";
@@ -260,7 +266,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.summary ? (
         <View style={section}>
-          <Heading>Profil</Heading>
+          <Heading>{t.profile}</Heading>
           <Paragraph edit="summary">
             {s.summary}
           </Paragraph>
@@ -269,7 +275,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.experiences.length ? (
         <View style={section}>
-          <Heading>Expériences</Heading>
+          <Heading>{t.experiences}</Heading>
           {s.experiences.map((e) => {
             const base = `experiences.${e.id}`;
             const body = (
@@ -310,7 +316,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.education.length ? (
         <View style={section}>
-          <Heading>Formation</Heading>
+          <Heading>{t.education}</Heading>
           {s.education.map((e) => {
             const base = `education.${e.id}`;
             return (
@@ -336,7 +342,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.skills.length ? (
         <View style={section} wrap={false}>
-          <Heading>Compétences</Heading>
+          <Heading>{t.skills}</Heading>
           {variant === "tech" ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {skillRows(s.skills).map(({ skill: k, group, heading }) => (
@@ -397,7 +403,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.languages.length ? (
         <View style={section} wrap={false}>
-          <Heading>Langues</Heading>
+          <Heading>{t.languages}</Heading>
           <ItemList
             items={s.languages}
             render={(l) => (
@@ -413,7 +419,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.projects.length ? (
         <View style={section}>
-          <Heading>Projets</Heading>
+          <Heading>{t.projects}</Heading>
           {s.projects.map((p) => (
             <View key={p.id} style={entry} wrap={false}>
               <View style={row}>
@@ -442,7 +448,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.certifications.length ? (
         <View style={section} wrap={false}>
-          <Heading>Certifications</Heading>
+          <Heading>{t.certifications}</Heading>
           {s.certifications.map((c) => (
             <View key={c.id} style={[row, { marginTop: 3 }]}>
               <Text style={{ flex: 1 }}>
@@ -464,7 +470,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
 
       {s.hasInterests ? (
         <View style={section} wrap={false}>
-          <Heading>Centres d&apos;intérêt</Heading>
+          <Heading>{t.interests}</Heading>
           <Text edit="interests" multiline>{data.interests}</Text>
         </View>
       ) : null}
@@ -558,6 +564,7 @@ function MainHeading({ children }: { children: string }) {
 }
 
 function Sidebar({ data }: { data: CvData }) {
+  const t = useContext(TitlesContext);
   const s = sections(data);
   const items = contacts(data);
 
@@ -572,7 +579,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {items.length ? (
             <>
-              <SideHeading>Contact</SideHeading>
+              <SideHeading>{t.contact}</SideHeading>
               {items.map((c) => (
                 <Contact key={c.field} item={c} style={{ color: "#F8FAFC", fontSize: 8.5, marginTop: 2 }} />
               ))}
@@ -580,7 +587,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.education.length ? (
             <>
-              <SideHeading>Formation</SideHeading>
+              <SideHeading>{t.education}</SideHeading>
               {s.education.map((e) => {
                 const base = `education.${e.id}`;
                 return (
@@ -606,7 +613,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.skills.length ? (
             <>
-              <SideHeading>Compétences</SideHeading>
+              <SideHeading>{t.skills}</SideHeading>
               {s.skills.map((k) => (
                 // Compétence groupée : intitulé seul sur sa ligne, groupes plus espacés (colonne étroite).
                 <View key={k.id} style={{ marginTop: splitSkillGroup(k.name) ? 6 : 3 }} wrap={false}>
@@ -624,7 +631,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.languages.length ? (
             <>
-              <SideHeading>Langues</SideHeading>
+              <SideHeading>{t.languages}</SideHeading>
               {s.languages.map((l) => (
                 <Text key={l.id} style={{ fontSize: 8.5, marginTop: 2 }}>
                   <Text edit={`languages.${l.id}.name`} style={BOLD}>
@@ -638,7 +645,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.hasInterests ? (
             <>
-              <SideHeading>Centres d&apos;intérêt</SideHeading>
+              <SideHeading>{t.interests}</SideHeading>
               <Text edit="interests" multiline style={{ fontSize: 8.5 }}>
                 {data.interests}
               </Text>
@@ -655,7 +662,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.summary ? (
             <>
-              <MainHeading>Profil</MainHeading>
+              <MainHeading>{t.profile}</MainHeading>
               <Paragraph edit="summary">
                 {s.summary}
               </Paragraph>
@@ -663,7 +670,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.experiences.length ? (
             <>
-              <MainHeading>Expériences</MainHeading>
+              <MainHeading>{t.experiences}</MainHeading>
               {s.experiences.map((e) => {
                 const base = `experiences.${e.id}`;
                 return (
@@ -687,7 +694,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.projects.length ? (
             <>
-              <MainHeading>Projets</MainHeading>
+              <MainHeading>{t.projects}</MainHeading>
               {s.projects.map((p) => (
                 <View key={p.id} style={{ marginTop: 5 }} wrap={false}>
                   <Text edit={`projects.${p.id}.name`} style={BOLD}>
@@ -709,7 +716,7 @@ function Sidebar({ data }: { data: CvData }) {
           ) : null}
           {s.certifications.length ? (
             <>
-              <MainHeading>Certifications</MainHeading>
+              <MainHeading>{t.certifications}</MainHeading>
               {s.certifications.map((c) => (
                 <Text key={c.id} style={{ marginTop: 2 }}>
                   <Text edit={`certifications.${c.id}.name`} style={BOLD}>
@@ -780,6 +787,7 @@ function FinanceLine({ label, children }: { label: string; children: ReactNode }
  * par groupe ou intitulé seul ; les compétences simples placées après sont réunies sur la ligne dessous.
  */
 function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
+  const t = useContext(TitlesContext);
   const rows = skillRows(skills);
   const level = (k: CvData["skills"][number]) => (k.level ? ` (${levelLabel(k.level).toLowerCase()})` : "");
   const simpleItems = (items: CvData["skills"]) =>
@@ -804,7 +812,7 @@ function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
   }
   return (
     <>
-      {first.length ? <FinanceLine label="Compétences">{simpleItems(first)}</FinanceLine> : null}
+      {first.length ? <FinanceLine label={t.skills}>{simpleItems(first)}</FinanceLine> : null}
       {blocks.map((block) => (
         <Text key={block[0].id} style={{ marginTop: 1 }}>
           {splitSkillGroup(block[0].name) ? (
@@ -834,6 +842,7 @@ function joined<T>(items: T[], render: (item: T) => ReactNode) {
 }
 
 function Finance({ data }: { data: CvData }) {
+  const t = useContext(TitlesContext);
   const s = sections(data);
   const items = contacts(data);
   const row = { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" };
@@ -864,14 +873,14 @@ function Finance({ data }: { data: CvData }) {
 
       {s.summary ? (
         <View style={section}>
-          <FinanceHeading>Résumé</FinanceHeading>
+          <FinanceHeading>{t.summary}</FinanceHeading>
           <Paragraph edit="summary">{s.summary}</Paragraph>
         </View>
       ) : null}
 
       {s.education.length ? (
         <View style={section}>
-          <FinanceHeading>Formation</FinanceHeading>
+          <FinanceHeading>{t.education}</FinanceHeading>
           {s.education.map((e) => {
             const base = `education.${e.id}`;
             return (
@@ -897,7 +906,7 @@ function Finance({ data }: { data: CvData }) {
 
       {s.experiences.length ? (
         <View style={section}>
-          <FinanceHeading>Expériences</FinanceHeading>
+          <FinanceHeading>{t.experiences}</FinanceHeading>
           {s.experiences.map((e) => {
             const base = `experiences.${e.id}`;
             return (
@@ -933,7 +942,7 @@ function Finance({ data }: { data: CvData }) {
 
       {s.projects.length ? (
         <View style={section}>
-          <FinanceHeading>Projets</FinanceHeading>
+          <FinanceHeading>{t.projects}</FinanceHeading>
           {s.projects.map((p) => (
             <View key={p.id} style={entry} wrap={false}>
               <View style={row}>
@@ -954,10 +963,10 @@ function Finance({ data }: { data: CvData }) {
 
       {s.skills.length || s.languages.length || s.certifications.length || s.hasInterests ? (
         <View style={section} wrap={false}>
-          <FinanceHeading>Compétences & Langues</FinanceHeading>
+          <FinanceHeading>{t.skillsLanguages}</FinanceHeading>
           <FinanceSkills skills={s.skills} />
           {s.languages.length ? (
-            <FinanceLine label="Langues">
+            <FinanceLine label={t.languages}>
               {joined(s.languages, (l) => (
                 <>
                   <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
@@ -969,7 +978,7 @@ function Finance({ data }: { data: CvData }) {
             </FinanceLine>
           ) : null}
           {s.certifications.length ? (
-            <FinanceLine label="Certifications">
+            <FinanceLine label={t.certifications}>
               {joined(s.certifications, (c) => (
                 <>
                   <Text edit={`certifications.${c.id}.name`}>{c.name}</Text>
@@ -983,7 +992,7 @@ function Finance({ data }: { data: CvData }) {
             </FinanceLine>
           ) : null}
           {s.hasInterests ? (
-            <FinanceLine label="Centres d'intérêt">
+            <FinanceLine label={t.interests}>
               <Text edit="interests" multiline>{data.interests}</Text>
             </FinanceLine>
           ) : null}
@@ -994,21 +1003,23 @@ function Finance({ data }: { data: CvData }) {
 }
 
 /** Les pages du CV dans le modèle choisi (dans un PrimitivesContext PDF ou HTML). */
-export function CvPages({ data, templateId }: { data: CvData; templateId: CvTemplateId }) {
+export function CvPages({ data, templateId, language = "fr" }: { data: CvData; templateId: CvTemplateId; language?: CvLang }) {
   const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH, finance: null, sidebar: null }[
     templateId
   ];
   return (
-    <AlignContext value={data.style.align}>
-      <AccentContext value={data.style.accent}>
-        {templateId === "finance" ? (
-          <Finance data={data} />
-        ) : theme ? (
-          <SingleColumn data={data} variant={templateId} theme={theme} />
-        ) : (
-          <Sidebar data={data} />
-        )}
-      </AccentContext>
-    </AlignContext>
+    <TitlesContext value={CV_SECTION_TITLES[language]}>
+      <AlignContext value={data.style.align}>
+        <AccentContext value={data.style.accent}>
+          {templateId === "finance" ? (
+            <Finance data={data} />
+          ) : theme ? (
+            <SingleColumn data={data} variant={templateId} theme={theme} />
+          ) : (
+            <Sidebar data={data} />
+          )}
+        </AccentContext>
+      </AlignContext>
+    </TitlesContext>
   );
 }

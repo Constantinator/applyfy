@@ -259,6 +259,47 @@ export type CvLanguage = CvData["languages"][number];
 export type CvCertification = CvData["certifications"][number];
 export type CvProject = CvData["projects"][number];
 
+/** Langue du contenu d'un CV (colonne cv_builder.language, migration 0039). */
+export const CV_LANGS = ["fr", "en"] as const;
+export type CvLang = (typeof CV_LANGS)[number];
+export const isCvLang = (value: unknown): value is CvLang => value === "fr" || value === "en";
+
+type CvTitleKey =
+  | "profile" | "summary" | "experiences" | "education" | "skills" | "languages" | "skillsLanguages"
+  | "projects" | "certifications" | "interests" | "contact" | "present";
+
+/** Titres des rubriques et fin d'une période en cours, dans la langue du CV (aperçu et PDF). */
+export const CV_SECTION_TITLES: Record<CvLang, Record<CvTitleKey, string>> = {
+  fr: {
+    profile: "Profil",
+    summary: "Résumé",
+    experiences: "Expériences",
+    education: "Formation",
+    skills: "Compétences",
+    languages: "Langues",
+    skillsLanguages: "Compétences & Langues",
+    projects: "Projets",
+    certifications: "Certifications",
+    interests: "Centres d'intérêt",
+    contact: "Contact",
+    present: "Aujourd'hui",
+  },
+  en: {
+    profile: "Profile",
+    summary: "Summary",
+    experiences: "Experience",
+    education: "Education",
+    skills: "Skills",
+    languages: "Languages",
+    skillsLanguages: "Skills & Languages",
+    projects: "Projects",
+    certifications: "Certifications",
+    interests: "Interests",
+    contact: "Contact",
+    present: "Present",
+  },
+};
+
 export type BuilderCv = {
   id: string;
   title: string;
@@ -266,11 +307,13 @@ export type BuilderCv = {
   data: CvData;
   /** Candidature à laquelle ce CV est lié (ouvert depuis sa fiche), sinon null. */
   applicationId: string | null;
+  /** Langue fixée (sélecteur, traduction, import) ; null : détectée d'après le contenu (cvLanguage). */
+  language: CvLang | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type BuilderCvSummary = Omit<BuilderCv, "data" | "applicationId"> & { jobTitle: string };
+export type BuilderCvSummary = Omit<BuilderCv, "data" | "applicationId" | "language"> & { jobTitle: string };
 /** Origine du CV : créé depuis zéro ou importé (CV antérieurs au champ : importé s'il a une analyse d'import). */
 export function cvOrigin(data: CvData): "scratch" | "import" {
   return data.origin ?? (data.analysis ? "import" : "scratch");

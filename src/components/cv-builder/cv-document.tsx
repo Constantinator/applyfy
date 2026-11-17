@@ -11,7 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import { useContext, type ComponentProps } from "react";
 
-import { CV_FONTS, cvFontFile, densityFactor, fullName, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_FONTS, cvFontFile, densityFactor, fullName, type CvData, type CvLang, type CvTemplateId } from "@/lib/cv-builder-types";
 import { parseRich } from "@/lib/cv-rich-text";
 
 import { DensityContext, densityStyle, PrimitivesContext, type CvPrimitives, type StyleProp } from "./cv-primitives";
@@ -106,12 +106,22 @@ const PDF_PRIMITIVES: CvPrimitives = {
 };
 
 /** Le CV complet en PDF. Appeler registerCvFonts avant le rendu. */
-export function CvDocument({ data, templateId, title }: { data: CvData; templateId: CvTemplateId; title: string }) {
+export function CvDocument({
+  data,
+  templateId,
+  title,
+  language = "fr",
+}: {
+  data: CvData;
+  templateId: CvTemplateId;
+  title: string;
+  language?: CvLang;
+}) {
   return (
-    <Document title={title} author={fullName(data) || undefined} creator="Applyfy" producer="Applyfy" language="fr">
+    <Document title={title} author={fullName(data) || undefined} creator="Applyfy" producer="Applyfy" language={language}>
       <PrimitivesContext value={PDF_PRIMITIVES}>
         <DensityContext value={densityFactor(data.style.density)}>
-          <CvPages data={data} templateId={templateId} />
+          <CvPages data={data} templateId={templateId} language={language} />
         </DensityContext>
       </PrimitivesContext>
     </Document>

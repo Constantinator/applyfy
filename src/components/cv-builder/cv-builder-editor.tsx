@@ -9,6 +9,7 @@ import {
   refineBuilderCvAction,
   saveBuilderCvAction,
   scoringContextAction,
+  setCvLanguageAction,
 } from "@/app/actions/cv-builder";
 import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
 import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
@@ -26,8 +27,10 @@ import {
   withoutEmptyLines,
   type BuilderCv,
   type CvData,
+  type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
+import { cvLanguage } from "@/lib/cv-language";
 import { matchCvKeywords } from "@/lib/cv-keyword-match";
 import { offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
 import type { OfferKeyword } from "@/lib/cv-types";
@@ -36,6 +39,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
 import { CvContentPanel } from "./cv-content-panel";
+import { CvLanguagePanel } from "./cv-language-panel";
 import { CvStylePanel } from "./cv-style-panel";
 import { FieldEditingContext, FieldInput } from "./form-controls";
 
@@ -137,6 +141,11 @@ export function CvBuilderEditor({
   const baseTabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
   const [chosenTab, setTab] = useState<TabId>(openCoach ? "chat" : baseTabs[0][0]);
   const [data, setData] = useState<CvData>(cv.data);
+  // Langue fixée du CV (sélecteur, copie traduite, import) ; sinon détectée d'après le contenu.
+  const [fixedLanguage, setFixedLanguage] = useState<CvLang | null>(cv.language);
+  const language: CvLang = fixedLanguage ?? cvLanguage(data);
+  const [languageSaving, setLanguageSaving] = useState(false);
+  const [languageError, setLanguageError] = useState<string | null>(null);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -317,6 +326,19 @@ export function CvBuilderEditor({
     return result;
   }
 
+  async function changeLanguage(next: CvLang) {
+    const previous = fixedLanguage;
+    setFixedLanguage(next);
+    setLanguageError(null);
+    setLanguageSaving(true);
+    const result = await setCvLanguageAction(cv.id, next);
+    setLanguageSaving(false);
+    if (!result.ok) {
+      setFixedLanguage(previous);
+      setLanguageError(result.error);
+    }
+  }
+
   async function download() {
     setDownloading(true);
     try {
@@ -325,7 +347,7 @@ export function CvBuilderEditor({
         import("./cv-document"),
       ]);
       registerCvFonts(window.location.origin);
-      const blob = await pdf(<CvDocument data={withoutEmptyLines(data)} templateId={templateId} title={title} />).toBlob();
+      const blob = await pdf(<CvDocument data={withoutEmptyLines(data)} templateId={templateId} title={title} language={language} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -499,6 +521,7 @@ export function CvBuilderEditor({
                 }}
                 onAccent={(accent) => edit((d) => ({ ...d, style: { ...d.style, accent } }))}
               />
+              <CvLanguagePanel language={language} saving={languageSaving} error={languageError} onChange={changeLanguage} />
             </div>
           )}
         </div>
@@ -517,6 +540,7 @@ export function CvBuilderEditor({
             <CvHtmlPreview
               data={data}
               templateId={templateId}
+              language={language}
               onEdit={(path, value) => edit((d) => applyEdit(d, path, value))}
               onChange={edit}
               onLineLimit={showLineLimit}

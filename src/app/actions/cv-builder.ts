@@ -43,6 +43,7 @@ import {
   getBuilderCvByApplication,
   linkBuilderCvToApplication,
   saveBuilderCv,
+  setBuilderCvLanguage,
 } from "@/lib/cv-builder";
 import { clip, importedToCvData } from "@/lib/cv-builder-import";
 import {
@@ -58,9 +59,11 @@ import {
   dateRange,
   fullName,
   interestList,
+  isCvLang,
   isTemplateId,
   type CvAnalysis,
   type CvData,
+  type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
@@ -147,7 +150,8 @@ export async function copyCvForOfferAction(formData: FormData) {
     if (source.applicationId === applicationId) redirect(cvBuilderUrl(applicationId));
     await ensureOfferKeywords(detail);
     // Sans le premier message du coach : il sera écrit pour ce CV et cette offre.
-    id = await createApplicationCv({ ...source.data, coach: null }, detail, source.templateId);
+    // Langue fixée de la source gardée (copie d'un CV traduit).
+    id = await createApplicationCv({ ...source.data, coach: null }, detail, source.templateId, source.language);
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof CvBuilderError) redirect(cvBuilderUrl(applicationId, "limite"));
@@ -240,6 +244,24 @@ export async function saveBuilderCvAction(
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
     console.error("[cv-builder] enregistrement", error);
     return { ok: false, error: "L'enregistrement a échoué. Nouvel essai à la prochaine modification." };
+  }
+}
+
+/**
+ * « Langue du CV » (onglet Style) : titres des rubriques et « Aujourd'hui / Present », sans
+ * traduire le contenu. Échoue tant que la migration 0039 n'est pas appliquée (colonne absente).
+ */
+export async function setCvLanguageAction(id: string, language: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isCvLang(language)) return { ok: false, error: "Langue inconnue." };
+  try {
+    await setBuilderCvLanguage(String(id), language);
+    revalidatePath(`/cv-builder/${id}`);
+    return { ok: true };
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof CvBuilderError) return { ok: false, error: error.message };
+    console.error("[cv-builder] langue", error);
+    return { ok: false, error: "La langue n'a pas pu être enregistrée. Réessaie dans un instant." };
   }
 }
 
@@ -489,10 +511,15 @@ export async function checkCvImportAction(formData: FormData): Promise<ImportSte
  * Crée le CV d'une candidature à partir d'un CV extrait par l'IA, avec le poste de la candidature
  * pour poste visé (à défaut, celui du CV), et le lie à cette candidature.
  */
-async function createApplicationCv(data: CvData, detail: ApplicationDetailResult, templateId?: CvTemplateId): Promise<string> {
+async function createApplicationCv(
+  data: CvData,
+  detail: ApplicationDetailResult,
+  templateId?: CvTemplateId,
+  language: CvLang | null = null,
+): Promise<string> {
   const applicationId = detail.application.id;
   const draft = applicationCvDraft(data, detail.application, await getAccountName().catch(() => null));
-  const id = await createBuilderCv(draft.data, draft.title, templateId);
+  const id = await createBuilderCv(draft.data, draft.title, templateId, language);
   await linkOrDiscard(id, applicationId);
   return id;
 }
