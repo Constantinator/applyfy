@@ -30,5 +30,7 @@ export function scoringContextForSector(
     avoid: context.avoid,
     marketKeywords,
     offer: offer ? { position: offer.position.trim().slice(0, 120), company: offer.company.trim().slice(0, 120) } : null,
+    // CV lié dont l'offre a des mots-clés comptés : ils remplacent ceux du secteur (clé absente sinon).
+    ...(offer?.keywords?.length ? { offerKeywords: offer.keywords } : {}),
   };
 }

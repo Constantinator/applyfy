@@ -1,5 +1,5 @@
 import type { Sector } from "./cv-sector-context";
-import type { CvSuggestions, KeywordGroup, OfferKeyword } from "./cv-types";
+import type { CvSuggestions, KeywordGroup, OfferKeyword, SavedCvSuggestions } from "./cv-types";
 import { isExcludedKeyword, matchKeywords, normalizeText } from "./keyword-match";
 
 // « Adapter mon CV » : poids des mots-clés de l'offre (à l'analyse) et comparaison avec le
@@ -77,4 +77,43 @@ export function matchCvKeywords(
   const total = counted.reduce((sum, r) => sum + r.weight, 0);
   const found = counted.filter((r) => r.present).reduce((sum, r) => sum + r.weight, 0);
   return { rows, rate: cvText && total > 0 ? Math.round((found / total) * 100) : null };
+}
+
+/**
+ * Compétences comportementales écrites sans catégorie fiable (anciennes analyses, lues comme
+ * « technique » par readCvSuggestions) : comparées au mot-clé entier, sans accents ni majuscules.
+ */
+export const BEHAVIOURAL_KEYWORDS = [
+  "autonomie", "autonome", "rigueur", "rigoureux", "rigoureuse", "esprit d'equipe", "travail en equipe",
+  "sens du travail en equipe", "curiosite", "curieux", "curieuse",
+  "sens de l'organisation", "organise", "organisee", "capacite d'adaptation", "adaptabilite", "sens relationnel",
+  "sens du relationnel", "aisance relationnelle", "bon relationnel", "qualites relationnelles", "proactivite",
+  "proactif", "proactive", "dynamisme", "motivation", "motive", "motivee", "creativite", "esprit d'analyse",
+  "esprit de synthese", "capacite d'analyse", "ecoute", "sens de l'ecoute", "empathie", "leadership",
+  "polyvalence", "reactivite", "perseverance", "ponctualite", "sens des responsabilites", "esprit d'initiative",
+  "prise d'initiative", "gestion du stress", "resistance au stress", "diplomatie", "bienveillance", "enthousiasme",
+  "esprit critique", "force de proposition", "savoir-etre", "teamwork", "team player", "team spirit", "autonomy",
+  "self-starter", "curiosity", "adaptability", "attention to detail", "interpersonal skills", "people skills",
+  "proactive", "ownership", "rigor", "rigour", "creativity", "empathy", "resilience", "soft skills",
+];
+const BEHAVIOURAL = new Set(BEHAVIOURAL_KEYWORDS.map(keywordKey));
+
+/**
+ * Compétence comportementale (exclue du score, visible dans l'onglet Mots-clés) : catégorie
+ * « comportementale » donnée par l'analyse de l'offre, ou mot-clé de la liste fixe.
+ */
+export function isBehaviouralKeyword(k: Pick<OfferKeyword, "keyword" | "group">) {
+  return k.group === "comportementale" || BEHAVIOURAL.has(keywordKey(k.keyword));
+}
+
+/**
+ * Mots-clés de l'offre comptés par le score d'un CV lié : ni comportementaux, ni ignorés ; vide
+ * pour une ancienne analyse à deux listes (repli sur les mots-clés du secteur).
+ */
+export function offerScoreKeywords(saved: SavedCvSuggestions | null): { keyword: string; variants: string[] }[] {
+  if (saved?.kind !== "keywords") return [];
+  const ignored = new Set(saved.ignored.map(keywordKey));
+  return saved.keywords
+    .filter((k) => !ignored.has(keywordKey(k.keyword)) && !isBehaviouralKeyword(k))
+    .map((k) => ({ keyword: k.keyword, variants: k.variants }));
 }

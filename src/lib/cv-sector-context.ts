@@ -1,4 +1,7 @@
 import knowledgeBase from "./cv-knowledge-base.json";
+import { offerScoreKeywords } from "./cv-keyword-match";
+import type { OfferScoreKeyword } from "./cv-score";
+import { readCvSuggestions } from "./cv-types";
 import { matchKeywords } from "./keyword-match";
 
 // Base de connaissance CV par secteur (cv-knowledge-base.json) : détection du secteur du
@@ -171,6 +174,11 @@ export type ScoringOffer = {
   description: string | null;
   /** Colonne applications.sector (migration 0038), sans contrainte en base : revalidée. */
   sector: string | null;
+  /**
+   * Mots-clés de l'offre comptés par le score (cv_suggestions, hors comportementaux et ignorés).
+   * Absent si l'offre n'en a pas : le score garde alors les mots-clés du secteur.
+   */
+  keywords?: OfferScoreKeyword[];
 };
 
 /**
@@ -196,6 +204,7 @@ type OfferDetail = {
     offer_description?: string | null;
     offer_summary?: string | null;
     sector?: string | null;
+    cv_suggestions?: unknown;
   };
 };
 
@@ -211,7 +220,14 @@ export function scoringOfferFor(applicationId: string | null | undefined, detail
     company: app.company ?? "",
     description: app.offer_description ?? app.offer_summary ?? null,
     sector: app.sector ?? null,
+    ...offerKeywordsOf(app.cv_suggestions),
   };
+}
+
+/** Mots-clés comptés de l'offre, seulement s'il y en a (aucune clé sinon : même objet qu'avant). */
+function offerKeywordsOf(raw: unknown): { keywords?: OfferScoreKeyword[] } {
+  const keywords = offerScoreKeywords(readCvSuggestions(raw));
+  return keywords.length ? { keywords } : {};
 }
 
 /**

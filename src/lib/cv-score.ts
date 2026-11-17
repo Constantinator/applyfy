@@ -21,7 +21,19 @@ export type ScoringContext = {
   marketKeywords: string[];
   /** CV lié à une candidature : offre dont le secteur fixe le score (ligne « Noté pour l'offre »). */
   offer?: { position: string; company: string } | null;
+  /**
+   * CV lié dont l'offre a des mots-clés comptés (hors compétences comportementales et mots-clés
+   * ignorés) : ils remplacent ceux du secteur dans les 20 points « Mots-clés ». Absent en mode libre
+   * et quand l'offre n'en a pas (repli sur les mots-clés du secteur).
+   */
+  offerKeywords?: OfferScoreKeyword[];
 };
+
+/** Mot-clé de l'offre compté par le score, avec ses variantes (offre) pour le reconnaître dans le CV. */
+export type OfferScoreKeyword = { keyword: string; variants: string[] };
+
+/** Part des mots-clés comptés de l'offre à trouver pour la note maximale (au plus KEYWORDS_TARGET). */
+export const OFFER_KEYWORDS_RATIO = 0.6;
 
 export const SCORE_CATEGORIES = [
   { id: "impact", label: "Impact", max: 35 },
@@ -368,6 +380,69 @@ export function offerScoreLabel(context: Pick<ScoringContext, "offer" | "sector"
   return `Noté pour l'offre : ${what} (${SECTOR_LABELS[context.sector]})`;
 }
 
+/** Texte du CV où les mots-clés sont cherchés (titre, accroche, postes, puces, formations, compétences…). */
+function keywordText(data: CvData) {
+  return [
+    data.personal.jobTitle,
+    data.summary,
+    ...data.experiences.flatMap((e) => [e.position, ...e.bullets]),
+    ...data.education.flatMap((e) => [`${e.degree} ${e.school}`, ...e.bullets]),
+    ...data.skills.map((s) => s.name),
+    ...data.certifications.map((c) => c.name),
+    ...data.projects.map((p) => `${p.name} ${p.description}`),
+  ]
+    .map(plain)
+    .join("\n");
+}
+
+/** Mots-clés de l'offre dans le score d'un CV lié (null : mode secteur). */
+export type OfferKeywordScore = {
+  /** Mots-clés comptés trouvés dans le CV (un par mot-clé, variantes et équivalents compris). */
+  found: string[];
+  /** Mots-clés comptés absents du CV, les plus importants d'abord. */
+  missing: string[];
+  /** Nombre de mots-clés comptés (n). */
+  counted: number;
+  /** Mots-clés à trouver pour la note maximale : min(10, ⌈0,6 × n⌉). */
+  target: number;
+  /** Points de la catégorie, sur 20. */
+  points: number;
+};
+
+/**
+ * Mots-clés de l'offre comptés par le score : chaque mot-clé compte une fois, même s'il revient
+ * plusieurs fois dans le CV ; deux mots-clés de l'offre qui partagent une forme (variante,
+ * équivalent français/anglais) n'en font qu'un. Note maximale à ⌈60 %⌉ des mots-clés comptés
+ * (au plus 10). Null en mode secteur (CV libre, ou offre sans mot-clé compté).
+ */
+export function offerKeywordScore(data: CvData, context: Pick<ScoringContext, "offerKeywords" | "sector">): OfferKeywordScore | null {
+  const list = context.offerKeywords;
+  if (!list?.length) return null;
+  const text = keywordText(data);
+  // Groupes de mots-clés équivalents (formes communes), dans l'ordre de l'offre.
+  const groups: { keyword: string; forms: Set<string> }[] = [];
+  for (const k of list) {
+    const forms = [k.keyword, ...k.variants, ...keywordAliasesOf(k.keyword, context.sector)]
+      .map((f) => normalizeText(f).trim())
+      .filter(Boolean);
+    if (!forms.length) continue;
+    const group = groups.find((g) => forms.some((f) => g.forms.has(f)));
+    if (group) forms.forEach((f) => group.forms.add(f));
+    else groups.push({ keyword: k.keyword.trim(), forms: new Set(forms) });
+  }
+  if (!groups.length) return null;
+  const found: string[] = [];
+  const missing: string[] = [];
+  for (const g of groups) (matchKeywords(text, [...g.forms], context.sector).length > 0 ? found : missing).push(g.keyword);
+  const target = Math.min(KEYWORDS_TARGET, Math.ceil(OFFER_KEYWORDS_RATIO * groups.length));
+  return { found, missing, counted: groups.length, target, points: POINTS.keywords * Math.min(1, found.length / target) };
+}
+
+/** Ligne de détail de la catégorie : « Mots-clés de l'offre : N sur M visés ». */
+export function offerKeywordsLine(score: Pick<OfferKeywordScore, "found" | "target">) {
+  return `Mots-clés de l'offre : ${Math.min(score.found.length, score.target)} sur ${score.target} visés`;
+}
+
 export function scoreCv(data: CvData, context: ScoringContext): CvScore {
   const corrections: CvCorrection[] = [];
   const totals: Record<ScoreCategoryId, number> = { impact: 0, content: 0, keywords: 0, concision: 0, form: 0 };
@@ -487,38 +562,39 @@ export function scoreCv(data: CvData, context: ScoringContext): CvScore {
       request: `Varie les verbes en début de puce : « ${s.word} » revient ${s.count} fois`,
     });
 
-  // --- Mots-clés (20) : base sectorielle et offres récentes ------------------------------------
-  const cvText = [
-    data.personal.jobTitle,
-    data.summary,
-    ...data.experiences.flatMap((e) => [e.position, ...e.bullets]),
-    ...data.education.flatMap((e) => [`${e.degree} ${e.school}`, ...e.bullets]),
-    ...data.skills.map((s) => s.name),
-    ...data.certifications.map((c) => c.name),
-    ...data.projects.map((p) => `${p.name} ${p.description}`),
-  ]
-    .map(plain)
-    .join("\n");
-  const seen = new Set<string>();
-  const keywords = [...context.marketKeywords, ...context.atsKeywords].filter((k) => {
-    const key = normalizeText(k).trim();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  const found = new Set(
-    keywords
-      .filter((k) => matchKeywords(cvText, [k, ...keywordAliasesOf(k, context.sector)], context.sector).length > 0)
-      .map((k) => normalizeText(k).trim()),
-  );
-  totals.keywords += POINTS.keywords * Math.min(1, found.size / KEYWORDS_TARGET);
-  if (found.size < KEYWORDS_TARGET) {
-    const missing = keywords.filter((k) => !found.has(normalizeText(k).trim())).slice(0, 5);
-    lose("keywords", POINTS.keywords - totals.keywords, {
-      elementId: null,
-      message: `${found.size} ${found.size > 1 ? "mots-clés" : "mot-clé"} du métier sur ${KEYWORDS_TARGET} visés (${context.sectorName})`,
-      request: `Ajoute à mon CV les mots-clés du métier que je maîtrise vraiment, par exemple : ${missing.join(", ")}`,
+  // --- Mots-clés (20) : ceux de l'offre pour un CV lié, sinon base sectorielle et offres récentes --
+  const offerScore = offerKeywordScore(data, context);
+  if (offerScore) {
+    totals.keywords += offerScore.points;
+    if (offerScore.found.length < offerScore.target)
+      lose("keywords", POINTS.keywords - offerScore.points, {
+        elementId: null,
+        message: offerKeywordsLine(offerScore),
+        request: `Ajoute à mon CV les mots-clés de l'offre que j'ai vraiment pratiqués (seulement ceux-là), par exemple : ${offerScore.missing.slice(0, 5).join(", ")}`,
+      });
+  } else {
+    const cvText = keywordText(data);
+    const seen = new Set<string>();
+    const keywords = [...context.marketKeywords, ...context.atsKeywords].filter((k) => {
+      const key = normalizeText(k).trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
+    const found = new Set(
+      keywords
+        .filter((k) => matchKeywords(cvText, [k, ...keywordAliasesOf(k, context.sector)], context.sector).length > 0)
+        .map((k) => normalizeText(k).trim()),
+    );
+    totals.keywords += POINTS.keywords * Math.min(1, found.size / KEYWORDS_TARGET);
+    if (found.size < KEYWORDS_TARGET) {
+      const missing = keywords.filter((k) => !found.has(normalizeText(k).trim())).slice(0, 5);
+      lose("keywords", POINTS.keywords - totals.keywords, {
+        elementId: null,
+        message: `${found.size} ${found.size > 1 ? "mots-clés" : "mot-clé"} du métier sur ${KEYWORDS_TARGET} visés (${context.sectorName})`,
+        request: `Ajoute à mon CV les mots-clés du métier que je maîtrise vraiment, par exemple : ${missing.join(", ")}`,
+      });
+    }
   }
 
   // --- Concision (10) : 400 à 1 600 mots, puces courtes -----------------------------------------

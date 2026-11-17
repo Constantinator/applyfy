@@ -11,6 +11,7 @@ const { coachBuilderCv } = await import("./coach-llm.ts");
 const { runCoachTurn } = await import("./coach-turn.ts");
 const { CvDataSchema } = await import("./cv-builder-types.ts");
 const { scoringContextFrom } = await import("./cv-scoring-context.ts");
+const { scoringOfferFor } = await import("./cv-sector-context.ts");
 
 const FIXTURES = new URL("../../scripts/eval/fixtures/", import.meta.url);
 
@@ -51,12 +52,8 @@ export function detailOf(id) {
   };
 }
 
-const scoringOffer = (detail) => ({
-  position: detail.application.position,
-  company: detail.application.company,
-  description: detail.application.offer_description,
-  sector: detail.application.sector,
-});
+// Offre du score comme l'action (loadBuilderCvScoring) : secteur et mots-clés comptés de l'offre.
+const scoringOffer = (detail) => scoringOfferFor(detail.application.id, detail);
 
 /** Contexte du coach comme l'action : CV lié (detail) ou libre (null). */
 export function contextFor(cv, detail, { history = [], request = null, skipped = [] } = {}) {
