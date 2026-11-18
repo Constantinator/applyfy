@@ -37,7 +37,8 @@ const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 const { CvDocument, registerCvFonts } = await import("../components/cv-builder/cv-document.tsx");
 const { CV_MARGINS, CV_SECTION_TITLES, CV_SETTING_FONTS, CV_TEMPLATE_DEFAULTS, CV_TEMPLATE_IDS, CvDataSchema, cvSettings, frenchNoBreak, hasCvSettings, noBreakParts, withoutEmptyLines } =
   await import("./cv-builder-types.ts");
-const { bandColors } = await import("../components/cv-builder/cv-model-kit.tsx");
+const { bandColors, textWidth, wrapContact } = await import("../components/cv-builder/cv-model-kit.tsx");
+const { lateralColors } = await import("../components/cv-builder/cv-model-lateral.tsx");
 const { contrast } = await import("../components/cv-builder/cv-templates.tsx");
 const fixtures = await import("./cv-pdf-layout.fixtures.mjs");
 
@@ -656,5 +657,172 @@ test("Finance : photo facultative à droite de l'en-tête, sans déplacer le nom
     // Coordonnées : à gauche de la photo (45 pt et 10 pt d'espace).
     const contacts = withPhoto[0].items.filter((i) => i.text.includes("exemple") && i.y > PAGE_HEIGHT - 100);
     assert.ok(contacts.length >= 1 && Math.max(...contacts.map((i) => i.right)) <= PAGE_WIDTH - 34 - 55 + 0.5, `${content} : coordonnées à gauche de la photo`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Lot « modèles 2 » : lateral, bandeau-gauche, serif-compact.
+// ---------------------------------------------------------------------------
+
+const withPersonal = (data, personal) => ({ ...data, personal: { ...data.personal, ...personal } });
+const words = (rendered) => norm(allLines(rendered).join("")).replaceAll("·", "");
+
+test("lateral : dans le fichier, le texte principal précède la colonne latérale sur chaque page ; page 2 sans texte dans la colonne", async () => {
+  for (const content of ["court", "moyen", "dense"]) {
+    for (const font of CV_SETTING_FONTS) {
+      const label = `${content} / ${font.id}`;
+      const pages = await render("lateral", withStyle(fixtures[content], { typeface: font.id }));
+      pages.forEach((page, p) => {
+        // `items` est dans l'ordre du fichier : toute la colonne principale, puis toute la colonne latérale.
+        const side = page.items.map((item, index) => (item.x < LATERAL_SIDE ? index : -1)).filter((index) => index >= 0);
+        const main = page.items.map((item, index) => (item.x >= LATERAL_SIDE ? index : -1)).filter((index) => index >= 0);
+        if (side.length && main.length) assert.ok(Math.max(...main) < Math.min(...side), `${label}, page ${p + 1} : colonne principale d'abord, d'un seul bloc`);
+        // La colonne latérale ne déborde pas sur la colonne principale, et inversement.
+        for (const item of page.items.filter((i) => i.x < LATERAL_SIDE)) assert.ok(item.right <= LATERAL_SIDE - LATERAL_PADDING + 0.5, `${label} : « ${item.text} » dans la colonne`);
+      });
+      const first = pages[0].stream.map((line) => norm(line.text));
+      const name = norm(`${fixtures[content].personal.firstName}${fixtures[content].personal.lastName}`);
+      assert.equal(first[0], name, `${label} : le nom ouvre le fichier`);
+      assert.ok(first.indexOf(norm(t.experiences)) < first.indexOf(norm(t.contact)), `${label} : expériences avant la colonne`);
+    }
+  }
+  // CV dense : la suite du parcours est en page 2, dans la colonne principale ; la colonne latérale y est vide (son fond seul y est répété).
+  const dense = await render("lateral", fixtures.dense);
+  assert.equal(dense.length, 2);
+  assert.ok(dense[1].items.length > 5 && dense[1].items.every((item) => item.x >= LATERAL_SIDE), "page 2 : texte dans la colonne principale seulement");
+});
+
+test("lateral : fond de colonne et accents lisibles (4,5:1) quel que soit l'accent ; photo facultative", async () => {
+  assert.deepEqual(lateralColors("#0F4C5C", ""), { side: "#E6EDF3", accent: "#0F4C5C", sideAccent: "#0F4C5C" });
+  for (let r = 0; r <= 255; r += 17) {
+    for (let g = 0; g <= 255; g += 17) {
+      for (let b = 0; b <= 255; b += 17) {
+        const accent = `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+        const colors = lateralColors(accent, accent);
+        assert.ok(contrast("#111827", colors.side) >= 4.5, `${accent} : texte sur le fond de la colonne`);
+        assert.ok(contrast(colors.sideAccent, colors.side) >= 4.5, `${accent} : titres de la colonne`);
+        assert.ok(contrast(colors.accent, "#FFFFFF") >= 4.5, `${accent} : titres de la colonne principale`);
+      }
+    }
+  }
+  const data = fixtures.moyen;
+  const without = await render("lateral", data);
+  const withPhoto = await render("lateral", withPersonal(data, { photo: PHOTO }));
+  assert.equal(words(withPhoto), words(without), "mêmes textes avec ou sans photo");
+  // La colonne principale ne bouge pas ; la colonne latérale descend sous la photo.
+  const main = (rendered) => rendered[0].items.filter((i) => i.x >= LATERAL_SIDE);
+  assert.deepEqual(main(withPhoto), main(without));
+});
+
+test("coupure d'une adresse e-mail ou d'une URL : à un endroit naturel, à la largeur réelle, sans rien perdre", () => {
+  const email = "marie-helene.dupont@exemple-conseil.fr";
+  for (const font of CV_SETTING_FONTS) {
+    // Tient sur la ligne : une seule ligne.
+    assert.deepEqual(wrapContact(email, font.id, 100), [email]);
+    for (const max of [6, 8, 10, 12, 14]) {
+      const lines = wrapContact(email, font.id, max);
+      assert.equal(lines.join(""), email, `${font.id} / ${max} : rien de perdu ni d'ajouté`);
+      assert.ok(lines.length >= 2, `${font.id} / ${max} : plusieurs lignes`);
+      for (const line of lines) assert.ok(textWidth(font.id, line) <= max + 1e-9, `${font.id} / ${max} : « ${line} » tient dans la largeur`);
+      // Coupure avant « @ », ou après « . », « - », « / », « _ » : jamais au milieu d'un mot.
+      lines.slice(0, -1).forEach((line, i) => assert.ok(/[./_-]$/.test(line) || lines[i + 1].startsWith("@"), `${font.id} / ${max} : « ${line} » puis « ${lines[i + 1]} »`));
+      for (const line of lines.slice(1)) assert.doesNotMatch(line, /^[./_-]/, `${font.id} / ${max} : « ${line} »`);
+    }
+  }
+  // « @ » ouvre la ligne suivante quand c'est le dernier repère qui tient.
+  assert.deepEqual(wrapContact("prenomnomcompose@exemple.fr", "arimo", textWidth("arimo", "prenomnomcompose@ex")), ["prenomnomcompose", "@exemple.fr"]);
+  // Morceau sans aucun repère, plus large que la ligne : coupé à la largeur, pour ne pas déborder.
+  const long = "a".repeat(60);
+  const cut = wrapContact(long, "tinos", 10);
+  assert.ok(cut.length > 1 && cut.join("") === long && cut.every((line) => textWidth("tinos", line) <= 10 + 1e-9));
+});
+
+test("e-mail de 35 à 40 caractères : jamais hors de sa colonne ni coupé dans un mot, dans les 3 modèles et les 6 polices", async () => {
+  const email = "marie-helene.dupont@exemple-conseil.fr";
+  for (const templateId of ["lateral", "bandeau-gauche", "serif-compact"]) {
+    for (const font of CV_SETTING_FONTS) {
+      for (const size of ["normal", "large"]) {
+        const label = `${templateId} / ${font.id} / ${size}`;
+        const data = withStyle(withPersonal(fixtures.court, { email, photo: PHOTO }), { typeface: font.id, size });
+        const [first] = await render(templateId, data);
+        const parts = first.items.filter((i) => /dupont|marie-helene|exemple-conseil/.test(i.text));
+        assert.ok(parts.length >= 1, label);
+        assert.ok(Math.max(...parts.map((i) => i.right)) <= GEOMETRY[templateId].contactRight(CV_MARGINS[1], true) + 0.5, `${label} : e-mail dans sa largeur`);
+        // Entier dans le texte extrait, et chaque ligne se termine à un repère.
+        assert.ok(norm(first.stream.map((line) => line.text).join("")).includes(norm(email)), `${label} : e-mail entier`);
+        const lines = parts.map((i) => i.text.trim()).filter((text) => !text.includes("·"));
+        lines.slice(0, -1).forEach((line, i) => {
+          if (email.includes(line) && !email.endsWith(line)) assert.ok(/[./_-]$/.test(line) || lines[i + 1].startsWith("@"), `${label} : « ${line} »`);
+        });
+      }
+    }
+  }
+});
+
+test("dates en colonne (bandeau-gauche, serif-compact) : jamais de mois coupé ni de tiret en début de ligne, dans les 6 polices", async () => {
+  const base = fixtures.moyen;
+  const dated = [
+    { startDate: "Mars 2023", endDate: "", current: true },
+    { startDate: "Septembre 2020", endDate: "Février 2023", current: false },
+    { startDate: "09/2018", endDate: "08/2020", current: false },
+  ];
+  const data = { ...base, experiences: base.experiences.map((e, i) => ({ ...e, ...dated[i % dated.length] })) };
+  const tokens = new Set(["Mars", "2023", "–", "Aujourd'hui", "Septembre", "2020", "Février", "09/2018", "08/2020"]);
+  for (const [templateId, width] of [["bandeau-gauche", 72], ["serif-compact", 64.5]]) {
+    for (const font of CV_SETTING_FONTS) {
+      for (const size of ["normal", "large"]) {
+        const label = `${templateId} / ${font.id} / ${size}`;
+        const pages = await render(templateId, withStyle(data, { typeface: font.id, size }));
+        const start = pages[0].stream.findIndex((line) => norm(line.text) === norm(t.experiences));
+        const end = pages[0].stream.findIndex((line) => norm(line.text) === norm(t.education));
+        const left = 15 * MM;
+        // Lignes de la colonne de dates des expériences : à gauche du contenu, sans la puce.
+        const column = pages[0].items.filter((i) => i.x < left + width - 8 && i.y < pages[0].stream[start].y && i.y > pages[0].stream[end].y);
+        const lines = [];
+        for (const item of [...column].sort((a, b) => b.y - a.y || a.x - b.x)) {
+          const last = lines.at(-1);
+          if (last && Math.abs(last.y - item.y) < 2) last.text += item.text;
+          else lines.push({ ...item });
+        }
+        const texts = lines.map((line) => line.text.replace(/ /g, " ").trim()).filter(Boolean);
+        assert.ok(texts.length >= 4, `${label} : colonne de dates trouvée (${texts.join(" | ")})`);
+        for (const text of texts) {
+          assert.doesNotMatch(text, /^–/, `${label} : pas de tiret en début de ligne (« ${text} »)`);
+          // (Le tiret suit une espace insécable, que l'extraction ne rend pas toujours.)
+          for (const word of text.replace("–", " – ").trim().split(/\s+/)) assert.ok(tokens.has(word), `${label} : mot entier (« ${word} » dans « ${text} »)`);
+        }
+        for (const item of column) assert.ok(item.right <= left + width + 0.5, `${label} : « ${item.text} » dans la colonne de dates`);
+        // Les 3 périodes sont entières dans la colonne, dans l'ordre.
+        const all = norm(texts.join(""));
+        for (const period of ["Mars2023–Aujourd'hui", "Septembre2020–Février2023", "09/2018–08/2020"]) assert.ok(all.includes(norm(period)), `${label} : ${period}`);
+      }
+    }
+  }
+});
+
+test("bandeau-gauche : bandeau en page 1 seulement ; serif-compact : en-tête centré avec ou sans photo", async () => {
+  const dense = fixtures.dense;
+  const name = norm(`${dense.personal.firstName}${dense.personal.lastName}`);
+  const pages = await render("bandeau-gauche", dense);
+  assert.equal(pages.length, 2);
+  assert.ok(pages[0].stream.some((line) => norm(line.text) === name) && !pages[1].stream.some((line) => norm(line.text) === name));
+  const top = (page) => PAGE_HEIGHT - Math.max(...page.items.map((i) => i.y + i.size));
+  assert.ok(top(pages[1]) >= 13 * MM - 2 && top(pages[1]) < 13 * MM + 20, `page 2 : texte à ${top(pages[1]).toFixed(1)} pt du haut`);
+  assert.equal(words(await render("bandeau-gauche", withPersonal(dense, { photo: PHOTO }))), words(pages), "bandeau-gauche : mêmes textes avec ou sans photo");
+
+  for (const content of ["court", "moyen", "dense"]) {
+    const data = fixtures[content];
+    const without = await render("serif-compact", data);
+    const withPhoto = await render("serif-compact", withPersonal(data, { photo: PHOTO }));
+    assert.equal(withPhoto.length, without.length, `${content} : même nombre de pages`);
+    assert.equal(words(withPhoto), words(without), `${content} : mêmes textes`);
+    const title = norm(`${data.personal.firstName}${data.personal.lastName}`);
+    const line = (rendered) => rendered[0].columns[0].find((l) => norm(l.text) === title);
+    // Centré sur la page : même place avec ou sans photo, et à égale distance des deux marges.
+    assert.ok(Math.abs(line(withPhoto).x - line(without).x) < 0.01, `${content} : nom au même endroit`);
+    const item = withPhoto[0].items.filter((i) => Math.abs(i.y - line(withPhoto).y) < 2);
+    const leftGap = Math.min(...item.map((i) => i.x)) - 15 * MM;
+    const rightGap = PAGE_WIDTH - 15 * MM - Math.max(...item.map((i) => i.right));
+    assert.ok(Math.abs(leftGap - rightGap) < 1, `${content} : nom centré (${leftGap.toFixed(1)} / ${rightGap.toFixed(1)})`);
   }
 });

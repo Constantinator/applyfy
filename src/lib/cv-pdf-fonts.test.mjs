@@ -9,6 +9,7 @@ import { test } from "node:test";
 
 await import("../../scripts/eval/register.mjs");
 const { CV_FONTS, CV_SETTING_FONTS, CV_TEMPLATE_DEFAULTS, normalizeSpaces } = await import("./cv-builder-types.ts");
+const { CV_FONT_WIDTHS } = await import("./cv-font-widths.ts");
 
 const FONTS = new URL("../../public/fonts/cv/", import.meta.url);
 
@@ -173,5 +174,18 @@ test("6 polices des réglages : texte de la licence (OFL 1.1) et mention de copy
   for (const id of Object.keys(copyright)) {
     const reserved = /with Reserved Font Name/.test(readFileSync(new URL(`OFL-${id}.txt`, FONTS), "utf8").split("\n")[0]);
     assert.equal(reserved, id === "carlito", id);
+  }
+});
+
+test("chasses des caractères (cv-font-widths) : identiques à celles des fichiers de police", async () => {
+  // Table utilisée pour couper une adresse e-mail ou une URL à la largeur réelle d'une colonne.
+  const fontkit = await import("fontkit");
+  assert.deepEqual(Object.keys(CV_FONT_WIDTHS).sort(), CV_SETTING_FONTS.map((f) => f.id).sort());
+  for (const [id, widths] of Object.entries(CV_FONT_WIDTHS)) {
+    const font = fontkit.create(readFileSync(new URL(`${id}-400.ttf`, FONTS)));
+    assert.equal(widths.length, 95, id);
+    for (let code = 32; code <= 126; code++) {
+      assert.equal(widths[code - 32], Math.round((font.glyphForCodePoint(code).advanceWidth / font.unitsPerEm) * 1000), `${id} : « ${String.fromCharCode(code)} »`);
+    }
   }
 });

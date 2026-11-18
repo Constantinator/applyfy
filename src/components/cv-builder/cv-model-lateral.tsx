@@ -40,6 +40,16 @@ const PHOTO_SIZE = 88.5;
 const SIDE_BG = "#E6EDF3";
 const CONTACT_SIZE = 8.25;
 
+/**
+ * Couleurs du modèle. `side` : fond de la colonne ; `accent` et `sideAccent` : l'accent, foncé si besoin
+ * pour un contraste d'au moins 4,5:1 sur le blanc (à droite) et sur le fond de la colonne (à gauche).
+ * Le texte courant (INK) a toujours plus de 4,5:1 sur ce fond, très clair par construction.
+ */
+export function lateralColors(accent: string, custom: string) {
+  const side = custom ? mix(custom, "#FFFFFF", 0.88) : SIDE_BG;
+  return { side, accent: readableOn(accent, "#FFFFFF"), sideAccent: readableOn(accent, side) };
+}
+
 function Heading({ children, color, rule }: { children: string; color: string; rule: string }) {
   return (
     <View style={{ borderBottomWidth: 0.75, borderColor: rule, paddingBottom: 2, marginBottom: 4 }}>
@@ -54,10 +64,7 @@ export function Lateral({ data, settings, custom }: { data: CvData; settings: Mo
   const s = sections(data);
   const items = contacts(data);
   const photo = data.personal.photo;
-  const sideBg = custom ? mix(custom, "#FFFFFF", 0.88) : SIDE_BG;
-  // L'accent, foncé si besoin pour un contraste de 4,5:1 : sur le blanc à droite, sur le fond clair à gauche.
-  const accent = readableOn(settings.accent, "#FFFFFF");
-  const sideAccent = readableOn(settings.accent, sideBg);
+  const { side: sideBg, accent, sideAccent } = lateralColors(settings.accent, custom);
   const muted = { color: MUTED };
   const section = { marginTop: 12 };
   const entry = { marginTop: 7 };
