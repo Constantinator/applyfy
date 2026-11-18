@@ -88,11 +88,14 @@ async function render(templateId, data, language = "fr") {
   }
 }
 
-/** Nombre de pages attendu. `before` : nombre de pages avant le lot (main 5634f29), pour le CV moyen. */
+/**
+ * Nombre de pages attendu. `before` : nombre de pages avant le lot PDF (main 5634f29), pour le CV moyen.
+ * Lot rendu 2 : compétences à la suite, le CV moyen tient en 1 page en Minimaliste, Classique et Moderne.
+ */
 const EXPECTED = {
-  minimaliste: { court: 1, moyen: 2, dense: 2, before: 2 },
-  classique: { court: 1, moyen: 2, dense: 2, before: 2 },
-  moderne: { court: 1, moyen: 2, dense: 2, before: 2 },
+  minimaliste: { court: 1, moyen: 1, dense: 2, before: 2 },
+  classique: { court: 1, moyen: 1, dense: 2, before: 2 },
+  moderne: { court: 1, moyen: 1, dense: 2, before: 2 },
   // Avant le lot, le Sidebar dense était écrasé sur une seule page (textes superposés).
   sidebar: { court: 1, moyen: 1, dense: 2, before: 1 },
   tech: { court: 1, moyen: 1, dense: 2, before: 1 },
@@ -140,6 +143,41 @@ for (const templateId of CV_TEMPLATE_IDS) {
     });
   }
 }
+
+/** Lignes de texte de tout le CV, de haut en bas (colonne par colonne). */
+const allLines = (pages) => pages.flatMap((page) => page.columns.flat().map((line) => line.text.replace(/ /g, " ").trim()));
+
+test("compétences à la suite : le CV moyen tient en 1 page (Minimaliste, Classique, Moderne)", async () => {
+  for (const templateId of ["minimaliste", "classique", "moderne"]) {
+    const pages = await render(templateId, fixtures.moyen);
+    assert.equal(pages.length, 1, `${templateId} : CV moyen sur 1 page`);
+    const lines = allLines(pages);
+    assert.ok(lines.some((line) => /^Gestion de projet agile · Jira · Figma/.test(line)), `${templateId} : compétences sur une même ligne`);
+  }
+});
+
+test("compétences : groupes sur leur ligne, niveau écrit dans la langue du CV, données intactes", async () => {
+  const data = {
+    ...fixtures.moyen,
+    skills: [
+      { id: "a", name: "Jira", level: "avance" },
+      { id: "b", name: "Figma" },
+      { id: "c", name: "Outils : Notion, Miro" },
+      { id: "d", name: "SQL", level: "debutant" },
+    ],
+  };
+  const fr = allLines(await render("minimaliste", data));
+  assert.ok(fr.includes("Jira (avancé) · Figma"), fr.join(" | "));
+  assert.ok(fr.includes("Outils : Notion, Miro"));
+  assert.ok(fr.includes("SQL (débutant)"));
+  const en = allLines(await render("minimaliste", data, "en"));
+  assert.ok(en.includes("Jira (advanced) · Figma"), en.join(" | "));
+  assert.ok(en.includes("SQL (beginner)"));
+  // Moderne avec des niveaux : grille à deux colonnes, niveau écrit à côté de la barre.
+  const moderne = allLines(await render("moderne", data, "en"));
+  assert.ok(moderne.some((line) => /\bJira\b/.test(line) && /\bAdvanced\b/.test(line) && !line.includes("·")), moderne.join(" | "));
+  assert.equal(data.skills[0].level, "avance", "niveau enregistré inchangé");
+});
 
 test("expérience longue : coupée entre deux puces, jamais une puce seule en haut ou en bas de page", async () => {
   // 6 expériences de 9 à 12 puces d'une ligne : plusieurs sont coupées par un saut de page.

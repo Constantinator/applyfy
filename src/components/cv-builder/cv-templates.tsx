@@ -38,7 +38,27 @@ function Paragraph({ edit, children, style }: { edit: string; children: string; 
     </Text>
   );
 }
-const levelLabel = (level: string) => SKILL_LEVELS.find((l) => l.value === level && l.value)?.label ?? "";
+
+/** Langue du CV : libellés traduits au rendu (les données enregistrées ne changent pas). */
+const LangContext = createContext<CvLang>("fr");
+
+/** Libellés des niveaux de compétence en anglais (en français : ceux de SKILL_LEVELS). */
+const SKILL_LEVEL_LABELS_EN: Record<string, string> = {
+  debutant: "Beginner",
+  intermediaire: "Intermediate",
+  avance: "Advanced",
+  expert: "Expert",
+};
+
+/** Libellé d'un niveau de compétence dans la langue du CV ; vide sans niveau. */
+function useLevelLabel() {
+  const lang = useContext(LangContext);
+  return (level: string) => {
+    if (!level) return "";
+    if (lang === "en") return SKILL_LEVEL_LABELS_EN[level] ?? "";
+    return SKILL_LEVELS.find((l) => l.value === level)?.label ?? "";
+  };
+}
 
 /**
  * Forme affichée d'une compétence groupée (« Hard skills : a, b ») : intitulé en gras, éventuellement
@@ -315,6 +335,31 @@ function itemBlocks<T extends { id: string }>(items: T[], render: (item: T) => R
   }));
 }
 
+/**
+ * Compétences à la suite, dans un seul paragraphe : « Jira · Figma · SQL (notions) ». Un groupe
+ * (« Outils : a, b ») ou un intitulé seul a sa propre ligne. Chaque compétence garde la même place dans
+ * le paragraphe quel que soit son type : seul le séparateur change (« · » ou retour à la ligne), le
+ * champ en cours de saisie n'est jamais recréé quand une compétence devient un groupe.
+ */
+function InlineSkills({ skills }: { skills: CvData["skills"] }) {
+  const levelLabel = useLevelLabel();
+  const rows = skillRows(skills);
+  return (
+    <Text style={{ marginTop: 1.5 }}>
+      {rows.map(({ skill: k, group }, i) => (
+        <Text key={k.id}>
+          {/* Espace insécable avant « · » : le séparateur ne commence jamais une ligne. */}
+          {i === 0 ? "" : group || rows[i - 1].group ? "\n" : " · "}
+          <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
+            {k.name}
+          </Text>
+          {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Modèles à une colonne : minimaliste, classique, moderne bleu, tech
 // ---------------------------------------------------------------------------
@@ -328,6 +373,7 @@ type Theme = {
 
 function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; variant: CvTemplateId }) {
   const t = useContext(TitlesContext);
+  const levelLabel = useLevelLabel();
   const s = sections(data);
   const items = contacts(data);
   const center = theme.headerAlign === "center";
@@ -494,7 +540,8 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
               ))}
             </View>
           </Section>
-        ) : variant === "moderne" ? (
+        ) : variant === "moderne" && s.skills.some((k) => k.level) ? (
+          // Moderne avec des niveaux : grille sur deux colonnes, barre de niveau sous chaque compétence.
           <Section style={section} heading={<Heading>{t.skills}</Heading>}>
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {skillRows(s.skills).map(({ skill: k, group, afterGroup }) => (
@@ -516,22 +563,10 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
             </View>
           </Section>
         ) : (
-          <Section
-            style={section}
-            heading={<Heading>{t.skills}</Heading>}
-            blocks={itemBlocks(
-              s.skills,
-              (k) => (
-                <>
-                  <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
-                    {k.name}
-                  </Text>
-                  {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
-                </>
-              ),
-              (k) => splitSkillGroup(k.name)?.items.trim() === "",
-            )}
-          />
+          // Minimaliste, Classique, Moderne sans niveau : compétences à la suite.
+          <Section style={section} heading={<Heading>{t.skills}</Heading>}>
+            <InlineSkills skills={s.skills} />
+          </Section>
         )
       ) : null}
 
@@ -949,6 +984,7 @@ function FinanceLine({ label, children }: { label: string; children: ReactNode }
 function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
   const t = useContext(TitlesContext);
   const rows = skillRows(skills);
+  const levelLabel = useLevelLabel();
   const level = (k: CvData["skills"][number]) => (k.level ? ` (${levelLabel(k.level).toLowerCase()})` : "");
   const simpleItems = (items: CvData["skills"]) =>
     joined(items, (k) => (
@@ -1171,6 +1207,7 @@ export function CvPages({ data, templateId, language = "fr" }: { data: CvData; t
   ];
   return (
     <TitlesContext value={CV_SECTION_TITLES[language]}>
+      <LangContext value={language}>
       <AlignContext value={data.style.align}>
         <AccentContext value={data.style.accent}>
           {templateId === "finance" ? (
@@ -1182,6 +1219,7 @@ export function CvPages({ data, templateId, language = "fr" }: { data: CvData; t
           )}
         </AccentContext>
       </AlignContext>
+      </LangContext>
     </TitlesContext>
   );
 }
