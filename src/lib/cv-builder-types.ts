@@ -11,6 +11,8 @@ export const CV_TEMPLATES = [
   { id: "sidebar", name: "Sidebar sombre", description: "Colonne gauche sombre pour les infos et compétences." },
   { id: "tech", name: "Tech moderne", description: "Accent vert, badges, timeline et liens GitHub mis en avant." },
   { id: "finance", name: "Finance", description: "CV ATS classique : Times, noir et blanc, très compact." },
+  // Modèles réglables (police, taille, marges) : pas de nom affiché, la vignette seule.
+  { id: "serif-centre", name: "", description: "En-tête centré, police à empattements, dates à droite." },
 ] as const;
 
 export type CvTemplateId = (typeof CV_TEMPLATES)[number]["id"];
@@ -312,6 +314,7 @@ export const CV_TEMPLATE_DEFAULTS: Record<CvTemplateId, { accent: string; font?:
   sidebar: { accent: "#1E293B" },
   tech: { accent: "#059669" },
   finance: { accent: "#000000" },
+  "serif-centre": { accent: "#7A2E2E", font: "eb-garamond", body: 10.5 },
 };
 
 /** Le modèle a des réglages de police, de taille et de marges. */

@@ -100,6 +100,8 @@ const EXPECTED = {
   sidebar: { court: 1, moyen: 1, dense: 2, before: 1 },
   tech: { court: 1, moyen: 1, dense: 2, before: 1 },
   finance: { court: 1, moyen: 1, dense: 2, before: 1 },
+  // Modèles réglables (lot « nouveaux modèles ») : pas d'état antérieur, `before` = attendu.
+  "serif-centre": { court: 1, moyen: 1, dense: 2, before: 1 },
 };
 
 /** Ordre de lecture d'un ATS, propre à chaque modèle (inchangé par le lot). */
@@ -113,9 +115,10 @@ const ORDER = {
   finance: ["name", t.summary, t.education, t.experiences, t.skillsLanguages],
   // Colonne latérale d'abord, puis la colonne principale.
   sidebar: [t.contact, t.education, t.skills, t.languages, "name", t.profile, t.experiences],
+  "serif-centre": ["name", t.profile, t.experiences, t.education, t.skillsLanguages],
 };
 
-test("les 6 modèles sont couverts", () => {
+test("tous les modèles sont couverts", () => {
   assert.deepEqual([...CV_TEMPLATE_IDS].sort(), Object.keys(EXPECTED).sort());
 });
 

@@ -20,18 +20,18 @@ import { DensityContext, Link, Page, Photo, Text, View, type StyleProp } from ".
 // en PDF (téléchargement) et en HTML modifiable (aperçu de l'éditeur). Chaque texte relié
 // à un champ porte `edit` : il se modifie directement dans l'aperçu.
 
-const BOLD = { fontWeight: "bold" };
+export const BOLD = { fontWeight: "bold" };
 
 /** Alignement des paragraphes et des puces (réglage « Alignement » de l'éditeur). */
-const AlignContext = createContext<"left" | "justify">("left");
+export const AlignContext = createContext<"left" | "justify">("left");
 /** Couleur d'accent choisie dans « Style du CV » ; vide : couleur du modèle. */
-const AccentContext = createContext("");
+export const AccentContext = createContext("");
 // Teintes dérivées de l'accent choisi (#rrggbb). Sans accent, chaque modèle garde ses couleurs d'origine.
 
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const toHex = (c: number[]) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
 /** Mélange de `hex` avec `other` : 0, `hex` ; 1, `other`. */
-const mix = (hex: string, other: string, amount: number) => {
+export const mix = (hex: string, other: string, amount: number) => {
   const a = rgb(hex);
   const b = rgb(other);
   return toHex(a.map((v, i) => v + (b[i] - v) * amount));
@@ -44,12 +44,12 @@ const luminance = (hex: string) => {
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
-const contrast = (a: string, b: string) => {
+export const contrast = (a: string, b: string) => {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 };
 /** L'accent, éclairci (sur fond sombre) ou foncé (sur fond clair) juste assez pour un contraste de 4,5:1. */
-function readableOn(accent: string, background: string) {
+export function readableOn(accent: string, background: string) {
   const toward = luminance(background) < 0.5 ? "#FFFFFF" : "#000000";
   for (let amount = 0; amount < 1; amount += 0.05) {
     const color = mix(accent, toward, amount);
@@ -59,10 +59,10 @@ function readableOn(accent: string, background: string) {
 }
 
 /** Titres des rubriques dans la langue du CV. */
-const TitlesContext = createContext(CV_SECTION_TITLES.fr);
+export const TitlesContext = createContext(CV_SECTION_TITLES.fr);
 
 /** Paragraphe modifiable (profil, description de projet), à l'alignement choisi. */
-function Paragraph({ edit, children, style }: { edit: string; children: string; style?: StyleProp }) {
+export function Paragraph({ edit, children, style }: { edit: string; children: string; style?: StyleProp }) {
   const align = useContext(AlignContext);
   return (
     <Text edit={edit} multiline style={[{ textAlign: align }, ...(Array.isArray(style) ? style : [style])]}>
@@ -72,7 +72,7 @@ function Paragraph({ edit, children, style }: { edit: string; children: string; 
 }
 
 /** Langue du CV : libellés traduits au rendu (les données enregistrées ne changent pas). */
-const LangContext = createContext<CvLang>("fr");
+export const LangContext = createContext<CvLang>("fr");
 
 /** Libellés des niveaux de compétence en anglais (en français : ceux de SKILL_LEVELS). */
 const SKILL_LEVEL_LABELS_EN: Record<string, string> = {
@@ -83,7 +83,7 @@ const SKILL_LEVEL_LABELS_EN: Record<string, string> = {
 };
 
 /** Libellé d'un niveau de compétence dans la langue du CV ; vide sans niveau. */
-function useLevelLabel() {
+export function useLevelLabel() {
   const lang = useContext(LangContext);
   return (level: string) => {
     if (!level) return "";
@@ -96,7 +96,7 @@ function useLevelLabel() {
  * Forme affichée d'une compétence groupée (« Hard skills : a, b ») : intitulé en gras, éventuellement
  * seul sur sa ligne. undefined pour une compétence simple, ou un intitulé déjà mis en forme.
  */
-function skillGroupDisplay(name: string, ownLine = false) {
+export function skillGroupDisplay(name: string, ownLine = false) {
   const group = splitSkillGroup(name);
   if (!group || /[*_]/.test(group.label)) return undefined;
   if (!group.items.trim()) return `**${group.label.trim()}**`;
@@ -107,7 +107,7 @@ function skillGroupDisplay(name: string, ownLine = false) {
  * Compétences dans l'ordre, avec leur place : `group` (« Intitulé : a, b »), `heading` (intitulé seul,
  * sur sa propre ligne) et `afterGroup` (compétence simple placée après un groupe, qu'elle suit à l'écran).
  */
-function skillRows(skills: CvData["skills"]) {
+export function skillRows(skills: CvData["skills"]) {
   let seenGroup = false;
   return skills.map((skill) => {
     const parts = splitSkillGroup(skill.name);
@@ -117,9 +117,9 @@ function skillRows(skills: CvData["skills"]) {
   });
 }
 
-type ContactItem = { field: "email" | "phone" | "city" | "linkedin" | "website" | "github"; label: string; href?: string };
+export type ContactItem = { field: "email" | "phone" | "city" | "linkedin" | "website" | "github"; label: string; href?: string };
 
-function contacts(data: CvData): ContactItem[] {
+export function contacts(data: CvData): ContactItem[] {
   const p = data.personal;
   const items: (ContactItem | false)[] = [
     !!p.email && { field: "email", label: p.email, href: `mailto:${p.email}` },
@@ -132,10 +132,10 @@ function contacts(data: CvData): ContactItem[] {
   return items.filter((c): c is ContactItem => c !== false);
 }
 
-const absolute = (href: string) => (/^(https?:|mailto:)/i.test(href) ? href : `https://${href}`);
+export const absolute = (href: string) => (/^(https?:|mailto:)/i.test(href) ? href : `https://${href}`);
 
 /** Coordonnée : lien cliquable dans le PDF, sans soulignement. */
-function Contact({ item, style, display }: { item: ContactItem; style?: StyleProp; display?: string }) {
+export function Contact({ item, style, display }: { item: ContactItem; style?: StyleProp; display?: string }) {
   const edit = `personal.${item.field}`;
   if (!item.href) {
     return (
@@ -158,7 +158,7 @@ const URL_BREAKS = "/.-";
  * URL affichée sur plusieurs lignes si elle dépasse `maxChars` caractères : coupée seulement après « / »,
  * « . » ou « - », au plus tard possible. Un morceau sans point de coupure reste entier.
  */
-function urlLines(url: string, maxChars: number): string[] {
+export function urlLines(url: string, maxChars: number): string[] {
   const lines: string[] = [];
   let rest = url;
   while (rest.length > maxChars) {
@@ -178,7 +178,7 @@ function urlLines(url: string, maxChars: number): string[] {
 }
 
 /** Largeur d'une page A4, en points. */
-const PAGE_WIDTH = 595.28;
+export const PAGE_WIDTH = 595.28;
 /** Taille des coordonnées de l'en-tête, et largeur moyenne d'un caractère (en cadratins) : Inter et polices proches. */
 const CONTACT_SIZE = 9;
 const CHAR_WIDTH = 0.515;
@@ -188,7 +188,7 @@ const CHAR_WIDTH = 0.515;
  * écrit qu'entre deux coordonnées d'une même ligne, jamais en début ni en fin de ligne. (Un retour à la
  * ligne automatique emporterait le séparateur avec la coordonnée suivante.)
  */
-function contactLines(items: ContactItem[], width: number, gap: number, charWidth: number): ContactItem[][] {
+export function contactLines(items: ContactItem[], width: number, gap: number, charWidth: number): ContactItem[][] {
   const lines: ContactItem[][] = [];
   let used = 0;
   for (const item of items) {
@@ -247,7 +247,7 @@ function ContactLines({
 }
 
 /** « Prénom Nom », chaque partie modifiable. */
-function Name({ data, style }: { data: CvData; style?: StyleProp }) {
+export function Name({ data, style }: { data: CvData; style?: StyleProp }) {
   return (
     <Text style={style}>
       <Text edit="personal.firstName" placeholder="Prénom">
@@ -261,7 +261,7 @@ function Name({ data, style }: { data: CvData; style?: StyleProp }) {
 }
 
 /** « 09/2022 – Aujourd'hui » (« Present » en anglais), début et fin modifiables. */
-function Dates({ base, start, end, current, style }: { base: string; start: string; end?: string; current?: boolean; style?: StyleProp }) {
+export function Dates({ base, start, end, current, style }: { base: string; start: string; end?: string; current?: boolean; style?: StyleProp }) {
   const t = useContext(TitlesContext);
   const hasEnd = current || !!end?.trim();
   if (!start.trim() && !hasEnd) return null;
@@ -275,12 +275,12 @@ function Dates({ base, start, end, current, style }: { base: string; start: stri
 }
 
 /** Puces à afficher : les puces vides sont masquées (l'aperçu garde à l'écran le champ en cours de saisie). */
-function bulletLines(items: string[]) {
+export function bulletLines(items: string[]) {
   return items.map((text, index) => ({ text, index })).filter((b) => b.text.trim());
 }
 
 /** Une puce : jamais coupée entre deux pages. `top` : espace au-dessus (plus grand pour la première). */
-function BulletRow({ base, index, text, top, color, style }: { base: string; index: number; text: string; top: number; color?: string; style?: StyleProp }) {
+export function BulletRow({ base, index, text, top, color, style }: { base: string; index: number; text: string; top: number; color?: string; style?: StyleProp }) {
   const align = useContext(AlignContext);
   return (
     <View style={{ flexDirection: "row", marginTop: top }} wrap={false}>
@@ -293,7 +293,7 @@ function BulletRow({ base, index, text, top, color, style }: { base: string; ind
 }
 
 /** Les puces d'une entrée, une par ligne (3 pt de plus au-dessus de la première). */
-function bulletRows(base: string, items: string[], color?: string, style?: StyleProp) {
+export function bulletRows(base: string, items: string[], color?: string, style?: StyleProp) {
   return bulletLines(items).map((b, i) => (
     <BulletRow key={b.index} base={base} index={b.index} text={b.text} top={i === 0 ? 4.5 : 1.5} color={color} style={style} />
   ));
@@ -304,7 +304,7 @@ function bulletRows(base: string, items: string[], color?: string, style?: Style
 // ---------------------------------------------------------------------------
 
 /** Bloc qui ne se coupe jamais entre deux pages. `style` : celui du bloc (espace au-dessus, filet…). */
-type Block = { key: string; style?: StyleProp; content: ReactNode };
+export type Block = { key: string; style?: StyleProp; content: ReactNode };
 
 /** Au-delà de ce nombre de puces, une expérience peut se couper entre deux puces. */
 const UNBREAKABLE_BULLETS = 4;
@@ -317,7 +317,7 @@ type EntryPart = "only" | "first" | "middle" | "last";
  * Blocs d'une expérience. Jusqu'à 4 puces : un seul bloc. Au-delà : l'en-tête avec les 2 premières puces,
  * une puce par bloc ensuite, et les 2 dernières ensemble.
  */
-function entryBlocks(key: string, head: ReactNode, rows: ReactNode[], render: (part: EntryPart, content: ReactNode) => Omit<Block, "key">): Block[] {
+export function entryBlocks(key: string, head: ReactNode, rows: ReactNode[], render: (part: EntryPart, content: ReactNode) => Omit<Block, "key">): Block[] {
   if (rows.length <= UNBREAKABLE_BULLETS) return [{ key, ...render("only", <>{head}{rows}</>) }];
   return [
     { key, ...render("first", <>{head}{rows.slice(0, BULLETS_KEPT)}</>) },
@@ -337,7 +337,7 @@ const TWO_LINES = 30;
  * Titre et blocs sont rendus à la suite, sans conteneur : react-pdf n'applique `minPresenceAhead` qu'à un
  * bloc précédé d'autres blocs dans le même conteneur, jamais au premier.
  */
-function Section({ style, heading, blocks, ahead = TWO_LINES, children }: { style?: StyleProp; heading: ReactNode; blocks?: Block[]; ahead?: number; children?: ReactNode }) {
+export function Section({ style, heading, blocks, ahead = TWO_LINES, children }: { style?: StyleProp; heading: ReactNode; blocks?: Block[]; ahead?: number; children?: ReactNode }) {
   if (!blocks) {
     return (
       <>
@@ -366,7 +366,7 @@ function Section({ style, heading, blocks, ahead = TWO_LINES, children }: { styl
 }
 
 /** Contenu des sections, dans l'ordre d'affichage (éléments vides masqués). */
-function sections(data: CvData) {
+export function sections(data: CvData) {
   return {
     summary: data.summary.trim() ? data.summary : "",
     experiences: data.experiences.filter((e) => e.position || e.company),
@@ -380,7 +380,7 @@ function sections(data: CvData) {
 }
 
 /** Liste à puces : un bloc par élément, rendu par `render`. `isHeading` : ligne d'intitulé, sans puce. */
-function itemBlocks<T extends { id: string }>(items: T[], render: (item: T) => ReactNode, isHeading?: (item: T) => boolean): Block[] {
+export function itemBlocks<T extends { id: string }>(items: T[], render: (item: T) => ReactNode, isHeading?: (item: T) => boolean): Block[] {
   return items.map((item) => ({
     key: item.id,
     style: { flexDirection: "row", marginTop: 1.5 },
@@ -399,7 +399,7 @@ function itemBlocks<T extends { id: string }>(items: T[], render: (item: T) => R
  * le paragraphe quel que soit son type : seul le séparateur change (« · » ou retour à la ligne), le
  * champ en cours de saisie n'est jamais recréé quand une compétence devient un groupe.
  */
-function InlineSkills({ skills }: { skills: CvData["skills"] }) {
+export function InlineSkills({ skills }: { skills: CvData["skills"] }) {
   const levelLabel = useLevelLabel();
   const rows = skillRows(skills);
   return (
@@ -1018,7 +1018,7 @@ function Sidebar({ data }: { data: CvData }) {
 // ---------------------------------------------------------------------------
 
 const FINANCE_BLACK = "#000000";
-const ITALIC = { fontStyle: "italic" };
+export const ITALIC = { fontStyle: "italic" };
 
 /** Titre centré en petites majuscules, entre deux filets pleine largeur. */
 function FinanceHeading({ children }: { children: string }) {
@@ -1038,7 +1038,7 @@ function financeBulletRows(base: string, items: string[]) {
 }
 
 /** Ligne « libellé : éléments » de la section Compétences & Langues. */
-function FinanceLine({ label, children }: { label: string; children: ReactNode }) {
+export function FinanceLine({ label, children }: { label: string; children: ReactNode }) {
   const t = useContext(TitlesContext);
   return (
     <Text style={{ marginTop: 1 }}>
@@ -1055,7 +1055,7 @@ function FinanceLine({ label, children }: { label: string; children: ReactNode }
  * Compétences dans leur ordre : d'abord les simples sur la ligne « Compétences : … », puis une ligne
  * par groupe ou intitulé seul ; les compétences simples placées après sont réunies sur la ligne dessous.
  */
-function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
+export function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
   const t = useContext(TitlesContext);
   const rows = skillRows(skills);
   const levelLabel = useLevelLabel();
@@ -1102,7 +1102,7 @@ function FinanceSkills({ skills }: { skills: CvData["skills"] }) {
 }
 
 /** Éléments séparés par des virgules, chacun modifiable. */
-function joined<T>(items: T[], render: (item: T) => ReactNode) {
+export function joined<T>(items: T[], render: (item: T) => ReactNode) {
   return items.map((item, i) => (
     <Text key={i}>
       {i > 0 ? ", " : ""}
@@ -1274,8 +1274,11 @@ function Finance({ data }: { data: CvData }) {
   );
 }
 
-/** Les pages du CV dans le modèle choisi (dans un PrimitivesContext PDF ou HTML). */
-export function CvPages({ data, templateId, language = "fr" }: { data: CvData; templateId: CvTemplateId; language?: CvLang }) {
+/** Les 6 premiers modèles ; les modèles réglables sont dans leurs propres fichiers (cf. cv-pages). */
+export type LegacyTemplateId = "minimaliste" | "classique" | "moderne" | "sidebar" | "tech" | "finance";
+
+/** Les pages du CV dans l'un des 6 premiers modèles (dans un PrimitivesContext PDF ou HTML). */
+export function LegacyPages({ data, templateId, language = "fr" }: { data: CvData; templateId: LegacyTemplateId; language?: CvLang }) {
   const theme = { minimaliste: MINIMALISTE, classique: CLASSIQUE, moderne: MODERNE, tech: TECH, finance: null, sidebar: null }[
     templateId
   ];

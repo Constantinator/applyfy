@@ -40,7 +40,7 @@ import {
   type EditPath,
   type StyleProp,
 } from "./cv-primitives";
-import { CvPages } from "./cv-templates";
+import { CvPages } from "./cv-pages";
 import { cutLine, useLineEditing } from "./use-line-editing";
 
 // Aperçu de l'éditeur : les modèles rendus en HTML (mêmes styles et mêmes polices que le

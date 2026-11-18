@@ -15,7 +15,7 @@ import { CV_FONTS, cvFontFile, densityFactor, frenchNoBreak, fullName, normalize
 import { parseRich } from "@/lib/cv-rich-text";
 
 import { DensityContext, densityStyle, PrimitivesContext, type CvPrimitives, type StyleProp } from "./cv-primitives";
-import { CvPages } from "./cv-templates";
+import { CvPages } from "./cv-pages";
 
 // Rendu PDF (A4) des modèles du CV Builder, par @react-pdf/renderer : téléchargement.
 // Texte sélectionnable, lisible par les ATS ; polices intégrées au fichier.
