@@ -15,6 +15,7 @@ export const CV_TEMPLATES = [
   { id: "serif-centre", name: "", description: "En-tête centré, police à empattements, dates à droite." },
   { id: "bandeau-droite", name: "", description: "Bandeau de couleur en haut, photo ronde à droite, dates à droite." },
   { id: "lateral", name: "", description: "Colonne claire à gauche (photo, coordonnées, compétences, langues), parcours à droite." },
+  { id: "bandeau-gauche", name: "", description: "Bandeau de couleur en haut, dates dans une colonne à gauche." },
 ] as const;
 
 export type CvTemplateId = (typeof CV_TEMPLATES)[number]["id"];
@@ -328,6 +329,7 @@ export const CV_TEMPLATE_DEFAULTS: Record<
   "serif-centre": { accent: "#7A2E2E", font: "eb-garamond", body: 10.5 },
   "bandeau-droite": { accent: "#23336B", font: "arimo", body: 9 },
   lateral: { accent: "#0F4C5C", font: "arimo", body: 9 },
+  "bandeau-gauche": { accent: "#4A2C6D", font: "arimo", body: 9 },
 };
 
 /** Le modèle a des réglages de police, de taille et de marges. */

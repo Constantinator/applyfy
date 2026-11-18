@@ -119,6 +119,7 @@ const EXPECTED = {
   "serif-centre": { court: 1, moyen: 1, dense: 2, before: 1 },
   "bandeau-droite": { court: 1, moyen: 1, dense: 2, before: 1 },
   lateral: { court: 1, moyen: 1, dense: 2, before: 1 },
+  "bandeau-gauche": { court: 1, moyen: 1, dense: 2, before: 1 },
 };
 
 /** Ordre de lecture d'un ATS, propre à chaque modèle (inchangé par le lot). */
@@ -137,6 +138,7 @@ const ORDER = {
   // Colonne principale d'abord (écrite la première dans le fichier), puis la colonne latérale. La
   // formation n'est pas un repère : sur 2 pages, elle est en page 2, après la colonne de la page 1.
   lateral: ["name", t.profile, t.experiences, t.contact, t.skills, t.languages],
+  "bandeau-gauche": ONE_COLUMN,
 };
 
 test("tous les modèles sont couverts", () => {
@@ -359,12 +361,15 @@ const MODELS = CV_TEMPLATE_IDS.filter((id) => !LEGACY.includes(id));
 /**
  * Géométrie de chaque modèle réglable. `left` : bord gauche du texte ; `contactRight` : bord droit laissé
  * aux coordonnées (marges `m`, avec ou sans photo) ; `header` : coordonnées sur une ligne, séparées par
- * « · » ; `languagesLine` : langues sur une ligne « Langues : … ».
+ * « · » ; `languagesLine` : langues sur une ligne « Langues : … » ; `dash` : niveau de langue après un tiret
+ * (« Anglais — Courant ») et non après « : ».
  */
 const GEOMETRY = {
   "serif-centre": { left: (m) => m.horizontal, contactRight: (m) => PAGE_WIDTH - m.horizontal, header: true, languagesLine: true },
   "bandeau-droite": { left: (m) => m.horizontal, contactRight: (m, photo) => PAGE_WIDTH - m.horizontal - (photo ? 90 : 0), header: true },
   lateral: { left: () => LATERAL_PADDING, contactRight: () => LATERAL_SIDE - LATERAL_PADDING, header: false },
+  // Photo de 58,5 pt et 16 pt d'espace.
+  "bandeau-gauche": { left: (m) => m.horizontal, contactRight: (m, photo) => PAGE_WIDTH - m.horizontal - (photo ? 74.5 : 0), header: true, dash: true },
 };
 const PAGE_HEIGHT = 841.89;
 const MM = 72 / 25.4;
@@ -552,7 +557,7 @@ test("6 polices des réglages : un PDF avec des espaces insécables et fines se 
       // Texte remis à react-pdf : espaces insécables, plus aucune espace fine.
       const markup = renderToStaticMarkup(createElement(CvDocument, { data: CvDataSchema.parse(data), templateId, title: "CV de test" }));
       assert.ok(markup.includes("50 % en 3 mois, soit 50 % de plus."), `${label} : espaces insécables remises à react-pdf`);
-      assert.ok(markup.includes(`Anglais${GEOMETRY[templateId].languagesLine ? "" : "</TEXT>"}`) && markup.includes(" : "), `${label} : espace insécable avant « : »`);
+      if (!GEOMETRY[templateId].dash) assert.ok(markup.includes(`Anglais${GEOMETRY[templateId].languagesLine ? "" : "</TEXT>"}`) && markup.includes(" : "), `${label} : espace insécable avant « : »`);
       assert.ok(!/[  ]/.test(markup), `${label} : aucune espace fine`);
       // Le PDF se rend (Arimo et Carlito : les fichiers de l'API Google Fonts faisaient échouer fontkit ici).
       const pages = await render(templateId, data);
@@ -569,7 +574,8 @@ test("6 polices des réglages : un PDF avec des espaces insécables et fines se 
         assert.doesNotMatch(line, /^(%|:|mois)/, `${label} : « ${line} »`);
         assert.doesNotMatch(line, /(\b50|en 3)$/, `${label} : « ${line} »`);
       }
-      assert.ok(lines.some((line) => line.includes(GEOMETRY[templateId].languagesLine ? `${t.languages} : Anglais` : "Anglais : Courant")), `${label} : « : » avec son espace`);
+      const language = GEOMETRY[templateId].dash ? "Anglais — Courant" : GEOMETRY[templateId].languagesLine ? `${t.languages} : Anglais` : "Anglais : Courant";
+      assert.ok(lines.some((line) => line.includes(language)), `${label} : langue et niveau sur la même ligne (« ${language} »)`);
     }
   }
 });

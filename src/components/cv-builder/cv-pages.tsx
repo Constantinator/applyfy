@@ -3,6 +3,7 @@
 import { cvSettings, CV_SECTION_TITLES, type CvData, type CvLang, type CvTemplateId } from "@/lib/cv-builder-types";
 
 import { BandeauDroite } from "./cv-model-bandeau-droite";
+import { BandeauGauche } from "./cv-model-bandeau-gauche";
 import { type ModelSettings } from "./cv-model-kit";
 import { Lateral } from "./cv-model-lateral";
 import { SerifCentre } from "./cv-model-serif-centre";
@@ -21,6 +22,8 @@ function Model({ id, data, settings }: { id: ModelId; data: CvData; settings: Mo
       return <BandeauDroite data={data} settings={settings} />;
     case "lateral":
       return <Lateral data={data} settings={settings} custom={data.style.accent} />;
+    case "bandeau-gauche":
+      return <BandeauGauche data={data} settings={settings} />;
   }
 }
 
