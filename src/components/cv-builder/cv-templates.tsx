@@ -26,6 +26,38 @@ const BOLD = { fontWeight: "bold" };
 const AlignContext = createContext<"left" | "justify">("left");
 /** Couleur d'accent choisie dans « Style du CV » ; vide : couleur du modèle. */
 const AccentContext = createContext("");
+// Teintes dérivées de l'accent choisi (#rrggbb). Sans accent, chaque modèle garde ses couleurs d'origine.
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const toHex = (c: number[]) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+/** Mélange de `hex` avec `other` : 0, `hex` ; 1, `other`. */
+const mix = (hex: string, other: string, amount: number) => {
+  const a = rgb(hex);
+  const b = rgb(other);
+  return toHex(a.map((v, i) => v + (b[i] - v) * amount));
+};
+/** Luminance relative (WCAG). */
+const luminance = (hex: string) => {
+  const [r, g, b] = rgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a: string, b: string) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+/** L'accent, éclairci (sur fond sombre) ou foncé (sur fond clair) juste assez pour un contraste de 4,5:1. */
+function readableOn(accent: string, background: string) {
+  const toward = luminance(background) < 0.5 ? "#FFFFFF" : "#000000";
+  for (let amount = 0; amount < 1; amount += 0.05) {
+    const color = mix(accent, toward, amount);
+    if (contrast(color, background) >= 4.5) return color;
+  }
+  return toward;
+}
+
 /** Titres des rubriques dans la langue du CV. */
 const TitlesContext = createContext(CV_SECTION_TITLES.fr);
 
@@ -103,7 +135,7 @@ function contacts(data: CvData): ContactItem[] {
 const absolute = (href: string) => (/^(https?:|mailto:)/i.test(href) ? href : `https://${href}`);
 
 /** Coordonnée : lien cliquable dans le PDF, sans soulignement. */
-function Contact({ item, style }: { item: ContactItem; style?: StyleProp }) {
+function Contact({ item, style, display }: { item: ContactItem; style?: StyleProp; display?: string }) {
   const edit = `personal.${item.field}`;
   if (!item.href) {
     return (
@@ -113,10 +145,36 @@ function Contact({ item, style }: { item: ContactItem; style?: StyleProp }) {
     );
   }
   return (
-    <Link src={absolute(item.href)} edit={edit} style={[{ textDecoration: "none" }, ...(Array.isArray(style) ? style : [style])]}>
+    <Link src={absolute(item.href)} edit={edit} display={display} style={[{ textDecoration: "none" }, ...(Array.isArray(style) ? style : [style])]}>
       {item.label}
     </Link>
   );
+}
+
+/** Caractères après lesquels une URL peut passer à la ligne (sans tiret ajouté). */
+const URL_BREAKS = "/.-";
+
+/**
+ * URL affichée sur plusieurs lignes si elle dépasse `maxChars` caractères : coupée seulement après « / »,
+ * « . » ou « - », au plus tard possible. Un morceau sans point de coupure reste entier.
+ */
+function urlLines(url: string, maxChars: number): string[] {
+  const lines: string[] = [];
+  let rest = url;
+  while (rest.length > maxChars) {
+    let cut = -1;
+    for (let i = Math.min(maxChars, rest.length - 1); i > 0; i--) {
+      if (URL_BREAKS.includes(rest[i - 1])) {
+        cut = i;
+        break;
+      }
+    }
+    if (cut === -1) break;
+    lines.push(rest.slice(0, cut));
+    rest = rest.slice(cut);
+  }
+  lines.push(rest);
+  return lines;
 }
 
 /** Largeur d'une page A4, en points. */
@@ -724,9 +782,18 @@ const TECH: Theme = {
 // ---------------------------------------------------------------------------
 
 const SIDEBAR_BG = "#1E293B";
+/** Couleur claire de la colonne sombre (titres, barres de niveau) : l'accent choisi, lisible sur le fond. */
+const useSideLight = () => {
+  const accent = useContext(AccentContext);
+  return accent ? readableOn(accent, SIDEBAR_BG) : "#93C5FD";
+};
+/** Largeur utile de la colonne (30 % de la page, moins 2 × 18 pt de marge), taille et largeur moyenne d'un caractère des coordonnées. */
+const SIDE_TEXT_WIDTH = PAGE_WIDTH * 0.3 - 36;
+const SIDE_CONTACT_SIZE = 8.5;
+const SIDE_CHAR_WIDTH = 0.5;
 
 const SideHeading = ({ children }: { children: string }) => (
-  <Text style={[BOLD, { fontSize: 9.5, color: "#93C5FD", marginTop: 14, marginBottom: 4, textTransform: "uppercase" }]}>
+  <Text style={[BOLD, { fontSize: 9.5, color: useSideLight(), marginTop: 14, marginBottom: 4, textTransform: "uppercase" }]}>
     {children}
   </Text>
 );
@@ -741,8 +808,18 @@ function MainHeading({ children }: { children: string }) {
 
 function Sidebar({ data }: { data: CvData }) {
   const t = useContext(TitlesContext);
+  const levelLabel = useLevelLabel();
+  const light = useSideLight();
   const s = sections(data);
   const items = contacts(data);
+  // URL plus large que la colonne : coupée en lignes (affichage seulement). Largeur en points à la taille
+  // normale : la densité agrandit le texte, pas la page.
+  const maxChars = SIDE_TEXT_WIDTH / useContext(DensityContext) / (SIDE_CONTACT_SIZE * SIDE_CHAR_WIDTH);
+  const shownUrl = (c: ContactItem) => {
+    if (c.field === "email" || !c.href) return undefined;
+    const lines = urlLines(c.label, Math.floor(maxChars));
+    return lines.length > 1 ? lines.join("\n") : undefined;
+  };
 
   return (
     <Page style={{ fontFamily: data.style.font, fontSize: 9.5, lineHeight: 1.4, color: "#111827", paddingVertical: 32 }}>
@@ -756,7 +833,7 @@ function Sidebar({ data }: { data: CvData }) {
           {items.length ? (
             <Section
               heading={<SideHeading>{t.contact}</SideHeading>}
-              blocks={items.map((c) => ({ key: c.field, content: <Contact item={c} style={{ color: "#F8FAFC", fontSize: 8.5, marginTop: 2 }} /> }))}
+              blocks={items.map((c) => ({ key: c.field, content: <Contact item={c} display={shownUrl(c)} style={{ color: "#F8FAFC", fontSize: SIDE_CONTACT_SIZE, marginTop: 2 }} /> }))}
             />
           ) : null}
           {s.education.length ? (
@@ -798,12 +875,16 @@ function Sidebar({ data }: { data: CvData }) {
                 style: { marginTop: splitSkillGroup(k.name) ? 6 : 3 },
                 content: (
                 <>
-                  <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name, true)} style={{ fontSize: 8.5 }}>
-                    {k.name}
+                  {/* Niveau écrit après le nom, en plus de la barre : un ATS ne lit pas la barre. */}
+                  <Text style={{ fontSize: 8.5 }}>
+                    <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name, true)}>
+                      {k.name}
+                    </Text>
+                    {k.level ? <Text style={{ color: "#CBD5E1" }}>{` · ${levelLabel(k.level)}`}</Text> : null}
                   </Text>
                   {k.level ? (
                     <View style={{ height: 2.5, backgroundColor: "#334155", borderRadius: 1, marginTop: 1.5 }}>
-                      <View style={{ height: 2.5, width: `${skillLevelValue(k.level) * 25}%`, backgroundColor: "#93C5FD", borderRadius: 1 }} />
+                      <View style={{ height: 2.5, width: `${skillLevelValue(k.level) * 25}%`, backgroundColor: light, borderRadius: 1 }} />
                     </View>
                   ) : null}
                 </>

@@ -210,6 +210,40 @@ test("Finance : puces « • » à la taille du texte, niveaux de langue sans pa
   assert.doesNotMatch(languages, /\([^)]*\(/, "parenthèses imbriquées");
 });
 
+test("Sidebar : URL longue coupée après « / », « . » ou « - » sans tiret ajouté, niveau écrit à côté de la barre", async () => {
+  const linkedin = "https://www.linkedin.com/in/jean-baptiste-de-la-fontaine-exemple-123456789/";
+  const data = {
+    ...fixtures.dense,
+    personal: { ...fixtures.dense.personal, linkedin },
+    skills: [
+      { id: "a", name: "Python", level: "avance" },
+      { id: "b", name: "Outils : Jira, Productboard, Figma, Amplitude, Looker, Notion", level: "intermediaire" },
+    ],
+  };
+  const [first] = await render("sidebar", data);
+  const side = first.columns[0];
+  // Lignes de l'URL : bout à bout, l'URL affichée (sans https:// ni www.), coupée seulement après / . -
+  const start = side.findIndex((line) => line.text.startsWith("linkedin.com/"));
+  assert.ok(start >= 0, side.map((l) => l.text).join(" | "));
+  let shown = "";
+  let i = start;
+  while (!shown.endsWith("123456789")) {
+    const text = side[i].text.trim();
+    if (i > start) assert.match(shown, /[/.-]$/, `coupure après « / », « . » ou « - » : « ${shown} »`);
+    shown += text;
+    i += 1;
+  }
+  assert.ok(i - start >= 2, "URL sur plusieurs lignes");
+  assert.equal(shown, "linkedin.com/in/jean-baptiste-de-la-fontaine-exemple-123456789");
+  // Niveau écrit, jamais de tiret ajouté entre une compétence et son niveau (« Notion- » / « · Intermédiaire »).
+  const text = side.map((line) => line.text.replace(/ /g, " ").trim());
+  assert.ok(text.some((line) => line === "Python · Avancé"), text.join(" | "));
+  assert.ok(text.some((line) => line.endsWith("Intermédiaire")), text.join(" | "));
+  for (let n = 1; n < text.length; n++) assert.ok(!(text[n - 1].endsWith("-") && text[n].startsWith("·")), `« ${text[n - 1]} » / « ${text[n]} »`);
+  const en = (await render("sidebar", data, "en"))[0].columns[0].map((line) => line.text.replace(/ /g, " ").trim());
+  assert.ok(en.includes("Python · Advanced"), en.join(" | "));
+});
+
 test("expérience longue : coupée entre deux puces, jamais une puce seule en haut ou en bas de page", async () => {
   // 6 expériences de 9 à 12 puces d'une ligne : plusieurs sont coupées par un saut de page.
   const data = {

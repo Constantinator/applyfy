@@ -90,6 +90,13 @@ export function registerCvFonts(base: string) {
   Font.registerHyphenationCallback((word) => [word]);
 }
 
+/**
+ * Coupure interdite à la jonction de deux textes sans espace (« Notion » puis « · Avancé ») : react-pdf y
+ * place un point de césure et ajoute un tiret (« Notion- »). 10000 est l'infini de son algorithme de
+ * coupure de ligne : ce point n'est plus jamais choisi, sauf mot plus large que la ligne.
+ */
+const NO_HYPHEN = 10000;
+
 const RUN_STYLES = {
   bold: { fontWeight: 700 },
   italic: { fontStyle: "italic" },
@@ -151,16 +158,17 @@ const PDF_PRIMITIVES: CvPrimitives = {
   },
   Text: function Text({ style, children, display }) {
     return (
-      <PdfText style={useTextStyle(style)}>
+      <PdfText style={useTextStyle(style)} hyphenationPenalty={NO_HYPHEN}>
         <InTextContext value>{typeof children === "string" ? <RichRuns text={display ?? children} /> : children}</InTextContext>
       </PdfText>
     );
   },
   // Lien hors d'un texte (coordonnées du Sidebar) : react-pdf le rend comme un texte.
-  Link: function Link({ src, style, children }) {
+  // `display` : forme affichée (URL coupée en lignes), en texte brut ; le lien `src` reste entier.
+  Link: function Link({ src, style, children, display }) {
     return (
       <PdfLink src={src} style={useTextStyle(style)}>
-        <InTextContext value>{children}</InTextContext>
+        <InTextContext value>{display ?? children}</InTextContext>
       </PdfLink>
     );
   },
