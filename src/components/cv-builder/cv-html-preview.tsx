@@ -23,6 +23,7 @@ import {
   fieldPlaceholder,
   hasLineMerge,
   keepsCaretOnBlank,
+  noBreakParts,
   readField,
   type CvData,
   type CvLang,
@@ -116,6 +117,9 @@ function useHighlightClass(path: EditPath | undefined) {
   return highlight.fading ? "cv-highlight cv-highlight-fade" : "cv-highlight";
 }
 
+/** Langue du CV : typographie du texte affiché (pas de coupure avant « : » et « % » en français). */
+const LanguageContext = createContext<CvLang>("fr");
+
 /** Mêmes textes, aux blancs près. */
 const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim();
 
@@ -175,6 +179,7 @@ function EditableText({
   const breakLine = useContext(LineBreakContext);
   const mergeWithPrevious = useContext(LineMergeContext);
   const activeLine = useContext(ActiveLineContext);
+  const language = useContext(LanguageContext);
   const wasActive = useRef(activeLine === path);
   // Intitulé seul sur sa ligne à l'affichage : le texte enregistré garde son espace (« Intitulé : a »).
   const toStored = (text: string) => (display?.includes("\n") ? text.replace(":\n", ": ") : text);
@@ -207,7 +212,7 @@ function EditableText({
     const el = ref.current;
     if (!el) return;
     if (!focused) {
-      el.replaceChildren(...richNodes(display ?? value));
+      el.replaceChildren(...richNodes(display ?? value, language));
       return;
     }
     // Ligne activée après Entrée ou Retour arrière : le curseur reste à la position demandée.
@@ -226,7 +231,7 @@ function EditableText({
         selection?.collapseToEnd();
       }
     }
-  }, [value, display, focused]);
+  }, [value, display, focused, language]);
   // Une ligne qui change de type pendant la frappe (« Langages : » devient un groupe) peut changer de
   // place et être recréée : le curseur la suit, en fin de texte (déjà écrit par l'effet ci-dessus),
   // pour ne perdre aucune frappe.
@@ -301,22 +306,62 @@ const RUN_CSS: Record<RichFormat, Partial<CSSStyleDeclaration>> = {
   underline: { textDecoration: "underline" },
 };
 
+/**
+ * « mot : » et « 15 % » rendus sans retour à la ligne (français), sans changer un seul caractère : le
+ * texte d'un champ modifiable reste exactement celui qui est enregistré.
+ */
+const NO_BREAK_CSS = { whiteSpace: "pre" } as const;
+
+/** Nœuds DOM d'un passage de texte, avec ses morceaux insécables. */
+function textNodes(text: string, lang: CvLang): Node[] {
+  return noBreakParts(text, lang)
+    .map((part, i) => {
+      if (i % 2 === 0) return document.createTextNode(part);
+      const span = document.createElement("span");
+      Object.assign(span.style, NO_BREAK_CSS);
+      span.textContent = part;
+      return span;
+    })
+    .filter((node) => node.textContent !== "");
+}
+
 /** Nœuds DOM d'un texte mis en forme (texte modifiable, géré hors de React). */
-function richNodes(text: string): Node[] {
-  return parseRich(text).map((run) => {
-    if (!run.format) return document.createTextNode(run.text);
+function richNodes(text: string, lang: CvLang): Node[] {
+  return parseRich(text).flatMap((run) => {
+    if (!run.format) return textNodes(run.text, lang);
     const span = document.createElement("span");
     Object.assign(span.style, RUN_CSS[run.format]);
-    span.textContent = run.text;
-    return span;
+    span.append(...textNodes(run.text, lang));
+    return [span];
   });
+}
+
+/** Passage de texte (rendu React), avec ses morceaux insécables. */
+function TextParts({ text }: { text: string }) {
+  const parts = noBreakParts(text, useContext(LanguageContext));
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 0 ? (
+      part
+    ) : (
+      <span key={i} style={NO_BREAK_CSS}>
+        {part}
+      </span>
+    ),
+  );
 }
 
 /** Texte mis en forme (rendu React, textes non modifiables). */
 function RichText({ text }: { text: string }) {
-  const runs = parseRich(text);
-  if (runs.length === 1 && !runs[0].format) return text;
-  return runs.map((run, i) => (run.format ? <span key={i} style={RUN_CSS[run.format] as CSSProperties}>{run.text}</span> : run.text));
+  return parseRich(text).map((run, i) =>
+    run.format ? (
+      <span key={i} style={RUN_CSS[run.format] as CSSProperties}>
+        <TextParts text={run.text} />
+      </span>
+    ) : (
+      <TextParts key={i} text={run.text} />
+    ),
+  );
 }
 
 function HtmlText({ style, children, edit, multiline, placeholder, display }: Parameters<CvPrimitives["Text"]>[0]) {
@@ -504,7 +549,9 @@ export function CvHtmlPreview({
                     <PrimitivesContext value={HTML_PRIMITIVES}>
                       <DensityContext value={densityFactor(data.style.density)}>
                         <HighlightContext value={highlight}>
-                          <CvPages data={shownData} templateId={templateId} language={language} />
+                          <LanguageContext value={language}>
+                            <CvPages data={shownData} templateId={templateId} language={language} />
+                          </LanguageContext>
                         </HighlightContext>
                       </DensityContext>
                     </PrimitivesContext>

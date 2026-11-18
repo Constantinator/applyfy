@@ -11,7 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import { createContext, useContext, type ComponentProps, type ReactNode } from "react";
 
-import { CV_FONTS, cvFontFile, densityFactor, fullName, normalizeSpaces, type CvData, type CvLang, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_FONTS, cvFontFile, densityFactor, frenchNoBreak, fullName, normalizeSpaces, type CvData, type CvLang, type CvTemplateId } from "@/lib/cv-builder-types";
 import { parseRich } from "@/lib/cv-rich-text";
 
 import { DensityContext, densityStyle, PrimitivesContext, type CvPrimitives, type StyleProp } from "./cv-primitives";
@@ -96,11 +96,19 @@ const RUN_STYLES = {
   underline: { textDecoration: "underline" },
 } as const;
 
-/** Texte avec sa mise en forme (gras, italique, souligné), sans espace fine absente des polices. */
+/** Langue du CV : typographie du texte rendu (espaces insécables en français). */
+const LanguageContext = createContext<CvLang>("fr");
+
+/**
+ * Texte avec sa mise en forme (gras, italique, souligné), sans espace fine absente des polices, et sans
+ * coupure avant « : » et « % » en français.
+ */
 function RichRuns({ text: raw }: { text: string }) {
+  const language = useContext(LanguageContext);
   const text = normalizeSpaces(raw);
-  const runs = parseRich(text);
-  if (runs.length === 1 && !runs[0].format) return text;
+  const shown = frenchNoBreak(text, language);
+  const runs = parseRich(shown);
+  if (runs.length === 1 && !runs[0].format) return shown;
   return runs.map((run, i) =>
     run.format ? (
       <PdfText key={i} style={RUN_STYLES[run.format]}>
@@ -177,7 +185,9 @@ export function CvDocument({
     <Document title={title} author={fullName(data) || undefined} creator="Applyfy" producer="Applyfy" language={language}>
       <PrimitivesContext value={PDF_PRIMITIVES}>
         <DensityContext value={densityFactor(data.style.density)}>
-          <CvPages data={data} templateId={templateId} language={language} />
+          <LanguageContext value={language}>
+            <CvPages data={data} templateId={templateId} language={language} />
+          </LanguageContext>
         </DensityContext>
       </PrimitivesContext>
     </Document>

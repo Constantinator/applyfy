@@ -266,7 +266,7 @@ export const isCvLang = (value: unknown): value is CvLang => value === "fr" || v
 
 type CvTitleKey =
   | "profile" | "summary" | "experiences" | "education" | "skills" | "languages" | "skillsLanguages"
-  | "projects" | "certifications" | "interests" | "contact" | "present";
+  | "projects" | "certifications" | "interests" | "contact" | "present" | "colon";
 
 /** Titres des rubriques et fin d'une période en cours, dans la langue du CV (aperçu et PDF). */
 export const CV_SECTION_TITLES: Record<CvLang, Record<CvTitleKey, string>> = {
@@ -283,6 +283,8 @@ export const CV_SECTION_TITLES: Record<CvLang, Record<CvTitleKey, string>> = {
     interests: "Centres d'intérêt",
     contact: "Contact",
     present: "Aujourd'hui",
+    // Deux-points écrit par les modèles (« Français : natif ») : espace insécable avant, en français.
+    colon: "\u00A0: ",
   },
   en: {
     profile: "Profile",
@@ -297,6 +299,7 @@ export const CV_SECTION_TITLES: Record<CvLang, Record<CvTitleKey, string>> = {
     interests: "Interests",
     contact: "Contact",
     present: "Present",
+    colon: ": ",
   },
 };
 
@@ -306,6 +309,21 @@ export const CV_SECTION_TITLES: Record<CvLang, Record<CvTitleKey, string>> = {
  * traduction et au rendu du PDF, sinon le PDF affiche un carré vide.
  */
 export const normalizeSpaces = (text: string) => text.replace(/[\u202F\u2009]/g, "\u00A0");
+
+/**
+ * Typographie française au rendu du CV : « 15 % » et « Outils : » ne se coupent pas avant le signe.
+ * Rien en anglais (pas d'espace avant ces signes). Le texte enregistré n'est jamais modifié :
+ * - PDF : l'espace devient insécable (frenchNoBreak) ;
+ * - aperçu : le texte garde ses caractères, le mot et son signe sont rendus sans retour à la ligne
+ *   (noBreakParts), pour que le texte saisi reste exactement celui du champ.
+ */
+const SPACE_BEFORE_SIGN = / (?=[:%])/g;
+export const frenchNoBreak = (text: string, lang: CvLang) => (lang === "fr" ? text.replace(SPACE_BEFORE_SIGN, "\u00A0") : text);
+
+/** Texte découpé en morceaux libres (indices pairs) et insécables (indices impairs : « mot : », « 15 % »). */
+export function noBreakParts(text: string, lang: CvLang): string[] {
+  return lang === "fr" ? text.split(/(\S+ [:%])/) : [text];
+}
 
 /** Nom d'une copie traduite : « Mon CV (EN) », sans empiler les suffixes (« Mon CV (EN) » → « Mon CV (FR) »). */
 export function translatedCvTitle(title: string, to: CvLang): string {

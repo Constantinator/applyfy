@@ -14,7 +14,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 
-import { Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
+import { DensityContext, Link, Page, Photo, Text, View, type StyleProp } from "./cv-primitives";
 
 // Les 6 modèles du CV Builder, écrits une fois avec les briques de cv-primitives : rendus
 // en PDF (téléchargement) et en HTML modifiable (aperçu de l'éditeur). Chaque texte relié
@@ -96,6 +96,75 @@ function Contact({ item, style }: { item: ContactItem; style?: StyleProp }) {
     <Link src={absolute(item.href)} edit={edit} style={[{ textDecoration: "none" }, ...(Array.isArray(style) ? style : [style])]}>
       {item.label}
     </Link>
+  );
+}
+
+/** Largeur d'une page A4, en points. */
+const PAGE_WIDTH = 595.28;
+/** Taille des coordonnées de l'en-tête, et largeur moyenne d'un caractère (en cadratins) : Inter et polices proches. */
+const CONTACT_SIZE = 9;
+const CHAR_WIDTH = 0.515;
+
+/**
+ * Coordonnées réparties en lignes, d'après une estimation de leur largeur : le séparateur « · » n'est
+ * écrit qu'entre deux coordonnées d'une même ligne, jamais en début ni en fin de ligne. (Un retour à la
+ * ligne automatique emporterait le séparateur avec la coordonnée suivante.)
+ */
+function contactLines(items: ContactItem[], width: number, gap: number, charWidth: number): ContactItem[][] {
+  const lines: ContactItem[][] = [];
+  let used = 0;
+  for (const item of items) {
+    const size = item.label.length * charWidth;
+    const line = lines.at(-1);
+    if (line && used + gap + size <= width) {
+      line.push(item);
+      used += gap + size;
+    } else {
+      lines.push([item]);
+      used = size;
+    }
+  }
+  return lines;
+}
+
+/**
+ * Coordonnées de l'en-tête sur une ou plusieurs lignes, séparées par « · ». `width` : largeur disponible
+ * (points) ; `margin` : espace de part et d'autre du séparateur.
+ */
+function ContactLines({
+  items,
+  width,
+  center,
+  top,
+  margin,
+  style,
+  charWidth = CHAR_WIDTH,
+}: {
+  items: ContactItem[];
+  width: number;
+  center: boolean;
+  top: number;
+  margin: number;
+  style?: StyleProp;
+  charWidth?: number;
+}) {
+  // Largeurs en points à la taille normale : la densité agrandit le texte, pas la page.
+  const density = useContext(DensityContext);
+  const lines = contactLines(items, width / density, margin * 2 + CONTACT_SIZE * 0.3, CONTACT_SIZE * charWidth);
+  return (
+    <View style={{ marginTop: top }}>
+      {lines.map((line) => (
+        // Une coordonnée plus large que la page passe encore à la ligne (cas limite de l'estimation).
+        <View key={line[0].field} style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: center ? "center" : "flex-start" }}>
+          {line.map((c, i) => (
+            <View key={c.field} style={{ flexDirection: "row" }}>
+              {i > 0 && <Text style={[...(Array.isArray(style) ? style : [style]), { fontSize: CONTACT_SIZE, marginHorizontal: margin }]}>·</Text>}
+              <Contact item={c} style={[...(Array.isArray(style) ? style : [style]), { fontSize: CONTACT_SIZE }]} />
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -293,14 +362,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
             </Text>
           ) : null}
           {headerContacts.length ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: center ? "center" : "flex-start", marginTop: 6 }}>
-              {headerContacts.map((c, i) => (
-                <View key={c.field} style={{ flexDirection: "row" }}>
-                  {i > 0 && <Text style={[muted, { marginHorizontal: 5 }]}>·</Text>}
-                  <Contact item={c} style={[muted, { fontSize: 9 }]} />
-                </View>
-              ))}
-            </View>
+            <ContactLines items={headerContacts} width={PAGE_WIDTH - 2 * 42 - (photo ? 72 + 16 : 0)} center={center} top={6} margin={5} style={muted} />
           ) : null}
         </View>
         {photo ? <Photo src={photo} style={{ width: 72, height: 72, borderRadius: 36, objectFit: "cover", marginLeft: 16 }} /> : null}
@@ -480,7 +542,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
           blocks={itemBlocks(s.languages, (l) => (
             <>
               <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
-              {l.level ? " : " : ""}
+              {l.level ? t.colon : ""}
               {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
             </>
           ))}
@@ -868,9 +930,13 @@ function financeBulletRows(base: string, items: string[]) {
 
 /** Ligne « libellé : éléments » de la section Compétences & Langues. */
 function FinanceLine({ label, children }: { label: string; children: ReactNode }) {
+  const t = useContext(TitlesContext);
   return (
     <Text style={{ marginTop: 1 }}>
-      <Text style={BOLD}>{label} : </Text>
+      <Text style={BOLD}>
+        {label}
+        {t.colon}
+      </Text>
       {children}
     </Text>
   );
@@ -953,16 +1019,8 @@ function Finance({ data }: { data: CvData }) {
             {data.personal.jobTitle}
           </Text>
         ) : null}
-        {items.length ? (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
-            {items.map((c, i) => (
-              <View key={c.field} style={{ flexDirection: "row" }}>
-                {i > 0 && <Text style={{ marginHorizontal: 4, fontSize: 9 }}>·</Text>}
-                <Contact item={c} style={{ fontSize: 9, color: FINANCE_BLACK }} />
-              </View>
-            ))}
-          </View>
-        ) : null}
+        {/* Tinos : caractères plus étroits que ceux d'Inter. */}
+        {items.length ? <ContactLines items={items} width={PAGE_WIDTH - 2 * 34} center top={2} margin={4} style={{ color: FINANCE_BLACK }} charWidth={0.46} /> : null}
       </View>
 
       {s.summary ? (
