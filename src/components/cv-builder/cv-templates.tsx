@@ -946,21 +946,11 @@ function FinanceHeading({ children }: { children: string }) {
   );
 }
 
-/** Puce carrée ▪, jamais coupée entre deux pages. */
-function FinanceBulletRow({ base, index, text, top }: { base: string; index: number; text: string; top: number }) {
-  const align = useContext(AlignContext);
-  return (
-    <View style={{ flexDirection: "row", marginTop: top }} wrap={false}>
-      <Text style={{ width: 10, fontSize: 8 }}>▪</Text>
-      <Text edit={`${base}.bullets.${index}`} placeholder="Nouvelle puce" style={{ flex: 1, textAlign: align }}>
-        {text}
-      </Text>
-    </View>
-  );
-}
-
+/** Puces de Finance : « • » à la taille du texte (lisible, aligné sur la première ligne), espacement serré. */
 function financeBulletRows(base: string, items: string[]) {
-  return bulletLines(items).map((b, i) => <FinanceBulletRow key={b.index} base={base} index={b.index} text={b.text} top={i === 0 ? 1.5 : 0.5} />);
+  return bulletLines(items).map((b, i) => (
+    <BulletRow key={b.index} base={base} index={b.index} text={b.text} top={i === 0 ? 1.5 : 0.5} color={FINANCE_BLACK} />
+  ));
 }
 
 /** Ligne « libellé : éléments » de la section Compétences & Langues. */
@@ -1168,9 +1158,9 @@ function Finance({ data }: { data: CvData }) {
               {joined(s.languages, (l) => (
                 <>
                   <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
-                  {l.level ? " (" : ""}
+                  {/* Tiret plutôt que parenthèses : un niveau comme « Courant (TOEIC 915) » en a déjà. */}
+                  {l.level ? " — " : ""}
                   {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
-                  {l.level ? ")" : ""}
                 </>
               ))}
             </FinanceLine>

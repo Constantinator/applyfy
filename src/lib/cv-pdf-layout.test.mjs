@@ -200,6 +200,16 @@ test("titres : aucun texte extrait en lettres séparées par des espaces (« F O
   }
 });
 
+test("Finance : puces « • » à la taille du texte, niveaux de langue sans parenthèses imbriquées", async () => {
+  const pages = await render("finance", fixtures.moyen);
+  const lines = allLines(pages);
+  assert.ok(lines.some((line) => line.startsWith("• Piloté la refonte")), lines.join(" | "));
+  assert.ok(!lines.some((line) => line.includes("▪")));
+  const languages = lines.find((line) => line.startsWith("Langues"));
+  assert.match(languages, /Anglais — Courant \(TOEIC 915\)/);
+  assert.doesNotMatch(languages, /\([^)]*\(/, "parenthèses imbriquées");
+});
+
 test("expérience longue : coupée entre deux puces, jamais une puce seule en haut ou en bas de page", async () => {
   // 6 expériences de 9 à 12 puces d'une ligne : plusieurs sont coupées par un saut de page.
   const data = {
