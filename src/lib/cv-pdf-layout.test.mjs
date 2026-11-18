@@ -35,7 +35,10 @@ const { createElement } = await import("react");
 const { renderToBuffer } = await import("@react-pdf/renderer");
 const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 const { CvDocument, registerCvFonts } = await import("../components/cv-builder/cv-document.tsx");
-const { CV_SECTION_TITLES, CV_TEMPLATE_IDS, CvDataSchema, frenchNoBreak, noBreakParts, withoutEmptyLines } = await import("./cv-builder-types.ts");
+const { CV_MARGINS, CV_SECTION_TITLES, CV_SETTING_FONTS, CV_TEMPLATE_DEFAULTS, CV_TEMPLATE_IDS, CvDataSchema, cvSettings, frenchNoBreak, hasCvSettings, noBreakParts, withoutEmptyLines } =
+  await import("./cv-builder-types.ts");
+const { bandColors } = await import("../components/cv-builder/cv-model-kit.tsx");
+const { contrast } = await import("../components/cv-builder/cv-templates.tsx");
 const fixtures = await import("./cv-pdf-layout.fixtures.mjs");
 
 registerCvFonts(fileURLToPath(new URL("../../public", import.meta.url)).replaceAll("\\", "/"));
@@ -60,8 +63,14 @@ async function render(templateId, data, language = "fr") {
   try {
     const pages = [];
     for (let n = 1; n <= pdf.numPages; n++) {
-      const content = await (await pdf.getPage(n)).getTextContent();
-      const items = content.items.filter((item) => "str" in item && item.str.trim()).map((item) => ({ text: item.str, x: item.transform[4], y: item.transform[5] }));
+      const page = await pdf.getPage(n);
+      const content = await page.getTextContent();
+      // `right` : bord droit du texte ; `size` : taille du texte (points).
+      const shown = content.items.filter((item) => "str" in item && item.str.trim());
+      const items = shown.map((item) => ({ text: item.str, x: item.transform[4], y: item.transform[5], right: item.transform[4] + item.width, size: item.height }));
+      // Polices intégrées au fichier (« ABCDEF+EBGaramond-Regular »), connues après le dessin de la page.
+      await page.getOperatorList();
+      const fonts = [...new Set(shown.map((item) => (page.commonObjs.has(item.fontName) ? page.commonObjs.get(item.fontName).name : "")))].sort();
       // Ordre du fichier : une nouvelle ligne quand la hauteur change.
       const stream = [];
       for (const item of items) {
@@ -80,7 +89,7 @@ async function render(templateId, data, language = "fr") {
         }
         return rows;
       });
-      pages.push({ stream, columns: lines });
+      pages.push({ stream, columns: lines, items, fonts });
     }
     return pages;
   } finally {
@@ -328,5 +337,184 @@ test("PDF : les espaces fines (absentes de plusieurs polices) sont remplacées d
     const markup = renderToStaticMarkup(createElement(CvDocument, { data, templateId, title: "CV de test" }));
     assert.ok(markup.includes("Hausse de 15 % : 1 200 clients et 3 sites."), `${templateId} : espaces insécables à la place des espaces fines`);
     assert.ok(!/[  ]/.test(markup), `${templateId} : aucune espace fine`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Lot « nouveaux modèles » : modèles réglables (serif-centre, bandeau-droite) et leurs réglages.
+// ---------------------------------------------------------------------------
+
+const MODELS = CV_TEMPLATE_IDS.filter(hasCvSettings);
+const LEGACY = CV_TEMPLATE_IDS.filter((id) => !hasCvSettings(id));
+const PAGE_HEIGHT = 841.89;
+const MM = 72 / 25.4;
+/** Photo fictive (PNG d'un pixel). */
+const PHOTO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const withStyle = (data, style) => ({ ...data, style: { ...(data.style ?? {}), ...style } });
+/** Texte courant d'un CV : la taille la plus fréquente parmi les textes du PDF. */
+function bodySize(pages) {
+  const count = new Map();
+  for (const item of pages.flatMap((page) => page.items)) {
+    const size = Math.round(item.size * 100) / 100;
+    count.set(size, (count.get(size) ?? 0) + item.text.length);
+  }
+  return [...count].sort((a, b) => b[1] - a[1])[0][0];
+}
+
+test("modèles : 6 premiers modèles inchangés, 2 modèles réglables sans nom affiché, migration 0040 alignée", () => {
+  assert.deepEqual(LEGACY, ["minimaliste", "classique", "moderne", "sidebar", "tech", "finance"]);
+  assert.deepEqual(MODELS, ["serif-centre", "bandeau-droite"]);
+  const types = readFileSync(new URL("./cv-builder-types.ts", import.meta.url), "utf8");
+  for (const id of MODELS) assert.match(types, new RegExp(`id: "${id}", name: ""`), `${id} : pas de nom`);
+  // Tout identifiant proposé par l'application est accepté par la base.
+  const sql = readFileSync(new URL("../../supabase/migrations/0040_cv_builder_templates.sql", import.meta.url), "utf8");
+  const allowed = [...sql.matchAll(/'([a-z-]+)'/g)].map((m) => m[1]);
+  assert.equal(allowed.length, 11);
+  for (const id of [...CV_TEMPLATE_IDS, "lateral", "bandeau-gauche", "serif-compact"]) assert.ok(allowed.includes(id), id);
+});
+
+test("réglages : absents d'un CV tant qu'ils ne sont pas choisis, valeurs inconnues ignorées", () => {
+  const style = CvDataSchema.parse({}).style;
+  assert.deepEqual(Object.keys(style).sort(), ["accent", "align", "density", "font"]);
+  const chosen = CvDataSchema.parse({ style: { typeface: "arimo", size: "large", margins: "narrow" } }).style;
+  assert.deepEqual([chosen.typeface, chosen.size, chosen.margins], ["arimo", "large", "narrow"]);
+  const invalid = CvDataSchema.parse({ style: { typeface: "comic-sans", size: "huge", margins: 3 } }).style;
+  assert.deepEqual([invalid.typeface, invalid.size, invalid.margins], [undefined, undefined, undefined]);
+});
+
+test("réglages : cran moyen = valeurs de la maquette ; corps à ± 0,5 pt ; marges de 12, 15 et 18 mm (10, 13 et 16 en haut et en bas)", () => {
+  const style = CvDataSchema.parse({}).style;
+  const serif = cvSettings("serif-centre", style);
+  assert.deepEqual([serif.font, serif.body, serif.factor, serif.accent], ["eb-garamond", 10.5, 1, "#7A2E2E"]);
+  const band = cvSettings("bandeau-droite", style);
+  assert.deepEqual([band.font, band.body, band.factor, band.accent], ["arimo", 9, 1, "#23336B"]);
+  assert.ok(Math.abs(serif.horizontal - 15 * MM) < 1e-9 && Math.abs(serif.vertical - 13 * MM) < 1e-9);
+  assert.deepEqual([cvSettings("serif-centre", { ...style, size: "small" }).body, cvSettings("serif-centre", { ...style, size: "large" }).body], [10, 11]);
+  assert.deepEqual([cvSettings("bandeau-droite", { ...style, size: "small" }).body, cvSettings("bandeau-droite", { ...style, size: "large" }).body], [8.5, 9.5]);
+  assert.deepEqual(CV_MARGINS.map((m) => [Math.round(m.horizontal / MM), Math.round(m.vertical / MM)]), [[12, 10], [15, 13], [18, 16]]);
+  // Police et accent choisis.
+  const chosen = cvSettings("serif-centre", { ...style, typeface: "tinos", accent: "#0B1020" });
+  assert.deepEqual([chosen.font, chosen.accent], ["tinos", "#0B1020"]);
+});
+
+test("réglages dans le PDF : taille du texte, marges et police réellement appliquées", async () => {
+  for (const templateId of MODELS) {
+    const defaults = CV_TEMPLATE_DEFAULTS[templateId];
+    for (const [size, delta] of [["small", -0.5], ["normal", 0], ["large", 0.5]]) {
+      const pages = await render(templateId, withStyle(fixtures.moyen, { size }));
+      assert.ok(Math.abs(bodySize(pages) - (defaults.body + delta)) < 0.05, `${templateId} / ${size} : corps de ${bodySize(pages)} pt`);
+    }
+    for (const margins of CV_MARGINS) {
+      const pages = await render(templateId, withStyle(fixtures.dense, { margins: margins.id }));
+      const items = pages.flatMap((page) => page.items);
+      assert.ok(Math.abs(Math.min(...items.map((i) => i.x)) - margins.horizontal) < 0.5, `${templateId} / ${margins.id} : marge gauche`);
+      assert.ok(Math.max(...items.map((i) => i.right)) <= PAGE_WIDTH - margins.horizontal + 0.5, `${templateId} / ${margins.id} : marge droite`);
+      // Bas de page : aucun texte dans la marge du bas, sur aucune page.
+      assert.ok(Math.min(...items.map((i) => i.y)) >= margins.vertical - 0.5, `${templateId} / ${margins.id} : marge du bas`);
+    }
+    for (const font of CV_SETTING_FONTS) {
+      const pages = await render(templateId, withStyle(fixtures.court, { typeface: font.id }));
+      const expected = font.id.replaceAll("-", "");
+      const names = pages.flatMap((page) => page.fonts);
+      assert.ok(names.length >= 2, `${templateId} / ${font.id} : polices intégrées`);
+      for (const name of names) assert.ok(name.toLowerCase().replaceAll(/[\s-]/g, "").includes(expected), `${templateId} / ${font.id} : police « ${name} »`);
+    }
+  }
+});
+
+test("6 premiers modèles : rendu identique quels que soient les nouveaux réglages", async () => {
+  for (const templateId of LEGACY) {
+    const before = await render(templateId, fixtures.moyen);
+    const after = await render(templateId, withStyle(fixtures.moyen, { typeface: "eb-garamond", size: "large", margins: "wide" }));
+    assert.deepEqual(after, before, templateId);
+  }
+});
+
+test("bandeau : contraste d'au moins 4,5:1 entre le texte et le fond, quel que soit l'accent", () => {
+  assert.deepEqual(bandColors("#23336B"), { background: "#23336B", text: "#FFFFFF" });
+  // Accent très clair : le texte passe en sombre, l'accent est gardé.
+  assert.deepEqual(bandColors("#FDE68A"), { background: "#FDE68A", text: "#111827" });
+  // Accent très foncé : texte blanc.
+  assert.deepEqual(bandColors("#0B1020"), { background: "#0B1020", text: "#FFFFFF" });
+  let darkened = 0;
+  for (let r = 0; r <= 255; r += 15) {
+    for (let g = 0; g <= 255; g += 15) {
+      for (let b = 0; b <= 255; b += 15) {
+        const accent = `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+        const band = bandColors(accent);
+        assert.ok(contrast(band.text, band.background) >= 4.5, `${accent} : ${contrast(band.text, band.background).toFixed(2)}`);
+        if (band.background !== accent) darkened++;
+      }
+    }
+  }
+  // Teintes moyennes : ni le blanc ni le sombre ne sont lisibles, l'accent est foncé.
+  assert.ok(darkened > 0);
+});
+
+test("bandeau-droite : bandeau en page 1 seulement, photo facultative, compétences avant les langues", async () => {
+  const data = fixtures.dense;
+  const pages = await render("bandeau-droite", data);
+  assert.equal(pages.length, 2);
+  const name = norm(`${data.personal.firstName}${data.personal.lastName}`);
+  assert.ok(pages[0].stream.some((line) => norm(line.text) === name), "nom en page 1");
+  assert.ok(!pages[1].stream.some((line) => norm(line.text) === name), "pas de nom en page 2");
+  // Page 2 : pas de bandeau, le texte reprend sous la marge du haut (13 mm), sans rien dans la marge.
+  const top = (page) => PAGE_HEIGHT - Math.max(...page.items.map((i) => i.y + i.size));
+  assert.ok(top(pages[1]) >= 13 * MM - 2 && top(pages[1]) < 13 * MM + 20, `page 2 : texte à ${top(pages[1]).toFixed(1)} pt du haut`);
+  // Avec une photo : mêmes textes, coordonnées à gauche de la photo (72 pt + 18 pt).
+  const withPhoto = await render("bandeau-droite", { ...data, personal: { ...data.personal, photo: PHOTO } });
+  assert.equal(withPhoto.length, 2);
+  // (Les coordonnées, plus à l'étroit, se répartissent autrement en lignes : séparateurs « · » mis à part.)
+  const words = (rendered) => norm(allLines(rendered).join("")).replaceAll("·", "");
+  assert.equal(words(withPhoto), words(pages), "mêmes textes avec ou sans photo");
+  const contacts = withPhoto[0].items.filter((i) => i.text.includes("exemple"));
+  assert.ok(contacts.length >= 2 && Math.max(...contacts.map((i) => i.right)) <= PAGE_WIDTH - 15 * MM - 90 + 0.5, "coordonnées à gauche de la photo");
+  // Ordre du fichier (ATS) : compétences puis langues, bien qu'elles soient côte à côte.
+  const stream = withPhoto.flatMap((page) => page.stream.map((line) => norm(line.text)));
+  assert.ok(stream.indexOf(norm(t.skills)) >= 0 && stream.indexOf(norm(t.skills)) < stream.indexOf(norm(t.languages)));
+});
+
+test("serif-centre : pas de photo, lignes « Étiquette : valeurs », dates au bord droit", async () => {
+  const data = fixtures.moyen;
+  const pages = await render("serif-centre", data);
+  assert.deepEqual(await render("serif-centre", { ...data, personal: { ...data.personal, photo: PHOTO } }), pages, "la photo n'est pas rendue");
+  const lines = allLines(pages);
+  assert.ok(lines.some((line) => line.startsWith(`${t.skills} :`)), "ligne « Compétences : … »");
+  assert.ok(lines.some((line) => line.startsWith(`${t.languages} :`)), "ligne « Langues : … »");
+  const rights = pages[0].items.filter((i) => Math.abs(i.right - (PAGE_WIDTH - 15 * MM)) < 1 && /\d{4}|Aujourd/.test(i.text));
+  assert.ok(rights.length >= 5, `dates au bord droit : ${rights.length}`);
+});
+
+test("modèles réglables : e-mail et URL très longs passent à la ligne sans déborder ni tiret ajouté, dans les 6 polices", async () => {
+  const email = "prenom.nom-compose.de-la-fontaine.responsable-developpement-international.direction-generale@groupe-exemple-conseil-et-strategie.exemple.fr";
+  const linkedin = "linkedin.com/in/prenom-nom-compose-de-la-fontaine-responsable-developpement-international-direction-generale-groupe-exemple-conseil";
+  const base = fixtures.court;
+  for (const templateId of MODELS) {
+    for (const font of CV_SETTING_FONTS) {
+      for (const size of ["normal", "large"]) {
+        const data = withStyle({ ...base, personal: { ...base.personal, email, linkedin, photo: PHOTO } }, { typeface: font.id, size, margins: "wide" });
+        const [first] = await render(templateId, data);
+        const label = `${templateId} / ${font.id} / ${size}`;
+        const limit = PAGE_WIDTH - 18 * MM - (templateId === "bandeau-droite" ? 90 : 0);
+        const contacts = first.items.filter((i) => /exemple|linkedin|prenom/.test(i.text));
+        assert.ok(contacts.length >= 2, label);
+        assert.ok(Math.max(...contacts.map((i) => i.right)) <= limit + 0.5, `${label} : coordonnées dans la largeur disponible`);
+        assert.ok(Math.max(...first.items.map((i) => i.right)) <= PAGE_WIDTH - 18 * MM + 0.5, `${label} : rien ne dépasse la marge droite`);
+        const text = norm(first.stream.map((line) => line.text).join(""));
+        assert.ok(text.includes(norm(email)), `${label} : e-mail entier, sans tiret ajouté`);
+        assert.ok(text.includes(norm(linkedin)), `${label} : URL entière, sans tiret ajouté`);
+      }
+    }
+  }
+});
+
+test("modèles réglables : le séparateur « · » des coordonnées n'est jamais en début ni en fin de ligne", async () => {
+  for (const templateId of MODELS) {
+    for (const font of CV_SETTING_FONTS) {
+      const [first] = await render(templateId, withStyle(fixtures.dense, { typeface: font.id }));
+      const contacts = first.columns[0].filter((line) => line.text.includes("exemple") && line.y > PAGE_HEIGHT - 160);
+      assert.ok(contacts.length >= 1, `${templateId} / ${font.id}`);
+      for (const line of contacts) assert.doesNotMatch(line.text.trim(), /^·|·$/, `${templateId} / ${font.id} : « ${line.text} »`);
+    }
   }
 });
