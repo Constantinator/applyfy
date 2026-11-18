@@ -666,7 +666,7 @@ function ClassiqueHeading({ children }: { children: string }) {
   const color = useContext(AccentContext) || "#111827";
   return (
     <View style={{ borderBottomWidth: 1, borderColor: color, paddingBottom: 2, marginBottom: 4 }}>
-      <Text style={[BOLD, { fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color }]}>{children}</Text>
+      <Text style={[BOLD, { fontSize: 11, textTransform: "uppercase", color }]}>{children}</Text>
     </View>
   );
 }
@@ -726,7 +726,7 @@ const TECH: Theme = {
 const SIDEBAR_BG = "#1E293B";
 
 const SideHeading = ({ children }: { children: string }) => (
-  <Text style={[BOLD, { fontSize: 9.5, letterSpacing: 1, color: "#93C5FD", marginTop: 14, marginBottom: 4, textTransform: "uppercase" }]}>
+  <Text style={[BOLD, { fontSize: 9.5, color: "#93C5FD", marginTop: 14, marginBottom: 4, textTransform: "uppercase" }]}>
     {children}
   </Text>
 );
@@ -941,7 +941,7 @@ function FinanceHeading({ children }: { children: string }) {
   const color = useContext(AccentContext) || FINANCE_BLACK;
   return (
     <View style={{ borderTopWidth: 0.75, borderBottomWidth: 0.75, borderColor: color, paddingVertical: 1, marginBottom: 3 }}>
-      <Text style={[BOLD, { fontSize: 9.5, letterSpacing: 1, textAlign: "center", textTransform: "uppercase", color }]}>{children}</Text>
+      <Text style={[BOLD, { fontSize: 9.5, textAlign: "center", textTransform: "uppercase", color }]}>{children}</Text>
     </View>
   );
 }

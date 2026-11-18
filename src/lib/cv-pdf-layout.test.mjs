@@ -44,7 +44,7 @@ const PAGE_WIDTH = 595.28;
 /** Colonne latérale du modèle Sidebar : 30 % de la page. */
 const SIDE_COLUMN = PAGE_WIDTH * 0.3;
 
-/** Texte comparable : sans blancs (espaces insécables et lettres espacées des titres compris), en majuscules. */
+/** Texte comparable : sans blancs (espaces insécables compris), en majuscules. */
 const norm = (text) => text.replace(/[\s ]+/g, "").toUpperCase();
 const TITLES = new Set(Object.entries(CV_SECTION_TITLES.fr).filter(([key]) => key !== "present" && key !== "colon").map(([, title]) => norm(title)));
 const isBullet = (line) => /^[•▪]/.test(line.text.trim());
@@ -177,6 +177,27 @@ test("compétences : groupes sur leur ligne, niveau écrit dans la langue du CV,
   const moderne = allLines(await render("moderne", data, "en"));
   assert.ok(moderne.some((line) => /\bJira\b/.test(line) && /\bAdvanced\b/.test(line) && !line.includes("·")), moderne.join(" | "));
   assert.equal(data.skills[0].level, "avance", "niveau enregistré inchangé");
+});
+
+test("titres : aucun texte extrait en lettres séparées par des espaces (« F O R M A T I O N »)", async () => {
+  // Trois lettres isolées de suite, séparées par des espaces : signe d'un espacement des lettres que
+  // l'extraction d'un ATS transforme en espaces.
+  const spaced = /(?:^|\s)\p{L}(?: \p{L}){2,}(?:\s|$)/u;
+  const titles = Object.entries(CV_SECTION_TITLES.fr).filter(([key]) => key !== "present" && key !== "colon").map(([, title]) => title.toUpperCase());
+  for (const templateId of CV_TEMPLATE_IDS) {
+    for (const content of ["moyen", "dense"]) {
+      const pages = await render(templateId, fixtures[content]);
+      const lines = pages.flatMap((page) => page.stream.map((line) => line.text.replace(/ /g, " ").trim()));
+      for (const line of lines) assert.doesNotMatch(line, spaced, `${templateId} / ${content} : « ${line} »`);
+      // Les titres de section se retrouvent tels quels (espaces entre les mots seulement).
+      const found = lines.filter((line) => titles.includes(line.toUpperCase()));
+      assert.ok(found.length >= 4, `${templateId} / ${content} : titres extraits ${JSON.stringify(found)}`);
+      // Nom (Finance : capitales légèrement espacées) : prénom et nom sont deux textes, l'extraction ne garde
+      // pas toujours l'espace entre eux ; les lettres, elles, ne sont jamais séparées (vérifié ci-dessus).
+      const name = norm(`${fixtures[content].personal.firstName}${fixtures[content].personal.lastName}`);
+      assert.ok(lines.some((line) => norm(line) === name), `${templateId} / ${content} : nom extrait`);
+    }
+  }
 });
 
 test("expérience longue : coupée entre deux puces, jamais une puce seule en haut ou en bas de page", async () => {
