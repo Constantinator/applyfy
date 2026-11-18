@@ -14,6 +14,7 @@ export const CV_TEMPLATES = [
   // Modèles réglables (police, taille, marges) : pas de nom affiché, la vignette seule.
   { id: "serif-centre", name: "", description: "En-tête centré, police à empattements, dates à droite." },
   { id: "bandeau-droite", name: "", description: "Bandeau de couleur en haut, photo ronde à droite, dates à droite." },
+  { id: "lateral", name: "", description: "Colonne claire à gauche (photo, coordonnées, compétences, langues), parcours à droite." },
 ] as const;
 
 export type CvTemplateId = (typeof CV_TEMPLATES)[number]["id"];
@@ -308,7 +309,16 @@ export type CvData = z.infer<typeof CvDataSchema>;
  * Valeurs par défaut de chaque modèle : couleur d'accent quand aucune n'est choisie et, pour les modèles
  * réglables, police et corps du texte (points). Source unique de l'aperçu, du PDF et du panneau Style.
  */
-export const CV_TEMPLATE_DEFAULTS: Record<CvTemplateId, { accent: string; font?: CvSettingFont; body?: number }> = {
+export const CV_TEMPLATE_DEFAULTS: Record<
+  CvTemplateId,
+  {
+    accent: string;
+    font?: CvSettingFont;
+    body?: number;
+    /** Marges propres au modèle (points), à la place de CV_MARGINS. */
+    margins?: Record<CvMargins, { horizontal: number; vertical: number }>;
+  }
+> = {
   minimaliste: { accent: "#111827" },
   classique: { accent: "#111827" },
   moderne: { accent: "#1E40AF" },
@@ -317,6 +327,7 @@ export const CV_TEMPLATE_DEFAULTS: Record<CvTemplateId, { accent: string; font?:
   finance: { accent: "#000000" },
   "serif-centre": { accent: "#7A2E2E", font: "eb-garamond", body: 10.5 },
   "bandeau-droite": { accent: "#23336B", font: "arimo", body: 9 },
+  lateral: { accent: "#0F4C5C", font: "arimo", body: 9 },
 };
 
 /** Le modèle a des réglages de police, de taille et de marges. */
@@ -330,7 +341,8 @@ export function cvSettings(templateId: CvTemplateId, style: CvData["style"]) {
   const defaults = CV_TEMPLATE_DEFAULTS[templateId];
   const base = defaults.body ?? 9.5;
   const body = base + (CV_SIZES.find((s) => s.id === (style.size ?? "normal"))?.delta ?? 0);
-  const margins = CV_MARGINS.find((m) => m.id === (style.margins ?? "normal")) ?? CV_MARGINS[1];
+  const step = style.margins ?? "normal";
+  const margins = defaults.margins?.[step] ?? CV_MARGINS.find((m) => m.id === step) ?? CV_MARGINS[1];
   const font = style.typeface || defaults.font || "arimo";
   return {
     font,

@@ -123,7 +123,7 @@ export function BandeauDroite({ data, settings }: { data: CvData; settings: Mode
                   <Text style={muted}>
                     {e.position && e.company ? <Text edit={`${base}.company`}>{e.company}</Text> : null}
                     {/* Espace insécable avant « · » : le séparateur ne commence jamais une ligne. */}
-                    {e.position && e.company && e.location ? " · " : null}
+                    {e.position && e.company && e.location ? "\u00A0· " : null}
                     {e.location ? <Text edit={`${base}.location`}>{e.location}</Text> : null}
                   </Text>
                 ) : null}
@@ -156,7 +156,7 @@ export function BandeauDroite({ data, settings }: { data: CvData; settings: Mode
                           {e.degree}
                         </Text>
                       ) : null}
-                      {e.degree && e.school ? " · " : null}
+                      {e.degree && e.school ? "\u00A0· " : null}
                       {e.school ? (
                         <Text edit={`${base}.school`} style={e.degree ? undefined : BOLD}>
                           {e.school}
@@ -217,7 +217,7 @@ export function BandeauDroite({ data, settings }: { data: CvData; settings: Mode
                   <Text edit={`certifications.${c.id}.name`} style={BOLD}>
                     {c.name}
                   </Text>
-                  {c.issuer ? " · " : ""}
+                  {c.issuer ? "\u00A0· " : ""}
                   {c.issuer ? <Text edit={`certifications.${c.id}.issuer`}>{c.issuer}</Text> : null}
                 </Text>
                 {c.date ? (

@@ -46,6 +46,11 @@ registerCvFonts(fileURLToPath(new URL("../../public", import.meta.url)).replaceA
 const PAGE_WIDTH = 595.28;
 /** Colonne latérale du modèle Sidebar : 30 % de la page. */
 const SIDE_COLUMN = PAGE_WIDTH * 0.3;
+/** Colonne latérale du modèle « lateral » : 177 pt (236 px), marge intérieure de 16 pt. */
+const LATERAL_SIDE = 177;
+const LATERAL_PADDING = 16;
+/** Modèles à deux colonnes : abscisse qui sépare la colonne de gauche de celle de droite. */
+const COLUMN_SPLIT = { sidebar: SIDE_COLUMN, lateral: LATERAL_SIDE };
 
 /** Texte comparable : sans blancs (espaces insécables compris), en majuscules. */
 const norm = (text) => text.replace(/[\s ]+/g, "").toUpperCase();
@@ -79,7 +84,8 @@ async function render(templateId, data, language = "fr") {
         else stream.push({ ...item });
       }
       // De haut en bas, par colonne (le Sidebar en a deux) : même ligne à 2 points près.
-      const columns = templateId === "sidebar" ? [items.filter((i) => i.x < SIDE_COLUMN), items.filter((i) => i.x >= SIDE_COLUMN)] : [items];
+      const split = COLUMN_SPLIT[templateId];
+      const columns = split ? [items.filter((i) => i.x < split), items.filter((i) => i.x >= split)] : [items];
       const lines = columns.map((column) => {
         const rows = [];
         for (const item of [...column].sort((a, b) => b.y - a.y || a.x - b.x)) {
@@ -112,6 +118,7 @@ const EXPECTED = {
   // Modèles réglables (lot « nouveaux modèles ») : pas d'état antérieur, `before` = attendu.
   "serif-centre": { court: 1, moyen: 1, dense: 2, before: 1 },
   "bandeau-droite": { court: 1, moyen: 1, dense: 2, before: 1 },
+  lateral: { court: 1, moyen: 1, dense: 2, before: 1 },
 };
 
 /** Ordre de lecture d'un ATS, propre à chaque modèle (inchangé par le lot). */
@@ -127,6 +134,9 @@ const ORDER = {
   sidebar: [t.contact, t.education, t.skills, t.languages, "name", t.profile, t.experiences],
   "serif-centre": ["name", t.profile, t.experiences, t.education, t.skillsLanguages],
   "bandeau-droite": ONE_COLUMN,
+  // Colonne principale d'abord (écrite la première dans le fichier), puis la colonne latérale. La
+  // formation n'est pas un repère : sur 2 pages, elle est en page 2, après la colonne de la page 1.
+  lateral: ["name", t.profile, t.experiences, t.contact, t.skills, t.languages],
 };
 
 test("tous les modèles sont couverts", () => {
@@ -344,8 +354,18 @@ test("PDF : les espaces fines (absentes de plusieurs polices) sont remplacées d
 // Lot « nouveaux modèles » : modèles réglables (serif-centre, bandeau-droite) et leurs réglages.
 // ---------------------------------------------------------------------------
 
-const MODELS = CV_TEMPLATE_IDS.filter(hasCvSettings);
-const LEGACY = CV_TEMPLATE_IDS.filter((id) => !hasCvSettings(id));
+const LEGACY = ["minimaliste", "classique", "moderne", "sidebar", "tech", "finance"];
+const MODELS = CV_TEMPLATE_IDS.filter((id) => !LEGACY.includes(id));
+/**
+ * Géométrie de chaque modèle réglable. `left` : bord gauche du texte ; `contactRight` : bord droit laissé
+ * aux coordonnées (marges `m`, avec ou sans photo) ; `header` : coordonnées sur une ligne, séparées par
+ * « · » ; `languagesLine` : langues sur une ligne « Langues : … ».
+ */
+const GEOMETRY = {
+  "serif-centre": { left: (m) => m.horizontal, contactRight: (m) => PAGE_WIDTH - m.horizontal, header: true, languagesLine: true },
+  "bandeau-droite": { left: (m) => m.horizontal, contactRight: (m, photo) => PAGE_WIDTH - m.horizontal - (photo ? 90 : 0), header: true },
+  lateral: { left: () => LATERAL_PADDING, contactRight: () => LATERAL_SIDE - LATERAL_PADDING, header: false },
+};
 const PAGE_HEIGHT = 841.89;
 const MM = 72 / 25.4;
 /** Photo fictive (PNG d'un pixel). */
@@ -361,9 +381,10 @@ function bodySize(pages) {
   return [...count].sort((a, b) => b[1] - a[1])[0][0];
 }
 
-test("modèles : 6 premiers modèles inchangés, 2 modèles réglables sans nom affiché, migration 0040 alignée", () => {
-  assert.deepEqual(LEGACY, ["minimaliste", "classique", "moderne", "sidebar", "tech", "finance"]);
-  assert.deepEqual(MODELS, ["serif-centre", "bandeau-droite"]);
+test("modèles : 6 premiers modèles en tête, nouveaux modèles réglables et sans nom affiché, migration 0040 alignée", () => {
+  assert.deepEqual(CV_TEMPLATE_IDS.slice(0, 6), LEGACY);
+  assert.deepEqual(MODELS, Object.keys(GEOMETRY));
+  for (const id of MODELS) assert.ok(hasCvSettings(id), `${id} : réglable`);
   const types = readFileSync(new URL("./cv-builder-types.ts", import.meta.url), "utf8");
   for (const id of MODELS) assert.match(types, new RegExp(`id: "${id}", name: ""`), `${id} : pas de nom`);
   // Tout identifiant proposé par l'application est accepté par la base.
@@ -407,7 +428,7 @@ test("réglages dans le PDF : taille du texte, marges et police réellement appl
     for (const margins of CV_MARGINS) {
       const pages = await render(templateId, withStyle(fixtures.dense, { margins: margins.id }));
       const items = pages.flatMap((page) => page.items);
-      assert.ok(Math.abs(Math.min(...items.map((i) => i.x)) - margins.horizontal) < 0.5, `${templateId} / ${margins.id} : marge gauche`);
+      assert.ok(Math.abs(Math.min(...items.map((i) => i.x)) - GEOMETRY[templateId].left(margins)) < 0.5, `${templateId} / ${margins.id} : marge gauche`);
       assert.ok(Math.max(...items.map((i) => i.right)) <= PAGE_WIDTH - margins.horizontal + 0.5, `${templateId} / ${margins.id} : marge droite`);
       // Bas de page : aucun texte dans la marge du bas, sur aucune page.
       assert.ok(Math.min(...items.map((i) => i.y)) >= margins.vertical - 0.5, `${templateId} / ${margins.id} : marge du bas`);
@@ -495,7 +516,7 @@ test("modèles réglables : e-mail et URL très longs passent à la ligne sans d
         const data = withStyle({ ...base, personal: { ...base.personal, email, linkedin, photo: PHOTO } }, { typeface: font.id, size, margins: "wide" });
         const [first] = await render(templateId, data);
         const label = `${templateId} / ${font.id} / ${size}`;
-        const limit = PAGE_WIDTH - 18 * MM - (templateId === "bandeau-droite" ? 90 : 0);
+        const limit = GEOMETRY[templateId].contactRight(CV_MARGINS[2], true);
         const contacts = first.items.filter((i) => /exemple|linkedin|prenom/.test(i.text));
         assert.ok(contacts.length >= 2, label);
         assert.ok(Math.max(...contacts.map((i) => i.right)) <= limit + 0.5, `${label} : coordonnées dans la largeur disponible`);
@@ -509,7 +530,7 @@ test("modèles réglables : e-mail et URL très longs passent à la ligne sans d
 });
 
 test("modèles réglables : le séparateur « · » des coordonnées n'est jamais en début ni en fin de ligne", async () => {
-  for (const templateId of MODELS) {
+  for (const templateId of MODELS.filter((id) => GEOMETRY[id].header)) {
     for (const font of CV_SETTING_FONTS) {
       const [first] = await render(templateId, withStyle(fixtures.dense, { typeface: font.id }));
       const contacts = first.columns[0].filter((line) => line.text.includes("exemple") && line.y > PAGE_HEIGHT - 160);
@@ -531,7 +552,7 @@ test("6 polices des réglages : un PDF avec des espaces insécables et fines se 
       // Texte remis à react-pdf : espaces insécables, plus aucune espace fine.
       const markup = renderToStaticMarkup(createElement(CvDocument, { data: CvDataSchema.parse(data), templateId, title: "CV de test" }));
       assert.ok(markup.includes("50 % en 3 mois, soit 50 % de plus."), `${label} : espaces insécables remises à react-pdf`);
-      assert.ok(markup.includes(`Anglais${templateId === "bandeau-droite" ? "</TEXT>" : ""}`) && markup.includes(" : "), `${label} : espace insécable avant « : »`);
+      assert.ok(markup.includes(`Anglais${GEOMETRY[templateId].languagesLine ? "" : "</TEXT>"}`) && markup.includes(" : "), `${label} : espace insécable avant « : »`);
       assert.ok(!/[  ]/.test(markup), `${label} : aucune espace fine`);
       // Le PDF se rend (Arimo et Carlito : les fichiers de l'API Google Fonts faisaient échouer fontkit ici).
       const pages = await render(templateId, data);
@@ -548,7 +569,7 @@ test("6 polices des réglages : un PDF avec des espaces insécables et fines se 
         assert.doesNotMatch(line, /^(%|:|mois)/, `${label} : « ${line} »`);
         assert.doesNotMatch(line, /(\b50|en 3)$/, `${label} : « ${line} »`);
       }
-      assert.ok(lines.some((line) => line.includes(templateId === "bandeau-droite" ? "Anglais : Courant" : `${t.languages} : Anglais`)), `${label} : « : » avec son espace`);
+      assert.ok(lines.some((line) => line.includes(GEOMETRY[templateId].languagesLine ? `${t.languages} : Anglais` : "Anglais : Courant")), `${label} : « : » avec son espace`);
     }
   }
 });
