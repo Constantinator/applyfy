@@ -324,7 +324,7 @@ function HtmlText({ style, children, edit, multiline, placeholder, display }: Pa
   const onEdit = useContext(EditContext);
   const highlightClass = useHighlightClass(edit);
   const s = densityStyle(style, useContext(DensityContext));
-  const css: CSSProperties = nested ? toCss(s) : { display: "block", ...toCss(s) };
+  const css: CSSProperties = nested ? toCss(s) : { display: "block", boxSizing: "border-box", ...toCss(s) };
   const as = nested ? "span" : "div";
   if (edit && onEdit && (typeof children === "string" || typeof children === "number" || children == null)) {
     return (
@@ -374,7 +374,8 @@ const HTML_PRIMITIVES: CvPrimitives = {
   },
   View: function View({ style, children }) {
     const css = useCss(style);
-    return <div style={{ display: "flex", flexDirection: "column", position: "relative", minWidth: 0, ...css }}>{children}</div>;
+    // border-box, comme react-pdf : une largeur (« 50 % », « 30 % ») comprend les marges intérieures et la bordure.
+    return <div style={{ display: "flex", flexDirection: "column", position: "relative", boxSizing: "border-box", minWidth: 0, ...css }}>{children}</div>;
   },
   Text: HtmlText,
   // Lien non cliquable dans l'aperçu : un clic sert à modifier le texte.
@@ -382,7 +383,7 @@ const HTML_PRIMITIVES: CvPrimitives = {
   Image: function Image({ src, style }) {
     const css = useCss(style);
     // eslint-disable-next-line @next/next/no-img-element -- photo en data URL, rendue telle quelle
-    return <img src={src} alt="" style={{ display: "block", ...css }} />;
+    return <img src={src} alt="" style={{ display: "block", boxSizing: "border-box", ...css }} />;
   },
 };
 
