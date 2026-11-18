@@ -3,6 +3,7 @@
 // espaces fines remplacées (normalizeSpaces). Table « cmap » lue directement dans les fichiers.
 // Lancé par `npm test`.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
@@ -120,9 +121,10 @@ test("espaces fines : absentes de plusieurs polices, d'où leur remplacement ava
 
 
 test("chaque police est lisible par le moteur du PDF (fontkit), espace insécable comprise", async () => {
-  // Arimo et Carlito : l'espace insécable était le dernier glyphe d'une table « glyf » placée en fin de
-  // fichier, et fontkit lisait au-delà du fichier (PDF impossible dès la première espace insécable, donc
-  // pour tout CV en français). Fichiers réenregistrés avec leurs tables dans l'ordre recommandé.
+  // Arimo et Carlito : dans les fichiers de l'API Google Fonts (fonts.gstatic.com), l'espace insécable est
+  // le dernier glyphe d'une table « glyf » placée en fin de fichier, et fontkit 2.0.4 lit au-delà du
+  // fichier (PDF impossible dès la première espace insécable, donc pour tout CV en français). Le dépôt
+  // contient les fichiers amont officiels, non modifiés, qui n'ont pas ce défaut (cf. LICENCES.md).
   const fontkit = await import("fontkit");
   for (const file of files) {
     const font = fontkit.create(readFileSync(new URL(file, FONTS)));
@@ -133,5 +135,43 @@ test("chaque police est lisible par le moteur du PDF (fontkit), espace insécabl
         void glyph.bbox;
       }, `${file} : U+${char.codePointAt(0).toString(16).toUpperCase()}`);
     }
+  }
+});
+
+test("Arimo et Carlito : fichiers amont officiels, non modifiés (empreintes de LICENCES.md)", () => {
+  const licences = readFileSync(new URL("LICENCES.md", FONTS), "utf8");
+  const expected = [...licences.matchAll(/^\| ((?:arimo|carlito)-[\w-]+\.ttf) \| [\w-]+\.ttf \| ([0-9a-f]{64}) \|/gm)];
+  assert.equal(expected.length, 8);
+  for (const [, file, sha] of expected) {
+    assert.equal(createHash("sha256").update(readFileSync(new URL(file, FONTS))).digest("hex"), sha, file);
+  }
+});
+
+test("6 polices des réglages : texte de la licence (OFL 1.1) et mention de copyright à côté des fichiers servis", () => {
+  const licences = readFileSync(new URL("LICENCES.md", FONTS), "utf8");
+  // Mention de copyright de chaque famille chez l'amont.
+  const copyright = {
+    tinos: "Copyright 2026 The Tinos Project Authors (https://github.com/googlefonts/tinos)",
+    arimo: "Copyright 2026 The Arimo Project Authors (https://github.com/googlefonts/Arimo)",
+    carlito: 'Copyright 2013 The Carlito Project Authors (https://github.com/googlefonts/carlito), with Reserved Font Name "Carlito"',
+    caladea: "Copyright 2012 The Caladea Project Authors (https://github.com/huertatipografica/Caladea)",
+    gelasio: "Copyright 2022 The Gelasio Project Authors (https://github.com/SorkinType/Gelasio)",
+    "eb-garamond": "Copyright 2017 The EB Garamond Project Authors (https://github.com/octaviopardo/EBGaramond12)",
+  };
+  assert.deepEqual(Object.keys(copyright).sort(), CV_SETTING_FONTS.map((f) => f.id).sort());
+  for (const [id, line] of Object.entries(copyright)) {
+    const text = readFileSync(new URL(`OFL-${id}.txt`, FONTS), "utf8").replaceAll("\r\n", "\n");
+    assert.equal(text.split("\n")[0].trim(), line, `${id} : mention de copyright`);
+    assert.match(text, /This Font Software is licensed under the SIL Open Font License, Version 1\.1\./, id);
+    assert.match(text, /SIL OPEN FONT LICENSE Version 1\.1 - 26 February 2007/, id);
+    assert.match(text, /PERMISSION & CONDITIONS/, id);
+    assert.match(text, /THE FONT SOFTWARE IS PROVIDED "AS IS"/, id);
+    // Tableau : la famille y est déclarée sous OFL, avec son fichier de licence.
+    assert.match(licences, new RegExp(`^\\| ${id}-\\* \\|.*\\| OFL 1\\.1.*\\| OFL-${id}\\.txt \\|`, "m"), `${id} : ligne de LICENCES.md`);
+  }
+  // Carlito : seul nom réservé parmi les 6.
+  for (const id of Object.keys(copyright)) {
+    const reserved = /with Reserved Font Name/.test(readFileSync(new URL(`OFL-${id}.txt`, FONTS), "utf8").split("\n")[0]);
+    assert.equal(reserved, id === "carlito", id);
   }
 });

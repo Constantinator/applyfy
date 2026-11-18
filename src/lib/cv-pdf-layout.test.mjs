@@ -518,3 +518,37 @@ test("modèles réglables : le séparateur « · » des coordonnées n'est jamai
     }
   }
 });
+
+test("6 polices des réglages : un PDF avec des espaces insécables et fines se rend, sans coupure avant « % » ni « : »", async () => {
+  // Espace fine insécable (U+202F), espace fine (U+2009), espace insécable (U+00A0) : 24 « 50 % » sur plusieurs lignes.
+  const sentence = "Hausse de 50 % en 3 mois, soit 50 % de plus. ";
+  const base = { ...fixtures.court, summary: sentence.repeat(12).trim(), languages: [{ id: "l1", name: "Anglais", level: "Courant" }] };
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  for (const templateId of MODELS) {
+    for (const font of CV_SETTING_FONTS) {
+      const label = `${templateId} / ${font.id}`;
+      const data = withStyle(base, { typeface: font.id });
+      // Texte remis à react-pdf : espaces insécables, plus aucune espace fine.
+      const markup = renderToStaticMarkup(createElement(CvDocument, { data: CvDataSchema.parse(data), templateId, title: "CV de test" }));
+      assert.ok(markup.includes("50 % en 3 mois, soit 50 % de plus."), `${label} : espaces insécables remises à react-pdf`);
+      assert.ok(markup.includes(`Anglais${templateId === "bandeau-droite" ? "</TEXT>" : ""}`) && markup.includes(" : "), `${label} : espace insécable avant « : »`);
+      assert.ok(!/[  ]/.test(markup), `${label} : aucune espace fine`);
+      // Le PDF se rend (Arimo et Carlito : les fichiers de l'API Google Fonts faisaient échouer fontkit ici).
+      const pages = await render(templateId, data);
+      const raw = pages.flatMap((page) => page.items.map((item) => item.text)).join("\n");
+      assert.ok(!/[  �]/.test(raw), `${label} : ni espace fine ni caractère de remplacement dans le texte extrait`);
+      // Texte extrait : une espace à la place de chaque espace insécable (pdfjs rend toute espace comme U+0020).
+      const lines = allLines(pages);
+      const text = lines.join(" ");
+      assert.equal(text.split("50 %").length - 1, 24, `${label} : 24 « 50 % » dans le texte extrait`);
+      assert.equal(text.split("en 3 mois").length - 1, 12, `${label} : 12 « 3 mois »`);
+      assert.ok(lines.filter((line) => line.includes("50 %")).length >= 3, `${label} : paragraphe sur plusieurs lignes`);
+      // Insécable : jamais de ligne qui commence par « % », « : » ou « mois », ni qui finit par « 50 » ou « 3 ».
+      for (const line of lines) {
+        assert.doesNotMatch(line, /^(%|:|mois)/, `${label} : « ${line} »`);
+        assert.doesNotMatch(line, /(\b50|en 3)$/, `${label} : « ${line} »`);
+      }
+      assert.ok(lines.some((line) => line.includes(templateId === "bandeau-droite" ? "Anglais : Courant" : `${t.languages} : Anglais`)), `${label} : « : » avec son espace`);
+    }
+  }
+});
