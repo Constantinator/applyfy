@@ -102,6 +102,7 @@ const EXPECTED = {
   finance: { court: 1, moyen: 1, dense: 2, before: 1 },
   // Modèles réglables (lot « nouveaux modèles ») : pas d'état antérieur, `before` = attendu.
   "serif-centre": { court: 1, moyen: 1, dense: 2, before: 1 },
+  "bandeau-droite": { court: 1, moyen: 1, dense: 2, before: 1 },
 };
 
 /** Ordre de lecture d'un ATS, propre à chaque modèle (inchangé par le lot). */
@@ -116,6 +117,7 @@ const ORDER = {
   // Colonne latérale d'abord, puis la colonne principale.
   sidebar: [t.contact, t.education, t.skills, t.languages, "name", t.profile, t.experiences],
   "serif-centre": ["name", t.profile, t.experiences, t.education, t.skillsLanguages],
+  "bandeau-droite": ONE_COLUMN,
 };
 
 test("tous les modèles sont couverts", () => {

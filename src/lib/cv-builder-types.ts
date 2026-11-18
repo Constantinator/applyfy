@@ -13,6 +13,7 @@ export const CV_TEMPLATES = [
   { id: "finance", name: "Finance", description: "CV ATS classique : Times, noir et blanc, très compact." },
   // Modèles réglables (police, taille, marges) : pas de nom affiché, la vignette seule.
   { id: "serif-centre", name: "", description: "En-tête centré, police à empattements, dates à droite." },
+  { id: "bandeau-droite", name: "", description: "Bandeau de couleur en haut, photo ronde à droite, dates à droite." },
 ] as const;
 
 export type CvTemplateId = (typeof CV_TEMPLATES)[number]["id"];
@@ -315,6 +316,7 @@ export const CV_TEMPLATE_DEFAULTS: Record<CvTemplateId, { accent: string; font?:
   tech: { accent: "#059669" },
   finance: { accent: "#000000" },
   "serif-centre": { accent: "#7A2E2E", font: "eb-garamond", body: 10.5 },
+  "bandeau-droite": { accent: "#23336B", font: "arimo", body: 9 },
 };
 
 /** Le modèle a des réglages de police, de taille et de marges. */
