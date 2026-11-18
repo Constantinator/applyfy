@@ -98,7 +98,7 @@ test("accent par défaut des 6 premiers modèles : strictement inchangé", () =>
   // Valeurs de TEMPLATE_ACCENTS (cv-style-panel.tsx) avant la table CV_TEMPLATE_DEFAULTS, main 8827a21.
   const before = { minimaliste: "#111827", classique: "#111827", moderne: "#1E40AF", sidebar: "#1E293B", tech: "#059669", finance: "#000000" };
   for (const [id, accent] of Object.entries(before)) {
-    assert.deepEqual(CV_TEMPLATE_DEFAULTS[id], { accent }, id);
+    assert.equal(CV_TEMPLATE_DEFAULTS[id].accent, accent, id);
   }
 });
 

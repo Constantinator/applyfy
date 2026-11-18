@@ -394,6 +394,8 @@ test("modèles : 6 premiers modèles en tête, nouveaux modèles réglables et s
   assert.deepEqual(CV_TEMPLATE_IDS.slice(0, 6), LEGACY);
   assert.deepEqual(MODELS, Object.keys(GEOMETRY));
   for (const id of MODELS) assert.ok(hasCvSettings(id), `${id} : réglable`);
+  // Parmi les 6 premiers, seul Finance a reçu les réglages.
+  assert.deepEqual(LEGACY.filter(hasCvSettings), ["finance"]);
   const types = readFileSync(new URL("./cv-builder-types.ts", import.meta.url), "utf8");
   for (const id of MODELS) assert.match(types, new RegExp(`id: "${id}", name: ""`), `${id} : pas de nom`);
   // Tout identifiant proposé par l'application est accepté par la base.
@@ -452,8 +454,8 @@ test("réglages dans le PDF : taille du texte, marges et police réellement appl
   }
 });
 
-test("6 premiers modèles : rendu identique quels que soient les nouveaux réglages", async () => {
-  for (const templateId of LEGACY) {
+test("5 premiers modèles (hors Finance, réglable) : rendu identique quels que soient les nouveaux réglages", async () => {
+  for (const templateId of LEGACY.filter((id) => !hasCvSettings(id))) {
     const before = await render(templateId, fixtures.moyen);
     const after = await render(templateId, withStyle(fixtures.moyen, { typeface: "eb-garamond", size: "large", margins: "wide" }));
     assert.deepEqual(after, before, templateId);
@@ -581,5 +583,78 @@ test("6 polices des réglages : un PDF avec des espaces insécables et fines se 
       const language = GEOMETRY[templateId].dash ? "Anglais — Courant" : GEOMETRY[templateId].languagesLine ? `${t.languages} : Anglais` : "Anglais : Courant";
       assert.ok(lines.some((line) => line.includes(language)), `${label} : langue et niveau sur la même ligne (« ${language} »)`);
     }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Finance : réglages et photo facultative, rendu par défaut strictement inchangé.
+// ---------------------------------------------------------------------------
+
+/** Textes d'un rendu avec leur position, arrondie au centième de point (format de cv-finance-reference.json). */
+const positions = (pages) => pages.map((page) => page.items.map((i) => [i.text, ...[i.x, i.y, i.right, i.size].map((v) => Math.round(v * 100) / 100)]));
+
+test("Finance : rendu par défaut identique à la référence prise sur main 5c02d5e (chaque texte, chaque position)", async () => {
+  // Référence enregistrée avant l'arrivée des réglages et de la photo : court, moyen, dense.
+  const reference = JSON.parse(readFileSync(new URL("./cv-finance-reference.json", import.meta.url), "utf8"));
+  for (const content of ["court", "moyen", "dense"]) {
+    assert.deepEqual(positions(await render("finance", fixtures[content])), reference[content], `${content} : sans réglage`);
+    // Les crans moyens, choisis explicitement, sont le même rendu.
+    const explicit = withStyle(fixtures[content], { typeface: "tinos", size: "normal", margins: "normal" });
+    assert.deepEqual(positions(await render("finance", explicit)), reference[content], `${content} : crans moyens`);
+  }
+});
+
+test("Finance : réglages par défaut = rendu d'origine ; crans de marges de 10, 12 et 15 mm (7, 9,2 et 12 en haut et en bas)", () => {
+  const style = CvDataSchema.parse({}).style;
+  const normal = cvSettings("finance", style);
+  assert.deepEqual([normal.font, normal.body, normal.factor, normal.horizontal, normal.vertical, normal.accent], ["tinos", 9.5, 1, 34, 26, "#000000"]);
+  const narrow = cvSettings("finance", { ...style, margins: "narrow" });
+  const wide = cvSettings("finance", { ...style, margins: "wide" });
+  assert.deepEqual([narrow.horizontal / MM, narrow.vertical / MM, wide.horizontal / MM, wide.vertical / MM].map((v) => Math.round(v * 10) / 10), [10, 7, 15, 12]);
+  // Cran moyen : 12 mm et 9,2 mm, aux arrondis du rendu d'origine près.
+  assert.ok(Math.abs(normal.horizontal / MM - 12) < 0.05 && Math.abs(normal.vertical / MM - 9.2) < 0.05);
+  assert.deepEqual([cvSettings("finance", { ...style, size: "small" }).body, cvSettings("finance", { ...style, size: "large" }).body], [9, 10]);
+});
+
+test("Finance : taille, marges et police réellement appliquées dans le PDF", async () => {
+  for (const [size, body] of [["small", 9], ["normal", 9.5], ["large", 10]]) {
+    const pages = await render("finance", withStyle(fixtures.moyen, { size }));
+    assert.ok(Math.abs(bodySize(pages) - body) < 0.05, `${size} : corps de ${bodySize(pages)} pt`);
+  }
+  const style = CvDataSchema.parse({}).style;
+  for (const margins of ["narrow", "normal", "wide"]) {
+    for (const size of ["small", "large"]) {
+      const m = cvSettings("finance", { ...style, margins });
+      const items = (await render("finance", withStyle(fixtures.dense, { margins, size }))).flatMap((page) => page.items);
+      assert.ok(Math.abs(Math.min(...items.map((i) => i.x)) - m.horizontal) < 0.5, `${margins} / ${size} : marge gauche`);
+      assert.ok(Math.max(...items.map((i) => i.right)) <= PAGE_WIDTH - m.horizontal + 0.5, `${margins} / ${size} : marge droite`);
+      // Marges du haut et du bas exactes, quelle que soit la taille du texte.
+      assert.ok(Math.min(...items.map((i) => i.y)) >= m.vertical - 0.5, `${margins} / ${size} : marge du bas`);
+      assert.ok(PAGE_HEIGHT - Math.max(...items.map((i) => i.y + i.size)) >= m.vertical - 3, `${margins} / ${size} : marge du haut`);
+    }
+  }
+  for (const font of CV_SETTING_FONTS) {
+    const pages = await render("finance", withStyle(fixtures.court, { typeface: font.id }));
+    const names = pages.flatMap((page) => page.fonts);
+    assert.ok(names.length >= 2, font.id);
+    for (const name of names) assert.ok(name.toLowerCase().replaceAll(/[\s-]/g, "").includes(font.id.replaceAll("-", "")), `${font.id} : police « ${name} »`);
+  }
+});
+
+test("Finance : photo facultative à droite de l'en-tête, sans déplacer le nom ni le reste du CV", async () => {
+  for (const content of ["court", "moyen", "dense"]) {
+    const data = fixtures[content];
+    const without = await render("finance", data);
+    const withPhoto = await render("finance", { ...data, personal: { ...data.personal, photo: PHOTO } });
+    assert.equal(withPhoto.length, without.length, `${content} : même nombre de pages`);
+    const words = (rendered) => norm(allLines(rendered).join("")).replaceAll("·", "");
+    assert.equal(words(withPhoto), words(without), `${content} : mêmes textes`);
+    // Le nom reste centré sur la page.
+    const name = norm(`${data.personal.firstName}${data.personal.lastName}`);
+    const line = (rendered) => rendered[0].columns[0].find((l) => norm(l.text) === name);
+    assert.ok(Math.abs(line(withPhoto).x - line(without).x) < 0.01, `${content} : nom au même endroit`);
+    // Coordonnées : à gauche de la photo (45 pt et 10 pt d'espace).
+    const contacts = withPhoto[0].items.filter((i) => i.text.includes("exemple") && i.y > PAGE_HEIGHT - 100);
+    assert.ok(contacts.length >= 1 && Math.max(...contacts.map((i) => i.right)) <= PAGE_WIDTH - 34 - 55 + 0.5, `${content} : coordonnées à gauche de la photo`);
   }
 });

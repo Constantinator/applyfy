@@ -3,6 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 
 import {
+  cvSettings,
   displayUrl,
   interestList,
   SKILL_LEVELS,
@@ -1018,6 +1019,8 @@ function Sidebar({ data }: { data: CvData }) {
 // ---------------------------------------------------------------------------
 
 const FINANCE_BLACK = "#000000";
+/** Photo ronde facultative de l'en-tête (60 px). */
+const FINANCE_PHOTO = 45;
 export const ITALIC = { fontStyle: "italic" };
 
 /** Titre centré en petites majuscules, entre deux filets pleine largeur. */
@@ -1119,10 +1122,22 @@ function Finance({ data }: { data: CvData }) {
   const section = { marginTop: 7 };
   const entry = { marginTop: 4 };
   const dates = { marginLeft: 8 };
+  // Réglages (police, taille, marges). Sans réglage choisi : Tinos, 9,5 pt, marges de 34 et 26 pt, soit
+  // le rendu d'origine, au point près. La taille choisie s'applique à tout le modèle comme la densité.
+  const settings = cvSettings("finance", data.style);
+  const density = useContext(DensityContext) * settings.factor;
+  // Photo facultative : petite, ronde, en haut à droite de l'en-tête et hors du flux. Sans photo, rien ne change.
+  const photo = data.personal.photo;
+  const photoSpace = photo ? 2 * (FINANCE_PHOTO + 10) : 0;
 
   return (
-    <Page style={{ fontFamily: "tinos", fontSize: 9.5, lineHeight: 1.25, color: FINANCE_BLACK, paddingVertical: 26, paddingHorizontal: 34 }}>
-      <View style={{ textAlign: "center" }}>
+    <DensityContext value={density}>
+    {/* Marge verticale divisée par le facteur de taille : la page l'applique, la marge reste exacte. */}
+    <Page style={{ fontFamily: settings.font, fontSize: 9.5, lineHeight: 1.25, color: FINANCE_BLACK, paddingVertical: settings.vertical / settings.factor, paddingHorizontal: settings.horizontal }}>
+      <View style={photo ? { textAlign: "center", minHeight: FINANCE_PHOTO } : { textAlign: "center" }}>
+        {photo ? (
+          <Photo src={photo} style={{ position: "absolute", top: 0, right: 0, width: FINANCE_PHOTO, height: FINANCE_PHOTO, borderRadius: FINANCE_PHOTO / 2, objectFit: "cover" }} />
+        ) : null}
         <Name data={data} style={[BOLD, { fontSize: 17, lineHeight: 1.1, textTransform: "uppercase", letterSpacing: 0.5 }]} />
         {data.personal.jobTitle ? (
           <Text edit="personal.jobTitle" style={[ITALIC, { marginTop: 1 }]}>
@@ -1130,7 +1145,20 @@ function Finance({ data }: { data: CvData }) {
           </Text>
         ) : null}
         {/* Tinos : caractères plus étroits que ceux d'Inter. */}
-        {items.length ? <ContactLines items={items} width={PAGE_WIDTH - 2 * 34} center top={2} margin={4} style={{ color: FINANCE_BLACK }} charWidth={0.46} /> : null}
+        {/* Avec une photo : coordonnées rétrécies des deux côtés, pour rester centrées sans la toucher. */}
+        {items.length ? (
+          <View style={photoSpace ? { paddingHorizontal: photoSpace / 2 } : undefined}>
+            <ContactLines
+              items={items}
+              width={PAGE_WIDTH - 2 * settings.horizontal - photoSpace}
+              center
+              top={2}
+              margin={4}
+              style={{ color: FINANCE_BLACK }}
+              charWidth={data.style.typeface ? settings.charWidth : 0.46}
+            />
+          </View>
+        ) : null}
       </View>
 
       {s.summary ? (
@@ -1271,6 +1299,7 @@ function Finance({ data }: { data: CvData }) {
         </Section>
       ) : null}
     </Page>
+    </DensityContext>
   );
 }
 

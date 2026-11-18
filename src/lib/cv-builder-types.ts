@@ -326,7 +326,19 @@ export const CV_TEMPLATE_DEFAULTS: Record<
   moderne: { accent: "#1E40AF" },
   sidebar: { accent: "#1E293B" },
   tech: { accent: "#059669" },
-  finance: { accent: "#000000" },
+  // Finance : réglable depuis le lot « modèles 2 ». Ses valeurs par défaut sont son rendu d'origine, au
+  // point près (Tinos, 9,5 pt, marges de 34 et 26 pt) ; crans de marges : 10, 12 et 15 mm sur les côtés,
+  // 7, 9,2 et 12 mm en haut et en bas.
+  finance: {
+    accent: "#000000",
+    font: "tinos",
+    body: 9.5,
+    margins: {
+      narrow: { horizontal: 10 * MM, vertical: 7 * MM },
+      normal: { horizontal: 34, vertical: 26 },
+      wide: { horizontal: 15 * MM, vertical: 12 * MM },
+    },
+  },
   "serif-centre": { accent: "#7A2E2E", font: "eb-garamond", body: 10.5 },
   "bandeau-droite": { accent: "#23336B", font: "arimo", body: 9 },
   lateral: { accent: "#0F4C5C", font: "arimo", body: 9 },
