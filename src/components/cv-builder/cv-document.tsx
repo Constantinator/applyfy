@@ -74,6 +74,15 @@ function RichRuns({ text: raw }: { text: string }) {
 
 const NO_LIGATURES = { liga: false, clig: false, dlig: false };
 
+/**
+ * Props de mise en page réellement définies. react-pdf teste la présence de la clé (`'wrap' in props`,
+ * `'fixed' in props`), pas sa valeur : une prop transmise à undefined rend le bloc insécable et annule
+ * ses règles de coupure de page.
+ */
+function defined<T extends Record<string, unknown>>(props: T): Partial<T> {
+  return Object.fromEntries(Object.entries(props).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
 const PDF_PRIMITIVES: CvPrimitives = {
   Page: function Page({ style, children }) {
     const s = usePdfStyle(style);
@@ -86,7 +95,7 @@ const PDF_PRIMITIVES: CvPrimitives = {
   },
   View: function View({ style, children, fixed, wrap }) {
     return (
-      <PdfView style={usePdfStyle(style)} fixed={fixed} wrap={wrap}>
+      <PdfView style={usePdfStyle(style)} {...defined({ fixed, wrap })}>
         {children}
       </PdfView>
     );
