@@ -18,7 +18,13 @@ export type StyleProp = CvStyle | (CvStyle | undefined | false)[] | undefined;
 export type EditPath = string;
 
 type CommonProps = { style?: StyleProp; children?: ReactNode };
-export type ViewProps = CommonProps & { fixed?: boolean; wrap?: boolean };
+export type ViewProps = CommonProps & {
+  fixed?: boolean;
+  /** PDF : false, le bloc ne se coupe jamais entre deux pages. */
+  wrap?: boolean;
+  /** PDF : hauteur (points) de la suite qui doit tenir sur la page avec ce bloc, sinon il passe à la page suivante. */
+  minPresenceAhead?: number;
+};
 export type TextProps = CommonProps & {
   /** Champ modifié quand on édite ce texte dans l'aperçu (le texte est alors `children`). */
   edit?: EditPath;

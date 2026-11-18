@@ -132,21 +132,89 @@ function bulletLines(items: string[]) {
   return items.map((text, index) => ({ text, index })).filter((b) => b.text.trim());
 }
 
-function Bullets({ base, items, color, style }: { base: string; items: string[]; color?: string; style?: StyleProp }) {
+/** Une puce : jamais coupée entre deux pages. `top` : espace au-dessus (plus grand pour la première). */
+function BulletRow({ base, index, text, top, color, style }: { base: string; index: number; text: string; top: number; color?: string; style?: StyleProp }) {
   const align = useContext(AlignContext);
-  const lines = bulletLines(items);
-  if (!lines.length) return null;
   return (
-    <View style={{ marginTop: 3 }}>
-      {lines.map((b) => (
-        <View key={b.index} style={{ flexDirection: "row", marginTop: 1.5 }} wrap={false}>
-          <Text style={[{ width: 10, color: color ?? "#111827" }, ...(Array.isArray(style) ? style : [style])]}>•</Text>
-          <Text edit={`${base}.bullets.${b.index}`} placeholder="Nouvelle puce" style={[{ flex: 1, textAlign: align }, ...(Array.isArray(style) ? style : [style])]}>
-            {b.text}
-          </Text>
+    <View style={{ flexDirection: "row", marginTop: top }} wrap={false}>
+      <Text style={[{ width: 10, color: color ?? "#111827" }, ...(Array.isArray(style) ? style : [style])]}>•</Text>
+      <Text edit={`${base}.bullets.${index}`} placeholder="Nouvelle puce" style={[{ flex: 1, textAlign: align }, ...(Array.isArray(style) ? style : [style])]}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+/** Les puces d'une entrée, une par ligne (3 pt de plus au-dessus de la première). */
+function bulletRows(base: string, items: string[], color?: string, style?: StyleProp) {
+  return bulletLines(items).map((b, i) => (
+    <BulletRow key={b.index} base={base} index={b.index} text={b.text} top={i === 0 ? 4.5 : 1.5} color={color} style={style} />
+  ));
+}
+
+// ---------------------------------------------------------------------------
+// Coupure de page (PDF). L'aperçu ignore `wrap` : les blocs n'y changent que le découpage du DOM.
+// ---------------------------------------------------------------------------
+
+/** Bloc qui ne se coupe jamais entre deux pages. `style` : celui du bloc (espace au-dessus, filet…). */
+type Block = { key: string; style?: StyleProp; content: ReactNode };
+
+/** Au-delà de ce nombre de puces, une expérience peut se couper entre deux puces. */
+const UNBREAKABLE_BULLETS = 4;
+/** Puces gardées ensemble de chaque côté d'une coupure : jamais de puce seule en haut ou en bas de page. */
+const BULLETS_KEPT = 2;
+
+type EntryPart = "only" | "first" | "middle" | "last";
+
+/**
+ * Blocs d'une expérience. Jusqu'à 4 puces : un seul bloc. Au-delà : l'en-tête avec les 2 premières puces,
+ * une puce par bloc ensuite, et les 2 dernières ensemble.
+ */
+function entryBlocks(key: string, head: ReactNode, rows: ReactNode[], render: (part: EntryPart, content: ReactNode) => Omit<Block, "key">): Block[] {
+  if (rows.length <= UNBREAKABLE_BULLETS) return [{ key, ...render("only", <>{head}{rows}</>) }];
+  return [
+    { key, ...render("first", <>{head}{rows.slice(0, BULLETS_KEPT)}</>) },
+    ...rows.slice(BULLETS_KEPT, -BULLETS_KEPT).map((row, i) => ({ key: `${key}-${i + BULLETS_KEPT}`, ...render("middle", row) })),
+    { key: `${key}-end`, ...render("last", rows.slice(-BULLETS_KEPT)) },
+  ];
+}
+
+/** Hauteur (points) de deux lignes de texte : ce qui doit tenir sous un titre suivi d'un paragraphe. */
+const TWO_LINES = 30;
+
+/**
+ * Section du CV. Le titre n'est jamais seul en bas de page : il reste avec le premier bloc (`blocks`), ou
+ * avec le début de `children` (paragraphe, liste sur plusieurs colonnes : `ahead` points). La section se
+ * coupe entre deux blocs, jamais dans un bloc. `style` : celui du haut de la section (espace au-dessus).
+ *
+ * Titre et blocs sont rendus à la suite, sans conteneur : react-pdf n'applique `minPresenceAhead` qu'à un
+ * bloc précédé d'autres blocs dans le même conteneur, jamais au premier.
+ */
+function Section({ style, heading, blocks, ahead = TWO_LINES, children }: { style?: StyleProp; heading: ReactNode; blocks?: Block[]; ahead?: number; children?: ReactNode }) {
+  if (!blocks) {
+    return (
+      <>
+        {/* Insécable aussi : un titre dont seul le filet dépasse de la page ne doit pas rester en bas. */}
+        <View style={style} wrap={false} minPresenceAhead={ahead}>
+          {heading}
+        </View>
+        {children}
+      </>
+    );
+  }
+  const [first, ...rest] = blocks;
+  return (
+    <>
+      <View style={style} wrap={false}>
+        {heading}
+        {first ? <View style={first.style}>{first.content}</View> : null}
+      </View>
+      {rest.map((b) => (
+        <View key={b.key} style={b.style} wrap={false}>
+          {b.content}
         </View>
       ))}
-    </View>
+    </>
   );
 }
 
@@ -164,26 +232,18 @@ function sections(data: CvData) {
   };
 }
 
-/** Liste à puces : un élément par ligne, rendu par `render`. `isHeading` : ligne d'intitulé, sans puce. */
-function ItemList<T extends { id: string }>({
-  items,
-  render,
-  isHeading,
-}: {
-  items: T[];
-  render: (item: T) => ReactNode;
-  isHeading?: (item: T) => boolean;
-}) {
-  return (
-    <View>
-      {items.map((item) => (
-        <View key={item.id} style={{ flexDirection: "row", marginTop: 1.5 }} wrap={false}>
-          {isHeading?.(item) ? null : <Text style={{ width: 10 }}>•</Text>}
-          <Text style={{ flex: 1 }}>{render(item)}</Text>
-        </View>
-      ))}
-    </View>
-  );
+/** Liste à puces : un bloc par élément, rendu par `render`. `isHeading` : ligne d'intitulé, sans puce. */
+function itemBlocks<T extends { id: string }>(items: T[], render: (item: T) => ReactNode, isHeading?: (item: T) => boolean): Block[] {
+  return items.map((item) => ({
+    key: item.id,
+    style: { flexDirection: "row", marginTop: 1.5 },
+    content: (
+      <>
+        {isHeading?.(item) ? null : <Text style={{ width: 10 }}>•</Text>}
+        <Text style={{ flex: 1 }}>{render(item)}</Text>
+      </>
+    ),
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -265,22 +325,22 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
       {variant === "minimaliste" && <View style={{ borderBottomWidth: 0.75, borderColor: accent, marginTop: 10 }} />}
 
       {s.summary ? (
-        <View style={section}>
-          <Heading>{t.profile}</Heading>
+        <Section style={section} heading={<Heading>{t.profile}</Heading>}>
           <Paragraph edit="summary">
             {s.summary}
           </Paragraph>
-        </View>
+        </Section>
       ) : null}
 
       {s.experiences.length ? (
-        <View style={section}>
-          <Heading>{t.experiences}</Heading>
-          {s.experiences.map((e) => {
+        <Section
+          style={section}
+          heading={<Heading>{t.experiences}</Heading>}
+          blocks={s.experiences.flatMap((e) => {
             const base = `experiences.${e.id}`;
-            const body = (
+            const head = (
               <>
-                <View style={row} wrap={false}>
+                <View style={row}>
                   <Text style={[BOLD, { flex: 1 }]}>
                     <Text edit={`${base}.position`}>{e.position}</Text>
                     {e.position && e.company ? (variant === "classique" ? ", " : " — ") : null}
@@ -293,63 +353,69 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                     {e.location}
                   </Text>
                 ) : null}
-                <Bullets base={base} items={e.bullets} color={variant === "tech" || variant === "moderne" ? accent : undefined} />
               </>
             );
-            if (variant !== "tech") {
-              return (
-                <View key={e.id} style={entry}>
-                  {body}
-                </View>
-              );
-            }
-            // Timeline verticale : filet coloré et point devant chaque expérience.
-            return (
-              <View key={e.id} style={{ paddingLeft: 14, paddingTop: 5, paddingBottom: 4, borderLeftWidth: 1.5, borderColor: custom ? "#E5E7EB" : "#A7F3D0", marginLeft: 4 }}>
-                <View style={{ position: "absolute", left: -5.25, top: 8, width: 9, height: 9, borderRadius: 4.5, backgroundColor: accent }} />
-                {body}
-              </View>
-            );
+            const rows = bulletRows(base, e.bullets, variant === "tech" || variant === "moderne" ? accent : undefined);
+            if (variant !== "tech") return entryBlocks(e.id, head, rows, (part, content) => ({ style: part === "only" || part === "first" ? entry : undefined, content }));
+            // Timeline verticale : filet coloré, continu d'un bloc à l'autre, et point devant chaque expérience.
+            return entryBlocks(e.id, head, rows, (part, content) => {
+              const starts = part === "only" || part === "first";
+              const ends = part === "only" || part === "last";
+              return {
+                style: { paddingLeft: 14, paddingTop: starts ? 5 : 0, paddingBottom: ends ? 4 : 0, borderLeftWidth: 1.5, borderColor: custom ? "#E5E7EB" : "#A7F3D0", marginLeft: 4 },
+                content: (
+                  <>
+                    {starts ? <View style={{ position: "absolute", left: -5.25, top: 8, width: 9, height: 9, borderRadius: 4.5, backgroundColor: accent }} /> : null}
+                    {content}
+                  </>
+                ),
+              };
+            });
           })}
-        </View>
+        />
       ) : null}
 
       {s.education.length ? (
-        <View style={section}>
-          <Heading>{t.education}</Heading>
-          {s.education.map((e) => {
+        <Section
+          style={section}
+          heading={<Heading>{t.education}</Heading>}
+          blocks={s.education.map((e) => {
             const base = `education.${e.id}`;
-            return (
-              <View key={e.id} style={entry} wrap={false}>
-                <View style={row}>
-                  <Text edit={`${base}.${e.degree ? "degree" : "school"}`} style={[BOLD, { flex: 1 }]}>
-                    {e.degree || e.school}
-                  </Text>
-                  <Dates base={base} start={e.startDate} end={e.endDate} style={[muted, { fontSize: 9, marginLeft: 8 }]} />
-                </View>
-                {e.degree && e.school ? <Text edit={`${base}.school`}>{e.school}</Text> : null}
-                {e.honors ? (
-                  <Text edit={`${base}.honors`} style={muted}>
-                    {e.honors}
-                  </Text>
-                ) : null}
-                <Bullets base={base} items={e.bullets} color={variant === "tech" || variant === "moderne" ? accent : undefined} />
-              </View>
-            );
+            // Une formation ne se coupe jamais : un seul bloc, puces comprises.
+            return {
+              key: e.id,
+              style: entry,
+              content: (
+                <>
+                  <View style={row}>
+                    <Text edit={`${base}.${e.degree ? "degree" : "school"}`} style={[BOLD, { flex: 1 }]}>
+                      {e.degree || e.school}
+                    </Text>
+                    <Dates base={base} start={e.startDate} end={e.endDate} style={[muted, { fontSize: 9, marginLeft: 8 }]} />
+                  </View>
+                  {e.degree && e.school ? <Text edit={`${base}.school`}>{e.school}</Text> : null}
+                  {e.honors ? (
+                    <Text edit={`${base}.honors`} style={muted}>
+                      {e.honors}
+                    </Text>
+                  ) : null}
+                  {bulletRows(base, e.bullets, variant === "tech" || variant === "moderne" ? accent : undefined)}
+                </>
+              ),
+            };
           })}
-        </View>
+        />
       ) : null}
 
       {s.skills.length ? (
-        <View style={section} wrap={false}>
-          <Heading>{t.skills}</Heading>
-          {variant === "tech" ? (
+        variant === "tech" ? (
+          <Section style={section} heading={<Heading>{t.skills}</Heading>}>
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {skillRows(s.skills).map(({ skill: k, group, heading }) => (
                 // Compétence groupée : un badge par ligne, même court. Intitulé seul : texte sans badge,
                 // sur sa ligne, les badges suivants dessous. Même structure partout : pas de perte du
                 // curseur quand une compétence devient un groupe pendant la frappe.
-                <View key={k.id} style={group ? { width: "100%", alignItems: "flex-start" } : {}}>
+                <View key={k.id} style={group ? { width: "100%", alignItems: "flex-start" } : {}} wrap={false}>
                   <Text
                     style={
                       heading
@@ -365,11 +431,13 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                 </View>
               ))}
             </View>
-          ) : variant === "moderne" ? (
+          </Section>
+        ) : variant === "moderne" ? (
+          <Section style={section} heading={<Heading>{t.skills}</Heading>}>
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {skillRows(s.skills).map(({ skill: k, group, afterGroup }) => (
                 // Compétence groupée, ou placée après un groupe : pleine largeur, une ligne chacune.
-                <View key={k.id} style={group || afterGroup ? { width: "100%", marginTop: 4 } : { width: "50%", paddingRight: 12, marginTop: 4 }}>
+                <View key={k.id} style={group || afterGroup ? { width: "100%", marginTop: 4 } : { width: "50%", paddingRight: 12, marginTop: 4 }} wrap={false}>
                   <View style={row}>
                     <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
                       {k.name}
@@ -384,44 +452,50 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                 </View>
               ))}
             </View>
-          ) : (
-            <ItemList
-              items={s.skills}
-              isHeading={(k) => splitSkillGroup(k.name)?.items.trim() === ""}
-              render={(k) => (
+          </Section>
+        ) : (
+          <Section
+            style={section}
+            heading={<Heading>{t.skills}</Heading>}
+            blocks={itemBlocks(
+              s.skills,
+              (k) => (
                 <>
                   <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
                     {k.name}
                   </Text>
                   {k.level ? ` (${levelLabel(k.level).toLowerCase()})` : ""}
                 </>
-              )}
-            />
-          )}
-        </View>
+              ),
+              (k) => splitSkillGroup(k.name)?.items.trim() === "",
+            )}
+          />
+        )
       ) : null}
 
       {s.languages.length ? (
-        <View style={section} wrap={false}>
-          <Heading>{t.languages}</Heading>
-          <ItemList
-            items={s.languages}
-            render={(l) => (
-              <>
-                <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
-                {l.level ? " : " : ""}
-                {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
-              </>
-            )}
-          />
-        </View>
+        <Section
+          style={section}
+          heading={<Heading>{t.languages}</Heading>}
+          blocks={itemBlocks(s.languages, (l) => (
+            <>
+              <Text edit={`languages.${l.id}.name`}>{l.name}</Text>
+              {l.level ? " : " : ""}
+              {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
+            </>
+          ))}
+        />
       ) : null}
 
       {s.projects.length ? (
-        <View style={section}>
-          <Heading>{t.projects}</Heading>
-          {s.projects.map((p) => (
-            <View key={p.id} style={entry} wrap={false}>
+        <Section
+          style={section}
+          heading={<Heading>{t.projects}</Heading>}
+          blocks={s.projects.map((p) => ({
+            key: p.id,
+            style: entry,
+            content: (
+              <>
               <View style={row}>
                 <Text edit={`projects.${p.id}.name`} style={BOLD}>
                   {p.name}
@@ -441,16 +515,21 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                   {p.description}
                 </Paragraph>
               ) : null}
-            </View>
-          ))}
-        </View>
+              </>
+            ),
+          }))}
+        />
       ) : null}
 
       {s.certifications.length ? (
-        <View style={section} wrap={false}>
-          <Heading>{t.certifications}</Heading>
-          {s.certifications.map((c) => (
-            <View key={c.id} style={[row, { marginTop: 3 }]}>
+        <Section
+          style={section}
+          heading={<Heading>{t.certifications}</Heading>}
+          blocks={s.certifications.map((c) => ({
+            key: c.id,
+            style: [row, { marginTop: 3 }],
+            content: (
+              <>
               <Text style={{ flex: 1 }}>
                 <Text edit={`certifications.${c.id}.name`} style={BOLD}>
                   {c.name}
@@ -463,16 +542,16 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                   {c.date}
                 </Text>
               ) : null}
-            </View>
-          ))}
-        </View>
+              </>
+            ),
+          }))}
+        />
       ) : null}
 
       {s.hasInterests ? (
-        <View style={section} wrap={false}>
-          <Heading>{t.interests}</Heading>
+        <Section style={section} heading={<Heading>{t.interests}</Heading>}>
           <Text edit="interests" multiline>{data.interests}</Text>
-        </View>
+        </Section>
       ) : null}
     </Page>
   );
@@ -578,20 +657,21 @@ function Sidebar({ data }: { data: CvData }) {
             <Photo src={data.personal.photo} style={{ width: 84, height: 84, borderRadius: 42, objectFit: "cover", alignSelf: "center", marginBottom: 6 }} />
           ) : null}
           {items.length ? (
-            <>
-              <SideHeading>{t.contact}</SideHeading>
-              {items.map((c) => (
-                <Contact key={c.field} item={c} style={{ color: "#F8FAFC", fontSize: 8.5, marginTop: 2 }} />
-              ))}
-            </>
+            <Section
+              heading={<SideHeading>{t.contact}</SideHeading>}
+              blocks={items.map((c) => ({ key: c.field, content: <Contact item={c} style={{ color: "#F8FAFC", fontSize: 8.5, marginTop: 2 }} /> }))}
+            />
           ) : null}
           {s.education.length ? (
-            <>
-              <SideHeading>{t.education}</SideHeading>
-              {s.education.map((e) => {
+            <Section
+              heading={<SideHeading>{t.education}</SideHeading>}
+              blocks={s.education.map((e) => {
                 const base = `education.${e.id}`;
-                return (
-                  <View key={e.id} style={{ marginTop: 4 }} wrap={false}>
+                return {
+                  key: e.id,
+                  style: { marginTop: 4 },
+                  content: (
+                  <>
                     <Text edit={`${base}.${e.degree ? "degree" : "school"}`} style={[BOLD, { fontSize: 9 }]}>
                       {e.degree || e.school}
                     </Text>
@@ -605,18 +685,22 @@ function Sidebar({ data }: { data: CvData }) {
                       {e.honors && (e.startDate || e.endDate) ? " · " : null}
                       {e.honors ? <Text edit={`${base}.honors`}>{e.honors}</Text> : null}
                     </Text>
-                    <Bullets base={base} items={e.bullets} color="#CBD5E1" style={{ fontSize: 8, color: "#CBD5E1" }} />
-                  </View>
-                );
+                    {bulletRows(base, e.bullets, "#CBD5E1", { fontSize: 8, color: "#CBD5E1" })}
+                  </>
+                  ),
+                };
               })}
-            </>
+            />
           ) : null}
           {s.skills.length ? (
-            <>
-              <SideHeading>{t.skills}</SideHeading>
-              {s.skills.map((k) => (
+            <Section
+              heading={<SideHeading>{t.skills}</SideHeading>}
+              blocks={s.skills.map((k) => ({
+                key: k.id,
                 // Compétence groupée : intitulé seul sur sa ligne, groupes plus espacés (colonne étroite).
-                <View key={k.id} style={{ marginTop: splitSkillGroup(k.name) ? 6 : 3 }} wrap={false}>
+                style: { marginTop: splitSkillGroup(k.name) ? 6 : 3 },
+                content: (
+                <>
                   <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name, true)} style={{ fontSize: 8.5 }}>
                     {k.name}
                   </Text>
@@ -625,31 +709,34 @@ function Sidebar({ data }: { data: CvData }) {
                       <View style={{ height: 2.5, width: `${skillLevelValue(k.level) * 25}%`, backgroundColor: "#93C5FD", borderRadius: 1 }} />
                     </View>
                   ) : null}
-                </View>
-              ))}
-            </>
+                </>
+                ),
+              }))}
+            />
           ) : null}
           {s.languages.length ? (
-            <>
-              <SideHeading>{t.languages}</SideHeading>
-              {s.languages.map((l) => (
-                <Text key={l.id} style={{ fontSize: 8.5, marginTop: 2 }}>
-                  <Text edit={`languages.${l.id}.name`} style={BOLD}>
-                    {l.name}
+            <Section
+              heading={<SideHeading>{t.languages}</SideHeading>}
+              blocks={s.languages.map((l) => ({
+                key: l.id,
+                content: (
+                  <Text style={{ fontSize: 8.5, marginTop: 2 }}>
+                    <Text edit={`languages.${l.id}.name`} style={BOLD}>
+                      {l.name}
+                    </Text>
+                    {l.level ? " — " : ""}
+                    {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
                   </Text>
-                  {l.level ? " — " : ""}
-                  {l.level ? <Text edit={`languages.${l.id}.level`}>{l.level}</Text> : null}
-                </Text>
-              ))}
-            </>
+                ),
+              }))}
+            />
           ) : null}
           {s.hasInterests ? (
-            <>
-              <SideHeading>{t.interests}</SideHeading>
+            <Section heading={<SideHeading>{t.interests}</SideHeading>}>
               <Text edit="interests" multiline style={{ fontSize: 8.5 }}>
                 {data.interests}
               </Text>
-            </>
+            </Section>
           ) : null}
         </View>
 
@@ -661,21 +748,20 @@ function Sidebar({ data }: { data: CvData }) {
             </Text>
           ) : null}
           {s.summary ? (
-            <>
-              <MainHeading>{t.profile}</MainHeading>
+            <Section heading={<MainHeading>{t.profile}</MainHeading>}>
               <Paragraph edit="summary">
                 {s.summary}
               </Paragraph>
-            </>
+            </Section>
           ) : null}
           {s.experiences.length ? (
-            <>
-              <MainHeading>{t.experiences}</MainHeading>
-              {s.experiences.map((e) => {
+            <Section
+              heading={<MainHeading>{t.experiences}</MainHeading>}
+              blocks={s.experiences.flatMap((e) => {
                 const base = `experiences.${e.id}`;
-                return (
-                  <View key={e.id} style={{ marginTop: 6 }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between" }} wrap={false}>
+                const head = (
+                  <>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                       <Text edit={`${base}.position`} style={[BOLD, { flex: 1 }]}>
                         {e.position}
                       </Text>
@@ -686,17 +772,23 @@ function Sidebar({ data }: { data: CvData }) {
                       {e.company && e.location ? " · " : null}
                       {e.location ? <Text edit={`${base}.location`}>{e.location}</Text> : null}
                     </Text>
-                    <Bullets base={base} items={e.bullets} color="#64748B" />
-                  </View>
+                  </>
                 );
+                return entryBlocks(e.id, head, bulletRows(base, e.bullets, "#64748B"), (part, content) => ({
+                  style: part === "only" || part === "first" ? { marginTop: 6 } : undefined,
+                  content,
+                }));
               })}
-            </>
+            />
           ) : null}
           {s.projects.length ? (
-            <>
-              <MainHeading>{t.projects}</MainHeading>
-              {s.projects.map((p) => (
-                <View key={p.id} style={{ marginTop: 5 }} wrap={false}>
+            <Section
+              heading={<MainHeading>{t.projects}</MainHeading>}
+              blocks={s.projects.map((p) => ({
+                key: p.id,
+                style: { marginTop: 5 },
+                content: (
+                <>
                   <Text edit={`projects.${p.id}.name`} style={BOLD}>
                     {p.name}
                   </Text>
@@ -710,25 +802,29 @@ function Sidebar({ data }: { data: CvData }) {
                       {displayUrl(p.link)}
                     </Link>
                   ) : null}
-                </View>
-              ))}
-            </>
+                </>
+                ),
+              }))}
+            />
           ) : null}
           {s.certifications.length ? (
-            <>
-              <MainHeading>{t.certifications}</MainHeading>
-              {s.certifications.map((c) => (
-                <Text key={c.id} style={{ marginTop: 2 }}>
-                  <Text edit={`certifications.${c.id}.name`} style={BOLD}>
-                    {c.name}
+            <Section
+              heading={<MainHeading>{t.certifications}</MainHeading>}
+              blocks={s.certifications.map((c) => ({
+                key: c.id,
+                content: (
+                  <Text style={{ marginTop: 2 }}>
+                    <Text edit={`certifications.${c.id}.name`} style={BOLD}>
+                      {c.name}
+                    </Text>
+                    {c.issuer || c.date ? " — " : ""}
+                    {c.issuer ? <Text edit={`certifications.${c.id}.issuer`}>{c.issuer}</Text> : null}
+                    {c.issuer && c.date ? ", " : ""}
+                    {c.date ? <Text edit={`certifications.${c.id}.date`}>{c.date}</Text> : null}
                   </Text>
-                  {c.issuer || c.date ? " — " : ""}
-                  {c.issuer ? <Text edit={`certifications.${c.id}.issuer`}>{c.issuer}</Text> : null}
-                  {c.issuer && c.date ? ", " : ""}
-                  {c.date ? <Text edit={`certifications.${c.id}.date`}>{c.date}</Text> : null}
-                </Text>
-              ))}
-            </>
+                ),
+              }))}
+            />
           ) : null}
         </View>
       </View>
@@ -753,23 +849,21 @@ function FinanceHeading({ children }: { children: string }) {
   );
 }
 
-/** Puces carrées ▪. */
-function FinanceBullets({ base, items }: { base: string; items: string[] }) {
+/** Puce carrée ▪, jamais coupée entre deux pages. */
+function FinanceBulletRow({ base, index, text, top }: { base: string; index: number; text: string; top: number }) {
   const align = useContext(AlignContext);
-  const lines = bulletLines(items);
-  if (!lines.length) return null;
   return (
-    <View style={{ marginTop: 1 }}>
-      {lines.map((b) => (
-        <View key={b.index} style={{ flexDirection: "row", marginTop: 0.5 }} wrap={false}>
-          <Text style={{ width: 10, fontSize: 8 }}>▪</Text>
-          <Text edit={`${base}.bullets.${b.index}`} placeholder="Nouvelle puce" style={{ flex: 1, textAlign: align }}>
-            {b.text}
-          </Text>
-        </View>
-      ))}
+    <View style={{ flexDirection: "row", marginTop: top }} wrap={false}>
+      <Text style={{ width: 10, fontSize: 8 }}>▪</Text>
+      <Text edit={`${base}.bullets.${index}`} placeholder="Nouvelle puce" style={{ flex: 1, textAlign: align }}>
+        {text}
+      </Text>
     </View>
   );
+}
+
+function financeBulletRows(base: string, items: string[]) {
+  return bulletLines(items).map((b, i) => <FinanceBulletRow key={b.index} base={base} index={b.index} text={b.text} top={i === 0 ? 1.5 : 0.5} />);
 }
 
 /** Ligne « libellé : éléments » de la section Compétences & Langues. */
@@ -872,19 +966,22 @@ function Finance({ data }: { data: CvData }) {
       </View>
 
       {s.summary ? (
-        <View style={section}>
-          <FinanceHeading>{t.summary}</FinanceHeading>
+        <Section style={section} heading={<FinanceHeading>{t.summary}</FinanceHeading>}>
           <Paragraph edit="summary">{s.summary}</Paragraph>
-        </View>
+        </Section>
       ) : null}
 
       {s.education.length ? (
-        <View style={section}>
-          <FinanceHeading>{t.education}</FinanceHeading>
-          {s.education.map((e) => {
+        <Section
+          style={section}
+          heading={<FinanceHeading>{t.education}</FinanceHeading>}
+          blocks={s.education.map((e) => {
             const base = `education.${e.id}`;
-            return (
-              <View key={e.id} style={entry} wrap={false}>
+            return {
+              key: e.id,
+              style: entry,
+              content: (
+              <>
                 <View style={row}>
                   <Text edit={`${base}.${e.school ? "school" : "degree"}`} style={[BOLD, { flex: 1 }]}>
                     {e.school || e.degree}
@@ -897,21 +994,22 @@ function Finance({ data }: { data: CvData }) {
                   </Text>
                 ) : null}
                 {e.honors ? <Text edit={`${base}.honors`}>{e.honors}</Text> : null}
-                <FinanceBullets base={base} items={e.bullets} />
-              </View>
-            );
+                {financeBulletRows(base, e.bullets)}
+              </>
+              ),
+            };
           })}
-        </View>
+        />
       ) : null}
 
       {s.experiences.length ? (
-        <View style={section}>
-          <FinanceHeading>{t.experiences}</FinanceHeading>
-          {s.experiences.map((e) => {
+        <Section
+          style={section}
+          heading={<FinanceHeading>{t.experiences}</FinanceHeading>}
+          blocks={s.experiences.flatMap((e) => {
             const base = `experiences.${e.id}`;
-            return (
-              <View key={e.id} style={entry}>
-                <View wrap={false}>
+            const head = (
+                <View>
                   <View style={row}>
                     <Text edit={`${base}.${e.company ? "company" : "position"}`} style={[BOLD, { flex: 1 }]}>
                       {e.company || e.position}
@@ -933,18 +1031,24 @@ function Finance({ data }: { data: CvData }) {
                     <Dates base={base} start={e.startDate} end={e.endDate} current={e.current} style={dates} />
                   </View>
                 </View>
-                <FinanceBullets base={base} items={e.bullets} />
-              </View>
             );
+            return entryBlocks(e.id, head, financeBulletRows(base, e.bullets), (part, content) => ({
+              style: part === "only" || part === "first" ? entry : undefined,
+              content,
+            }));
           })}
-        </View>
+        />
       ) : null}
 
       {s.projects.length ? (
-        <View style={section}>
-          <FinanceHeading>{t.projects}</FinanceHeading>
-          {s.projects.map((p) => (
-            <View key={p.id} style={entry} wrap={false}>
+        <Section
+          style={section}
+          heading={<FinanceHeading>{t.projects}</FinanceHeading>}
+          blocks={s.projects.map((p) => ({
+            key: p.id,
+            style: entry,
+            content: (
+            <>
               <View style={row}>
                 <Text edit={`projects.${p.id}.name`} style={[BOLD, { flex: 1 }]}>
                   {p.name}
@@ -956,14 +1060,14 @@ function Finance({ data }: { data: CvData }) {
                 ) : null}
               </View>
               {p.description ? <Paragraph edit={`projects.${p.id}.description`}>{p.description}</Paragraph> : null}
-            </View>
-          ))}
-        </View>
+            </>
+            ),
+          }))}
+        />
       ) : null}
 
       {s.skills.length || s.languages.length || s.certifications.length || s.hasInterests ? (
-        <View style={section} wrap={false}>
-          <FinanceHeading>{t.skillsLanguages}</FinanceHeading>
+        <Section style={section} heading={<FinanceHeading>{t.skillsLanguages}</FinanceHeading>}>
           <FinanceSkills skills={s.skills} />
           {s.languages.length ? (
             <FinanceLine label={t.languages}>
@@ -996,7 +1100,7 @@ function Finance({ data }: { data: CvData }) {
               <Text edit="interests" multiline>{data.interests}</Text>
             </FinanceLine>
           ) : null}
-        </View>
+        </Section>
       ) : null}
     </Page>
   );

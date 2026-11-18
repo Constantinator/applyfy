@@ -93,9 +93,9 @@ const PDF_PRIMITIVES: CvPrimitives = {
       </PdfPage>
     );
   },
-  View: function View({ style, children, fixed, wrap }) {
+  View: function View({ style, children, fixed, wrap, minPresenceAhead }) {
     return (
-      <PdfView style={usePdfStyle(style)} {...defined({ fixed, wrap })}>
+      <PdfView style={usePdfStyle(style)} {...defined({ fixed, wrap, minPresenceAhead })}>
         {children}
       </PdfView>
     );
