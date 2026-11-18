@@ -92,7 +92,8 @@ test("style du CV : modèle choisi bordé de noir, pastilles de 44 px sur mobile
   assert.match(panel, /\? "border-ink /);
   assert.match(panel, /h-11 w-11 rounded-full[^"`]*lg:h-8 lg:w-8/);
   // Couleur du modèle « Moderne » : couleur du CV, pas de l'interface.
-  assert.match(panel, /moderne: "#1E40AF"/);
+  // (table CV_TEMPLATE_DEFAULTS, source unique des accents par défaut depuis le lot « nouveaux modèles »).
+  assert.match(read("lib/cv-builder-types.ts"), /moderne: \{ accent: "#1E40AF" \}/);
 });
 
 test("formulaire du CV : boutons d'icône et de suppression de 44 px sur mobile", () => {

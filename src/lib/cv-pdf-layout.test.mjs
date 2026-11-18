@@ -313,3 +313,15 @@ test("react-pdf : fixed et wrap ne sont jamais transmis non définis", () => {
   assert.doesNotMatch(source, /\b(fixed|wrap|minPresenceAhead)=\{(fixed|wrap|minPresenceAhead)\}/);
   assert.match(source, /\{\.\.\.defined\(\{ fixed, wrap, minPresenceAhead \}\)\}/);
 });
+
+test("PDF : les espaces fines (absentes de plusieurs polices) sont remplacées dans le texte remis à react-pdf", async () => {
+  // Le texte extrait ne suffit pas : pdfjs rend toute espace comme une espace simple. On lit donc l'arbre
+  // remis à react-pdf (ses éléments sont de simples balises pour react-dom).
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const data = CvDataSchema.parse({ ...fixtures.court, summary: "Hausse de 15 % : 1 200 clients et 3 sites." });
+  for (const templateId of CV_TEMPLATE_IDS) {
+    const markup = renderToStaticMarkup(createElement(CvDocument, { data, templateId, title: "CV de test" }));
+    assert.ok(markup.includes("Hausse de 15 % : 1 200 clients et 3 sites."), `${templateId} : espaces insécables à la place des espaces fines`);
+    assert.ok(!/[  ]/.test(markup), `${templateId} : aucune espace fine`);
+  }
+});

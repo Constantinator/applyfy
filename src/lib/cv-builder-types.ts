@@ -33,6 +33,12 @@ export const CV_FONTS = [
   { id: "gelasio", name: "Georgia (Gelasio)", fallback: "Georgia, serif" },
   // Tinos : mêmes proportions que Times New Roman et Liberation Serif (modèle Finance).
   { id: "tinos", name: "Times New Roman (Tinos)", fallback: "'Times New Roman', Times, serif" },
+  // Polices des réglages des nouveaux modèles (avec Gelasio et Tinos) : libres, aux proportions d'Arial,
+  // Calibri, Cambria et Garamond.
+  { id: "arimo", name: "Arimo", fallback: "Arial, Helvetica, sans-serif" },
+  { id: "carlito", name: "Carlito", fallback: "Calibri, sans-serif" },
+  { id: "caladea", name: "Caladea", fallback: "Cambria, serif" },
+  { id: "eb-garamond", name: "EB Garamond", fallback: "Garamond, serif" },
 ] as const;
 
 export type CvFontId = (typeof CV_FONTS)[number]["id"];
@@ -42,6 +48,40 @@ const CV_FONT_IDS = CV_FONTS.map((f) => f.id) as [CvFontId, ...CvFontId[]];
 export function cvFontFile(id: CvFontId, weight: 400 | 700, italic = false) {
   return `/fonts/cv/${id}-${weight}${italic ? "-italic" : ""}.ttf`;
 }
+
+/**
+ * Réglages des nouveaux modèles (« Style du CV ») : police parmi 6 polices libres lisibles par les ATS,
+ * taille du texte et marges en 3 crans. Les 6 premiers modèles ne lisent pas ces réglages.
+ */
+export const CV_SETTING_FONTS = [
+  // charWidth : largeur moyenne d'un caractère de coordonnées (e-mail, URL), en cadratins, mesurée dans
+  // le fichier de la police et majorée de 8 % : sert à répartir les coordonnées en lignes.
+  { id: "eb-garamond", name: "EB Garamond", charWidth: 0.41 },
+  { id: "gelasio", name: "Gelasio", charWidth: 0.49 },
+  { id: "caladea", name: "Caladea", charWidth: 0.45 },
+  { id: "tinos", name: "Tinos", charWidth: 0.44 },
+  { id: "arimo", name: "Arimo", charWidth: 0.475 },
+  { id: "carlito", name: "Carlito", charWidth: 0.445 },
+] as const satisfies readonly { id: CvFontId; name: string; charWidth: number }[];
+export type CvSettingFont = (typeof CV_SETTING_FONTS)[number]["id"];
+const CV_SETTING_FONT_IDS = CV_SETTING_FONTS.map((f) => f.id) as [CvSettingFont, ...CvSettingFont[]];
+
+/** Taille du texte : écart (points) avec le corps du modèle ; tout le reste suit à l'échelle. */
+export const CV_SIZES = [
+  { id: "small", label: "Petite", delta: -0.5 },
+  { id: "normal", label: "Normale", delta: 0 },
+  { id: "large", label: "Grande", delta: 0.5 },
+] as const;
+export type CvSize = (typeof CV_SIZES)[number]["id"];
+
+const MM = 72 / 25.4;
+/** Marges de la page (points) : côtés, puis haut et bas. */
+export const CV_MARGINS = [
+  { id: "narrow", label: "Étroites", horizontal: 12 * MM, vertical: 10 * MM },
+  { id: "normal", label: "Normales", horizontal: 15 * MM, vertical: 13 * MM },
+  { id: "wide", label: "Larges", horizontal: 18 * MM, vertical: 16 * MM },
+] as const;
+export type CvMargins = (typeof CV_MARGINS)[number]["id"];
 
 /** Couleur d'accent choisie dans « Style du CV » : #rrggbb. */
 const ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/;
@@ -232,6 +272,14 @@ export const CvDataSchema = z.object({
       align: z.enum(["left", "justify"]).catch("left").default("left"),
       /** Couleur d'accent (#rrggbb) des titres, du nom et des traits ; vide : couleur du modèle. */
       accent: z.string().regex(ACCENT_PATTERN).or(z.literal("")).catch("").default(""),
+      // Réglages des modèles réglables. Absents tant qu'ils ne sont pas choisis : les CV existants, et
+      // ceux des 6 premiers modèles, gardent exactement les mêmes données.
+      /** Police choisie ; absente : police du modèle. */
+      typeface: z.enum(CV_SETTING_FONT_IDS).optional().catch(undefined),
+      /** Taille du texte ; absente : normale. */
+      size: z.enum(["small", "normal", "large"]).optional().catch(undefined),
+      /** Marges de la page ; absentes : normales. */
+      margins: z.enum(["narrow", "normal", "wide"]).optional().catch(undefined),
     })
     .prefault({}),
   /** CV importé : analyse de l'import (null pour un CV créé à partir d'un modèle vierge). */
@@ -252,6 +300,43 @@ export const CvDataSchema = z.object({
 });
 
 export type CvData = z.infer<typeof CvDataSchema>;
+
+/**
+ * Valeurs par défaut de chaque modèle : couleur d'accent quand aucune n'est choisie et, pour les modèles
+ * réglables, police et corps du texte (points). Source unique de l'aperçu, du PDF et du panneau Style.
+ */
+export const CV_TEMPLATE_DEFAULTS: Record<CvTemplateId, { accent: string; font?: CvSettingFont; body?: number }> = {
+  minimaliste: { accent: "#111827" },
+  classique: { accent: "#111827" },
+  moderne: { accent: "#1E40AF" },
+  sidebar: { accent: "#1E293B" },
+  tech: { accent: "#059669" },
+  finance: { accent: "#000000" },
+};
+
+/** Le modèle a des réglages de police, de taille et de marges. */
+export const hasCvSettings = (templateId: CvTemplateId) => CV_TEMPLATE_DEFAULTS[templateId].font !== undefined;
+
+/**
+ * Réglages effectifs d'un modèle réglable : police, corps (points), facteur appliqué aux autres tailles
+ * et aux espacements verticaux, marges de la page (points), accent.
+ */
+export function cvSettings(templateId: CvTemplateId, style: CvData["style"]) {
+  const defaults = CV_TEMPLATE_DEFAULTS[templateId];
+  const base = defaults.body ?? 9.5;
+  const body = base + (CV_SIZES.find((s) => s.id === (style.size ?? "normal"))?.delta ?? 0);
+  const margins = CV_MARGINS.find((m) => m.id === (style.margins ?? "normal")) ?? CV_MARGINS[1];
+  const font = style.typeface || defaults.font || "arimo";
+  return {
+    font,
+    charWidth: CV_SETTING_FONTS.find((f) => f.id === font)?.charWidth ?? 0.53,
+    body,
+    factor: body / base,
+    horizontal: margins.horizontal,
+    vertical: margins.vertical,
+    accent: style.accent || defaults.accent,
+  };
+}
 export type CvExperience = CvData["experiences"][number];
 export type CvEducation = CvData["education"][number];
 export type CvSkill = CvData["skills"][number];

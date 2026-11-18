@@ -144,6 +144,7 @@ export function TemplateChoiceDialog({
                   type="button"
                   role="radio"
                   aria-checked={active}
+                  aria-label={(t.name as string) || t.description}
                   onClick={() => setSelected(t.id)}
                   className={`flex flex-col items-center gap-3 rounded-card p-3 text-left transition ${
                     active
@@ -154,10 +155,13 @@ export function TemplateChoiceDialog({
                   <div className="overflow-hidden rounded-block ring-1 ring-line dark:ring-slate-700">
                     <CvThumbnail data={SAMPLE} templateId={t.id} width={220} />
                   </div>
-                  <span className="w-full">
-                    <span className="block text-sm font-semibold text-ink dark:text-white">{t.name}</span>
-                    <span className="block text-xs text-muted dark:text-slate-400">{t.description}</span>
-                  </span>
+                  {/* Nouveaux modèles : pas de nom, la vignette seule. */}
+                  {(t.name as string) ? (
+                    <span className="w-full">
+                      <span className="block text-sm font-semibold text-ink dark:text-white">{t.name}</span>
+                      <span className="block text-xs text-muted dark:text-slate-400">{t.description}</span>
+                    </span>
+                  ) : null}
                 </button>
               );
             })}

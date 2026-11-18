@@ -2,19 +2,20 @@
 
 import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { CV_ACCENT_PRESETS, CV_TEMPLATES, CvDataSchema, type CvTemplateId } from "@/lib/cv-builder-types";
+import {
+  CV_ACCENT_PRESETS,
+  CV_MARGINS,
+  CV_SETTING_FONTS,
+  CV_SIZES,
+  CV_TEMPLATE_DEFAULTS,
+  CV_TEMPLATES,
+  CvDataSchema,
+  hasCvSettings,
+  type CvData,
+  type CvTemplateId,
+} from "@/lib/cv-builder-types";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
-
-/** Couleur d'accent propre à chaque modèle (utilisée quand aucune couleur n'est choisie). */
-const TEMPLATE_ACCENTS: Record<CvTemplateId, string> = {
-  minimaliste: "#111827",
-  classique: "#111827",
-  moderne: "#1E40AF",
-  sidebar: "#1E293B",
-  tech: "#059669",
-  finance: "#000000",
-};
 
 /** CV fictif des miniatures de la grille. */
 const SAMPLE_CV = CvDataSchema.parse({
@@ -97,7 +98,7 @@ function FittedThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
 }
 
 /**
- * Grille des 6 modèles (miniature et nom), le modèle sélectionné mis en évidence : panneau
+ * Grille des modèles (miniature, et nom pour les 6 premiers), le modèle sélectionné mis en évidence : panneau
  * « Style du CV » et création d'un CV depuis zéro.
  */
 export function TemplateGrid({
@@ -122,6 +123,7 @@ export function TemplateGrid({
                 type="button"
                 onClick={() => onSelect(t.id)}
                 aria-pressed={active}
+                aria-label={(t.name as string) || t.description}
                 title={t.description}
                 className={`ui-focus flex w-full flex-col overflow-hidden rounded-block border-2 bg-white text-left transition dark:bg-slate-900 ${
                   active
@@ -130,7 +132,8 @@ export function TemplateGrid({
                 }`}
               >
                 <FittedThumbnail id={t.id} accent={accent} />
-                <span className={`px-2.5 py-2 text-xs text-ink dark:text-slate-200 ${active ? "font-semibold" : "font-medium"}`}>{t.name}</span>
+                {/* Nouveaux modèles : pas de nom, la vignette seule. */}
+                {t.name ? <span className={`px-2.5 py-2 text-xs text-ink dark:text-slate-200 ${active ? "font-semibold" : "font-medium"}`}>{t.name}</span> : null}
               </button>
             </li>
           );
@@ -140,6 +143,50 @@ export function TemplateGrid({
   );
 }
 
+/** Choix d'un réglage parmi quelques valeurs (police, taille, marges). */
+function Choices<T extends string>({
+  title,
+  options,
+  value,
+  onChange,
+}: {
+  title: string;
+  options: readonly { id: T; label: string }[];
+  value: T;
+  onChange: (id: T) => void;
+}) {
+  const titleId = useId();
+  return (
+    <section aria-labelledby={titleId} className="space-y-3">
+      <h2 id={titleId} className="font-semibold text-ink dark:text-white">
+        {title}
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => {
+          const active = o.id === value;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onChange(o.id)}
+              aria-pressed={active}
+              className={`ui-focus min-h-11 rounded-xl border px-3 text-sm transition lg:min-h-9 ${
+                active
+                  ? "border-ink bg-pill font-semibold text-ink dark:border-blue-600 dark:bg-blue-500/15 dark:text-white"
+                  : "border-line text-prose hover:border-line-strong dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-400"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+type CvStyleSettings = CvData["style"];
+
 /**
  * Panneau « Style du CV » de l'éditeur : modèle (6 cartes avec miniature) et couleur d'accent
  * (pastilles, sélecteur libre, ou couleur du modèle).
@@ -147,19 +194,25 @@ export function TemplateGrid({
 export function CvStylePanel({
   templateId,
   accent,
+  settings,
   onTemplate,
   onAccent,
+  onSettings,
 }: {
   templateId: CvTemplateId;
   /** Couleur choisie ; vide : couleur du modèle. */
   accent: string;
+  /** Réglages du CV (police, taille, marges) : proposés seulement par les modèles réglables. */
+  settings: CvStyleSettings;
   onTemplate: (id: CvTemplateId) => void;
   onAccent: (accent: string) => void;
+  onSettings: (patch: Partial<Pick<CvStyleSettings, "typeface" | "size" | "margins">>) => void;
 }) {
   const templateTitle = useId();
   const accentTitle = useId();
   const pickerId = useId();
-  const shown = accent || TEMPLATE_ACCENTS[templateId];
+  const defaults = CV_TEMPLATE_DEFAULTS[templateId];
+  const shown = accent || defaults.accent;
 
   return (
     <div className="space-y-6">
@@ -214,6 +267,19 @@ export function CvStylePanel({
           Couleur du modèle
         </button>
       </section>
+
+      {hasCvSettings(templateId) ? (
+        <>
+          <Choices
+            title="Police"
+            options={CV_SETTING_FONTS.map((f) => ({ id: f.id, label: f.name }))}
+            value={settings.typeface || defaults.font || CV_SETTING_FONTS[0].id}
+            onChange={(typeface) => onSettings({ typeface })}
+          />
+          <Choices title="Taille du texte" options={CV_SIZES} value={settings.size ?? "normal"} onChange={(size) => onSettings({ size })} />
+          <Choices title="Marges" options={CV_MARGINS} value={settings.margins ?? "normal"} onChange={(margins) => onSettings({ margins })} />
+        </>
+      ) : null}
     </div>
   );
 }

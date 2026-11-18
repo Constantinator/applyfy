@@ -23,3 +23,8 @@ servent aussi aux polices de l'éditeur du CV d'une candidature (src/lib/cv-font
 | eb-garamond-* | EB Garamond | SIL Open Font License 1.1 |
 
 Textes des licences : https://openfontlicense.org et https://www.apache.org/licenses/LICENSE-2.0
+
+Arimo et Carlito : fichiers réenregistrés (fontTools) avec leurs tables dans l'ordre recommandé, sans
+changer un seul octet des tables hors « head » (somme de contrôle). Dans les fichiers d'origine, la table
+« glyf » était la dernière et l'espace insécable son dernier glyphe, vide : fontkit (moteur de
+@react-pdf) lisait au-delà du fichier et le PDF échouait. Vérifié par src/lib/cv-pdf-fonts.test.mjs.
