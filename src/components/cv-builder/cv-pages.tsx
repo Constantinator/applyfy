@@ -6,6 +6,7 @@ import { BandeauDroite } from "./cv-model-bandeau-droite";
 import { BandeauGauche } from "./cv-model-bandeau-gauche";
 import { type ModelSettings } from "./cv-model-kit";
 import { Lateral } from "./cv-model-lateral";
+import { SerifCompact } from "./cv-model-serif-compact";
 import { SerifCentre } from "./cv-model-serif-centre";
 import { AccentContext, AlignContext, LangContext, LegacyPages, TitlesContext, type LegacyTemplateId } from "./cv-templates";
 
@@ -24,6 +25,8 @@ function Model({ id, data, settings }: { id: ModelId; data: CvData; settings: Mo
       return <Lateral data={data} settings={settings} custom={data.style.accent} />;
     case "bandeau-gauche":
       return <BandeauGauche data={data} settings={settings} />;
+    case "serif-compact":
+      return <SerifCompact data={data} settings={settings} />;
   }
 }
 

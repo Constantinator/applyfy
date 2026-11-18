@@ -120,6 +120,7 @@ const EXPECTED = {
   "bandeau-droite": { court: 1, moyen: 1, dense: 2, before: 1 },
   lateral: { court: 1, moyen: 1, dense: 2, before: 1 },
   "bandeau-gauche": { court: 1, moyen: 1, dense: 2, before: 1 },
+  "serif-compact": { court: 1, moyen: 1, dense: 2, before: 1 },
 };
 
 /** Ordre de lecture d'un ATS, propre à chaque modèle (inchangé par le lot). */
@@ -139,6 +140,7 @@ const ORDER = {
   // formation n'est pas un repère : sur 2 pages, elle est en page 2, après la colonne de la page 1.
   lateral: ["name", t.profile, t.experiences, t.contact, t.skills, t.languages],
   "bandeau-gauche": ONE_COLUMN,
+  "serif-compact": ONE_COLUMN,
 };
 
 test("tous les modèles sont couverts", () => {
@@ -370,6 +372,8 @@ const GEOMETRY = {
   lateral: { left: () => LATERAL_PADDING, contactRight: () => LATERAL_SIDE - LATERAL_PADDING, header: false },
   // Photo de 58,5 pt et 16 pt d'espace.
   "bandeau-gauche": { left: (m) => m.horizontal, contactRight: (m, photo) => PAGE_WIDTH - m.horizontal - (photo ? 74.5 : 0), header: true, dash: true },
+  // Photo de 49,5 pt et 12 pt d'espace, à droite ; les coordonnées, centrées, s'arrêtent avant elle.
+  "serif-compact": { left: (m) => m.horizontal, contactRight: (m, photo) => PAGE_WIDTH - m.horizontal - (photo ? 61.5 : 0), header: true, dash: true },
 };
 const PAGE_HEIGHT = 841.89;
 const MM = 72 / 25.4;
