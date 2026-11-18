@@ -9,7 +9,7 @@ import {
   Text as PdfText,
   View as PdfView,
 } from "@react-pdf/renderer";
-import { useContext, type ComponentProps } from "react";
+import { createContext, useContext, type ComponentProps, type ReactNode } from "react";
 
 import { CV_FONTS, cvFontFile, densityFactor, fullName, normalizeSpaces, type CvData, type CvLang, type CvTemplateId } from "@/lib/cv-builder-types";
 import { parseRich } from "@/lib/cv-rich-text";
@@ -24,6 +24,46 @@ type PdfStyle = NonNullable<ComponentProps<typeof PdfView>["style"]>;
 /** Style react-pdf, à la densité du CV. */
 function usePdfStyle(style: StyleProp) {
   return densityStyle(style, useContext(DensityContext)) as PdfStyle;
+}
+
+/**
+ * Interligne du texte, comme dans un navigateur : un rapport (1,4) appliqué à la taille de CHAQUE texte.
+ * react-pdf, lui, convertit le rapport en points là où il est déclaré (9,5 × 1,4 sur la page) puis hérite
+ * de cette hauteur fixe : les titres étaient trop serrés et les petits textes trop espacés, et l'aperçu
+ * n'avait pas la hauteur du PDF. Chaque texte reçoit donc son propre interligne, calculé sur sa taille.
+ */
+type Typography = { fontSize: number; lineHeight: number | undefined };
+/** Taille par défaut de react-pdf (aucun modèle n'en dépend : la page fixe toujours la sienne). */
+const TypographyContext = createContext<Typography>({ fontSize: 18, lineHeight: undefined });
+/** Dans un texte : les passages imbriqués (gras, champ d'une ligne) suivent l'interligne du texte. */
+const InTextContext = createContext(false);
+
+/** Taille et rapport d'interligne en vigueur après `style` (déjà à la densité du CV). */
+function useTypography(style: PdfStyle): Typography {
+  const inherited = useContext(TypographyContext);
+  const { fontSize, lineHeight } = style as { fontSize?: unknown; lineHeight?: unknown };
+  return {
+    fontSize: typeof fontSize === "number" ? fontSize : inherited.fontSize,
+    lineHeight: typeof lineHeight === "number" ? lineHeight : inherited.lineHeight,
+  };
+}
+
+/** Transmet la taille et l'interligne aux textes contenus, si `style` les change. */
+function WithTypography({ style, children }: { style: PdfStyle; children: ReactNode }) {
+  const inherited = useContext(TypographyContext);
+  const typography = useTypography(style);
+  if (typography.fontSize === inherited.fontSize && typography.lineHeight === inherited.lineHeight) return children;
+  return <TypographyContext value={typography}>{children}</TypographyContext>;
+}
+
+/** Style d'un texte avec son propre interligne (texte de premier niveau seulement). */
+function useTextStyle(style: StyleProp): PdfStyle {
+  const s = usePdfStyle(style);
+  const typography = useTypography(s);
+  const nested = useContext(InTextContext);
+  if (nested || typography.lineHeight === undefined) return s;
+  // Taille et rapport dans le même style : react-pdf multiplie l'un par l'autre.
+  return { ...s, fontSize: typography.fontSize, lineHeight: typography.lineHeight } as PdfStyle;
 }
 
 let fontsBase: string | null = null;
@@ -89,24 +129,30 @@ const PDF_PRIMITIVES: CvPrimitives = {
     // Sans ligatures (« fi » en un seul signe) : le texte extrait du PDF par les ATS reste exact.
     return (
       <PdfPage size="A4" style={{ ...s, fontFeatureSettings: NO_LIGATURES } as PdfStyle}>
-        {children}
+        <WithTypography style={s}>{children}</WithTypography>
       </PdfPage>
     );
   },
   View: function View({ style, children, fixed, wrap, minPresenceAhead }) {
+    const s = usePdfStyle(style);
     return (
-      <PdfView style={usePdfStyle(style)} {...defined({ fixed, wrap, minPresenceAhead })}>
-        {children}
+      <PdfView style={s} {...defined({ fixed, wrap, minPresenceAhead })}>
+        <WithTypography style={s}>{children}</WithTypography>
       </PdfView>
     );
   },
   Text: function Text({ style, children, display }) {
-    return <PdfText style={usePdfStyle(style)}>{typeof children === "string" ? <RichRuns text={display ?? children} /> : children}</PdfText>;
+    return (
+      <PdfText style={useTextStyle(style)}>
+        <InTextContext value>{typeof children === "string" ? <RichRuns text={display ?? children} /> : children}</InTextContext>
+      </PdfText>
+    );
   },
+  // Lien hors d'un texte (coordonnées du Sidebar) : react-pdf le rend comme un texte.
   Link: function Link({ src, style, children }) {
     return (
-      <PdfLink src={src} style={usePdfStyle(style)}>
-        {children}
+      <PdfLink src={src} style={useTextStyle(style)}>
+        <InTextContext value>{children}</InTextContext>
       </PdfLink>
     );
   },
