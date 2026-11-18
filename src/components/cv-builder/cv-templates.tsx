@@ -443,6 +443,9 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
   const Heading = theme.Heading;
   const custom = data.style.accent;
   const accent = custom || theme.accent;
+  // Tech : badges des compétences, teinte très claire de l'accent et texte de l'accent lisible dessus.
+  const badgeBg = custom ? mix(custom, "#FFFFFF", 0.9) : "#ECFDF5";
+  const badgeText = custom ? readableOn(custom, badgeBg) : "#065F46";
 
   // Tech : GitHub et portfolio mis en avant sous l'en-tête, retirés des coordonnées.
   const highlighted = variant === "tech" ? items.filter((c) => c.field === "github" || c.field === "website") : [];
@@ -528,7 +531,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
               const starts = part === "only" || part === "first";
               const ends = part === "only" || part === "last";
               return {
-                style: { paddingLeft: 14, paddingTop: starts ? 5 : 0, paddingBottom: ends ? 4 : 0, borderLeftWidth: 1.5, borderColor: custom ? "#E5E7EB" : "#A7F3D0", marginLeft: 4 },
+                style: { paddingLeft: 14, paddingTop: starts ? 5 : 0, paddingBottom: ends ? 4 : 0, borderLeftWidth: 1.5, borderColor: custom ? mix(custom, "#FFFFFF", 0.6) : "#A7F3D0", marginLeft: 4 },
                 content: (
                   <>
                     {starts ? <View style={{ position: "absolute", left: -5.25, top: 8, width: 9, height: 9, borderRadius: 4.5, backgroundColor: accent }} /> : null}
@@ -585,8 +588,8 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                   <Text
                     style={
                       heading
-                        ? { color: custom || "#065F46", marginTop: 6, fontSize: 9 }
-                        : { backgroundColor: custom ? "#F3F4F6" : "#ECFDF5", color: custom || "#065F46", borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }
+                        ? { color: custom ? readableOn(custom, "#FFFFFF") : "#065F46", marginTop: 6, fontSize: 9 }
+                        : { backgroundColor: badgeBg, color: badgeText, borderRadius: 8, paddingVertical: 2.5, paddingHorizontal: 8, marginRight: 5, marginTop: 5, fontSize: 8.5 }
                     }
                   >
                     <Text edit={`skills.${k.id}.name`} placeholder="Nouvelle compétence" display={skillGroupDisplay(k.name)}>
@@ -612,7 +615,7 @@ function SingleColumn({ data, theme, variant }: { data: CvData; theme: Theme; va
                     {k.level ? <Text style={[muted, { fontSize: 8.5 }]}>{levelLabel(k.level)}</Text> : null}
                   </View>
                   {k.level ? (
-                    <View style={{ height: 3, backgroundColor: "#DBEAFE", borderRadius: 1.5, marginTop: 2 }}>
+                    <View style={{ height: 3, backgroundColor: custom ? mix(custom, "#FFFFFF", 0.85) : "#DBEAFE", borderRadius: 1.5, marginTop: 2 }}>
                       <View style={{ height: 3, width: `${skillLevelValue(k.level) * 25}%`, backgroundColor: accent, borderRadius: 1.5 }} />
                     </View>
                   ) : null}
