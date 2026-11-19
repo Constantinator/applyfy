@@ -545,6 +545,8 @@ export function CvBuilderEditor({
           {tab === "style" && (
             <div id="panel-style" role="tabpanel" aria-labelledby="tab-style" className="ui-card p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <CvStylePanel
+                data={data}
+                language={language}
                 templateId={templateId}
                 accent={data.style.accent}
                 settings={data.style}

@@ -3,6 +3,7 @@
 import {
   createContext,
   createElement,
+  memo,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -30,6 +31,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { parseRich, type RichFormat } from "@/lib/cv-rich-text";
+import { PLACEHOLDER_MARK } from "@/lib/cv-thumbnail";
 
 import {
   DensityContext,
@@ -337,8 +339,24 @@ function richNodes(text: string, lang: CvLang): Node[] {
 }
 
 /** Passage de texte (rendu React), avec ses morceaux insécables. */
+/** Barre grise des vignettes d'un CV presque vide (cf. cv-thumbnail) : la largeur du mot, sans texte visible. */
+const PLACEHOLDER_CSS: CSSProperties = { color: "transparent", backgroundColor: "#e5e7eb", borderRadius: 2, boxDecorationBreak: "clone" };
+const PLACEHOLDER_WORD = new RegExp(`(${PLACEHOLDER_MARK}[^\\s${PLACEHOLDER_MARK}]*)`);
+
 function TextParts({ text }: { text: string }) {
-  const parts = noBreakParts(text, useContext(LanguageContext));
+  const lang = useContext(LanguageContext);
+  if (text.includes(PLACEHOLDER_MARK)) {
+    return text.split(PLACEHOLDER_WORD).map((part, i) =>
+      i % 2 === 1 ? (
+        <span key={i} style={PLACEHOLDER_CSS}>
+          {part.slice(PLACEHOLDER_MARK.length)}
+        </span>
+      ) : (
+        part
+      ),
+    );
+  }
+  const parts = noBreakParts(text, lang);
   if (parts.length === 1) return text;
   return parts.map((part, i) =>
     i % 2 === 0 ? (
@@ -584,16 +602,31 @@ export function CvFontFaces() {
   return <style>{FONT_FACES}</style>;
 }
 
-/** Miniature d'un modèle (première page, non modifiable), de largeur `width` en pixels. */
-export function CvThumbnail({ data, templateId, width }: { data: CvData; templateId: CvTemplateId; width: number }) {
+/**
+ * Miniature d'un modèle (première page, non modifiable), de largeur `width` en pixels. Mémoïsée : elle ne
+ * se re-rend que si ses données changent (cf. useThumbnailData, qui ne les change qu'après le délai).
+ */
+export const CvThumbnail = memo(function CvThumbnail({
+  data,
+  templateId,
+  width,
+  language = "fr",
+}: {
+  data: CvData;
+  templateId: CvTemplateId;
+  width: number;
+  language?: CvLang;
+}) {
   const scale = width / A4_WIDTH_PX;
   return (
     <div aria-hidden="true" className="relative overflow-hidden bg-white" style={{ width, height: A4_HEIGHT_PX * scale }}>
       <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: A4_WIDTH_PX, pointerEvents: "none" }}>
         <PrimitivesContext value={HTML_PRIMITIVES}>
-          <CvPages data={data} templateId={templateId} />
+          <LanguageContext value={language}>
+            <CvPages data={data} templateId={templateId} language={language} />
+          </LanguageContext>
         </PrimitivesContext>
       </div>
     </div>
   );
-}
+});

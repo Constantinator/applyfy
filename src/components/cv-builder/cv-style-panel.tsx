@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import {
   CV_ACCENT_PRESETS,
@@ -9,79 +9,20 @@ import {
   CV_SIZES,
   CV_PICKER_TEMPLATES,
   CV_TEMPLATE_DEFAULTS,
-  CvDataSchema,
   hasCvSettings,
   type CvData,
+  type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
 import { CvPhotoPanel } from "./cv-photo-panel";
+import { useThumbnailData } from "./use-thumbnail-data";
 
-/** CV fictif des miniatures de la grille. */
-const SAMPLE_CV = CvDataSchema.parse({
-  personal: {
-    firstName: "Sophie",
-    lastName: "Martin",
-    jobTitle: "Analyste Financière",
-    email: "sophie.martin@email.com",
-    city: "Paris",
-    linkedin: "linkedin.com/in/sophiemartin",
-  },
-  summary: "Étudiante en finance avec expérience en analyse de données et gestion de portefeuille.",
-  experiences: [
-    {
-      id: "bnp",
-      position: "Analyste junior",
-      company: "BNP Paribas",
-      location: "Paris",
-      startDate: "2024",
-      current: true,
-      bullets: [
-        "Réalisé 3 reportings financiers mensuels présentés à la direction",
-        "Analysé un portefeuille de 50 M€ avec un taux de rendement de +8 %",
-        "Automatisé les tableaux de bord Excel, réduisant le temps de traitement de 40 %",
-      ],
-    },
-    {
-      id: "lvmh",
-      position: "Stage contrôle de gestion",
-      company: "LVMH",
-      location: "Paris",
-      startDate: "2023",
-      bullets: ["Suivi budgétaire de 3 départements (budget cumulé : 2 M€)", "Préparé les clôtures mensuelles et trimestrielles"],
-    },
-    {
-      id: "lazard",
-      position: "Analyste M&A",
-      company: "Lazard",
-      location: "Paris",
-      startDate: "2022",
-      endDate: "2023",
-      bullets: [
-        "Modélisé 4 transactions (valorisation DCF et LBO) pour des cibles entre 50 M€ et 200 M€",
-        "Préparé les pitchbooks pour 3 comités d'investissement",
-      ],
-    },
-  ],
-  education: [
-    { id: "hec", degree: "Master Finance", school: "HEC Paris", startDate: "2022", endDate: "2024" },
-    { id: "dauphine", degree: "Licence Économie-Gestion", school: "Université Paris-Dauphine", startDate: "2019", endDate: "2022" },
-  ],
-  skills: ["Excel", "Bloomberg", "Python", "Power BI", "Modélisation DCF/LBO", "SQL", "PowerPoint"].map((name) => ({ id: name, name })),
-  languages: [
-    { id: "fr", name: "Français", level: "Natif" },
-    { id: "en", name: "Anglais", level: "Courant (TOEIC 945)" },
-    { id: "es", name: "Espagnol", level: "Intermédiaire" },
-  ],
-  interests: "Échecs (tournois régionaux), Tennis, Lecture (économie comportementale)",
-});
-
-/** Vraie miniature d'un modèle (format A4), à la largeur de sa carte. */
-function FittedThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
+/** Vraie miniature d'un modèle (format A4), à la largeur de sa carte ; squelette gris tant qu'elle n'est pas mesurée. */
+function FittedThumbnail({ id, data, language }: { id: CvTemplateId; data: CvData; language: CvLang }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
-  const data = useMemo(() => ({ ...SAMPLE_CV, style: { ...SAMPLE_CV.style, accent } }), [accent]);
 
   useLayoutEffect(() => {
     const element = ref.current;
@@ -93,7 +34,7 @@ function FittedThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
 
   return (
     <div ref={ref} aria-hidden="true" className="aspect-[210/297] overflow-hidden border-b border-line-soft bg-white dark:border-slate-800">
-      {width > 0 && <CvThumbnail data={data} templateId={id} width={width} />}
+      {width > 0 ? <CvThumbnail data={data} templateId={id} width={width} language={language} /> : <div className="h-full w-full animate-pulse bg-pill dark:bg-slate-800" />}
     </div>
   );
 }
@@ -104,14 +45,17 @@ function FittedThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
  */
 export function TemplateGrid({
   selected,
-  accent = "",
+  data,
+  language = "fr",
   onSelect,
 }: {
   selected: CvTemplateId;
-  /** Couleur des miniatures ; vide : couleur de chaque modèle. */
-  accent?: string;
+  /** CV montré dans les vignettes (le vrai CV de la personne ; presque vide : barres grises). */
+  data: CvData;
+  language?: CvLang;
   onSelect: (id: CvTemplateId) => void;
 }) {
+  const shown = useThumbnailData(data, language);
   return (
     <>
       <CvFontFaces />
@@ -132,7 +76,7 @@ export function TemplateGrid({
                     : "border-line hover:border-line-strong dark:border-slate-700 dark:hover:border-blue-300"
                 }`}
               >
-                <FittedThumbnail id={t.id} accent={accent} />
+                <FittedThumbnail id={t.id} data={shown} language={language} />
               </button>
             </li>
           );
@@ -191,6 +135,8 @@ type CvStyleSettings = CvData["style"];
  * (pastilles, sélecteur libre, ou couleur du modèle).
  */
 export function CvStylePanel({
+  data,
+  language,
   templateId,
   accent,
   settings,
@@ -200,6 +146,9 @@ export function CvStylePanel({
   onSettings,
   onPhoto,
 }: {
+  /** Le CV en cours d'édition : montré dans les vignettes des modèles. */
+  data: CvData;
+  language: CvLang;
   templateId: CvTemplateId;
   /** Couleur choisie ; vide : couleur du modèle. */
   accent: string;
@@ -224,7 +173,7 @@ export function CvStylePanel({
         <h2 id={templateTitle} className="font-semibold text-ink dark:text-white">
           Template
         </h2>
-        <TemplateGrid selected={templateId} accent={accent} onSelect={onTemplate} />
+        <TemplateGrid selected={templateId} data={data} language={language} onSelect={onTemplate} />
       </section>
 
       <CvPhotoPanel photo={photo} templateId={templateId} onChange={onPhoto} />

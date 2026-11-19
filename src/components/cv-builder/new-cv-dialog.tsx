@@ -4,73 +4,14 @@ import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 
 import { convertLegacyCvAction, createBuilderCvAction } from "@/app/actions/cv-builder";
-import { CV_DEFAULT_TEMPLATE, CV_PICKER_TEMPLATES, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_DEFAULT_TEMPLATE, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
 import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 
-import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
+import { CvFontFaces } from "./cv-html-preview";
 import { TemplateGrid } from "./cv-style-panel";
 
-/** Silhouette neutre pour la photo des miniatures. */
-const SAMPLE_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#cbd5e1"/><circle cx="50" cy="38" r="18" fill="#f1f5f9"/><ellipse cx="50" cy="92" rx="32" ry="26" fill="#f1f5f9"/></svg>',
-)}`;
-
-/** CV d'exemple des miniatures (fictif). */
-const SAMPLE_DATA = CvDataSchema.parse({
-  personal: {
-    firstName: "Camille",
-    lastName: "Durand",
-    jobTitle: "Chargée de marketing digital",
-    email: "camille.durand@email.fr",
-    phone: "06 12 34 56 78",
-    city: "Lyon",
-    linkedin: "linkedin.com/in/camille-durand",
-    github: "github.com/cdurand",
-  },
-  summary:
-    "4 ans d'expérience en acquisition et en contenu. J'aime piloter des campagnes mesurables et travailler avec les équipes produit.",
-  experiences: [
-    {
-      id: "a",
-      position: "Chargée de marketing digital",
-      company: "Back Market",
-      startDate: "09/2022",
-      current: true,
-      location: "Paris",
-      bullets: [
-        "Lancé 12 campagnes d'acquisition, +35 % de leads qualifiés",
-        "Piloté un budget média de 200 k€ par an",
-        "Coordonné une équipe de 3 freelances",
-      ],
-    },
-    {
-      id: "b",
-      position: "Assistante marketing",
-      company: "Lydia",
-      startDate: "01/2020",
-      endDate: "08/2022",
-      location: "Paris",
-      bullets: ["Rédigé la newsletter mensuelle (60 000 abonnés)", "Animé les réseaux sociaux de la marque"],
-    },
-  ],
-  education: [
-    { id: "e", school: "IAE Lyon", degree: "Master Marketing digital", startDate: "2018", endDate: "2020", honors: "Mention bien" },
-  ],
-  skills: [
-    { id: "1", name: "Google Ads", level: "expert" },
-    { id: "2", name: "SEO", level: "avance" },
-    { id: "3", name: "Figma", level: "intermediaire" },
-    { id: "4", name: "Rédaction", level: "avance" },
-  ],
-  languages: [
-    { id: "l", name: "Français", level: "Langue maternelle" },
-    { id: "m", name: "Anglais", level: "Courant (C1)" },
-  ],
-  interests: "Course à pied, photographie",
-});
-
-// Photo hors du schéma (SVG, jamais enregistrée) : affichée seulement par les miniatures.
-const SAMPLE: CvData = { ...SAMPLE_DATA, personal: { ...SAMPLE_DATA.personal, photo: SAMPLE_PHOTO } };
+/** CV vide : les vignettes le dessinent en barres grises (cf. thumbnailData). */
+const EMPTY_CV: CvData = CvDataSchema.parse({});
 
 function SubmitButton({ children, className }: { children: string; className: string }) {
   const { pending } = useFormStatus();
@@ -90,6 +31,7 @@ export function TemplateChoiceDialog({
   open,
   onClose,
   subtitle = "Il s'applique à tout ton CV.",
+  data = EMPTY_CV,
   footer,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
@@ -97,6 +39,8 @@ export function TemplateChoiceDialog({
   open: boolean;
   onClose: () => void;
   subtitle?: string;
+  /** CV montré dans les vignettes. */
+  data?: CvData;
   footer: (selected: CvTemplateId) => ReactNode;
 }) {
   const [selected, setSelected] = useState<CvTemplateId>(CV_DEFAULT_TEMPLATE);
@@ -135,29 +79,8 @@ export function TemplateChoiceDialog({
             </button>
           </div>
 
-          <div role="radiogroup" aria-label="Modèles de CV" className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-6 sm:grid-cols-2 lg:grid-cols-3">
-            {CV_PICKER_TEMPLATES.map((t) => {
-              const active = t.id === selected;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  aria-label={t.description}
-                  onClick={() => setSelected(t.id)}
-                  className={`flex flex-col items-center gap-3 rounded-card p-3 text-left transition ${
-                    active
-                      ? "bg-pill ring-2 ring-accent dark:bg-blue-500/15 dark:ring-blue-400"
-                      : "ring-1 ring-line hover:ring-line-strong dark:ring-slate-700 dark:hover:ring-slate-500"
-                  }`}
-                >
-                  <div className="overflow-hidden rounded-block ring-1 ring-line dark:ring-slate-700">
-                    <CvThumbnail data={SAMPLE} templateId={t.id} width={220} />
-                  </div>
-                </button>
-              );
-            })}
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            <TemplateGrid selected={selected} data={data} onSelect={setSelected} />
           </div>
 
           <div className="flex flex-col-reverse items-center gap-3 border-t border-line px-6 py-4 sm:flex-row sm:justify-between dark:border-slate-700">
@@ -279,7 +202,7 @@ export function NewCvDialog({
           ) : (
             <>
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                <TemplateGrid selected={templateId} onSelect={setTemplateId} />
+                <TemplateGrid selected={templateId} data={EMPTY_CV} onSelect={setTemplateId} />
               </div>
               {application?.hasLegacyCv && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 dark:border-slate-700">
