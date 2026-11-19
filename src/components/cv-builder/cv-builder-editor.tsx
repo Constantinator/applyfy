@@ -536,6 +536,7 @@ export function CvBuilderEditor({
                 templateId={templateId}
                 accent={data.style.accent}
                 settings={data.style}
+                photo={data.personal.photo}
                 onTemplate={(id) => {
                   if (id === templateId) return;
                   touched.current = true;
@@ -544,6 +545,7 @@ export function CvBuilderEditor({
                 }}
                 onAccent={(accent) => edit((d) => ({ ...d, style: { ...d.style, accent } }))}
                 onSettings={(patch) => edit((d) => ({ ...d, style: { ...d.style, ...patch } }))}
+                onPhoto={(photo) => edit((d) => ({ ...d, personal: { ...d.personal, photo } }))}
               />
               <CvLanguagePanel language={language} saving={languageSaving} error={languageError} onChange={changeLanguage}>
                 <CvTranslatePanel

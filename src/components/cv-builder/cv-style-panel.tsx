@@ -16,6 +16,7 @@ import {
 } from "@/lib/cv-builder-types";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
+import { CvPhotoPanel } from "./cv-photo-panel";
 
 /** CV fictif des miniatures de la grille. */
 const SAMPLE_CV = CvDataSchema.parse({
@@ -195,18 +196,23 @@ export function CvStylePanel({
   templateId,
   accent,
   settings,
+  photo,
   onTemplate,
   onAccent,
   onSettings,
+  onPhoto,
 }: {
   templateId: CvTemplateId;
   /** Couleur choisie ; vide : couleur du modèle. */
   accent: string;
   /** Réglages du CV (police, taille, marges) : proposés seulement par les modèles réglables. */
   settings: CvStyleSettings;
+  /** Photo facultative du CV (data URL JPEG), null sans photo. */
+  photo: string | null;
   onTemplate: (id: CvTemplateId) => void;
   onAccent: (accent: string) => void;
   onSettings: (patch: Partial<Pick<CvStyleSettings, "typeface" | "size" | "margins">>) => void;
+  onPhoto: (photo: string | null) => void;
 }) {
   const templateTitle = useId();
   const accentTitle = useId();
@@ -222,6 +228,8 @@ export function CvStylePanel({
         </h2>
         <TemplateGrid selected={templateId} accent={accent} onSelect={onTemplate} />
       </section>
+
+      <CvPhotoPanel photo={photo} templateId={templateId} onChange={onPhoto} />
 
       <section aria-labelledby={accentTitle} className="space-y-3">
         <h2 id={accentTitle} className="font-semibold text-ink dark:text-white">
