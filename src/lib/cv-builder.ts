@@ -116,6 +116,27 @@ export async function getBuilderCv(id: string): Promise<BuilderCv | null> {
   return data ? toCv(data as Row) : null;
 }
 
+/**
+ * Photo enregistrée d'un CV de l'utilisateur (seulement ce champ, sans relire tout le CV) : null
+ * sans photo, sans CV, ou si le CV n'est pas à lui. Sauvegarde automatique (photo « unchanged »).
+ */
+export async function getBuilderCvPhoto(id: string): Promise<string | null> {
+  if (!isSupabaseConfigured()) return demoCvs.find((cv) => cv.id === id)?.data.personal.photo ?? null;
+
+  const user = await requireUser();
+  if (!isUuid(id)) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cv_builder")
+    .select("photo:data->personal->>photo")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) throw new Error(`Lecture de la photo du CV impossible : ${error.message}`);
+  const photo = (data as { photo?: unknown } | null)?.photo;
+  return typeof photo === "string" ? photo : null;
+}
+
 /** CV lié à une candidature, ou null. Sans échec : la fiche reste affichée (ex. migration 0034 absente). */
 export async function getBuilderCvByApplication(applicationId: string): Promise<BuilderCv | null> {
   if (!isSupabaseConfigured()) return demoCvs.find((cv) => cv.applicationId === applicationId) ?? null;

@@ -10,77 +10,20 @@ import {
   PHOTO_ZOOM_MAX,
   PHOTO_ZOOM_MIN,
   clampCrop,
-  cropSourceRect,
-  encodeUnderLimit,
-  jpegMetadataSegments,
   keyboardCrop,
   photoFileProblem,
   zoomCrop,
   type Crop,
 } from "@/lib/cv-photo";
 
+import { decodePhoto, drawCrop, encodePhoto, type Source } from "./cv-photo-encode";
+
 // Bloc « Photo (facultatif) » de l'onglet Style du CV : ajout, recadrage dans un cercle (souris,
-// doigt, clavier), changement et suppression. Tout se fait dans le navigateur : la photo est
-// décodée (orientation EXIF appliquée), recadrée en carré de 400 px, puis réencodée en JPEG, ce
-// qui retire toutes ses métadonnées (EXIF, position GPS). Elle n'est envoyée nulle part ici :
-// l'éditeur l'enregistre avec le CV.
+// doigt, clavier), changement et suppression. Traitement de l'image : cv-photo-encode.ts. La
+// photo n'est envoyée nulle part ici : l'éditeur l'enregistre avec le CV.
 
 /** Côté de la zone de recadrage à l'écran, en pixels CSS. */
 const VIEW = 288;
-
-type Source = { image: ImageBitmap | HTMLImageElement; width: number; height: number };
-
-/** Décodage avec l'orientation EXIF appliquée (createImageBitmap ; <img> en repli, qui l'applique aussi). */
-async function decodePhoto(file: File): Promise<Source> {
-  try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    return { image: bitmap, width: bitmap.width, height: bitmap.height };
-  } catch {
-    const url = URL.createObjectURL(file);
-    try {
-      const img = new Image();
-      img.src = url;
-      await img.decode();
-      return { image: img, width: img.naturalWidth, height: img.naturalHeight };
-    } finally {
-      // L'image décodée reste utilisable après la révocation.
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-    }
-  }
-}
-
-function drawCrop(canvas: HTMLCanvasElement, source: Source, crop: Crop, side: number) {
-  canvas.width = canvas.height = side;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  // Fond blanc : un PNG ou un WebP transparent ne devient pas noir en JPEG.
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, side, side);
-  const { sx, sy, sw, sh } = cropSourceRect(crop, source.width, source.height);
-  ctx.drawImage(source.image, sx, sy, sw, sh, 0, 0, side, side);
-}
-
-const readDataUrl = (blob: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-
-/** Photo finale : carré de 400 px, JPEG sous la limite, sans aucune métadonnée. */
-async function encodePhoto(source: Source, crop: Crop): Promise<string> {
-  const canvas = document.createElement("canvas");
-  drawCrop(canvas, source, crop, PHOTO_SIZE);
-  const encoded = await encodeUnderLimit((quality) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality)));
-  if (!encoded) throw new Error(PHOTO_MESSAGES.tooHeavy);
-  const bytes = new Uint8Array(await encoded.blob.arrayBuffer());
-  // Le canvas n'écrit jamais de métadonnées : vérifié quand même, la photo ne part pas sinon.
-  if (jpegMetadataSegments(bytes).length) throw new Error(PHOTO_MESSAGES.unreadable);
-  return readDataUrl(encoded.blob);
-}
 
 /** Fenêtre de recadrage : la partie dans le cercle apparaîtra sur le CV. */
 function CropDialog({ source, onCancel, onDone }: { source: Source; onCancel: () => void; onDone: (photo: string) => void }) {

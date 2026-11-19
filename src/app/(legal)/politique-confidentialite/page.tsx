@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Politique de confidentialité"
-      updatedOn="10 novembre 2026"
+      updatedOn="18 novembre 2026"
       intro="Applyfy t'aide à suivre ta recherche d'emploi. Cette page explique quelles données sont collectées, pourquoi, combien de temps elles sont conservées et comment exercer tes droits, conformément au Règlement général sur la protection des données (RGPD)."
     >
       <LegalSection title="Responsable du traitement">
@@ -75,6 +75,16 @@ export default function PrivacyPolicyPage() {
             <strong>CV :</strong> les fichiers PDF que tu enregistres dans ton profil ou importes pour une
             analyse, et les CV que tu crées dans le CV Builder (informations saisies et photo
             facultative).
+          </li>
+          <li>
+            <strong>Photo du CV (facultative) :</strong> si tu ajoutes une photo à un CV du CV Builder,
+            elle est réduite et recadrée dans ton navigateur, débarrassée de ses métadonnées (dont la
+            position GPS), puis enregistrée avec ce CV. Elle n&apos;est jamais transmise à
+            l&apos;intelligence artificielle (Anthropic) ni écrite dans nos journaux. Elle est supprimée
+            quand tu la retires, quand tu supprimes le CV ou quand tu supprimes ton compte. Les copies
+            de ton CV (traduction, CV adapté) gardent la photo. Les PDF que tu télécharges la
+            contiennent. Si tu réimportes ensuite ce PDF ou l&apos;envoies ailleurs, la photo en fait
+            partie.
           </li>
           <li>
             <strong>Candidatures :</strong> entreprises, postes, offres, statuts, historique, notes,
@@ -171,7 +181,7 @@ export default function PrivacyPolicyPage() {
         </ul>
         <p>
           Lorsque tu utilises une fonctionnalité d&apos;IA, les informations nécessaires sont transmises
-          à Anthropic pour cette seule requête : ton CV, le texte de l&apos;offre ou ton résumé de
+          à Anthropic pour cette seule requête : ton CV (sans sa photo), le texte de l&apos;offre ou ton résumé de
           profil, selon la fonctionnalité. Quand tu poses une question à Lumeo, Anthropic reçoit ta
           question, les derniers échanges de la conversation, ton prénom, un résumé de ton CV (score,
           points faibles, secteur, poste visé, intitulés de postes, années d&apos;expérience,

@@ -190,6 +190,42 @@ export function jpegMetadataSegments(bytes: Uint8Array): string[] {
   return found;
 }
 
+/**
+ * JPEG sans aucun segment de métadonnées (APP1 à APP15, COM) : le canvas du navigateur ajoute
+ * lui-même un profil de couleur sRGB générique (APP2), retiré aussi. L'image (APP0 JFIF, tables,
+ * données) est recopiée telle quelle. Fichier qui n'est pas un JPEG lisible : null.
+ */
+export function stripJpegMetadata(bytes: Uint8Array): Uint8Array | null {
+  if (sniffImage(bytes) !== "jpeg") return null;
+  const parts: Uint8Array[] = [bytes.subarray(0, 2)];
+  for (let at = 2; ; ) {
+    if (at + 4 > bytes.length || bytes[at] !== 0xff) return null;
+    const marker = bytes[at + 1];
+    if (marker === 0xda) {
+      parts.push(bytes.subarray(at));
+      break;
+    }
+    const end = at + 2 + ((bytes[at + 2] << 8) | bytes[at + 3]);
+    if (end > bytes.length) return null;
+    if (!((marker >= 0xe1 && marker <= 0xef) || marker === 0xfe)) parts.push(bytes.subarray(at, end));
+    at = end;
+  }
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let offset = 0;
+  for (const p of parts) {
+    out.set(p, offset);
+    offset += p.length;
+  }
+  return out;
+}
+
+/** Data URL JPEG d'octets déjà nettoyés. */
+export function jpegDataUrl(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return `data:image/jpeg;base64,${btoa(binary)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Enregistrement : la photo n'est envoyée que si elle a changé
 // ---------------------------------------------------------------------------

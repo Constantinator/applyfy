@@ -25,12 +25,14 @@ import {
   diffCvData,
   targetJobOf,
   withoutEmptyLines,
+  withoutPhoto,
   type BuilderCv,
   type CvData,
   type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { cvLanguage } from "@/lib/cv-language";
+import { photoSaveTracker } from "@/lib/cv-photo";
 import { keywordKey, matchCvKeywords } from "@/lib/cv-keyword-match";
 import { offerKeywordScore, offerKeywordsCapLine, offerKeywordsLine, offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
 import type { OfferKeyword } from "@/lib/cv-types";
@@ -164,6 +166,8 @@ export function CvBuilderEditor({
   useEffect(() => () => clearTimeout(lineLimitTimer.current), []);
   const version = useRef(0);
   const touched = useRef(false);
+  /** Dernière photo dont l'enregistrement est confirmé (sauvegarde automatique). */
+  const photoTracker = useRef(photoSaveTracker(cv.data.personal.photo));
   // Dernières données, lues par le chat au moment d'un envoi ou d'une annulation.
   const dataRef = useRef(data);
   useEffect(() => {
@@ -198,14 +202,22 @@ export function CvBuilderEditor({
     ];
   };
 
-  // Sauvegarde automatique, une seconde après la dernière modification.
+  // Sauvegarde automatique, une seconde après la dernière modification. La photo n'est envoyée
+  // que si elle a changé depuis le dernier enregistrement confirmé (« unchanged » sinon).
   useEffect(() => {
     if (!touched.current) return;
     const current = ++version.current;
     const timer = setTimeout(async () => {
       setStatus("saving");
-      const result = await saveBuilderCvAction(cv.id, { title, templateId, data });
+      const shownPhoto = data.personal.photo;
+      const photo = photoTracker.current.patch(shownPhoto);
+      const result = await saveBuilderCvAction(cv.id, { title, templateId, data: withoutPhoto(data), photo });
       if (current !== version.current) return; // une modification plus récente suivra
+      if (result.ok) {
+        photoTracker.current.confirm(photo, result.photoRefused ? null : shownPhoto);
+        // Photo refusée par le serveur : retirée de l'éditeur aussi (le message l'explique).
+        if (result.photoRefused) setData((d) => (d.personal.photo === shownPhoto ? { ...d, personal: { ...d.personal, photo: null } } : d));
+      }
       setStatus(result.ok ? "saved" : "error");
       setSaveError(result.ok ? (result.notice ?? null) : result.error);
     }, 1000);
@@ -271,7 +283,7 @@ export function CvBuilderEditor({
     if (target === lastTarget.current) return;
     const timer = setTimeout(async () => {
       lastTarget.current = target;
-      const next = await scoringContextAction(cv.id, dataRef.current).catch(() => null);
+      const next = await scoringContextAction(cv.id, withoutPhoto(dataRef.current)).catch(() => null);
       if (next) setScoringContext(next);
     }, 800);
     return () => clearTimeout(timer);

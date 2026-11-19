@@ -45,6 +45,7 @@ import {
   deleteBuilderCv,
   getBuilderCv,
   getBuilderCvByApplication,
+  getBuilderCvPhoto,
   linkBuilderCvToApplication,
   moveApplicationLink,
   saveBuilderCv,
@@ -61,9 +62,8 @@ import {
   chatContent,
   CvAnalysisSchema,
   CvDataSchema,
-  dateRange,
+  adaptationExperiences,
   fullName,
-  interestList,
   isCvLang,
   isTemplateId,
   translatedCvTitle,
@@ -71,7 +71,12 @@ import {
   type CvData,
   type CvLang,
   type CvTemplateId,
+  PHOTO_REFUSED_MESSAGE,
+  PHOTO_PNG_PREFIX,
+  summaryCvText,
+  withoutPhoto,
 } from "@/lib/cv-builder-types";
+import { savedPhoto, type PhotoPatch } from "@/lib/cv-photo";
 import { cvLanguage } from "@/lib/cv-language";
 import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
 import { runTranslation } from "@/lib/cv-translate";
@@ -218,7 +223,7 @@ export async function convertLegacyCvAction(formData: FormData) {
 }
 
 /** `notice` : le CV est enregistré, mais un champ refusé a été corrigé (cf. fitCvData). */
-export type SaveCvResult = { ok: true; savedAt: string; notice?: string } | { ok: false; error: string };
+export type SaveCvResult = { ok: true; savedAt: string; notice?: string; photoRefused?: true } | { ok: false; error: string };
 
 /**
  * CV reçu de l'éditeur, toujours valide : un champ refusé est corrigé, sans bloquer le reste du CV, et
@@ -230,24 +235,36 @@ function fittedCv(raw: unknown, context: string) {
   return { data, notice: fixes[0]?.message, unfixable: fixes.some((f) => f.code === CV_UNFIXABLE) };
 }
 
-/** Sauvegarde automatique de l'éditeur. */
+/**
+ * Sauvegarde automatique de l'éditeur. `photo` : la photo n'est envoyée que si elle a changé
+ * (« unchanged » sinon : la photo enregistrée est relue en base, null s'il n'y en a pas). Nouvelle
+ * photo : JPEG seulement, un PNG n'étant gardé que s'il est déjà la photo enregistrée (savedPhoto).
+ * Sans `photo` (ancien éditeur encore ouvert) : celle du CV envoyé, aux mêmes règles.
+ */
 export async function saveBuilderCvAction(
   id: string,
-  input: { title: string; templateId: CvTemplateId; data: CvData },
+  input: { title: string; templateId: CvTemplateId; data: CvData; photo?: PhotoPatch },
 ): Promise<SaveCvResult> {
   if (!isTemplateId(input?.templateId)) return { ok: false, error: "Modèle inconnu." };
   // Pas de contenu : surtout ne pas enregistrer un CV vide à la place du CV.
   if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) return { ok: false, error: "Requête invalide." };
-  const { data, notice, unfixable } = fittedCv(input.data, "enregistrement");
-  if (unfixable) return { ok: false, error: notice ?? "Requête invalide." };
+  const incoming: unknown = "photo" in input ? input.photo : (input.data as { personal?: { photo?: unknown } }).personal?.photo;
+  // La photo est contrôlée à part (savedPhoto) : le reste du CV est validé sans elle.
+  const fitted = fittedCv(withoutPhoto(input.data), "enregistrement");
+  if (fitted.unfixable) return { ok: false, error: fitted.notice ?? "Requête invalide." };
   try {
+    const needsStored = incoming === "unchanged" || (typeof incoming === "string" && incoming.startsWith(PHOTO_PNG_PREFIX));
+    const { photo, refused } = savedPhoto(incoming, needsStored ? await getBuilderCvPhoto(String(id)) : null);
+    if (refused) console.error("[cv-builder] enregistrement : photo refusée");
+    const data: CvData = { ...fitted.data, personal: { ...fitted.data.personal, photo } };
+    const notice = refused ? PHOTO_REFUSED_MESSAGE : fitted.notice;
     const savedAt = await saveBuilderCv(String(id), {
       title: String(input.title ?? ""),
       templateId: input.templateId,
       data,
     });
     revalidatePath("/cv-builder");
-    return notice ? { ok: true, savedAt, notice } : { ok: true, savedAt };
+    return { ok: true, savedAt, ...(notice ? { notice } : {}), ...(refused ? { photoRefused: true as const } : {}) };
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
@@ -327,48 +344,22 @@ export async function improveBulletAction(input: { bullet: string; position: str
   );
 }
 
-/** Texte du CV transmis à Claude pour le résumé de profil. */
-function cvToText(data: CvData) {
-  const lines = [
-    `Nom : ${fullName(data) || "non renseigné"}`,
-    data.personal.jobTitle ? `Poste visé : ${data.personal.jobTitle}` : null,
-    "",
-    "Expériences :",
-    ...data.experiences.flatMap((e) => [
-      `- ${e.position} — ${e.company} (${dateRange(e.startDate, e.endDate, e.current) || "dates non précisées"})`,
-      ...e.bullets.filter((b) => b.trim()).map((b) => `  • ${b}`),
-    ]),
-    "",
-    "Formation :",
-    ...data.education.map((e) => `- ${e.degree} — ${e.school} (${dateRange(e.startDate, e.endDate)})`),
-    data.skills.length ? `\nCompétences : ${data.skills.map((s) => s.name).filter(Boolean).join(", ")}` : null,
-    data.languages.length ? `Langues : ${data.languages.map((l) => `${l.name} ${l.level}`.trim()).join(", ")}` : null,
-    data.projects.length ? `Projets : ${data.projects.map((p) => p.name).filter(Boolean).join(", ")}` : null,
-    interestList(data).length ? `Centres d'intérêt : ${interestList(data).join(", ")}` : null,
-  ];
-  return lines.filter((l) => l !== null).join("\n");
-}
-
 /** « Générer un résumé » de la section Profil. */
 export async function generateSummaryAction(rawData: CvData) {
-  const { data } = fittedCv(rawData, "résumé");
+  // La photo n'est jamais transmise au modèle : retirée dès réception.
+  const { data } = fittedCv(withoutPhoto(rawData), "résumé");
   if (!data.experiences.length && !data.education.length && !data.skills.length) {
     return { ok: false, error: "Ajoute d'abord une expérience, une formation ou des compétences." } satisfies AiResult<string>;
   }
-  return runAi("cvb_resume", "cv-builder résumé", () => generateCvSummary(cvToText(data)));
+  return runAi("cvb_resume", "cv-builder résumé", () => generateCvSummary(summaryCvText(data)));
 }
 
 export type AdaptedExperiences = { experiences: { id: string; bullets: string[] }[]; keywords: string[] };
 
 /** « Adapter à une offre » : `offer` est l'adresse de l'offre ou son texte collé. */
 export async function adaptToOfferAction(rawData: CvData, offer: string) {
-  const experiences = fittedCv(rawData, "adaptation").data.experiences
-    .map((e) => ({
-      id: e.id,
-      heading: `${e.position} — ${e.company}`,
-      bullets: e.bullets.filter((b) => b.trim()),
-    }))
-    .filter((e) => e.bullets.length);
+  // La photo n'est jamais transmise au modèle : retirée dès réception.
+  const experiences = adaptationExperiences(fittedCv(withoutPhoto(rawData), "adaptation").data);
   if (!experiences.length) {
     return { ok: false, error: "Ajoute d'abord des points à tes expériences." } satisfies AiResult<AdaptedExperiences>;
   }

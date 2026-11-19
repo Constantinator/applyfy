@@ -1085,6 +1085,50 @@ export function withoutEmptyLines<T extends Pick<CvData, "experiences" | "educat
   };
 }
 
+/**
+ * CV sans sa photo : pour tout ce qui part vers un modèle ou n'a pas besoin de l'image (score,
+ * secteur). Valeur reçue telle quelle si ce n'est pas un objet (validée ensuite par fitCvData).
+ */
+export function withoutPhoto<T>(raw: T): T {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const personal = (raw as { personal?: unknown }).personal;
+  if (!personal || typeof personal !== "object" || Array.isArray(personal)) return raw;
+  return { ...raw, personal: { ...personal, photo: null } };
+}
+
+/** Texte du CV transmis à Claude pour le résumé de profil (sans contact ni photo). */
+export function summaryCvText(data: CvData) {
+  const lines = [
+    `Nom : ${fullName(data) || "non renseigné"}`,
+    data.personal.jobTitle ? `Poste visé : ${data.personal.jobTitle}` : null,
+    "",
+    "Expériences :",
+    ...data.experiences.flatMap((e) => [
+      `- ${e.position} — ${e.company} (${dateRange(e.startDate, e.endDate, e.current) || "dates non précisées"})`,
+      ...e.bullets.filter((b) => b.trim()).map((b) => `  • ${b}`),
+    ]),
+    "",
+    "Formation :",
+    ...data.education.map((e) => `- ${e.degree} — ${e.school} (${dateRange(e.startDate, e.endDate)})`),
+    data.skills.length ? `\nCompétences : ${data.skills.map((s) => s.name).filter(Boolean).join(", ")}` : null,
+    data.languages.length ? `Langues : ${data.languages.map((l) => `${l.name} ${l.level}`.trim()).join(", ")}` : null,
+    data.projects.length ? `Projets : ${data.projects.map((p) => p.name).filter(Boolean).join(", ")}` : null,
+    interestList(data).length ? `Centres d'intérêt : ${interestList(data).join(", ")}` : null,
+  ];
+  return lines.filter((l) => l !== null).join("\n");
+}
+
+/** Expériences transmises à Claude pour « Adapter à une offre » : intitulé et puces seulement. */
+export function adaptationExperiences(data: CvData) {
+  return data.experiences
+    .map((e) => ({
+      id: e.id,
+      heading: `${e.position} — ${e.company}`,
+      bullets: e.bullets.filter((b) => b.trim()),
+    }))
+    .filter((e) => e.bullets.length);
+}
+
 /** Contenu du CV transmis au chat « Affiner avec l'IA » : sans la photo, les réglages de mise en page ni les lignes vides. */
 export function chatContent(data: CvData) {
   const { personal, summary, experiences, education, skills, languages, certifications, projects, interests } = withoutEmptyLines(data);
