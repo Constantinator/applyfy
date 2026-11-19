@@ -421,3 +421,46 @@ test("CV traduit invalide (CvDataSchema) : raison « invalid », distincte d'un 
   // Le message « pas assez fiable (N champs sur M refusés) » n'est plus donné que pour les refus.
   assert.match(body, /run\.reason === "refused"\s*\?\s*`La traduction n'est pas assez fiable/);
 });
+
+// --- Commit 6 : Lumeo dans l'éditeur note le CV ouvert -------------------------------
+
+const lumeoPanel = await import("./lumeo-panel.ts");
+const CV_ID = "3f2c1b8a-1d2e-4f5a-8b9c-0d1e2f3a4b5c";
+
+test("Lumeo : dans l'éditeur, la page porte l'id du CV ouvert ; ailleurs, rien ne change", () => {
+  assert.deepEqual(lumeoPanel.lumeoLocation(`/cv-builder/${CV_ID}`), { page: "cv-builder", applicationId: null, cvId: CV_ID });
+  assert.deepEqual(lumeoPanel.lumeoLocation(`/cv-builder/${CV_ID.toUpperCase()}?onglet=chat`), { page: "cv-builder", applicationId: null, cvId: CV_ID });
+  assert.deepEqual(lumeoPanel.lumeoLocation("/cv-builder"), { page: "cv-builder", applicationId: null });
+  assert.deepEqual(lumeoPanel.lumeoLocation("/cv-builder/importer"), { page: "cv-builder", applicationId: null });
+  assert.deepEqual(lumeoPanel.lumeoLocation("/dashboard"), { page: "dashboard", applicationId: null });
+  assert.deepEqual(lumeoPanel.parseLumeoLocation({ page: "cv-builder", cvId: CV_ID }), { page: "cv-builder", applicationId: null, cvId: CV_ID });
+  assert.deepEqual(lumeoPanel.parseLumeoLocation({ page: "cv-builder" }), { page: "cv-builder", applicationId: null });
+  assert.equal(lumeoPanel.parseLumeoLocation({ page: "cv-builder", cvId: "../x" }), null);
+  // L'id du CV n'est lu que pour la page du CV Builder.
+  assert.deepEqual(lumeoPanel.parseLumeoLocation({ page: "dashboard", cvId: CV_ID }), { page: "dashboard", applicationId: null });
+  const panel = read("components/lumeo/lumeo-panel.tsx");
+  assert.match(panel, /location\.cvId \? `\$\{location\.page\}:\$\{location\.cvId\}`/);
+});
+
+test("Lumeo : il note le CV ouvert (jamais « le dernier modifié ») et dit lequel, sans la photo", () => {
+  const context = lumeoPanel.buildLumeoContext({
+    location: { page: "cv-builder", applicationId: null, cvId: CV_ID },
+    firstName: null,
+    cv: { title: "CV Léa - Banque Fictive", score: 75, weakPoints: [], sector: "Finance", targetJob: "Analyste", experiences: [], skills: [] },
+    applications: [],
+    offer: null,
+    now: new Date("2026-11-19T12:00:00Z"),
+  });
+  assert.match(context, /CV noté : « CV Léa - Banque Fictive » \(le CV ouvert dans l'éditeur\)/);
+  assert.match(context, /Score du CV : 75\/100/);
+  assert.match(context, /l'éditeur d'un CV/);
+  assert.doesNotMatch(context, /photo|data:image/i);
+  const action = read("app/actions/lumeo.ts");
+  const body = action.slice(action.indexOf("async function lumeoCv"), action.indexOf("async function lumeoOffer"));
+  assert.match(body, /const opened = cvId \? await getBuilderCv\(cvId\) : null/);
+  assert.match(body, /if \(cvId && !opened\) return null/);
+  assert.ok(body.indexOf("if (cvId && !opened) return null") < body.indexOf("getLatestBuilderCv()"));
+  assert.match(body, /title: opened\.title/);
+  assert.match(action, /lumeoCv\(detail, location\.cvId \?\? null\)/);
+  assert.match(action, /parseLumeoLocation\(\{ page, applicationId: page === "fiche" \? id : undefined, cvId: page === "cv-builder" \? id : undefined \}\)/);
+});

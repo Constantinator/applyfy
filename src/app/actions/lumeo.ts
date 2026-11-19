@@ -9,7 +9,7 @@ import { getApplicationDetail, getApplications, type ApplicationDetailResult } f
 import { requireUser } from "@/lib/auth";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { answerLumeo, ClaudeRefusalError, isClaudeConfigured, type LumeoAnswer } from "@/lib/claude";
-import { getBuilderCvByApplication, getLatestBuilderCv } from "@/lib/cv-builder";
+import { getBuilderCv, getBuilderCvByApplication, getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
@@ -33,20 +33,25 @@ import { LUMEO_ACTION_TEXTS as A, LUMEO_PANEL_TEXTS as T } from "@/lib/lumeo-tex
 import type { DocumentChatResult } from "@/lib/refine";
 
 /**
- * CV résumé pour Lumeo (sans contact ni photo) : sur une fiche, le CV lié à cette candidature, noté
- * pour son offre (même score que dans l'éditeur) ; sinon, ou sans CV lié, le dernier CV du CV
- * Builder, comme avant. Null sans CV ou en cas d'échec.
+ * CV résumé pour Lumeo (sans contact ni photo) : dans l'éditeur, le CV OUVERT (`cvId`, relu avec
+ * les droits de l'utilisateur ; jamais un autre CV), avec son titre ; sur une fiche, le CV lié à
+ * cette candidature, noté pour son offre (même score que dans l'éditeur) ; sinon, ou sans CV lié,
+ * le dernier CV du CV Builder, comme avant. Null sans CV ou en cas d'échec.
  */
-async function lumeoCv(detail: ApplicationDetailResult | null): Promise<LumeoCvInput | null> {
+async function lumeoCv(detail: ApplicationDetailResult | null, cvId: string | null): Promise<LumeoCvInput | null> {
   try {
-    const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
-    const cv = linked ?? (await getLatestBuilderCv());
+    const opened = cvId ? await getBuilderCv(cvId) : null;
+    // CV ouvert introuvable (supprimé, ou pas à l'utilisateur) : aucun CV, jamais le dernier modifié.
+    if (cvId && !opened) return null;
+    const linked = !opened && detail ? await getBuilderCvByApplication(detail.application.id) : null;
+    const cv = opened ?? linked ?? (await getLatestBuilderCv());
     if (!cv) return null;
     const context = await loadBuilderCvScoring(cv.data, cv.applicationId, linked ? detail : undefined);
     const score = scoreCv(cv.data, context);
     const weakPoints = score.corrections.map((c) => c.message).slice(0, 3);
     const weakest = weakestCategory(score)?.label;
     return {
+      ...(opened ? { title: opened.title } : {}),
       score: score.score,
       weakPoints: weakPoints.length ? weakPoints : weakest ? [weakest] : [],
       sector: context.sectorName,
@@ -77,8 +82,8 @@ async function lumeoOffer(detail: ApplicationDetailResult | null): Promise<Lumeo
  */
 export async function askLumeoAction(where: string, _html: string, message: string, history: unknown): Promise<DocumentChatResult> {
   if (typeof where !== "string" || typeof message !== "string") return { ok: false, error: "Requête invalide." };
-  const [page, applicationId] = where.split(":");
-  const location = parseLumeoLocation({ page, applicationId });
+  const [page, id] = where.split(":");
+  const location = parseLumeoLocation({ page, applicationId: page === "fiche" ? id : undefined, cvId: page === "cv-builder" ? id : undefined });
   if (!location) return { ok: false, error: "Requête invalide." };
   const question = message.trim();
   if (!question) return { ok: false, error: T.empty_question };
@@ -109,7 +114,7 @@ export async function askLumeoAction(where: string, _html: string, message: stri
       const detail = location.page === "fiche" && location.applicationId ? await getApplicationDetail(location.applicationId) : null;
       const [accountName, cv, applications, offer, beta] = await Promise.all([
         getAccountName().catch(() => null),
-        lumeoCv(detail),
+        lumeoCv(detail, location.cvId ?? null),
         getApplications().then((r) => r.applications),
         lumeoOffer(detail),
         getMyBeta(), // sans échec : null si indisponible

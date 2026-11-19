@@ -83,7 +83,10 @@ export function LumeoProvider({ aiEnabled, children }: { aiEnabled: boolean; chi
   const [reopen, setReopen] = useState(false);
 
   const location = lumeoLocation(isLumeoPage(pathname) ? (lastPath ?? pathname) : pathname);
-  const where = location.applicationId ? `${location.page}:${location.applicationId}` : location.page;
+  // Fiche : id de la candidature ; éditeur d'un CV : id du CV ouvert (noté par Lumeo).
+  const where = location.applicationId
+    ? `${location.page}:${location.applicationId}`
+    : location.cvId ? `${location.page}:${location.cvId}` : location.page;
   const visible = showsLumeoButton(pathname);
 
   // Ouverture en fenêtre modale : focus piégé, Échap, fond inerte (dialog natif).

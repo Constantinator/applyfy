@@ -12,7 +12,11 @@ import { STATUS_LABELS, type Application, type ApplicationStatus } from "./types
 
 export const LUMEO_PAGES = ["fiche", "dashboard", "candidatures", "cv-builder", "offres", "autre"] as const;
 export type LumeoPage = (typeof LUMEO_PAGES)[number];
-export type LumeoLocation = { page: LumeoPage; applicationId: string | null };
+/**
+ * Page vue par Lumeo. `cvId` : seulement dans l'éditeur d'un CV (/cv-builder/<id>), pour noter le
+ * CV ouvert et non le dernier modifié ; absent partout ailleurs.
+ */
+export type LumeoLocation = { page: LumeoPage; applicationId: string | null; cvId?: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -27,6 +31,8 @@ export function lumeoLocation(pathname: string): LumeoLocation {
   if (fiche && UUID.test(fiche[1])) return { page: "fiche", applicationId: fiche[1].toLowerCase() };
   if (path === "/candidatures" || path.startsWith("/candidatures/")) return { page: "candidatures", applicationId: null };
   if (path === "/dashboard" || path.startsWith("/dashboard/")) return { page: "dashboard", applicationId: null };
+  const editor = /^\/cv-builder\/([^/]+)$/.exec(path);
+  if (editor && UUID.test(editor[1])) return { page: "cv-builder", applicationId: null, cvId: editor[1].toLowerCase() };
   if (path === "/cv-builder" || path.startsWith("/cv-builder/")) return { page: "cv-builder", applicationId: null };
   if (path === "/offres" || path.startsWith("/offres/")) return { page: "offres", applicationId: null };
   return { page: "autre", applicationId: null };
@@ -88,8 +94,12 @@ export function lumeoScrollAction({
 /** Emplacement envoyé par le navigateur : revalidé côté serveur (jamais de confiance). */
 export function parseLumeoLocation(value: unknown): LumeoLocation | null {
   if (!value || typeof value !== "object") return null;
-  const { page, applicationId } = value as Record<string, unknown>;
+  const { page, applicationId, cvId } = value as Record<string, unknown>;
   if (typeof page !== "string" || !(LUMEO_PAGES as readonly string[]).includes(page)) return null;
+  // Éditeur d'un CV : id du CV ouvert, revalidé (le CV est relu avec les droits de l'utilisateur).
+  if (page === "cv-builder" && cvId !== undefined) {
+    return typeof cvId === "string" && UUID.test(cvId) ? { page: "cv-builder", applicationId: null, cvId: cvId.toLowerCase() } : null;
+  }
   if (page !== "fiche") return { page: page as LumeoPage, applicationId: null };
   return typeof applicationId === "string" && UUID.test(applicationId)
     ? { page: "fiche", applicationId: applicationId.toLowerCase() }
@@ -167,6 +177,8 @@ export function lumeoTurns(history: unknown): LumeoTurn[] {
 // ---------------------------------------------------------------------------
 
 export type LumeoCvInput = {
+  /** Titre du CV ouvert dans l'éditeur (absent ailleurs : dernier CV modifié, sans titre). */
+  title?: string;
   score: number;
   weakPoints: string[];
   sector: string | null;
@@ -235,6 +247,7 @@ function cvBlock(cv: LumeoCvInput, now: Date): string {
     .slice(0, 8);
   const skills = cv.skills.map((s) => neutralizeData(s, 60)).filter(Boolean).slice(0, 20);
   return [
+    cv.title ? `CV noté : « ${neutralizeData(cv.title, 120)} » (le CV ouvert dans l'éditeur)` : null,
     `Score du CV : ${Math.round(cv.score)}/100`,
     cv.targetJob ? `Poste visé : ${neutralizeData(cv.targetJob, 120)}` : null,
     cv.sector ? `Secteur du CV : ${neutralizeData(cv.sector, 60)}` : null,
@@ -341,7 +354,7 @@ export function buildLumeoContext({ location, firstName, cv, applications, offer
     knowledge ? `<offre_applyfy>\n${knowledge.plans}\n</offre_applyfy>` : null,
     knowledge?.userPlan ? `<ton_plan>\n${knowledge.userPlan}\n</ton_plan>` : null,
     knowledge ? `<fonctions_applyfy>\n${knowledge.guide}\n</fonctions_applyfy>` : null,
-    `<page>\nL'utilisateur est sur ${PAGE_LABELS[location.page]}.\n</page>`,
+    `<page>\nL'utilisateur est sur ${location.cvId ? "l'éditeur d'un CV (le CV noté ci-dessous est celui qu'il a ouvert)" : PAGE_LABELS[location.page]}.\n</page>`,
     firstName ? `<prenom>${neutralizeData(firstName, 40)}</prenom>` : null,
     `<cv>\n${cv ? cvBlock(cv, now) : "Aucun CV dans le CV Builder."}\n</cv>`,
     `<candidatures>\n${applicationsBlock(applications, now)}\n</candidatures>`,
