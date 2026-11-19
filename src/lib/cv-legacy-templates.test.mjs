@@ -1,6 +1,6 @@
 // Lot sélecteur, anciens modèles : un CV sur l'un des 5 anciens modèles s'ouvre, s'exporte en PDF avec le
-// même nombre de pages qu'avant et s'enregistre sans changer de modèle ; « Ton modèle de départ » reste
-// proposé pendant la session. Lancé par `npm test`.
+// même nombre de pages qu'avant et s'enregistre sans changer de modèle ; « Ton modèle actuel » est
+// proposé dès l'ouverture et pendant toute la session. Lancé par `npm test`.
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
@@ -83,12 +83,13 @@ test("enregistrement : le modèle du CV est renvoyé tel quel, l'action accepte 
   assert.match(actions, /if \(!isTemplateId\(input\?\.templateId\)\) return \{ ok: false, error: "Modèle inconnu\." \};/);
 });
 
-test("modèle de départ : mémorisé à l'ouverture, 7e carte seulement après être passé sur un autre modèle", () => {
+test("ancien modèle : mémorisé à l'ouverture, 7e carte « Ton modèle actuel » dès l'ouverture et toute la session", () => {
   const editor = code("components/cv-builder/cv-builder-editor.tsx");
   // Mémorisé à l'ouverture (la sauvegarde automatique écrase cv.templateId en base).
   assert.match(editor, /const \[originTemplate\] = useState\(cv\.templateId\);/);
-  assert.match(editor, /const \[leftOrigin, setLeftOrigin\] = useState\(false\);/);
-  assert.match(editor, /origin=\{isLegacyTemplate\(originTemplate\) && leftOrigin \? originTemplate : null\}/);
+  // Dès l'ouverture (cochée, puisque c'est le modèle du CV), et encore après l'avoir quitté.
+  assert.match(editor, /origin=\{isLegacyTemplate\(originTemplate\) \? originTemplate : null\}/);
+  assert.doesNotMatch(editor, /leftOrigin/);
   // Changer de modèle ne touche que le modèle : police, taille, marges, photo, accent restent dans `data`.
   const onTemplate = editor.slice(editor.indexOf("onTemplate={(id) => {"), editor.indexOf("onAccent="));
   assert.match(onTemplate, /setTemplateId\(id\);/);
@@ -99,7 +100,8 @@ test("modèle de départ : mémorisé à l'ouverture, 7e carte seulement après 
     panel.includes("Ce modèle n'est plus proposé. Tu peux le garder pendant cette session, ou passer à l'un des modèles ci-dessus.")
       || panel.includes("Ce modèle n&apos;est plus proposé. Tu peux le garder pendant cette session, ou passer à l&apos;un des modèles ci-dessus."),
   );
-  assert.match(panel, /Ton modèle de départ/);
+  assert.match(panel, /caption: "Ton modèle actuel"/);
+  assert.doesNotMatch(panel, /modèle de départ/);
   // Hors compteur : la 7e carte n'est pas dans CV_PICKER_TEMPLATES.
   assert.equal(CV_PICKER_TEMPLATES.length, 6);
 });

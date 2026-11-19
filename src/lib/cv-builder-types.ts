@@ -41,7 +41,7 @@ export const CV_DEFAULT_TEMPLATE: CvPickerTemplateId = "finance";
 
 /**
  * Les 5 premiers modèles, retirés du sélecteur : un CV qui en utilise un garde son rendu ; l'onglet Style
- * le propose encore pendant la session une fois qu'on l'a quitté (« Ton modèle de départ »).
+ * le propose dès l'ouverture et pendant toute la session, même une fois quitté (« Ton modèle actuel »).
  */
 export const LEGACY_TEMPLATE_IDS = ["minimaliste", "classique", "moderne", "sidebar", "tech"] as const satisfies readonly CvTemplateId[];
 export const isLegacyTemplate = (id: CvTemplateId) => (LEGACY_TEMPLATE_IDS as readonly string[]).includes(id);

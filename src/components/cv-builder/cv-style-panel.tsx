@@ -58,8 +58,8 @@ export function TemplateGrid({
   data: CvData;
   language?: CvLang;
   /**
-   * Ancien modèle du CV à l'ouverture de l'éditeur, quitté depuis : 7e carte « Ton modèle de départ »,
-   * pendant la session seulement (hors des 6 modèles proposés).
+   * Ancien modèle du CV à l'ouverture de l'éditeur : 7e carte « Ton modèle actuel », dès l'ouverture et
+   * pendant toute la session, même après l'avoir quitté (hors des 6 modèles proposés).
    */
   origin?: CvTemplateId | null;
   onSelect: (id: CvTemplateId) => void;
@@ -68,7 +68,7 @@ export function TemplateGrid({
   const cards: { id: CvTemplateId; label: string; caption?: string }[] = CV_PICKER_TEMPLATES.map((t) => ({ id: t.id, label: t.description }));
   if (origin) {
     const description = CV_TEMPLATES.find((t) => t.id === origin)?.description ?? "";
-    cards.push({ id: origin, label: `Ton modèle de départ. ${description}`, caption: "Ton modèle de départ" });
+    cards.push({ id: origin, label: `Ton modèle actuel. ${description}`, caption: "Ton modèle actuel" });
   }
   // Groupe de boutons radio : un seul arrêt Tab (la carte cochée, sinon la première), flèches pour changer.
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -185,7 +185,7 @@ export function CvStylePanel({
   /** Le CV en cours d'édition : montré dans les vignettes des modèles. */
   data: CvData;
   language: CvLang;
-  /** Ancien modèle de départ, quitté pendant la session : encore proposé (cf. TemplateGrid). */
+  /** Ancien modèle du CV à l'ouverture : 7e carte pendant toute la session (cf. TemplateGrid). */
   origin?: CvTemplateId | null;
   templateId: CvTemplateId;
   /** Couleur choisie ; vide : couleur du modèle. */
