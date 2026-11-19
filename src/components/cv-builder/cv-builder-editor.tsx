@@ -149,7 +149,7 @@ export function CvBuilderEditor({
   const [data, setData] = useState<CvData>(cv.data);
   // Langue des titres des rubriques : celle du contenu quand elle est décidable, sinon la colonne
   // (fixée par une traduction ou un import), sinon le français.
-  const [storedLanguage] = useState<CvLang | null>(cv.language);
+  const [storedLanguage, setStoredLanguage] = useState<CvLang | null>(cv.language);
   const language: CvLang = cvTitleLanguage(data, storedLanguage);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -557,6 +557,11 @@ export function CvBuilderEditor({
                 usage={usage.translation}
                 aiEnabled={usage.aiEnabled}
                 application={application ? { label: application.label } : null}
+                onTranslated={(value) => {
+                  // CV écrit par le serveur (sans la photo) : il remplace le contenu affiché.
+                  setData((d) => ({ ...value.data, personal: { ...value.data.personal, photo: d.personal.photo } }));
+                  setStoredLanguage(value.language);
+                }}
               />
             </div>
           )}

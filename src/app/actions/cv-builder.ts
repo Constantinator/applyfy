@@ -38,16 +38,14 @@ import { closedOpening, wholeCvTranslationReply } from "@/lib/coach-outcome";
 import { isCvClosed } from "@/lib/coach-prompt";
 import { runCoachTurn } from "@/lib/coach-turn";
 import {
-  CV_BUILDER_MAX,
   CvBuilderError,
-  countBuilderCvs,
   createBuilderCv,
   deleteBuilderCv,
   getBuilderCv,
+  writeTranslatedCv,
   getBuilderCvByApplication,
   getBuilderCvPhoto,
   linkBuilderCvToApplication,
-  moveApplicationLink,
   saveBuilderCv,
 } from "@/lib/cv-builder";
 import { clip, importedToCvData } from "@/lib/cv-builder-import";
@@ -65,7 +63,6 @@ import {
   fullName,
   isTemplateId,
   CV_DEFAULT_TEMPLATE,
-  translatedCvTitle,
   type CvAnalysis,
   type CvData,
   type CvLang,
@@ -77,8 +74,10 @@ import {
 } from "@/lib/cv-builder-types";
 import { savedPhoto, type PhotoPatch } from "@/lib/cv-photo";
 import { TRANSLATION_TOO_SHORT, translationDirection } from "@/lib/cv-translation-language";
+import { contentFingerprint, mergeTranslation, newTranslationId, sameTranslation, translationIdOf } from "@/lib/cv-translation-guard";
+import { fakeTranslation, fakeTranslatorEnabled } from "@/lib/cv-translate-fake";
 import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
-import { runTranslation } from "@/lib/cv-translate";
+import { runTranslation, type TranslateCall } from "@/lib/cv-translate";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { htmlToText } from "@/lib/cv-html";
 import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
@@ -370,26 +369,32 @@ export async function adaptToOfferAction(rawData: CvData, offer: string) {
 
 
 // ---------------------------------------------------------------------------
-// « Traduire le CV » : copie traduite (français <-> anglais), jamais en place
+// « Traduire le CV » : traduction SUR PLACE (français <-> anglais), même CV, même lien
 // ---------------------------------------------------------------------------
 
 export type TranslateCvValue = {
-  id: string;
-  title: string;
+  /** CV écrit en base, sans la photo (l'éditeur garde la sienne). */
+  data: CvData;
+  /** Langue du CV après la traduction (colonne language). */
+  language: CvLang;
+  /** Langue de la colonne avant la traduction (« Annuler la traduction »). */
+  previousLanguage: CvLang | null;
   /** Champs gardés dans la langue d'origine (refusés après le second essai). */
   kept: { label: string; text: string }[];
-  /** CV lié : « moved » si la copie a repris la candidature, « failed » si elle reste non liée. */
-  link: "moved" | "failed" | null;
 };
 
+const LANGUAGE_NAMES: Record<CvLang, string> = { fr: "français", en: "anglais" };
+
 /**
- * Traduit tout le CV dans l'autre langue (français <-> anglais) et crée une copie à son nom
- * (« Mon CV (EN) »), langue fixée ; l'original ne change pas. Vérifié avant l'appel au modèle :
- * quota cvb_traduction, limite du jour, anti-rafale, limite de CV_BUILDER_MAX CV. Compté
- * seulement si la copie est créée ; échec du modèle ou plus de 30 % de champs refusés : aucune
- * copie, rien n'est compté. CV lié : la copie reprend la candidature, l'original reste non lié.
+ * Traduit le contenu ENREGISTRÉ du CV dans l'autre langue et le remplace sur la même ligne (même
+ * id, même candidature liée, mêmes mots-clés de l'offre, même modèle, même photo et réglages).
+ * Avant le modèle : langue du contenu décidable et différente de `target`, quota cvb_traduction,
+ * limite du jour, anti-rafale. Après : même validation qu'avant (second essai, plus de 30 % de
+ * champs refusés = rien n'est écrit), relecture du CV (contenu changé pendant l'appel = rien
+ * n'est écrit), puis UNE écriture de data et language, conditionnée à l'identifiant de
+ * traduction. Quota compté seulement après l'écriture.
  */
-export async function translateCvAction(id: string): Promise<AiResult<TranslateCvValue>> {
+export async function translateCvAction(id: string, target: unknown): Promise<AiResult<TranslateCvValue>> {
   if (!isClaudeConfigured()) return { ok: false, error: "L'IA n'est pas activée (clé API Claude manquante)." };
   const source = await getBuilderCv(String(id)).catch(() => null);
   if (!source) return { ok: false, error: "Ce CV n'existe plus." };
@@ -397,49 +402,61 @@ export async function translateCvAction(id: string): Promise<AiResult<TranslateC
   const direction = translationDirection(source.data);
   if (!direction) return { ok: false, error: TRANSLATION_TOO_SHORT };
   const { from, to } = direction;
+  if (target !== to) {
+    return { ok: false, error: `Ton CV est déjà en ${LANGUAGE_NAMES[from]} : rien n'a été traduit ni décompté.` };
+  }
 
   const gate = await checkAiAccess("cvb_traduction");
   if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };
-  if ((await countBuilderCvs()) >= CV_BUILDER_MAX) {
-    return { ok: false, error: `Tu as atteint la limite de ${CV_BUILDER_MAX} CV : supprime un CV pour créer la copie traduite. Rien n'a été décompté.` };
-  }
 
   let run: Awaited<ReturnType<typeof runTranslation>>;
   try {
-    run = await runTranslation(source.data, from, to, (fields, problems) => translateCvFields(fields, to, problems));
+    // La photo n'est jamais transmise : seuls les champs texte partent (translatableFields).
+    const call: TranslateCall = fakeTranslatorEnabled() ? (fields) => fakeTranslation(fields, to) : (fields, problems) => translateCvFields(fields, to, problems);
+    run = await runTranslation(source.data, from, to, call);
   } catch (error) {
     unstable_rethrow(error);
-    return { ok: false, error: `${claudeErrorMessage(error, "cv-builder traduction")} Rien n'a été créé ni décompté.` };
+    return { ok: false, error: `${claudeErrorMessage(error, "cv-builder traduction")} Rien n'a été modifié ni décompté.` };
   }
   if (!run.ok) {
     return {
       ok: false,
       error:
         run.reason === "model"
-          ? "La traduction n'a pas abouti. Rien n'a été créé ni décompté : réessaie dans un instant."
-          : `La traduction n'est pas assez fiable (${run.kept.length} champs sur ${run.total} refusés par nos vérifications). Rien n'a été créé ni décompté : réessaie dans un instant.`,
+          ? "La traduction n'a pas abouti. Rien n'a été modifié ni décompté : réessaie dans un instant."
+          : `La traduction n'est pas assez fiable (${run.kept.length} champs sur ${run.total} refusés par nos vérifications). Rien n'a été modifié ni décompté : réessaie dans un instant.`,
     };
   }
 
-  let copyId: string;
-  const title = translatedCvTitle(source.title, to);
+  // Relecture : un contenu modifié pendant l'appel (autre onglet) n'est jamais écrasé. Les
+  // écritures techniques (premier message du coach, lien à une candidature) ne comptent pas.
+  const changed = { ok: false as const, error: "Ton CV a changé pendant la traduction : rien n'a été modifié ni décompté. Réessaie." };
+  let written: CvData;
   try {
-    // Nouvelle conversation pour la copie : le coach repart de zéro, dans la langue du CV.
-    copyId = await createBuilderCv({ ...run.data, coach: null }, title, source.templateId, to);
+    const fresh = await getBuilderCv(source.id);
+    if (!fresh) return { ok: false, error: "Ce CV n'existe plus." };
+    if (contentFingerprint(fresh.data) !== contentFingerprint(source.data) || !sameTranslation(fresh.data, source.data)) return changed;
+    written = mergeTranslation(fresh.data, run.data, newTranslationId());
+    if (!(await writeTranslatedCv(source.id, translationIdOf(source.data), written, to))) return changed;
   } catch (error) {
-    if (error instanceof CvBuilderError) return { ok: false, error: `${error.message} Rien n'a été décompté.` };
-    console.error("[cv-builder] copie traduite", error);
-    return { ok: false, error: "La copie traduite n'a pas pu être créée. Rien n'a été décompté : réessaie dans un instant." };
+    unstable_rethrow(error);
+    console.error("[cv-builder] traduction : enregistrement", error instanceof Error ? error.message : "erreur");
+    return { ok: false, error: "La traduction n'a pas pu être enregistrée. Rien n'a été modifié ni décompté : réessaie dans un instant." };
   }
   await recordAiUsage("cvb_traduction");
 
-  let link: TranslateCvValue["link"] = null;
-  if (source.applicationId) {
-    link = (await moveApplicationLink(source.id, copyId, source.applicationId).catch(() => false)) ? "moved" : "failed";
-    revalidatePath(`/candidatures/${source.applicationId}`);
-  }
   revalidatePath("/cv-builder");
-  return { ok: true, value: { id: copyId, title, kept: run.kept.map(({ label, text }) => ({ label, text })), link } };
+  revalidatePath(`/cv-builder/${source.id}`);
+  if (source.applicationId) revalidatePath(`/candidatures/${source.applicationId}`);
+  return {
+    ok: true,
+    value: {
+      data: withoutPhoto(written),
+      language: to,
+      previousLanguage: source.language,
+      kept: run.kept.map(({ label, text }) => ({ label, text })),
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -342,6 +342,12 @@ export const CvDataSchema = z.object({
     .nullable()
     .catch(null)
     .default(null),
+  /**
+   * Identifiant de la dernière traduction sur place (cv-translation-guard.ts) ; absent pour un CV
+   * jamais traduit. Gardé par toutes les écritures de `data` ; jamais envoyé à un modèle (absent de
+   * chatContent).
+   */
+  translationId: z.string().min(1).max(64).optional().catch(undefined),
 });
 
 export type CvData = z.infer<typeof CvDataSchema>;
@@ -487,12 +493,6 @@ export const frenchNoBreak = (text: string, lang: CvLang) => (lang === "fr" ? te
 /** Texte découpé en morceaux libres (indices pairs) et insécables (indices impairs : « mot : », « 15 % »). */
 export function noBreakParts(text: string, lang: CvLang): string[] {
   return lang === "fr" ? text.split(/(\S+ [:%])/) : [text];
-}
-
-/** Nom d'une copie traduite : « Mon CV (EN) », sans empiler les suffixes (« Mon CV (EN) » → « Mon CV (FR) »). */
-export function translatedCvTitle(title: string, to: CvLang): string {
-  const base = title.replace(/\s*\((FR|EN)\)\s*$/i, "").trim() || "Mon CV";
-  return `${base.slice(0, 115)} (${to.toUpperCase()})`;
 }
 
 export type BuilderCv = {

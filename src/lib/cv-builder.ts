@@ -16,6 +16,7 @@ import {
   type CvTemplateId,
 } from "./cv-builder-types";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
+import { translationFilter, translationIdOf } from "./cv-translation-guard";
 
 // CV du CV Builder (table cv_builder, migration 0025) de l'utilisateur connecté. Lecture et
 // écriture avec la session de l'utilisateur (RLS). Mode démo : en mémoire.
@@ -285,61 +286,28 @@ export async function saveBuilderCv(
   return row.updated_at as string;
 }
 
-/** Nombre de CV de l'utilisateur (limite de CV_BUILDER_MAX vérifiée avant un appel à l'IA). */
-export async function countBuilderCvs(): Promise<number> {
-  if (!isSupabaseConfigured()) return demoCvs.length;
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { count, error } = await supabase.from("cv_builder").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-  if (error) throw new Error(`Comptage des CV impossible : ${error.message}`);
-  return count ?? 0;
-}
-
 /**
- * Copie traduite d'un CV lié : le lien de la candidature passe de l'original à la copie. Ordre sûr
- * pour l'index unique cv_builder(application_id) : l'original est détaché, puis la copie liée ; si
- * cette seconde écriture échoue, l'original est relié (la copie reste non liée). True : copie liée.
+ * Traduction sur place : écrit le CV traduit et sa langue sur la MÊME ligne (même id, même lien à
+ * une candidature, même modèle), en une seule écriture, seulement si l'identifiant de traduction
+ * en base est encore `expected` (cv-translation-guard.ts). False : rien n'a été écrit (CV traduit
+ * entre-temps ou supprimé).
  */
-export async function moveApplicationLink(fromId: string, toId: string, applicationId: string): Promise<boolean> {
+export async function writeTranslatedCv(id: string, expected: string | null, data: CvData, language: CvLang): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    const from = demoCvs.find((c) => c.id === fromId);
-    const to = demoCvs.find((c) => c.id === toId);
-    if (!from || !to || from.applicationId !== applicationId) return false;
-    from.applicationId = null;
-    to.applicationId = applicationId;
+    const cv = demoCvs.find((c) => c.id === id);
+    if (!cv || translationIdOf(cv.data) !== expected) return false;
+    Object.assign(cv, { data, language, updatedAt: new Date().toISOString() });
     return true;
   }
 
   const user = await requireUser();
+  if (!isUuid(id)) return false;
   const supabase = await createClient();
-  const { data: detached, error: detachError } = await supabase
-    .from("cv_builder")
-    .update({ application_id: null })
-    .eq("id", fromId)
-    .eq("user_id", user.id)
-    .eq("application_id", applicationId)
-    .select("id");
-  if (detachError || !detached?.length) {
-    if (detachError) console.error("[cv-builder] lien de la copie traduite : détachement", detachError.message);
-    return false;
-  }
-  const { data: linked, error } = await supabase
-    .from("cv_builder")
-    .update({ application_id: applicationId })
-    .eq("id", toId)
-    .eq("user_id", user.id)
-    .is("application_id", null)
-    .select("id");
-  if (!error && linked?.length) return true;
-  console.error("[cv-builder] lien de la copie traduite : liaison", error?.message ?? "copie introuvable");
-  const { error: relinkError } = await supabase
-    .from("cv_builder")
-    .update({ application_id: applicationId })
-    .eq("id", fromId)
-    .eq("user_id", user.id)
-    .is("application_id", null);
-  if (relinkError) console.error("[cv-builder] lien de la copie traduite : original non relié", relinkError.message);
-  return false;
+  const filter = translationFilter(expected);
+  const query = supabase.from("cv_builder").update({ data, language }).eq("id", id).eq("user_id", user.id);
+  const { data: rows, error } = await (filter.op === "is" ? query.is(filter.column, null) : query.eq(filter.column, filter.value!)).select("id");
+  if (error) throw new Error(`Enregistrement de la traduction impossible : ${error.message}`);
+  return (rows?.length ?? 0) === 1;
 }
 
 export async function deleteBuilderCv(id: string): Promise<void> {

@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 await import("../../scripts/eval/register.mjs");
-const { CvDataSchema, translatedCvTitle } = await import("./cv-builder-types.ts");
+const { CvDataSchema } = await import("./cv-builder-types.ts");
 const {
   TRANSLATION_PROBLEMS: P,
   TRANSLATION_REFUSED_MAX,
@@ -257,51 +257,15 @@ test("dates du CV converties par la table, jamais par le modèle", async () => {
   assert.ok(calls[0].paths.every((p) => !/Date|date/.test(p)));
 });
 
-test("nom de la copie : « Mon CV (EN) », sans empiler les suffixes", () => {
-  assert.equal(translatedCvTitle("Mon CV", "en"), "Mon CV (EN)");
-  assert.equal(translatedCvTitle("Mon CV (EN)", "fr"), "Mon CV (FR)");
-  assert.equal(translatedCvTitle("  ", "en"), "Mon CV (EN)");
-  assert.ok(translatedCvTitle("x".repeat(200), "en").length <= 120);
-});
+// Action en place, garde et écriture unique : cv-translate-place.test.mjs (lot « traduction sur place »).
 
-// --- Action et interface (lecture des sources) --------------------------------
-
-test("action : quota et limite de 20 CV vérifiés avant le modèle ; décompté seulement après la copie créée", () => {
-  const source = read("app/actions/cv-builder.ts");
-  const body = source.slice(source.indexOf("export async function translateCvAction"), source.indexOf("// « Importer un CV »"));
-  const at = (pattern) => {
-    const index = body.search(pattern);
-    assert.ok(index >= 0, String(pattern));
-    return index;
-  };
-  assert.ok(at(/checkAiAccess\("cvb_traduction"\)/) < at(/runTranslation\(/));
-  assert.ok(at(/countBuilderCvs\(\)\) >= CV_BUILDER_MAX/) < at(/runTranslation\(/));
-  assert.ok(at(/if \(!run\.ok\)/) < at(/createBuilderCv\(/));
-  assert.ok(at(/createBuilderCv\(/) < at(/recordAiUsage\("cvb_traduction"\)/));
-  assert.ok(at(/recordAiUsage\("cvb_traduction"\)/) < at(/moveApplicationLink\(/));
-  assert.equal((body.match(/recordAiUsage\(/g) ?? []).length, 1);
-  assert.match(body, /Rien n'a été créé ni décompté/);
-  // Copie, jamais en place : l'action n'enregistre pas l'original.
-  assert.doesNotMatch(body, /saveBuilderCv\(/);
-});
-
-test("lien d'un CV lié : original détaché puis copie liée ; échec : original relié, copie non liée", () => {
-  const source = read("lib/cv-builder.ts");
-  const body = source.slice(source.indexOf("export async function moveApplicationLink"), source.indexOf("/** Fixe la langue du CV"));
-  const detach = body.indexOf(".update({ application_id: null })");
-  const link = body.indexOf(".update({ application_id: applicationId })");
-  assert.ok(detach > 0 && link > detach);
-  assert.match(body.slice(link + 10), /\.eq\("id", fromId\)[\s\S]*\.is\("application_id", null\)/);
-});
-
-test("interface : confirmation (copie, quota restant, candidature remplacée), chargement, champs gardés", () => {
+test("interface : confirmation (contenu remplacé, quota restant), chargement, champs gardés", () => {
   const ui = read("components/cv-builder/cv-translate-panel.tsx");
   assert.match(ui, /Traduire \{TO_LABEL\[to\]\}/);
-  assert.match(ui, /Une copie traduite, « \{copyTitle\} », est créée dans tes CV/);
+  assert.match(ui, /est remplacé par sa traduction/);
   assert.match(ui, /Traductions gratuites restantes ce mois/);
-  assert.match(ui, /la copie le remplace pour cette candidature\. L&apos;original/);
   assert.match(ui, /Traduction en cours/);
   assert.match(ui, /state\.value\.kept\.map/);
-  assert.match(ui, /La copie n&apos;a pas pu être liée à la candidature/);
+  assert.doesNotMatch(ui, /copie/i);
   assert.doesNotMatch(ui, /illimit|sans limite/i);
 });

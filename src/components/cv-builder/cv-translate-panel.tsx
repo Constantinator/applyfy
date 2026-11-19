@@ -5,7 +5,7 @@ import { useId, useRef, useState } from "react";
 
 import { translateCvAction, type TranslateCvValue } from "@/app/actions/cv-builder";
 import { AI_DAILY_LIMIT, type AiUsageCount } from "@/lib/ai-usage-limits";
-import { translatedCvTitle, type CvData, type CvLang } from "@/lib/cv-builder-types";
+import type { CvData, CvLang } from "@/lib/cv-builder-types";
 import { TRANSLATION_TOO_SHORT, translationDirection } from "@/lib/cv-translation-language";
 
 const TO_LABEL: Record<CvLang, string> = { fr: "en français", en: "en anglais" };
@@ -22,9 +22,9 @@ type State =
 
 /**
  * « Traduire en anglais / en français » (onglet Style) : bouton unique, langue tirée du CONTENU du
- * CV (jamais d'un réglage). Confirmation
- * (quota restant pour un compte gratuit, copie créée, CV lié : la copie remplace l'original pour la
- * candidature), chargement, puis résultat avec les champs gardés dans la langue d'origine.
+ * CV (jamais d'un réglage). Traduction SUR PLACE : confirmation (contenu remplacé, quota restant
+ * pour un compte gratuit), chargement, puis résultat avec les champs gardés dans la langue
+ * d'origine ; l'éditeur reprend le CV écrit par le serveur (onTranslated).
  */
 export function CvTranslatePanel({
   cvId,
@@ -33,6 +33,7 @@ export function CvTranslatePanel({
   usage,
   aiEnabled,
   application,
+  onTranslated,
 }: {
   cvId: string;
   title: string;
@@ -43,6 +44,8 @@ export function CvTranslatePanel({
   aiEnabled: boolean;
   /** CV lié à une candidature : « Poste — Entreprise ». */
   application: { label: string } | null;
+  /** CV traduit écrit en base (sans la photo) : l'éditeur remplace son contenu. */
+  onTranslated: (value: TranslateCvValue) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -51,7 +54,6 @@ export function CvTranslatePanel({
   // Langue indécidable (CV trop court) : libellé par défaut, la fenêtre l'explique sans rien lancer.
   const to: CvLang = direction?.to ?? "en";
   const language: CvLang = direction?.from ?? "fr";
-  const copyTitle = translatedCvTitle(title, to);
   const left = usage.limit === null ? null : Math.max(0, usage.limit - usage.used);
 
   const open = () => {
@@ -64,9 +66,12 @@ export function CvTranslatePanel({
 
   async function translate() {
     setState({ step: "loading" });
-    const result = await translateCvAction(cvId).catch(() => null);
-    if (!result) setState({ step: "error", message: "La traduction n'a pas abouti. Rien n'a été créé ni décompté : réessaie dans un instant.", limitReached: false });
-    else if (result.ok) setState({ step: "done", value: result.value });
+    const result = await translateCvAction(cvId, to).catch(() => null);
+    if (!result) setState({ step: "error", message: "La traduction n'a pas abouti. Rien n'a été modifié ni décompté : réessaie dans un instant.", limitReached: false });
+    else if (result.ok) {
+      onTranslated(result.value);
+      setState({ step: "done", value: result.value });
+    }
     else setState({ step: "error", message: result.error, limitReached: Boolean(result.limitReached) });
   }
 
@@ -76,7 +81,7 @@ export function CvTranslatePanel({
         Traduire {TO_LABEL[to]}
       </button>
       <p className="mt-2 text-xs text-muted dark:text-slate-400">
-        Crée une copie traduite de ce CV ; ton CV actuel ne change pas.
+        Remplace le contenu de ton CV par sa traduction {TO_LABEL[to]}.
         {left !== null && ` Traductions gratuites restantes ce mois : ${left} sur ${usage.limit}.`}
       </p>
 
@@ -100,22 +105,15 @@ export function CvTranslatePanel({
                 </p>
               )}
               <ul className="list-disc space-y-2 pl-5">
-                <li>
-                  Une copie traduite, « {copyTitle} », est créée dans tes CV. Ton CV actuel reste tel quel, en {LANG_NAME[language]}.
-                </li>
-                {application && (
-                  <li>
-                    Ce CV est lié à la candidature « {application.label} » : la copie le remplace pour cette candidature. L&apos;original
-                    reste dans tes CV, sans candidature.
-                  </li>
-                )}
+                <li>Le contenu de ton CV, en {LANG_NAME[language]}, est remplacé par sa traduction {TO_LABEL[to]}.</li>
+                {application && <li>Ce CV reste celui de la candidature « {application.label} ».</li>}
                 <li>
                   Les nombres, les noms propres, les diplômes et les dates sont gardés tels quels. Un texte dont la traduction n&apos;est pas
                   fiable reste {language === "fr" ? "en français" : "en anglais"}, et la liste t&apos;est donnée à la fin.
                 </li>
                 <li>
                   {left !== null
-                    ? `Traductions gratuites restantes ce mois : ${left} sur ${usage.limit}. Une traduction n'est comptée que si la copie est créée.`
+                    ? `Traductions gratuites restantes ce mois : ${left} sur ${usage.limit}. Une traduction n'est comptée que si ton CV traduit est enregistré.`
                     : `Pas de quota mensuel avec ton plan (dans la limite commune de ${AI_DAILY_LIMIT} actions IA par jour).`}
                 </li>
               </ul>
@@ -138,22 +136,13 @@ export function CvTranslatePanel({
           {state.step === "done" && (
             <>
               <h2 id={titleId} className="text-lg font-semibold text-ink dark:text-white">
-                C&apos;est fait : « {state.value.title} » est créé
+                C&apos;est fait : ton CV est {TO_LABEL[state.value.language]}
               </h2>
-              {state.value.link === "moved" && application && (
-                <p>La copie est maintenant le CV de la candidature « {application.label} ». L&apos;original reste dans tes CV.</p>
-              )}
-              {state.value.link === "failed" && (
-                <p role="alert" className="ui-notice-error px-3 py-2">
-                  La copie n&apos;a pas pu être liée à la candidature : elle reste dans tes CV, sans candidature, et ton CV d&apos;origine
-                  reste celui de la candidature.
-                </p>
-              )}
               {state.value.kept.length ? (
                 <div>
                   <p>
                     {state.value.kept.length > 1 ? `${state.value.kept.length} textes sont restés` : "1 texte est resté"} en {LANG_NAME[language]},
-                    leur traduction n&apos;étant pas fiable. Tu peux les traduire dans la copie en cliquant dessus :
+                    leur traduction n&apos;étant pas fiable. Tu peux les traduire toi-même en cliquant dessus dans l&apos;aperçu :
                   </p>
                   <ul className="mt-2 max-h-48 list-disc space-y-1 overflow-y-auto pl-5">
                     {state.value.kept.map((field) => (
@@ -167,12 +156,9 @@ export function CvTranslatePanel({
                 <p>Tous les textes ont été traduits.</p>
               )}
               <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-                <button type="button" onClick={close} className="ui-btn-secondary">
+                <button type="button" onClick={close} className="ui-btn-primary">
                   Fermer
                 </button>
-                <Link href={`/cv-builder/${state.value.id}`} className="ui-btn-primary text-center">
-                  Ouvrir la copie
-                </Link>
               </div>
             </>
           )}
