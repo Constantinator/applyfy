@@ -441,12 +441,15 @@ export async function translateCvAction(id: string, target: unknown): Promise<Ai
     return { ok: false, error: `${claudeErrorMessage(error, "cv-builder traduction")} Rien n'a été modifié ni décompté.` };
   }
   if (!run.ok) {
+    if (run.reason === "invalid") console.error("[cv-builder] traduction : CV traduit refusé par la validation finale");
     return {
       ok: false,
       error:
-        run.reason === "model"
-          ? "La traduction n'a pas abouti. Rien n'a été modifié ni décompté : réessaie dans un instant."
-          : `La traduction n'est pas assez fiable (${run.kept.length} champs sur ${run.total} refusés par nos vérifications). Rien n'a été modifié ni décompté : réessaie dans un instant.`,
+        run.reason === "refused"
+          ? `La traduction n'est pas assez fiable (${run.kept.length} champs sur ${run.total} refusés par nos vérifications). Rien n'a été modifié ni décompté : réessaie dans un instant.`
+          : run.reason === "invalid"
+            ? "Le CV traduit ne respecte pas nos règles d'enregistrement (un texte trop long ou mal formé). Rien n'a été modifié ni décompté : réessaie dans un instant."
+            : "La traduction n'a pas abouti. Rien n'a été modifié ni décompté : réessaie dans un instant.",
     };
   }
 

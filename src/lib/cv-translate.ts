@@ -391,7 +391,9 @@ function setAt(data: CvData, path: string, text: string): CvData {
 
 export type TranslationResult =
   | { ok: true; data: CvData; kept: KeptField[]; total: number }
-  | { ok: false; reason: "refused"; kept: KeptField[]; total: number };
+  | { ok: false; reason: "refused"; kept: KeptField[]; total: number }
+  /** CV traduit refusé par la validation finale (CvDataSchema), sans excès de champs refusés. */
+  | { ok: false; reason: "invalid"; kept: KeptField[]; total: number };
 
 /**
  * CV traduit : champs acceptés écrits, champs refusés gardés tels quels (listés), dates converties
@@ -413,7 +415,7 @@ export function applyTranslation(
   let data = translatedDates(source, from, to);
   for (const [path, text] of accepted) data = setAt(data, path, text);
   const parsed = CvDataSchema.safeParse(data);
-  if (!parsed.success) return { ok: false, reason: "refused", kept, total };
+  if (!parsed.success) return { ok: false, reason: "invalid", kept, total };
   return { ok: true, data: parsed.data, kept, total };
 }
 

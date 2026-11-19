@@ -400,3 +400,24 @@ test("annulation rejouée sur la bibliothèque : la sauvegarde normale passe la 
   assert.equal(after.language, null);
   await lib.deleteBuilderCv(id);
 });
+
+// --- Commit 5 : message vrai quand le CV traduit ne passe pas la validation finale ------
+
+const { applyTranslation, translatableFields: fieldsOf } = await import("./cv-translate.ts");
+
+test("CV traduit invalide (CvDataSchema) : raison « invalid », distincte d'un excès de champs refusés", () => {
+  const fields = fieldsOf(FR);
+  // Texte accepté plus long que le schéma ne le permet (contrôle contourné) : la validation finale échoue.
+  const accepted = new Map([["summary", "x".repeat(5000)]]);
+  const result = applyTranslation(FR, fields, accepted, new Map(), "fr", "en");
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "invalid");
+  assert.equal(result.kept.length, 0);
+  const refused = applyTranslation(FR, fields, new Map(), new Map(fields.map((f) => [f.path, ["x"]])), "fr", "en");
+  assert.equal(refused.reason, "refused");
+  const body = actionBody();
+  assert.match(body, /run\.reason === "invalid"/);
+  assert.match(body, /Le CV traduit ne respecte pas nos règles d'enregistrement/);
+  // Le message « pas assez fiable (N champs sur M refusés) » n'est plus donné que pour les refus.
+  assert.match(body, /run\.reason === "refused"\s*\?\s*`La traduction n'est pas assez fiable/);
+});
