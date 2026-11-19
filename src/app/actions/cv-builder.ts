@@ -45,6 +45,7 @@ import {
   deleteBuilderCv,
   getBuilderCv,
   writeTranslatedCv,
+  restoreBuilderCvLanguage,
   getBuilderCvByApplication,
   getBuilderCvPhoto,
   linkBuilderCvToApplication,
@@ -63,6 +64,7 @@ import {
   CvDataSchema,
   adaptationExperiences,
   fullName,
+  isCvLang,
   isTemplateId,
   CV_DEFAULT_TEMPLATE,
   type CvAnalysis,
@@ -275,6 +277,19 @@ export async function saveBuilderCvAction(
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
     console.error("[cv-builder] enregistrement", error);
     return { ok: false, error: "L'enregistrement a échoué. Nouvel essai à la prochaine modification." };
+  }
+}
+
+/** « Annuler la traduction » : langue d'avant la traduction (colonne seule ; null : langue détectée). */
+export async function restoreCvLanguageAction(id: string, language: unknown): Promise<{ ok: boolean }> {
+  if (language !== null && !isCvLang(language)) return { ok: false };
+  try {
+    await restoreBuilderCvLanguage(String(id), language);
+    return { ok: true };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[cv-builder] annulation de la traduction : langue", error instanceof Error ? error.message : "erreur");
+    return { ok: false };
   }
 }
 

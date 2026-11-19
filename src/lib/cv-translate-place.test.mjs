@@ -314,3 +314,89 @@ test("éditeur : sauvegarde en attente envoyée et attendue avant la traduction 
   assert.match(panel, /showModal\(\)/);
   assert.match(panel, /if \(state\.step === "loading"\) event\.preventDefault\(\)/);
 });
+
+// --- Commit 4 : fenêtres (confirmation, quota épuisé, écran de fin, annulation) ------
+
+const { offerLanguageWarning, translationQuotaUsed } = await import("./cv-translation-language.ts");
+const { undoTranslationData } = await import("./cv-translation-guard.ts");
+
+test("quota épuisé : message explicite (« Tu as utilisé ta traduction gratuite de ce mois »), jamais un bouton grisé seul", () => {
+  assert.equal(translationQuotaUsed({ used: 0, limit: 1 }, "1er décembre"), null);
+  assert.equal(translationQuotaUsed({ used: 5, limit: null }, "1er décembre"), null);
+  assert.equal(
+    translationQuotaUsed({ used: 1, limit: 1 }, "1er décembre"),
+    "Tu as utilisé ta traduction gratuite de ce mois. La prochaine sera disponible le 1er décembre, ou tout de suite avec le Premium.",
+  );
+  assert.match(translationQuotaUsed({ used: 3, limit: 3 }, "1er décembre"), /^Tu as utilisé tes 3 traductions gratuites de ce mois\./);
+  const panel = read("components/cv-builder/cv-translate-panel.tsx");
+  assert.match(panel, /translationQuotaUsed\(usage, resetLabel\)/);
+  assert.doesNotMatch(panel, /left === 0/);
+});
+
+test("avertissement : CV lié traduit dans une autre langue que celle de l'offre", () => {
+  assert.equal(offerLanguageWarning("fr", "en"), "L'offre de cette candidature est en français : une fois ton CV en anglais, ses mots-clés de l'offre peuvent ne plus être reconnus et ton score peut baisser.");
+  assert.equal(offerLanguageWarning("en", "en"), null);
+  assert.equal(offerLanguageWarning(null, "en"), null);
+  assert.match(offerLanguageWarning("en", "fr"), /^L'offre de cette candidature est en anglais : une fois ton CV en français/);
+  const page = read("app/(app)/cv-builder/[id]/page.tsx");
+  assert.match(page, /offerLanguage: offerLanguage\(detail\.application\)/);
+  assert.match(read("components/cv-builder/cv-translate-panel.tsx"), /offerLanguageWarning\(application\?\.offerLanguage \?\? null, to\)/);
+});
+
+test("confirmation : contenu REMPLACÉ, traductions restantes, annulation possible juste après, quota non rendu", () => {
+  const panel = read("components/cv-builder/cv-translate-panel.tsx");
+  assert.match(panel, /Le contenu de ton CV, en \{LANG_NAME\[language\]\}, est remplacé par sa traduction \{TO_LABEL\[to\]\}/);
+  assert.match(panel, /Traductions gratuites restantes ce mois : \$\{left\} sur \$\{usage\.limit\}/);
+  assert.match(panel, /« Annuler la traduction » te sera proposé juste après/);
+  assert.match(panel, /la traduction utilisée n&apos;est pas rendue/);
+  assert.match(panel, /Ce CV reste celui de la candidature/);
+  assert.doesNotMatch(panel, /copie/i);
+});
+
+test("écran de fin : champs gardés dans la langue d'origine, « Annuler la traduction » et « Fermer »", () => {
+  const panel = read("components/cv-builder/cv-translate-panel.tsx");
+  const done = panel.slice(panel.indexOf('state.step === "done"'), panel.indexOf('state.step === "undone"'));
+  assert.match(done, /state\.value\.kept\.map/);
+  assert.match(done, />\s*Annuler la traduction\s*</);
+  assert.match(done, />\s*Fermer\s*</);
+  assert.match(panel, /onUndo\(state\.snapshot, state\.value\.previousLanguage\)/);
+  // Instantané pris APRÈS la sauvegarde envoyée, juste avant l'appel.
+  assert.ok(panel.indexOf("await beforeTranslate()") < panel.indexOf("const snapshot = data;"));
+  assert.ok(panel.indexOf("const snapshot = data;") < panel.indexOf("translateCvAction(cvId, to)"));
+});
+
+test("annulation : l'instantané revient par la sauvegarde normale, avec l'identifiant de la traduction et la photo affichée", () => {
+  const snapshot = { ...FR, translationId: undefined, personal: { ...FR.personal, photo: null } };
+  const current = { ...EN_TRANSLATED, translationId: "t-2", personal: { ...EN_TRANSLATED.personal, photo: PHOTO } };
+  const back = undoTranslationData(snapshot, current);
+  assert.equal(back.summary, FR.summary);
+  assert.equal(back.translationId, "t-2");
+  assert.equal(back.personal.photo, PHOTO);
+  const editor = read("components/cv-builder/cv-builder-editor.tsx");
+  assert.match(editor, /edit\(\(d\) => undoTranslationData\(snapshot, d\)\)/);
+  assert.match(editor, /restoreCvLanguageAction\(cv\.id, previousLanguage\)/);
+  const actions = read("app/actions/cv-builder.ts");
+  const body = actions.slice(actions.indexOf("export async function restoreCvLanguageAction"));
+  assert.match(body.slice(0, 800), /restoreBuilderCvLanguage\(String\(id\), language\)/);
+  const lib = read("lib/cv-builder.ts");
+  const write = lib.slice(lib.indexOf("export async function restoreBuilderCvLanguage"), lib.indexOf("export async function deleteBuilderCv"));
+  assert.match(write, /\.update\(\{ language \}\)/);
+  assert.doesNotMatch(write, /data|application_id/);
+});
+
+test("annulation rejouée sur la bibliothèque : la sauvegarde normale passe la garde et rend le contenu d'origine", async () => {
+  const id = await lib.createBuilderCv(FR_PHOTO, "Mon CV", "finance");
+  // Instantané de l'éditeur (copie : le mode démo renvoie l'objet stocké).
+  const before = structuredClone(await lib.getBuilderCv(id));
+  const translated = mergeTranslation(before.data, EN_TRANSLATED, "t-3");
+  assert.equal(await lib.writeTranslatedCv(id, null, translated, "en"), true);
+  const back = undoTranslationData(before.data, translated);
+  await lib.saveBuilderCv(id, { title: "Mon CV", templateId: "finance", data: back });
+  await lib.restoreBuilderCvLanguage(id, null);
+  const after = await lib.getBuilderCv(id);
+  assert.equal(after.data.summary, FR.summary);
+  assert.equal(after.data.translationId, "t-3");
+  assert.equal(after.data.personal.photo, PHOTO);
+  assert.equal(after.language, null);
+  await lib.deleteBuilderCv(id);
+});

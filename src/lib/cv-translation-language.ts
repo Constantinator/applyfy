@@ -48,3 +48,24 @@ export function cvTitleLanguage(data: CvData, stored: CvLang | null): CvLang {
 /** Refus quand la langue du contenu est indécidable (avant le modèle, sans quota). */
 export const TRANSLATION_TOO_SHORT =
   "Ton CV est trop court pour savoir s'il est en français ou en anglais. Ajoute ton accroche ou une expérience, puis réessaie : rien n'a été décompté.";
+
+const LANGUAGE_NAMES: Record<CvLang, string> = { fr: "français", en: "anglais" };
+
+/**
+ * Quota de traductions du mois épuisé (compte gratuit) : message explicite, avec la date de
+ * remise à zéro ; null s'il en reste ou sans quota mensuel (Premium, beta).
+ */
+export function translationQuotaUsed(usage: { used: number; limit: number | null }, resetLabel: string): string | null {
+  if (usage.limit === null || usage.used < usage.limit) return null;
+  const used = usage.limit === 1 ? "Tu as utilisé ta traduction gratuite de ce mois." : `Tu as utilisé tes ${usage.limit} traductions gratuites de ce mois.`;
+  return `${used} La prochaine sera disponible le ${resetLabel}, ou tout de suite avec le Premium.`;
+}
+
+/**
+ * CV lié traduit dans une autre langue que celle de l'offre : les mots-clés de l'offre (écrits
+ * dans sa langue) peuvent ne plus être reconnus, le score peut baisser. Null sinon.
+ */
+export function offerLanguageWarning(offer: CvLang | null, to: CvLang): string | null {
+  if (!offer || offer === to) return null;
+  return `L'offre de cette candidature est en ${LANGUAGE_NAMES[offer]} : une fois ton CV en ${LANGUAGE_NAMES[to]}, ses mots-clés de l'offre peuvent ne plus être reconnus et ton score peut baisser.`;
+}

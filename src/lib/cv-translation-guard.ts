@@ -63,3 +63,15 @@ export function mergeTranslation(fresh: CvData, translated: CvData, translationI
     translationId,
   };
 }
+
+/**
+ * « Annuler la traduction » : le contenu d'avant la traduction (instantané de l'éditeur), avec
+ * l'identifiant de la traduction (la sauvegarde normale passe ainsi la garde) et la photo affichée.
+ */
+export function undoTranslationData(snapshot: CvData, current: CvData): CvData {
+  return {
+    ...snapshot,
+    personal: { ...snapshot.personal, photo: current.personal.photo },
+    translationId: current.translationId,
+  };
+}

@@ -8,6 +8,7 @@ import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { getBuilderCv } from "@/lib/cv-builder";
+import { offerLanguage } from "@/lib/coach-offer";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { readCvSuggestions } from "@/lib/cv-types";
 
@@ -38,6 +39,8 @@ export default async function CvBuilderEditorPage({ params, searchParams }: Page
           detail && {
             id: detail.application.id,
             label: [detail.application.position, detail.application.company].filter(Boolean).join(" — "),
+            // Langue de l'offre : avertissement avant une traduction dans l'autre langue.
+            offerLanguage: offerLanguage(detail.application),
             keywords: analysis?.kind === "keywords" ? { keywords: analysis.keywords, ignored: analysis.ignored, refused: analysis.refused } : null,
             missingPoints: analysis?.kind === "legacy" ? analysis.ce_qui_manque : [],
           }

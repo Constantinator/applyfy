@@ -7,6 +7,7 @@ import { flushSync } from "react-dom";
 import {
   coachOpeningAction,
   refineBuilderCvAction,
+  restoreCvLanguageAction,
   saveBuilderCvAction,
   scoringContextAction,
 } from "@/app/actions/cv-builder";
@@ -33,6 +34,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { cvTitleLanguage } from "@/lib/cv-translation-language";
+import { undoTranslationData } from "@/lib/cv-translation-guard";
 import { photoSaveTracker } from "@/lib/cv-photo";
 import { keywordKey, matchCvKeywords } from "@/lib/cv-keyword-match";
 import { offerKeywordScore, offerKeywordsCapLine, offerKeywordsLine, offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
@@ -134,6 +136,8 @@ export function CvBuilderEditor({
     id: string;
     /** « Poste — Entreprise », pour la confirmation de la traduction. */
     label: string;
+    /** Langue de l'offre (null : indécidable), pour l'avertissement de la traduction. */
+    offerLanguage: CvLang | null;
     keywords: { keywords: OfferKeyword[]; ignored: string[]; refused: string[] } | null;
     missingPoints: string[];
   } | null;
@@ -582,13 +586,20 @@ export function CvBuilderEditor({
                 title={title}
                 data={data}
                 usage={usage.translation}
+                resetLabel={usage.resetLabel}
                 aiEnabled={usage.aiEnabled}
-                application={application ? { label: application.label } : null}
+                application={application ? { label: application.label, offerLanguage: application.offerLanguage } : null}
                 beforeTranslate={flushSave}
                 onTranslated={(value) => {
                   // CV écrit par le serveur (sans la photo) : il remplace le contenu affiché.
                   setData((d) => ({ ...value.data, personal: { ...value.data.personal, photo: d.personal.photo } }));
                   setStoredLanguage(value.language);
+                }}
+                onUndo={(snapshot, previousLanguage) => {
+                  // Contenu d'avant par la sauvegarde normale (identifiant de la traduction gardé).
+                  edit((d) => undoTranslationData(snapshot, d));
+                  setStoredLanguage(previousLanguage);
+                  void restoreCvLanguageAction(cv.id, previousLanguage);
                 }}
               />
             </div>

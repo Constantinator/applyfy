@@ -324,6 +324,25 @@ export async function writeTranslatedCv(id: string, expected: string | null, dat
   return (rows?.length ?? 0) === 1;
 }
 
+/**
+ * « Annuler la traduction » : remet la langue d'avant (colonne seule ; null : langue détectée). Le
+ * contenu, lui, revient par la sauvegarde normale.
+ */
+export async function restoreBuilderCvLanguage(id: string, language: CvLang | null): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    const cv = demoCvs.find((c) => c.id === id);
+    if (!cv) throw new CvBuilderError("Ce CV n'existe plus.");
+    cv.language = language;
+    return;
+  }
+
+  const user = await requireUser();
+  if (!isUuid(id)) throw new CvBuilderError("Ce CV n'existe plus.");
+  const supabase = await createClient();
+  const { error } = await supabase.from("cv_builder").update({ language }).eq("id", id).eq("user_id", user.id);
+  if (error) throw new Error(`Changement de langue impossible : ${error.message}`);
+}
+
 export async function deleteBuilderCv(id: string): Promise<void> {
   if (!isSupabaseConfigured()) {
     const index = demoCvs.findIndex((c) => c.id === id);
