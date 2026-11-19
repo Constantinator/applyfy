@@ -39,6 +39,8 @@ import { isCvClosed } from "@/lib/coach-prompt";
 import { runCoachTurn } from "@/lib/coach-turn";
 import {
   CvBuilderError,
+  CvBuilderStaleError,
+  STALE_SAVE_MESSAGE,
   createBuilderCv,
   deleteBuilderCv,
   getBuilderCv,
@@ -221,7 +223,10 @@ export async function convertLegacyCvAction(formData: FormData) {
 }
 
 /** `notice` : le CV est enregistré, mais un champ refusé a été corrigé (cf. fitCvData). */
-export type SaveCvResult = { ok: true; savedAt: string; notice?: string; photoRefused?: true } | { ok: false; error: string };
+export type SaveCvResult =
+  | { ok: true; savedAt: string; notice?: string; photoRefused?: true }
+  /** `stale` : CV traduit depuis la lecture de l'éditeur, rien n'a été écrit. */
+  | { ok: false; error: string; stale?: true };
 
 /**
  * CV reçu de l'éditeur, toujours valide : un champ refusé est corrigé, sans bloquer le reste du CV, et
@@ -265,6 +270,8 @@ export async function saveBuilderCvAction(
     return { ok: true, savedAt, ...(notice ? { notice } : {}), ...(refused ? { photoRefused: true as const } : {}) };
   } catch (error) {
     unstable_rethrow(error);
+    // Traduit depuis (autre fenêtre, ou sauvegarde partie avant la traduction) : jamais écrasé.
+    if (error instanceof CvBuilderStaleError) return { ok: false, stale: true, error: STALE_SAVE_MESSAGE };
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
     console.error("[cv-builder] enregistrement", error);
     return { ok: false, error: "L'enregistrement a échoué. Nouvel essai à la prochaine modification." };

@@ -33,6 +33,7 @@ export function CvTranslatePanel({
   usage,
   aiEnabled,
   application,
+  beforeTranslate,
   onTranslated,
 }: {
   cvId: string;
@@ -44,6 +45,8 @@ export function CvTranslatePanel({
   aiEnabled: boolean;
   /** CV lié à une candidature : « Poste — Entreprise ». */
   application: { label: string } | null;
+  /** Sauvegarde en attente envoyée et attendue avant la traduction ; false : pas enregistrée. */
+  beforeTranslate: () => Promise<boolean>;
   /** CV traduit écrit en base (sans la photo) : l'éditeur remplace son contenu. */
   onTranslated: (value: TranslateCvValue) => void;
 }) {
@@ -66,6 +69,11 @@ export function CvTranslatePanel({
 
   async function translate() {
     setState({ step: "loading" });
+    // La traduction part du CV enregistré : la dernière modification affichée l'est d'abord.
+    if (!(await beforeTranslate().catch(() => false))) {
+      setState({ step: "error", message: "Ton CV n'a pas pu être enregistré juste avant la traduction : rien n'a été traduit ni décompté. Réessaie dans un instant.", limitReached: false });
+      return;
+    }
     const result = await translateCvAction(cvId, to).catch(() => null);
     if (!result) setState({ step: "error", message: "La traduction n'a pas abouti. Rien n'a été modifié ni décompté : réessaie dans un instant.", limitReached: false });
     else if (result.ok) {

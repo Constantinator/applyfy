@@ -1123,6 +1123,24 @@ export function withoutPhoto<T>(raw: T): T {
   return { ...raw, personal: { ...personal, photo: null } };
 }
 
+/**
+ * CV après une modification du coach : le contenu renvoyé par le chat (chatContent) et, du CV
+ * affiché, tout ce que le chat ne transporte pas (photo, réglages, analyse, poste visé, origine,
+ * cache du premier message, identifiant de traduction). À valider par CvDataSchema.
+ */
+export function withEditorFields(parsed: Record<string, unknown> & { personal?: Record<string, unknown> }, current: CvData): unknown {
+  return {
+    ...parsed,
+    personal: { ...parsed.personal, photo: current.personal.photo },
+    style: current.style,
+    analysis: current.analysis,
+    targetJob: current.targetJob,
+    origin: current.origin,
+    coach: current.coach,
+    translationId: current.translationId,
+  };
+}
+
 /** Texte du CV transmis à Claude pour le résumé de profil (sans contact ni photo). */
 export function summaryCvText(data: CvData) {
   const lines = [

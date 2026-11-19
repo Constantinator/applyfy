@@ -16,7 +16,7 @@ import {
   type CvTemplateId,
 } from "./cv-builder-types";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
-import { translationFilter, translationIdOf } from "./cv-translation-guard";
+import { sameTranslation, translationFilter, translationIdOf } from "./cv-translation-guard";
 
 // CV du CV Builder (table cv_builder, migration 0025) de l'utilisateur connecté. Lecture et
 // écriture avec la session de l'utilisateur (RLS). Mode démo : en mémoire.
@@ -24,6 +24,11 @@ import { translationFilter, translationIdOf } from "./cv-translation-guard";
 export { CV_BUILDER_MAX };
 
 export class CvBuilderError extends Error {}
+
+/** Sauvegarde refusée : le CV a été traduit depuis que l'éditeur l'a lu (cv-translation-guard.ts). */
+export class CvBuilderStaleError extends CvBuilderError {}
+
+export const STALE_SAVE_MESSAGE = "Ce CV a été traduit dans une autre fenêtre : recharge la page pour voir sa version traduite. Tes dernières modifications ici n'ont pas été enregistrées.";
 
 type Row = {
   id: string;
@@ -255,7 +260,12 @@ export async function createBuilderCv(
   return row.id as string;
 }
 
-/** Enregistre le titre, le modèle et le contenu ; renvoie la date de modification. */
+/**
+ * Enregistre le titre, le modèle et le contenu ; renvoie la date de modification. Seulement si
+ * l'identifiant de traduction de `data` est celui de la base (cv-translation-guard.ts) : une
+ * sauvegarde partie avant une traduction (contenu de l'ancienne langue) est refusée
+ * (CvBuilderStaleError) au lieu d'écraser la traduction. CV jamais traduit : filtre « is null ».
+ */
 export async function saveBuilderCv(
   id: string,
   input: { title: string; templateId: CvTemplateId; data: CvData },
@@ -267,6 +277,7 @@ export async function saveBuilderCv(
   if (!isSupabaseConfigured()) {
     const cv = demoCvs.find((c) => c.id === id);
     if (!cv) throw new CvBuilderError("Ce CV n'existe plus.");
+    if (!sameTranslation(cv.data, data)) throw new CvBuilderStaleError(STALE_SAVE_MESSAGE);
     Object.assign(cv, { title, templateId: input.templateId, data, updatedAt: new Date().toISOString() });
     return cv.updatedAt;
   }
@@ -274,15 +285,18 @@ export async function saveBuilderCv(
   const user = await requireUser();
   if (!isUuid(id)) throw new CvBuilderError("Ce CV n'existe plus.");
   const supabase = await createClient();
-  const { data: row, error } = await supabase
-    .from("cv_builder")
-    .update({ title, template_id: input.templateId, data })
-    .eq("id", id)
-    .eq("user_id", user.id)
+  const filter = translationFilter(translationIdOf(data));
+  const query = supabase.from("cv_builder").update({ title, template_id: input.templateId, data }).eq("id", id).eq("user_id", user.id);
+  const { data: row, error } = await (filter.op === "is" ? query.is(filter.column, null) : query.eq(filter.column, filter.value!))
     .select("updated_at")
     .maybeSingle();
   if (error) throw new Error(`Enregistrement du CV impossible : ${error.message}`);
-  if (!row) throw new CvBuilderError("Ce CV n'existe plus.");
+  if (!row) {
+    // Aucune ligne : CV supprimé, ou traduit depuis (identifiant différent).
+    const { data: exists } = await supabase.from("cv_builder").select("id").eq("id", id).eq("user_id", user.id).maybeSingle();
+    if (exists) throw new CvBuilderStaleError(STALE_SAVE_MESSAGE);
+    throw new CvBuilderError("Ce CV n'existe plus.");
+  }
   return row.updated_at as string;
 }
 

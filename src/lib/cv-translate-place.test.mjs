@@ -179,3 +179,138 @@ test("écriture de la traduction : data et language seulement, sur la même lign
   assert.doesNotMatch(lib, /export async function (moveApplicationLink|countBuilderCvs)/);
   assert.doesNotMatch(read("lib/cv-builder-types.ts"), /export function translatedCvTitle/);
 });
+
+// --- Commit 3 : concurrence avec la sauvegarde automatique ------------------------
+
+/** cv-builder.ts en mode démo (sans base) : « server-only », alias « @/ » et next/* résolus pour Node. */
+async function demoLibrary() {
+  const { registerHooks } = await import("node:module");
+  const { pathToFileURL, fileURLToPath } = await import("node:url");
+  const src = fileURLToPath(new URL("../", import.meta.url));
+  registerHooks({
+    resolve(spec, ctx, next) {
+      if (spec === "server-only") return { url: "data:text/javascript,export{}", shortCircuit: true };
+      if (spec.startsWith("@/")) {
+        for (const ext of [".ts", ".tsx"]) {
+          const file = `${src}${spec.slice(2)}${ext}`;
+          if (existsSync(file)) return { url: pathToFileURL(file).href, shortCircuit: true };
+        }
+      }
+      if (/^next\/[a-z]+$/.test(spec)) return next(`${spec}.js`, ctx);
+      return next(spec, ctx);
+    },
+  });
+  delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  return import("./cv-builder.ts");
+}
+const lib = await demoLibrary();
+const { savedPhoto, PHOTO_UNCHANGED } = await import("./cv-photo.ts");
+const { withEditorFields, withoutPhoto, withoutEmptyLines, fitCvData } = await import("./cv-builder-types.ts");
+
+const FR_PHOTO = CvDataSchema.parse({ ...FR, personal: { ...FR.personal, photo: PHOTO } });
+const EN_TRANSLATED = (await runTranslation(FR, "fr", "en", (fields) => fakeTranslation(fields, "en"))).data;
+
+test("scénario rejoué : une sauvegarde française partie avant la traduction n'écrase jamais la traduction (photo « unchanged »)", async () => {
+  const id = await lib.createBuilderCv(FR_PHOTO, "Mon CV", "finance");
+  const before = await lib.getBuilderCv(id);
+  // Traduction écrite (même ligne), nouvel identifiant.
+  const translated = mergeTranslation(before.data, EN_TRANSLATED, "t-1");
+  assert.equal(await lib.writeTranslatedCv(id, null, translated, "en"), true);
+  // Sauvegarde automatique périmée : contenu français, photo « unchanged », sans identifiant.
+  const stale = withoutPhoto(FR_PHOTO);
+  const { photo } = savedPhoto(PHOTO_UNCHANGED, await lib.getBuilderCvPhoto(id));
+  await assert.rejects(
+    lib.saveBuilderCv(id, { title: "Mon CV", templateId: "finance", data: { ...stale, personal: { ...stale.personal, photo } } }),
+    (error) => error instanceof lib.CvBuilderStaleError,
+  );
+  const after = await lib.getBuilderCv(id);
+  assert.equal(after.data.summary, EN_TRANSLATED.summary);
+  assert.equal(after.data.translationId, "t-1");
+  assert.equal(after.data.personal.photo, PHOTO);
+  assert.equal(after.language, "en");
+  // Sauvegarde à jour (identifiant connu de l'éditeur) : acceptée.
+  await lib.saveBuilderCv(id, { title: "Mon CV", templateId: "finance", data: { ...after.data, summary: "Edited summary" } });
+  assert.equal((await lib.getBuilderCv(id)).data.summary, "Edited summary");
+  // Une seconde traduction faite depuis un identifiant périmé n'écrit rien.
+  assert.equal(await lib.writeTranslatedCv(id, null, translated, "en"), false);
+  await lib.deleteBuilderCv(id);
+});
+
+test("CV jamais traduit : la sauvegarde passe (filtre « is null ») ; CV supprimé : « n'existe plus », pas « périmé »", async () => {
+  const id = await lib.createBuilderCv(FR, "Mon CV", "finance");
+  await lib.saveBuilderCv(id, { title: "Mon CV", templateId: "finance", data: { ...FR, summary: "Nouvelle accroche du CV" } });
+  assert.equal((await lib.getBuilderCv(id)).data.summary, "Nouvelle accroche du CV");
+  await lib.deleteBuilderCv(id);
+  await assert.rejects(
+    lib.saveBuilderCv(id, { title: "Mon CV", templateId: "finance", data: FR }),
+    (error) => !(error instanceof lib.CvBuilderStaleError) && /n'existe plus/.test(error.message),
+  );
+});
+
+test("copie d'un CV traduit (offre, Lumeo) : elle garde l'identifiant de l'original et s'enregistre librement", async () => {
+  const translated = { ...EN_TRANSLATED, translationId: "t-orig" };
+  const copy = await lib.createBuilderCv({ ...translated, coach: null }, "CV - Entreprise", "finance", "en");
+  const stored = await lib.getBuilderCv(copy);
+  assert.equal(stored.data.translationId, "t-orig");
+  await lib.saveBuilderCv(copy, { title: "CV - Entreprise", templateId: "finance", data: { ...stored.data, interests: "Chess" } });
+  assert.equal((await lib.getBuilderCv(copy)).data.interests, "Chess");
+  await lib.deleteBuilderCv(copy);
+  // Côté sources : les deux copies partent des données complètes du CV (identifiant compris).
+  assert.match(read("app/actions/cv-builder.ts"), /createApplicationCv\(\{ \.\.\.source\.data, coach: null \}/);
+  assert.match(read("lib/application-cv.ts"), /data: \{ \.\.\.data, targetJob, personal: \{ \.\.\.data\.personal, jobTitle \} \}/);
+  assert.match(read("lib/lumeo-action-server.ts"), /applicationCvDraft\(/);
+});
+
+test("identifiant gardé par chaque écriture de data", () => {
+  const cv = CvDataSchema.parse({ ...FR, translationId: "t-keep" });
+  // Sauvegarde automatique : validation et nettoyage du serveur (fittedCv, withoutEmptyLines).
+  assert.equal(withoutEmptyLines(fitCvData(withoutPhoto(cv)).data).translationId, "t-keep");
+  assert.equal(CvDataSchema.parse(JSON.parse(JSON.stringify(cv))).translationId, "t-keep");
+  // Modification du coach : contenu du chat + champs de l'éditeur, identifiant compris.
+  const fromChat = JSON.parse(JSON.stringify({ ...cv, translationId: undefined, summary: "Accroche réécrite par le coach" }));
+  const merged = CvDataSchema.parse(withEditorFields(fromChat, { ...cv, personal: { ...cv.personal, photo: PHOTO } }));
+  assert.equal(merged.translationId, "t-keep");
+  assert.equal(merged.summary, "Accroche réécrite par le coach");
+  assert.equal(merged.personal.photo, PHOTO);
+  const editor = read("components/cv-builder/cv-builder-editor.tsx");
+  assert.match(editor, /CvDataSchema\.safeParse\(withEditorFields\(parsed, current\)\)/);
+  // Panneau Style : réglages, couleur, photo écrits sur la donnée complète.
+  assert.match(editor, /onAccent=\{\(accent\) => edit\(\(d\) => \(\{ \.\.\.d, style: \{ \.\.\.d\.style, accent \} \}\)\)\}/);
+  assert.match(editor, /onSettings=\{\(patch\) => edit\(\(d\) => \(\{ \.\.\.d, style: \{ \.\.\.d\.style, \.\.\.patch \} \}\)\)\}/);
+  assert.match(editor, /onPhoto=\{\(photo\) => edit\(\(d\) => \(\{ \.\.\.d, personal: \{ \.\.\.d\.personal, photo \} \}\)\)\}/);
+  // Écritures du serveur à partir de la ligne relue : premier message du coach, import.
+  const actions = read("app/actions/cv-builder.ts");
+  assert.match(actions, /data: \{ \.\.\.cv\.data, coach \}/);
+  assert.match(actions, /data: \{ \.\.\.cv\.data, analysis \}/);
+  assert.match(actions, /const data: CvData = \{ \.\.\.cv\.data, analysis, targetJob \}/);
+});
+
+test("serveur : sauvegarde filtrée par l'identifiant, réponse « périmée » distincte", () => {
+  const source = read("lib/cv-builder.ts");
+  const save = source.slice(source.indexOf("export async function saveBuilderCv"), source.indexOf("export async function writeTranslatedCv"));
+  assert.match(save, /translationFilter\(translationIdOf\(data\)\)/);
+  assert.match(save, /sameTranslation\(cv\.data, data\)/);
+  assert.match(save, /throw new CvBuilderStaleError/);
+  const actions = read("app/actions/cv-builder.ts");
+  const body = actions.slice(actions.indexOf("export async function saveBuilderCvAction"), actions.indexOf("/** Suppression d'un CV"));
+  assert.match(body, /error instanceof CvBuilderStaleError\) return \{ ok: false, stale: true, error: STALE_SAVE_MESSAGE \}/);
+  assert.ok(body.indexOf("CvBuilderStaleError") < body.indexOf("error instanceof CvBuilderError"));
+});
+
+test("éditeur : sauvegarde en attente envoyée et attendue avant la traduction ; réponse périmée ignorée si une traduction l'a remplacée", () => {
+  const editor = read("components/cv-builder/cv-builder-editor.tsx");
+  // L'appel exact vérifié par le test de confidentialité est gardé.
+  assert.match(editor, /saveBuilderCvAction\(cv\.id, \{ title, templateId, data: withoutPhoto\(data\), photo \}\)/);
+  assert.match(editor, /async function flushSave\(\): Promise<boolean>/);
+  assert.match(editor, /clearTimeout\(saveTimer\.current\)/);
+  assert.match(editor, /await inFlight\.current/);
+  assert.match(editor, /beforeTranslate=\{flushSave\}/);
+  assert.match(editor, /\(dataRef\.current\.translationId \?\? null\) !== sent/);
+  const panel = read("components/cv-builder/cv-translate-panel.tsx");
+  const flush = panel.indexOf("await beforeTranslate()");
+  assert.ok(flush > 0 && flush < panel.indexOf("translateCvAction(cvId, to)"));
+  // Saisie bloquée : fenêtre modale, et Échap sans effet pendant la traduction.
+  assert.match(panel, /showModal\(\)/);
+  assert.match(panel, /if \(state\.step === "loading"\) event\.preventDefault\(\)/);
+});

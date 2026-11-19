@@ -25,6 +25,7 @@ import {
   isLegacyTemplate,
   targetJobOf,
   withoutEmptyLines,
+  withEditorFields,
   withoutPhoto,
   type BuilderCv,
   type CvData,
@@ -204,16 +205,30 @@ export function CvBuilderEditor({
   };
 
   // Sauvegarde automatique, une seconde après la dernière modification. La photo n'est envoyée
-  // que si elle a changé depuis le dernier enregistrement confirmé (« unchanged » sinon).
+  // que si elle a changé depuis le dernier enregistrement confirmé (« unchanged » sinon). Avant une
+  // traduction, la sauvegarde en attente est envoyée tout de suite et attendue (flushSave).
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pendingSave = useRef<(() => Promise<boolean>) | null>(null);
+  const inFlight = useRef<Promise<boolean> | null>(null);
   useEffect(() => {
     if (!touched.current) return;
     const current = ++version.current;
-    const timer = setTimeout(async () => {
+    const save = async (): Promise<boolean> => {
+      pendingSave.current = null;
       setStatus("saving");
       const shownPhoto = data.personal.photo;
       const photo = photoTracker.current.patch(shownPhoto);
-      const result = await saveBuilderCvAction(cv.id, { title, templateId, data: withoutPhoto(data), photo });
-      if (current !== version.current) return; // une modification plus récente suivra
+      const sent = data.translationId ?? null;
+      const request = saveBuilderCvAction(cv.id, { title, templateId, data: withoutPhoto(data), photo });
+      inFlight.current = request.then(
+        (r) => r.ok,
+        () => false,
+      );
+      const result = await request;
+      // Sauvegarde partie avant une traduction faite ici : refusée par le serveur, la traduction
+      // (déjà affichée) l'a remplacée. Rien à signaler.
+      if (!result.ok && result.stale && (dataRef.current.translationId ?? null) !== sent) return true;
+      if (current !== version.current) return result.ok; // une modification plus récente suivra
       if (result.ok) {
         photoTracker.current.confirm(photo, result.photoRefused ? null : shownPhoto);
         // Photo refusée par le serveur : retirée de l'éditeur aussi (le message l'explique).
@@ -221,9 +236,29 @@ export function CvBuilderEditor({
       }
       setStatus(result.ok ? "saved" : "error");
       setSaveError(result.ok ? (result.notice ?? null) : result.error);
-    }, 1000);
-    return () => clearTimeout(timer);
+      return result.ok;
+    };
+    pendingSave.current = save;
+    saveTimer.current = setTimeout(save, 1000);
+    return () => {
+      clearTimeout(saveTimer.current);
+      if (pendingSave.current === save) pendingSave.current = null;
+    };
   }, [cv.id, title, templateId, data]);
+
+  /**
+   * Avant une traduction : sauvegarde en cours attendue, sauvegarde en attente envoyée tout de
+   * suite. False : le CV affiché n'est pas enregistré (la traduction ne part pas).
+   */
+  async function flushSave(): Promise<boolean> {
+    clearTimeout(saveTimer.current);
+    const previous = inFlight.current;
+    if (previous) await previous;
+    const pending = pendingSave.current;
+    if (pending) return pending();
+    if (!inFlight.current) return true;
+    return await inFlight.current;
+  }
 
   // Quitter la page avec des modifications non enregistrées : confirmation du navigateur
   // (fermeture, rechargement) ; dans l'application (Retour, liens du Menu), confirmation aussi.
@@ -483,15 +518,7 @@ export function CvBuilderEditor({
                   const previous = JSON.stringify(chatContent(current));
                   try {
                     const parsed = JSON.parse(json);
-                    const next = CvDataSchema.safeParse({
-                      ...parsed,
-                      personal: { ...parsed.personal, photo: current.personal.photo },
-                      style: current.style,
-                      analysis: current.analysis,
-                      targetJob: current.targetJob,
-                      origin: current.origin,
-                      coach: current.coach,
-                    });
+                    const next = CvDataSchema.safeParse(withEditorFields(parsed, current));
                     if (next.success) {
                       edit(() => next.data);
                       showHighlights(diffCvData(current, next.data));
@@ -557,6 +584,7 @@ export function CvBuilderEditor({
                 usage={usage.translation}
                 aiEnabled={usage.aiEnabled}
                 application={application ? { label: application.label } : null}
+                beforeTranslate={flushSave}
                 onTranslated={(value) => {
                   // CV écrit par le serveur (sans la photo) : il remplace le contenu affiché.
                   setData((d) => ({ ...value.data, personal: { ...value.data.personal, photo: d.personal.photo } }));
