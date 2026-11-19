@@ -496,3 +496,14 @@ test("COACH_RULES : le bouton de l'onglet Style remplace le contenu (plus de cop
   assert.doesNotMatch(prompt, /copie traduite/);
   assert.match(prompt, /de l'onglet Style, qui remplace en une fois le contenu du CV par sa traduction \(annulable juste après\)\./);
 });
+
+test("écran de fin : langue d'origine gardée au lancement (le contenu affiché est déjà traduit)", () => {
+  const panel = read("components/cv-builder/cv-translate-panel.tsx");
+  const done = panel.slice(panel.indexOf('{state.step === "done" && ('), panel.indexOf('{state.step === "undone" && ('));
+  // Après onTranslated, translationDirection(data) donne la langue CIBLE : jamais utilisée ici.
+  assert.doesNotMatch(done, /LANG_NAME\[language\]|TO_LABEL\[language\]/);
+  assert.match(done, /en \{LANG_NAME\[state\.from\]\}/);
+  assert.match(done, /remet ton CV \{TO_LABEL\[state\.from\]\}/);
+  assert.match(panel, /setState\(\{ step: "done", value: result\.value, snapshot, from \}\)/);
+  assert.ok(panel.indexOf("const from = language;") < panel.indexOf("translateCvAction(cvId, to)"));
+});

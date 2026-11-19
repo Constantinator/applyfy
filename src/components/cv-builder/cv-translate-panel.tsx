@@ -14,7 +14,8 @@ const LANG_NAME: Record<CvLang, string> = { fr: "français", en: "anglais" };
 type State =
   | { step: "confirm" }
   | { step: "loading" }
-  | { step: "done"; value: TranslateCvValue; snapshot: CvData }
+  /** `from` : langue du CV au lancement (le contenu affiché est ensuite celui de la traduction). */
+  | { step: "done"; value: TranslateCvValue; snapshot: CvData; from: CvLang }
   | { step: "undone"; language: CvLang }
   | { step: "error"; message: string; limitReached: boolean };
 
@@ -85,18 +86,19 @@ export function CvTranslatePanel({
     }
     // Instantané du CV enregistré, pour « Annuler la traduction » (gardé en mémoire de la page).
     const snapshot = data;
+    const from = language;
     const result = await translateCvAction(cvId, to).catch(() => null);
     if (!result) setState({ step: "error", message: "La traduction n'a pas abouti. Rien n'a été modifié ni décompté : réessaie dans un instant.", limitReached: false });
     else if (result.ok) {
       onTranslated(result.value);
-      setState({ step: "done", value: result.value, snapshot });
+      setState({ step: "done", value: result.value, snapshot, from });
     } else setState({ step: "error", message: result.error, limitReached: Boolean(result.limitReached) });
   }
 
   function undo() {
     if (state.step !== "done") return;
     onUndo(state.snapshot, state.value.previousLanguage);
-    setState({ step: "undone", language: translationDirection(state.snapshot)?.from ?? language });
+    setState({ step: "undone", language: state.from });
   }
 
   return (
@@ -186,7 +188,7 @@ export function CvTranslatePanel({
               {state.value.kept.length ? (
                 <div>
                   <p>
-                    {state.value.kept.length > 1 ? `${state.value.kept.length} textes sont restés` : "1 texte est resté"} en {LANG_NAME[language]},
+                    {state.value.kept.length > 1 ? `${state.value.kept.length} textes sont restés` : "1 texte est resté"} en {LANG_NAME[state.from]},
                     leur traduction n&apos;étant pas fiable. Tu peux les traduire toi-même en cliquant dessus dans l&apos;aperçu :
                   </p>
                   <ul className="mt-2 max-h-48 list-disc space-y-1 overflow-y-auto pl-5">
@@ -201,7 +203,7 @@ export function CvTranslatePanel({
                 <p>Tous les textes ont été traduits.</p>
               )}
               <p className="text-xs text-muted dark:text-slate-400">
-                « Annuler la traduction » remet ton CV {TO_LABEL[language]}, tel qu&apos;il était ; la traduction utilisée n&apos;est pas rendue.
+                « Annuler la traduction » remet ton CV {TO_LABEL[state.from]}, tel qu&apos;il était ; la traduction utilisée n&apos;est pas rendue.
               </p>
               <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
                 <button type="button" onClick={undo} className="ui-btn-secondary">
