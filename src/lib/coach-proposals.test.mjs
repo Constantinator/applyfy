@@ -158,7 +158,7 @@ test("demande : un nombre inventé est refusé dans l'accroche, les compétences
 
 test("nombres : identifiants, photo et analyse du CV ne sont pas des sources", () => {
   const withNoise = CvDataSchema.parse({
-    personal: { photo: "data:image/png;base64,AAAA777" },
+    personal: { photo: "data:image/png;base64,iVBORw0KGgoAAAA777" },
     experiences: [{ id: "e777", position: "Vendeuse", company: "X", bullets: ["Gestion de la caisse"] }],
   });
   const proposal = buildProposal(
