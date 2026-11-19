@@ -536,10 +536,10 @@ export function coachReplyText(i: CoachOutcomeInput): string {
 
 /**
  * « Traduis tout mon CV » (lot traduction) : texte fixe du serveur, sans appel au modèle ni
- * décompte, qui renvoie au bouton de l'onglet Style (copie traduite en une fois).
+ * décompte, qui renvoie au bouton de l'onglet Style (traduction sur place, en une fois).
  */
 export function wholeCvTranslationReply(lang: CoachLang): string {
   return lang === "en"
-    ? "To translate your whole CV, use the « Traduire en anglais » or « Traduire en français » button in the Style tab: it creates a translated copy in one go, and your current CV stays as it is. Here, I can translate a specific part for you (your summary, one experience…)."
-    : "Pour traduire tout ton CV, utilise le bouton « Traduire en anglais » ou « Traduire en français » de l'onglet Style : il crée une copie traduite en une fois, sans toucher à ton CV actuel. Ici, je peux traduire une partie précise (ton accroche, une expérience…).";
+    ? "To translate your whole CV, use the « Traduire en anglais » or « Traduire en français » button in the Style tab: it replaces your CV's content with its translation in one go, and you can undo it right after. Here, I can translate a specific part for you (your summary, one experience…)."
+    : "Pour traduire tout ton CV, utilise le bouton « Traduire en anglais » ou « Traduire en français » de l'onglet Style : il remplace le contenu de ton CV par sa traduction, en une fois, et tu peux l'annuler juste après. Ici, je peux traduire une partie précise (ton accroche, une expérience…).";
 }

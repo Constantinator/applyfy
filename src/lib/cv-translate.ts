@@ -11,7 +11,7 @@ import { GENERIC_JARGON } from "./cv-score";
 // vérifie chaque champ traduit (contrôles déterministes, sans IA), et garde le texte d'origine d'un
 // champ refusé. Les mois écrits en lettres sont convertis par une table fixe, jamais par le modèle.
 
-/** Au-delà de cette part de champs refusés après le second essai : aucune copie, rien n'est compté. */
+/** Au-delà de cette part de champs refusés après le second essai : rien n'est écrit ni compté. */
 export const TRANSLATION_REFUSED_MAX = 0.3;
 
 export const LANG_LABELS: Record<CvLang, { fr: string; en: string }> = {
@@ -397,7 +397,7 @@ export type TranslationResult =
 
 /**
  * CV traduit : champs acceptés écrits, champs refusés gardés tels quels (listés), dates converties
- * par la table. Plus de TRANSLATION_REFUSED_MAX de champs refusés : échec (aucune copie).
+ * par la table. Plus de TRANSLATION_REFUSED_MAX de champs refusés : échec (rien n'est écrit).
  */
 export function applyTranslation(
   source: CvData,
@@ -431,7 +431,7 @@ export type TranslationRun = TranslationResult | { ok: false; reason: "model"; k
 /**
  * Traduction de tout le CV : un appel pour tous les champs, un second essai pour les champs
  * refusés (avec leurs défauts), puis la fusion. Échec du modèle au premier appel : « model »
- * (aucune copie) ; au second, les champs restent refusés.
+ * (rien n'est écrit) ; au second, les champs restent refusés.
  */
 export async function runTranslation(source: CvData, from: CvLang, to: CvLang, call: TranslateCall): Promise<TranslationRun> {
   const fields = translatableFields(source);

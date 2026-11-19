@@ -464,3 +464,29 @@ test("Lumeo : il note le CV ouvert (jamais « le dernier modifié ») et dit leq
   assert.match(action, /lumeoCv\(detail, location\.cvId \?\? null\)/);
   assert.match(action, /parseLumeoLocation\(\{ page, applicationId: page === "fiche" \? id : undefined, cvId: page === "cv-builder" \? id : undefined \}\)/);
 });
+
+// --- Commit 7 : coach et Lumeo après une traduction sur place -----------------------
+
+test("textes fixes : plus aucune « copie traduite » ; le coach et Lumeo renvoient au bouton qui remplace le contenu", () => {
+  for (const path of ["lib/coach-offer.ts", "lib/coach-outcome.ts", "lib/lumeo-knowledge.ts", "lib/coach-intent.ts"]) {
+    assert.doesNotMatch(read(path), /copie traduite|translated copy|crée une copie traduite|l'original ne change pas/, path);
+  }
+  assert.match(read("lib/lumeo-knowledge.ts"), /remplace le contenu du CV par sa traduction, sur le même CV/);
+  // « traduis tout mon CV » : toujours intercepté avant le modèle, renvoi au bouton.
+  const actions = read("app/actions/cv-builder.ts");
+  const coach = actions.slice(actions.indexOf("export async function refineBuilderCvAction"));
+  assert.ok(coach.indexOf("if (isWholeCvTranslationRequest(request))") < coach.indexOf("const gate = await coachGate()"));
+});
+
+test("coach après une traduction : historique et premier message gardés, ni effacés ni dupliqués", () => {
+  const body = actionBody();
+  // L'action ne touche ni à l'historique du coach ni au lien ; le cache du premier message est relu en base.
+  assert.doesNotMatch(body, /cv_coach_history|coach: null|application_id/);
+  const editor = read("components/cv-builder/cv-builder-editor.tsx");
+  const translated = editor.slice(editor.indexOf("onTranslated={(value) => {"), editor.indexOf("onUndo={"));
+  assert.doesNotMatch(translated, /setCoachHistory|coachHistory/);
+  // Conversation reprise : pas de nouveau premier message (jamais deux).
+  assert.match(editor, /opening=\{coachHistory\.length \? undefined : opening\}/);
+  // Sans conversation : premier message réécrit dans la nouvelle langue (empreinte du contenu).
+  assert.match(read("lib/coach-context.ts"), /contentKey: coachContentKey\(cvJson,/);
+});

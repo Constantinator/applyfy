@@ -52,7 +52,8 @@ test("« tout le CV » : pas déclenché par une partie précise, un fait passé
 
 test("réponse fixe : renvoie au bouton de l'onglet Style, dans la langue du candidat, sans promesse de traduire ici tout le CV", () => {
   assert.match(wholeCvTranslationReply("fr"), /« Traduire en anglais » ou « Traduire en français » de l'onglet Style/);
-  assert.match(wholeCvTranslationReply("fr"), /copie traduite/);
+  assert.match(wholeCvTranslationReply("fr"), /remplace le contenu de ton CV par sa traduction/);
+  assert.doesNotMatch(wholeCvTranslationReply("fr") + wholeCvTranslationReply("en"), /copie|copy/i);
   assert.match(wholeCvTranslationReply("en"), /Style tab/);
   assert.doesNotMatch(wholeCvTranslationReply("fr") + wholeCvTranslationReply("en"), /\?/);
 });

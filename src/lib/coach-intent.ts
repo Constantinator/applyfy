@@ -760,7 +760,7 @@ export function isTranslationRequest(message: string): boolean {
 /**
  * Le dernier message demande de traduire tout le CV (« traduis tout mon CV en anglais »,
  * « can you translate my resume? ») : le serveur répond par un texte fixe qui renvoie au bouton
- * « Traduire en anglais / en français » (copie traduite en une fois), sans appel au modèle.
+ * « Traduire en anglais / en français » (traduction sur place, en une fois), sans appel au modèle.
  * Une partie nommée sans « tout » (« traduis mon accroche ») reste traitée par le coach.
  */
 export function isWholeCvTranslationRequest(message: string): boolean {

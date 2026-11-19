@@ -223,7 +223,7 @@ export async function linkBuilderCvIfFree(id: string, applicationId: string): Pr
 
 /**
  * Nouveau CV pré-rempli (nom, email, ou CV importé) ; renvoie son identifiant. `language` : langue
- * fixée (copie traduite, import) ; sans elle, la colonne n'est pas écrite (langue détectée).
+ * fixée (import, copie d'un CV traduit pour une offre) ; sans elle, la colonne n'est pas écrite (langue détectée).
  */
 export async function createBuilderCv(
   initial: CvData,
