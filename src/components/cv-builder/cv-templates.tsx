@@ -1129,6 +1129,17 @@ function Finance({ data }: { data: CvData }) {
   // Photo facultative : petite, ronde, en haut à droite de l'en-tête et hors du flux. Sans photo, rien ne change.
   const photo = data.personal.photo;
   const photoSpace = photo ? 2 * (FINANCE_PHOTO + 10) : 0;
+  const contactLines = (
+    <ContactLines
+      items={items}
+      width={PAGE_WIDTH - 2 * settings.horizontal - photoSpace}
+      center
+      top={2}
+      margin={4}
+      style={{ color: FINANCE_BLACK }}
+      charWidth={data.style.typeface ? settings.charWidth : 0.46}
+    />
+  );
 
   return (
     <DensityContext value={density}>
@@ -1145,20 +1156,9 @@ function Finance({ data }: { data: CvData }) {
           </Text>
         ) : null}
         {/* Tinos : caractères plus étroits que ceux d'Inter. */}
-        {/* Avec une photo : coordonnées rétrécies des deux côtés, pour rester centrées sans la toucher. */}
-        {items.length ? (
-          <View style={photoSpace ? { paddingHorizontal: photoSpace / 2 } : undefined}>
-            <ContactLines
-              items={items}
-              width={PAGE_WIDTH - 2 * settings.horizontal - photoSpace}
-              center
-              top={2}
-              margin={4}
-              style={{ color: FINANCE_BLACK }}
-              charWidth={data.style.typeface ? settings.charWidth : 0.46}
-            />
-          </View>
-        ) : null}
+        {/* Avec une photo : coordonnées rétrécies des deux côtés, pour rester centrées sans la toucher.
+            Sans photo : aucun bloc en plus, le rendu d'origine. */}
+        {items.length ? photoSpace ? <View style={{ paddingHorizontal: photoSpace / 2 }}>{contactLines}</View> : contactLines : null}
       </View>
 
       {s.summary ? (
