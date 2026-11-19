@@ -729,6 +729,11 @@ test("coupure d'une adresse e-mail ou d'une URL : à un endroit naturel, à la l
       for (const line of lines.slice(1)) assert.doesNotMatch(line, /^[./_-]/, `${font.id} / ${max} : « ${line} »`);
     }
   }
+  // Pas de « fr » seul sur la dernière ligne : la coupure remonte au repère précédent (ici, avant « @ »).
+  const width = textWidth("arimo", "marie-helene.dupont@exemple-cons.");
+  assert.deepEqual(wrapContact("marie-helene.dupont@exemple-cons.fr", "arimo", width), ["marie-helene.dupont", "@exemple-cons.fr"]);
+  // Sans autre repère, le bout court est accepté plutôt que de couper dans un mot.
+  assert.deepEqual(wrapContact("prenomnom.fr", "arimo", textWidth("arimo", "prenomnom.")), ["prenomnom.", "fr"]);
   // « @ » ouvre la ligne suivante quand c'est le dernier repère qui tient.
   assert.deepEqual(wrapContact("prenomnomcompose@exemple.fr", "arimo", textWidth("arimo", "prenomnomcompose@ex")), ["prenomnomcompose", "@exemple.fr"]);
   // Morceau sans aucun repère, plus large que la ligne : coupé à la largeur, pour ne pas déborder.
@@ -751,9 +756,10 @@ test("e-mail de 35 à 40 caractères : jamais hors de sa colonne ni coupé dans 
         // Entier dans le texte extrait, et chaque ligne se termine à un repère.
         assert.ok(norm(first.stream.map((line) => line.text).join("")).includes(norm(email)), `${label} : e-mail entier`);
         const lines = parts.map((i) => i.text.trim()).filter((text) => !text.includes("·"));
-        lines.slice(0, -1).forEach((line, i) => {
-          if (email.includes(line) && !email.endsWith(line)) assert.ok(/[./_-]$/.test(line) || lines[i + 1].startsWith("@"), `${label} : « ${line} »`);
-        });
+        // Chaque morceau s'arrête à un repère : après « . », « - », « / », « _ », ou juste avant « @ ».
+        for (const line of lines) {
+          if (email.includes(line) && !email.endsWith(line)) assert.ok(/[./_@-]$/.test(line) || email[email.indexOf(line) + line.length] === "@", `${label} : « ${line} »`);
+        }
       }
     }
   }

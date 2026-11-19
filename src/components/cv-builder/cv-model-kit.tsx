@@ -65,6 +65,8 @@ export function ModelPage({
 
 /** Caractères après lesquels une adresse e-mail ou une URL peut passer à la ligne (sans tiret ajouté). */
 const BREAK_AFTER = "/.-_";
+/** Longueur minimale du dernier morceau d'une coordonnée coupée, quand un autre repère de coupure existe. */
+const MIN_TAIL = 6;
 
 /** Chasse d'un caractère (cadratins) dans une police des réglages ; hors de la table (non ASCII) : valeur large. */
 function charWidth(font: CvSettingFont, char: string) {
@@ -82,7 +84,7 @@ export function textWidth(font: CvSettingFont, text: string) {
 /**
  * Adresse e-mail ou URL affichée sur plusieurs lignes si elle est plus large que `maxWidth` (cadratins).
  * Coupée à un endroit naturel, le plus tard possible : avant « @ », ou après « / », « . », « - » ou
- * « _ » ; jamais dans un mot. Seul un morceau sans aucun de ces repères et plus large que la ligne est
+ * « _ » ; jamais dans un mot, et sans laisser un bout de quelques lettres seul sur la dernière ligne. Seul un morceau sans aucun de ces repères et plus large que la ligne est
  * coupé à la largeur, pour ne pas déborder. Affichage seulement : le texte enregistré et le lien restent
  * entiers.
  */
@@ -95,14 +97,22 @@ export function wrapContact(label: string, font: CvSettingFont, maxWidth: number
     let width = 0;
     while (fit < rest.length && width + charWidth(font, rest[fit]) <= maxWidth) width += charWidth(font, rest[fit++]);
     fit = Math.max(1, fit);
+    // Repère le plus tardif qui tient sur la ligne ; s'il ne laisserait qu'un bout de moins de MIN_TAIL
+    // caractères à la ligne suivante (« fr » seul), on lui préfère un repère plus tôt, s'il y en a un.
     let cut = -1;
-    for (let i = Math.min(fit, rest.length - 1); i > 0; i--) {
-      if (rest[i] === "@" || BREAK_AFTER.includes(rest[i - 1])) {
+    let short = -1;
+    // Adresse e-mail : avant « @ » d'abord, si le domaine tient sur la ligne suivante (« prenom.nom » puis « @domaine.fr »).
+    const at = rest.indexOf("@");
+    if (at > 0 && at <= fit && textWidth(font, rest.slice(at)) <= maxWidth) cut = at;
+    for (let i = Math.min(fit, rest.length - 1); i > 0 && cut === -1; i--) {
+      if (rest[i] !== "@" && !BREAK_AFTER.includes(rest[i - 1])) continue;
+      if (rest.length - i >= MIN_TAIL) {
         cut = i;
         break;
       }
+      if (short === -1) short = i;
     }
-    if (cut === -1) cut = fit;
+    if (cut === -1) cut = short === -1 ? fit : short;
     lines.push(rest.slice(0, cut));
     rest = rest.slice(cut);
   }
