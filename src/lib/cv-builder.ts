@@ -342,28 +342,6 @@ export async function moveApplicationLink(fromId: string, toId: string, applicat
   return false;
 }
 
-/** Fixe la langue du CV (sélecteur « Langue du CV ») : titres des rubriques, sans traduire le contenu. */
-export async function setBuilderCvLanguage(id: string, language: CvLang): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const cv = demoCvs.find((c) => c.id === id);
-    if (!cv) throw new CvBuilderError("Ce CV n'existe plus.");
-    cv.language = language;
-    return;
-  }
-
-  const user = await requireUser();
-  if (!isUuid(id)) throw new CvBuilderError("Ce CV n'existe plus.");
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("cv_builder")
-    .update({ language })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
-  if (error) throw new Error(`Changement de langue impossible : ${error.message}`);
-  if (!data?.length) throw new CvBuilderError("Ce CV n'existe plus.");
-}
-
 export async function deleteBuilderCv(id: string): Promise<void> {
   if (!isSupabaseConfigured()) {
     const index = demoCvs.findIndex((c) => c.id === id);

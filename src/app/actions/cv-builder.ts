@@ -49,7 +49,6 @@ import {
   linkBuilderCvToApplication,
   moveApplicationLink,
   saveBuilderCv,
-  setBuilderCvLanguage,
 } from "@/lib/cv-builder";
 import { clip, importedToCvData } from "@/lib/cv-builder-import";
 import {
@@ -64,7 +63,6 @@ import {
   CvDataSchema,
   adaptationExperiences,
   fullName,
-  isCvLang,
   isTemplateId,
   CV_DEFAULT_TEMPLATE,
   translatedCvTitle,
@@ -78,7 +76,7 @@ import {
   withoutPhoto,
 } from "@/lib/cv-builder-types";
 import { savedPhoto, type PhotoPatch } from "@/lib/cv-photo";
-import { cvLanguage } from "@/lib/cv-language";
+import { TRANSLATION_TOO_SHORT, translationDirection } from "@/lib/cv-translation-language";
 import { scoreCv, type CvScore, type ScoringContext } from "@/lib/cv-score";
 import { runTranslation } from "@/lib/cv-translate";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
@@ -274,24 +272,6 @@ export async function saveBuilderCvAction(
   }
 }
 
-/**
- * « Langue du CV » (onglet Style) : titres des rubriques et « Aujourd'hui / Present », sans
- * traduire le contenu. Échoue tant que la migration 0039 n'est pas appliquée (colonne absente).
- */
-export async function setCvLanguageAction(id: string, language: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!isCvLang(language)) return { ok: false, error: "Langue inconnue." };
-  try {
-    await setBuilderCvLanguage(String(id), language);
-    revalidatePath(`/cv-builder/${id}`);
-    return { ok: true };
-  } catch (error) {
-    unstable_rethrow(error);
-    if (error instanceof CvBuilderError) return { ok: false, error: error.message };
-    console.error("[cv-builder] langue", error);
-    return { ok: false, error: "La langue n'a pas pu être enregistrée. Réessaie dans un instant." };
-  }
-}
-
 /** Suppression d'un CV, puis retour à la page d'où elle vient (champ « applicationId » : celle de la candidature). */
 export async function deleteBuilderCvAction(id: string, formData?: FormData) {
   const applicationId = String(formData?.get("applicationId") ?? "");
@@ -413,8 +393,10 @@ export async function translateCvAction(id: string): Promise<AiResult<TranslateC
   if (!isClaudeConfigured()) return { ok: false, error: "L'IA n'est pas activée (clé API Claude manquante)." };
   const source = await getBuilderCv(String(id)).catch(() => null);
   if (!source) return { ok: false, error: "Ce CV n'existe plus." };
-  const from = source.language ?? cvLanguage(source.data);
-  const to = from === "fr" ? "en" : "fr";
+  // Sens tiré du contenu enregistré, jamais d'un réglage ; indécidable : refus, sans quota.
+  const direction = translationDirection(source.data);
+  if (!direction) return { ok: false, error: TRANSLATION_TOO_SHORT };
+  const { from, to } = direction;
 
   const gate = await checkAiAccess("cvb_traduction");
   if (!gate.ok) return { ok: false, error: gate.message, limitReached: gate.limitReached };

@@ -41,6 +41,6 @@ test("migration 0039 : colonne language nullable, fr ou en seulement", () => {
   assert.match(sql, /alter table cv_builder add column if not exists language text\s+check \(language is null or language in \('fr', 'en'\)\)/);
 });
 
-test("le sélecteur dit qu'il ne traduit pas le contenu", () => {
-  assert.match(read("components/cv-builder/cv-language-panel.tsx"), /n&apos;est pas traduit/);
+test("plus de sélecteur « Langue du CV » : les titres suivent le contenu (cv-translate-place.test.mjs)", () => {
+  assert.match(read("components/cv-builder/cv-builder-editor.tsx"), /cvTitleLanguage\(data, storedLanguage\)/);
 });

@@ -9,7 +9,6 @@ import {
   refineBuilderCvAction,
   saveBuilderCvAction,
   scoringContextAction,
-  setCvLanguageAction,
 } from "@/app/actions/cv-builder";
 import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
 import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
@@ -32,7 +31,7 @@ import {
   type CvLang,
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
-import { cvLanguage } from "@/lib/cv-language";
+import { cvTitleLanguage } from "@/lib/cv-translation-language";
 import { photoSaveTracker } from "@/lib/cv-photo";
 import { keywordKey, matchCvKeywords } from "@/lib/cv-keyword-match";
 import { offerKeywordScore, offerKeywordsCapLine, offerKeywordsLine, offerScoreLabel, scoreCv, type ScoringContext } from "@/lib/cv-score";
@@ -43,7 +42,6 @@ import { createClient } from "@/lib/supabase/client";
 import { CvHtmlPreview } from "./cv-html-preview";
 import { CvScorePanel } from "./cv-score-card";
 import { CvContentPanel } from "./cv-content-panel";
-import { CvLanguagePanel } from "./cv-language-panel";
 import { CvTranslatePanel } from "./cv-translate-panel";
 import { CvStylePanel } from "./cv-style-panel";
 import { FieldEditingContext, FieldInput } from "./form-controls";
@@ -149,11 +147,10 @@ export function CvBuilderEditor({
   const baseTabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
   const [chosenTab, setTab] = useState<TabId>(openCoach ? "chat" : baseTabs[0][0]);
   const [data, setData] = useState<CvData>(cv.data);
-  // Langue fixée du CV (sélecteur, copie traduite, import) ; sinon détectée d'après le contenu.
-  const [fixedLanguage, setFixedLanguage] = useState<CvLang | null>(cv.language);
-  const language: CvLang = fixedLanguage ?? cvLanguage(data);
-  const [languageSaving, setLanguageSaving] = useState(false);
-  const [languageError, setLanguageError] = useState<string | null>(null);
+  // Langue des titres des rubriques : celle du contenu quand elle est décidable, sinon la colonne
+  // (fixée par une traduction ou un import), sinon le français.
+  const [storedLanguage] = useState<CvLang | null>(cv.language);
+  const language: CvLang = cvTitleLanguage(data, storedLanguage);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -364,19 +361,6 @@ export function CvBuilderEditor({
     return result;
   }
 
-  async function changeLanguage(next: CvLang) {
-    const previous = fixedLanguage;
-    setFixedLanguage(next);
-    setLanguageError(null);
-    setLanguageSaving(true);
-    const result = await setCvLanguageAction(cv.id, next);
-    setLanguageSaving(false);
-    if (!result.ok) {
-      setFixedLanguage(previous);
-      setLanguageError(result.error);
-    }
-  }
-
   async function download() {
     setDownloading(true);
     try {
@@ -566,16 +550,14 @@ export function CvBuilderEditor({
                 onSettings={(patch) => edit((d) => ({ ...d, style: { ...d.style, ...patch } }))}
                 onPhoto={(photo) => edit((d) => ({ ...d, personal: { ...d.personal, photo } }))}
               />
-              <CvLanguagePanel language={language} saving={languageSaving} error={languageError} onChange={changeLanguage}>
-                <CvTranslatePanel
-                  cvId={cv.id}
-                  title={title}
-                  language={language}
-                  usage={usage.translation}
-                  aiEnabled={usage.aiEnabled}
-                  application={application ? { label: application.label } : null}
-                />
-              </CvLanguagePanel>
+              <CvTranslatePanel
+                cvId={cv.id}
+                title={title}
+                data={data}
+                usage={usage.translation}
+                aiEnabled={usage.aiEnabled}
+                application={application ? { label: application.label } : null}
+              />
             </div>
           )}
         </div>

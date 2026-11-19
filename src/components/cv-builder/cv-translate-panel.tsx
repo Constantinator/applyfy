@@ -5,10 +5,14 @@ import { useId, useRef, useState } from "react";
 
 import { translateCvAction, type TranslateCvValue } from "@/app/actions/cv-builder";
 import { AI_DAILY_LIMIT, type AiUsageCount } from "@/lib/ai-usage-limits";
-import { translatedCvTitle, type CvLang } from "@/lib/cv-builder-types";
+import { translatedCvTitle, type CvData, type CvLang } from "@/lib/cv-builder-types";
+import { TRANSLATION_TOO_SHORT, translationDirection } from "@/lib/cv-translation-language";
 
 const TO_LABEL: Record<CvLang, string> = { fr: "en français", en: "en anglais" };
 const LANG_NAME: Record<CvLang, string> = { fr: "français", en: "anglais" };
+
+/** Langue du contenu indécidable : même texte que le refus du serveur. */
+export const TOO_SHORT_MESSAGE = TRANSLATION_TOO_SHORT;
 
 type State =
   | { step: "confirm" }
@@ -17,22 +21,23 @@ type State =
   | { step: "error"; message: string; limitReached: boolean };
 
 /**
- * « Traduire en anglais / en français » (onglet Style, sous la langue du CV) : confirmation
+ * « Traduire en anglais / en français » (onglet Style) : bouton unique, langue tirée du CONTENU du
+ * CV (jamais d'un réglage). Confirmation
  * (quota restant pour un compte gratuit, copie créée, CV lié : la copie remplace l'original pour la
  * candidature), chargement, puis résultat avec les champs gardés dans la langue d'origine.
  */
 export function CvTranslatePanel({
   cvId,
   title,
-  language,
+  data,
   usage,
   aiEnabled,
   application,
 }: {
   cvId: string;
   title: string;
-  /** Langue actuelle du CV : la copie est dans l'autre. */
-  language: CvLang;
+  /** Contenu affiché : sa langue décide le sens de la traduction. */
+  data: CvData;
   /** Traductions du mois ; `limit` null : pas de quota mensuel (Premium, beta). */
   usage: AiUsageCount;
   aiEnabled: boolean;
@@ -42,7 +47,10 @@ export function CvTranslatePanel({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [state, setState] = useState<State>({ step: "confirm" });
-  const to: CvLang = language === "fr" ? "en" : "fr";
+  const direction = translationDirection(data);
+  // Langue indécidable (CV trop court) : libellé par défaut, la fenêtre l'explique sans rien lancer.
+  const to: CvLang = direction?.to ?? "en";
+  const language: CvLang = direction?.from ?? "fr";
   const copyTitle = translatedCvTitle(title, to);
   const left = usage.limit === null ? null : Math.max(0, usage.limit - usage.used);
 
@@ -63,7 +71,7 @@ export function CvTranslatePanel({
   }
 
   return (
-    <div className="mt-5">
+    <section aria-label="Traduction du CV" className="mt-6 border-t border-line-soft pt-5 dark:border-slate-700">
       <button type="button" onClick={open} disabled={!aiEnabled} className="ui-btn-secondary w-full">
         Traduire {TO_LABEL[to]}
       </button>
@@ -86,6 +94,11 @@ export function CvTranslatePanel({
               <h2 id={titleId} className="text-lg font-semibold text-ink dark:text-white">
                 Traduire « {title} » {TO_LABEL[to]} ?
               </h2>
+              {!direction && (
+                <p role="alert" className="ui-notice-error px-3 py-2">
+                  {TOO_SHORT_MESSAGE}
+                </p>
+              )}
               <ul className="list-disc space-y-2 pl-5">
                 <li>
                   Une copie traduite, « {copyTitle} », est créée dans tes CV. Ton CV actuel reste tel quel, en {LANG_NAME[language]}.
@@ -115,7 +128,7 @@ export function CvTranslatePanel({
                 <button type="button" autoFocus onClick={close} disabled={state.step === "loading"} className="ui-btn-secondary">
                   Annuler
                 </button>
-                <button type="button" onClick={translate} disabled={state.step === "loading" || left === 0} className="ui-btn-primary">
+                <button type="button" onClick={translate} disabled={state.step === "loading" || left === 0 || !direction} className="ui-btn-primary">
                   {state.step === "loading" ? "Traduction…" : `Traduire ${TO_LABEL[to]}`}
                 </button>
               </div>
@@ -184,6 +197,6 @@ export function CvTranslatePanel({
           )}
         </div>
       </dialog>
-    </div>
+    </section>
   );
 }
