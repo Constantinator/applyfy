@@ -23,6 +23,7 @@ import {
   cvDataToText,
   cvOrigin,
   diffCvData,
+  isLegacyTemplate,
   targetJobOf,
   withoutEmptyLines,
   withoutPhoto,
@@ -141,6 +142,10 @@ export function CvBuilderEditor({
   const [title, setTitle] = useState(cv.title);
   // Modèle et couleur d'accent : panneau « Style du CV » (enregistrés avec le CV).
   const [templateId, setTemplateId] = useState<CvTemplateId>(cv.templateId);
+  // Modèle à l'ouverture de l'éditeur, gardé ici : la sauvegarde automatique écrase celui de la base.
+  // Ancien modèle quitté : l'onglet Style le propose encore pendant la session (« Ton modèle de départ »).
+  const [originTemplate] = useState(cv.templateId);
+  const [leftOrigin, setLeftOrigin] = useState(false);
   // CV créé depuis zéro : onglet « Contenu » en plus, ouvert d'abord (le CV est vide).
   const baseTabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
   const [chosenTab, setTab] = useState<TabId>(openCoach ? "chat" : baseTabs[0][0]);
@@ -551,10 +556,12 @@ export function CvBuilderEditor({
                 accent={data.style.accent}
                 settings={data.style}
                 photo={data.personal.photo}
+                origin={isLegacyTemplate(originTemplate) && leftOrigin ? originTemplate : null}
                 onTemplate={(id) => {
                   if (id === templateId) return;
                   touched.current = true;
                   setStatus("pending");
+                  if (id !== originTemplate) setLeftOrigin(true);
                   setTemplateId(id);
                 }}
                 onAccent={(accent) => edit((d) => ({ ...d, style: { ...d.style, accent } }))}

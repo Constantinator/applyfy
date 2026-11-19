@@ -42,7 +42,7 @@ test("modèle par défaut : Finance aux 6 endroits, plus aucun « minimaliste »
   assert.equal(CV_DEFAULT_TEMPLATE, "finance");
   const places = {
     "app/actions/cv-builder.ts": 2, // createBuilderCvAction, completeCvImportAction
-    "lib/cv-builder.ts": 2, // toCv, createBuilderCv
+    "lib/cv-builder.ts": 1, // createBuilderCv (toCv : readTemplateId, qui retombe sur CV_DEFAULT_TEMPLATE)
     "components/cv-builder/cv-import-flow.tsx": 1, // « Passer cette étape »
     "components/cv-builder/new-cv-dialog.tsx": 2, // présélection des 2 fenêtres
   };

@@ -5,7 +5,7 @@ import {
   CV_BUILDER_MAX,
   CvDataSchema,
   isCvLang,
-  isTemplateId,
+  readTemplateId,
   CV_DEFAULT_TEMPLATE,
   readCvData,
   withoutEmptyLines,
@@ -40,7 +40,7 @@ type Row = {
 const toCv = (row: Row): BuilderCv => ({
   id: row.id,
   title: row.title,
-  templateId: isTemplateId(row.template_id) ? row.template_id : CV_DEFAULT_TEMPLATE,
+  templateId: readTemplateId(row.template_id),
   data: readCvData(row.data),
   applicationId: row.application_id ?? null,
   language: isCvLang(row.language) ? row.language : null,

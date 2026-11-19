@@ -9,6 +9,7 @@ import {
   CV_SIZES,
   CV_PICKER_TEMPLATES,
   CV_TEMPLATE_DEFAULTS,
+  CV_TEMPLATES,
   hasCvSettings,
   type CvData,
   type CvLang,
@@ -47,20 +48,31 @@ export function TemplateGrid({
   selected,
   data,
   language = "fr",
+  origin = null,
   onSelect,
 }: {
   selected: CvTemplateId;
   /** CV montré dans les vignettes (le vrai CV de la personne ; presque vide : barres grises). */
   data: CvData;
   language?: CvLang;
+  /**
+   * Ancien modèle du CV à l'ouverture de l'éditeur, quitté depuis : 7e carte « Ton modèle de départ »,
+   * pendant la session seulement (hors des 6 modèles proposés).
+   */
+  origin?: CvTemplateId | null;
   onSelect: (id: CvTemplateId) => void;
 }) {
   const shown = useThumbnailData(data, language);
+  const cards: { id: CvTemplateId; label: string; caption?: string }[] = CV_PICKER_TEMPLATES.map((t) => ({ id: t.id, label: t.description }));
+  if (origin) {
+    const description = CV_TEMPLATES.find((t) => t.id === origin)?.description ?? "";
+    cards.push({ id: origin, label: `Ton modèle de départ. ${description}`, caption: "Ton modèle de départ" });
+  }
   return (
     <>
       <CvFontFaces />
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {CV_PICKER_TEMPLATES.map((t) => {
+        {cards.map((t) => {
           const active = t.id === selected;
           return (
             <li key={t.id}>
@@ -68,8 +80,8 @@ export function TemplateGrid({
                 type="button"
                 onClick={() => onSelect(t.id)}
                 aria-pressed={active}
-                aria-label={t.description}
-                title={t.description}
+                aria-label={t.label}
+                title={t.label}
                 className={`ui-focus flex w-full flex-col overflow-hidden rounded-block border-2 bg-white text-left transition dark:bg-slate-900 ${
                   active
                     ? "border-ink dark:border-blue-600 dark:ring-2 dark:ring-blue-500/20"
@@ -77,11 +89,17 @@ export function TemplateGrid({
                 }`}
               >
                 <FittedThumbnail id={t.id} data={shown} language={language} />
+                {t.caption ? <span className="px-2.5 py-2 text-xs font-medium text-ink dark:text-slate-200">{t.caption}</span> : null}
               </button>
             </li>
           );
         })}
       </ul>
+      {origin ? (
+        <p className="text-sm text-muted dark:text-slate-400">
+          Ce modèle n&apos;est plus proposé. Tu peux le garder pendant cette session, ou passer à l&apos;un des modèles ci-dessus.
+        </p>
+      ) : null}
     </>
   );
 }
@@ -137,6 +155,7 @@ type CvStyleSettings = CvData["style"];
 export function CvStylePanel({
   data,
   language,
+  origin = null,
   templateId,
   accent,
   settings,
@@ -149,6 +168,8 @@ export function CvStylePanel({
   /** Le CV en cours d'édition : montré dans les vignettes des modèles. */
   data: CvData;
   language: CvLang;
+  /** Ancien modèle de départ, quitté pendant la session : encore proposé (cf. TemplateGrid). */
+  origin?: CvTemplateId | null;
   templateId: CvTemplateId;
   /** Couleur choisie ; vide : couleur du modèle. */
   accent: string;
@@ -173,7 +194,7 @@ export function CvStylePanel({
         <h2 id={templateTitle} className="font-semibold text-ink dark:text-white">
           Template
         </h2>
-        <TemplateGrid selected={templateId} data={data} language={language} onSelect={onTemplate} />
+        <TemplateGrid selected={templateId} data={data} language={language} origin={origin} onSelect={onTemplate} />
       </section>
 
       <CvPhotoPanel photo={photo} templateId={templateId} onChange={onPhoto} />
