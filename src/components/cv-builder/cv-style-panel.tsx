@@ -7,8 +7,8 @@ import {
   CV_MARGINS,
   CV_SETTING_FONTS,
   CV_SIZES,
+  CV_PICKER_TEMPLATES,
   CV_TEMPLATE_DEFAULTS,
-  CV_TEMPLATES,
   CvDataSchema,
   hasCvSettings,
   type CvData,
@@ -99,8 +99,8 @@ function FittedThumbnail({ id, accent }: { id: CvTemplateId; accent: string }) {
 }
 
 /**
- * Grille des modèles (miniature, et nom pour les 6 premiers), le modèle sélectionné mis en évidence : panneau
- * « Style du CV » et création d'un CV depuis zéro.
+ * Grille des modèles proposés (CV_PICKER_TEMPLATES : miniature seule, sans nom), le modèle sélectionné
+ * mis en évidence : panneau « Style du CV » et création d'un CV depuis zéro.
  */
 export function TemplateGrid({
   selected,
@@ -116,7 +116,7 @@ export function TemplateGrid({
     <>
       <CvFontFaces />
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {CV_TEMPLATES.map((t) => {
+        {CV_PICKER_TEMPLATES.map((t) => {
           const active = t.id === selected;
           return (
             <li key={t.id}>
@@ -124,7 +124,7 @@ export function TemplateGrid({
                 type="button"
                 onClick={() => onSelect(t.id)}
                 aria-pressed={active}
-                aria-label={(t.name as string) || t.description}
+                aria-label={t.description}
                 title={t.description}
                 className={`ui-focus flex w-full flex-col overflow-hidden rounded-block border-2 bg-white text-left transition dark:bg-slate-900 ${
                   active
@@ -133,8 +133,6 @@ export function TemplateGrid({
                 }`}
               >
                 <FittedThumbnail id={t.id} accent={accent} />
-                {/* Nouveaux modèles : pas de nom, la vignette seule. */}
-                {t.name ? <span className={`px-2.5 py-2 text-xs text-ink dark:text-slate-200 ${active ? "font-semibold" : "font-medium"}`}>{t.name}</span> : null}
               </button>
             </li>
           );

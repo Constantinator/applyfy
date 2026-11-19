@@ -9,7 +9,7 @@ import {
   type AiUsageCount,
   type AiUsageKind,
 } from "./ai-usage-limits";
-import { CV_BUILDER_MAX, CV_IMPORT_MAX_LABEL, CV_TEMPLATES } from "./cv-builder-types";
+import { CV_BUILDER_MAX, CV_IMPORT_MAX_LABEL, CV_PICKER_TEMPLATES } from "./cv-builder-types";
 import { WEEKLY_GOAL_MAX, WEEKLY_GOAL_MIN } from "./dashboard-week";
 import { FOLLOW_UP_AFTER_DAYS } from "./follow-up";
 import {
@@ -131,7 +131,7 @@ export function lumeoUserPlanBlock({ kind, counts, usedToday, coachToday }: Lume
 // ---------------------------------------------------------------------------
 
 export const LUMEO_APP_GUIDE = [
-  `CV Builder (/cv-builder) : crée un CV de zéro ou à partir d'un CV existant, avec ${CV_TEMPLATES.length} modèles au choix. Un score indique les points à corriger, et Lumeo, dans l'éditeur, pose des questions et met le CV à jour. Téléchargement en PDF. Jusqu'à ${CV_BUILDER_MAX} CV.`,
+  `CV Builder (/cv-builder) : crée un CV de zéro ou à partir d'un CV existant, avec ${CV_PICKER_TEMPLATES.length} modèles au choix. Un score indique les points à corriger, et Lumeo, dans l'éditeur, pose des questions et met le CV à jour. Téléchargement en PDF. Jusqu'à ${CV_BUILDER_MAX} CV.`,
   `Import de CV : dans le CV Builder, « Créer un CV à partir d'un CV existant », fichier PDF ou Word (.docx), ${CV_IMPORT_MAX_LABEL} maximum. Le contenu est repris dans l'éditeur avec une analyse ; le fichier est supprimé dès qu'il est lu.`,
   "Adaptation à une offre : sur la fiche d'une candidature, « Adapter mon CV à l'offre » ouvre le CV Builder pour préparer un CV lié à cette candidature ; Lumeo tient alors compte des mots-clés de l'offre.",
   "Traduction du CV (français ou anglais) : dans l'éditeur, onglet Style, « Traduire en anglais » ou « Traduire en français » crée une copie traduite du CV ; l'original ne change pas. Les nombres, les noms propres, les diplômes et les dates sont gardés tels quels.",

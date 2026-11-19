@@ -9,6 +9,7 @@ import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { AI_MONTHLY_LIMITS } from "@/lib/ai-usage-limits";
 import {
   CV_IMPORT_MAX_BYTES,
+  CV_DEFAULT_TEMPLATE,
   CV_IMPORT_MAX_LABEL,
   type CvAnalysis,
   type CvTemplateId,
@@ -50,7 +51,7 @@ export function CvImportFlow({
   const templateDialogRef = useRef<HTMLDialogElement>(null);
   const [opening, setOpening] = useState(false);
 
-  async function openEditor(templateId: CvTemplateId = "minimaliste") {
+  async function openEditor(templateId: CvTemplateId = CV_DEFAULT_TEMPLATE) {
     if (!imported) return;
     setOpening(true);
     setStep(3);

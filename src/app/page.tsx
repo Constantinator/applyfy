@@ -25,7 +25,7 @@ import { Reveal } from "@/components/landing/reveal";
 import { SiteHeader } from "@/components/site/site-header";
 import { PREMIUM_PRICE_FROM_LABEL } from "@/lib/ai-usage-limits";
 import { BETA_MAX_TESTERS, BETA_PREMIUM_UNTIL_LABEL, BETA_REPORTS, isBetaOfferOpen } from "@/lib/beta-rules";
-import { CV_TEMPLATES } from "@/lib/cv-builder-types";
+import { CV_PICKER_TEMPLATES } from "@/lib/cv-builder-types";
 import { SCORE_CATEGORIES, SCORE_TOTAL } from "@/lib/cv-score";
 import { FREE_FEATURES, LANDING_FREE_ANSWER, PLAN_LIMITS_NOTE, PREMIUM_FEATURES, QUARTERLY_FEATURES, RESET_NOTE } from "@/lib/plan-features";
 import { FREE_PLAN_PRICE, PREMIUM_MONTHLY_PLAN, PREMIUM_QUARTERLY_PLAN, QUARTERLY_SAVING_PERCENT } from "@/lib/premium-plans";
@@ -50,7 +50,7 @@ const SCORE_CATEGORY_NAMES = SCORE_CATEGORIES.map((category, index) =>
 ).join(", ");
 
 const FACTS = [
-  { value: String(CV_TEMPLATES.length), label: "modèles de CV" },
+  { value: String(CV_PICKER_TEMPLATES.length), label: "modèles de CV" },
   { value: String(SCORE_TOTAL), label: "points : un score que tu comprends" },
   { value: "ATS", label: "texte sélectionnable, lisible par les ATS" },
   { value: `${FREE_PLAN_PRICE} €`, label: "pour commencer" },
@@ -524,7 +524,7 @@ export default function LandingPage() {
                   <span className="h-[46px] w-[34px] rounded-md border border-l-[12px] border-line-strong border-l-ink bg-white" />
                   <span className="h-[46px] w-[34px] rounded-md border border-t-[8px] border-line-strong border-t-accent bg-white" />
                 </div>
-                <h3 className={`mb-1.5 md:mb-2 ${CARD_H3}`}>{CV_TEMPLATES.length} modèles de CV</h3>
+                <h3 className={`mb-1.5 md:mb-2 ${CARD_H3}`}>{CV_PICKER_TEMPLATES.length} modèles de CV</h3>
                 <p className={CARD_TEXT}>Export PDF au texte sélectionnable, lisible par les ATS, avec ses polices intégrées.</p>
               </Reveal>
 

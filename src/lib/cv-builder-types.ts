@@ -23,6 +23,23 @@ export type CvTemplateId = (typeof CV_TEMPLATES)[number]["id"];
 export const CV_TEMPLATE_IDS = CV_TEMPLATES.map((t) => t.id) as [CvTemplateId, ...CvTemplateId[]];
 
 /**
+ * Modèles proposés par le sélecteur (onglet Style, création, import), dans cet ordre, sans nom : la
+ * description sert au lecteur d'écran. Les 5 premiers modèles (Minimaliste à Tech) n'y sont plus,
+ * mais restent valides (base, rendu, PDF) pour les CV qui les utilisent. Source unique du compteur
+ * « N modèles de CV ».
+ */
+const PICKER_IDS = ["finance", "serif-centre", "bandeau-droite", "lateral", "bandeau-gauche", "serif-compact"] as const satisfies readonly CvTemplateId[];
+export type CvPickerTemplateId = (typeof PICKER_IDS)[number];
+export const CV_PICKER_TEMPLATES: readonly { id: CvPickerTemplateId; description: string }[] = PICKER_IDS.map((id) => ({
+  id,
+  description: CV_TEMPLATES.find((t) => t.id === id)!.description,
+}));
+export const isPickerTemplate = (id: CvTemplateId): id is CvPickerTemplateId => (PICKER_IDS as readonly string[]).includes(id);
+
+/** Modèle d'un CV quand aucun n'est choisi (création, import, conversion, valeur inconnue en base). */
+export const CV_DEFAULT_TEMPLATE: CvPickerTemplateId = "finance";
+
+/**
  * Polices du CV, en 400 et 700 (public/fonts/cv, Google Fonts) : les mêmes fichiers servent
  * à l'aperçu et au PDF. Georgia n'est pas redistribuable : Gelasio a les mêmes proportions.
  */

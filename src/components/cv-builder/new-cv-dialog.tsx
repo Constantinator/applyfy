@@ -4,7 +4,7 @@ import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 
 import { convertLegacyCvAction, createBuilderCvAction } from "@/app/actions/cv-builder";
-import { CV_TEMPLATES, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { CV_DEFAULT_TEMPLATE, CV_PICKER_TEMPLATES, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
 import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
@@ -99,7 +99,7 @@ export function TemplateChoiceDialog({
   subtitle?: string;
   footer: (selected: CvTemplateId) => ReactNode;
 }) {
-  const [selected, setSelected] = useState<CvTemplateId>("minimaliste");
+  const [selected, setSelected] = useState<CvTemplateId>(CV_DEFAULT_TEMPLATE);
   const titleId = useId();
 
   return (
@@ -136,7 +136,7 @@ export function TemplateChoiceDialog({
           </div>
 
           <div role="radiogroup" aria-label="Modèles de CV" className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-6 sm:grid-cols-2 lg:grid-cols-3">
-            {CV_TEMPLATES.map((t) => {
+            {CV_PICKER_TEMPLATES.map((t) => {
               const active = t.id === selected;
               return (
                 <button
@@ -144,7 +144,7 @@ export function TemplateChoiceDialog({
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  aria-label={(t.name as string) || t.description}
+                  aria-label={t.description}
                   onClick={() => setSelected(t.id)}
                   className={`flex flex-col items-center gap-3 rounded-card p-3 text-left transition ${
                     active
@@ -155,13 +155,6 @@ export function TemplateChoiceDialog({
                   <div className="overflow-hidden rounded-block ring-1 ring-line dark:ring-slate-700">
                     <CvThumbnail data={SAMPLE} templateId={t.id} width={220} />
                   </div>
-                  {/* Nouveaux modèles : pas de nom, la vignette seule. */}
-                  {(t.name as string) ? (
-                    <span className="w-full">
-                      <span className="block text-sm font-semibold text-ink dark:text-white">{t.name}</span>
-                      <span className="block text-xs text-muted dark:text-slate-400">{t.description}</span>
-                    </span>
-                  ) : null}
                 </button>
               );
             })}
@@ -207,7 +200,7 @@ export function NewCvDialog({
   const firstStep = jobKnown ? 2 : 1;
   const [step, setStep] = useState<1 | 2>(firstStep);
   const [targetJob, setTargetJob] = useState(position);
-  const [templateId, setTemplateId] = useState<CvTemplateId>("minimaliste");
+  const [templateId, setTemplateId] = useState<CvTemplateId>(CV_DEFAULT_TEMPLATE);
   const titleId = useId();
   const jobId = useId();
   const jobReady = targetJob.trim().length >= TARGET_JOB_MIN;

@@ -6,6 +6,7 @@ import {
   CvDataSchema,
   isCvLang,
   isTemplateId,
+  CV_DEFAULT_TEMPLATE,
   readCvData,
   withoutEmptyLines,
   type BuilderCv,
@@ -39,7 +40,7 @@ type Row = {
 const toCv = (row: Row): BuilderCv => ({
   id: row.id,
   title: row.title,
-  templateId: isTemplateId(row.template_id) ? row.template_id : "minimaliste",
+  templateId: isTemplateId(row.template_id) ? row.template_id : CV_DEFAULT_TEMPLATE,
   data: readCvData(row.data),
   applicationId: row.application_id ?? null,
   language: isCvLang(row.language) ? row.language : null,
@@ -221,7 +222,7 @@ export async function linkBuilderCvIfFree(id: string, applicationId: string): Pr
 export async function createBuilderCv(
   initial: CvData,
   rawTitle = "Mon CV",
-  templateId: CvTemplateId = "minimaliste",
+  templateId: CvTemplateId = CV_DEFAULT_TEMPLATE,
   language: CvLang | null = null,
 ): Promise<string> {
   const data = withoutEmptyLines(CvDataSchema.parse(initial));

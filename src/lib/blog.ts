@@ -145,7 +145,7 @@ Et garde toujours la main : relis chaque phrase proposée, supprime ce qui ne te
 
 ## Et avec Applyfy ?
 
-C'est exactement la méthode du CV Builder d'Applyfy. Le coach ne rédige pas à ta place : il te pose des questions ciblées pour obtenir tes vrais résultats, puis il les met en forme. Ton CV reçoit une note sur 100, recalculée en direct (actions, chiffres, mots-clés de ton secteur, concision, mise en forme), avec les corrections qui rapportent le plus de points. Les modèles Minimaliste, Classique et Finance suivent ces règles de mise en page.
+C'est exactement la méthode du CV Builder d'Applyfy. Le coach ne rédige pas à ta place : il te pose des questions ciblées pour obtenir tes vrais résultats, puis il les met en forme. Ton CV reçoit une note sur 100, recalculée en direct (actions, chiffres, mots-clés de ton secteur, concision, mise en forme), avec les corrections qui rapportent le plus de points. Les modèles du CV Builder produisent un PDF au vrai texte, lisible par les logiciels de recrutement, avec des polices sobres intégrées au fichier. La photo est facultative : pour un portail de candidature strict, laisse-la de côté.
 
 Et quand tu postules à une offre, Applyfy compare ton CV aux mots-clés de l'annonce, te montre ceux qui manquent et te propose un intitulé adapté.
 

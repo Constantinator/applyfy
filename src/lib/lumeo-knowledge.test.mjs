@@ -20,7 +20,7 @@ const {
   PREMIUM_PRICE_MONTHLY,
   PREMIUM_PRICE_QUARTERLY,
 } = await import("./ai-usage-limits.ts");
-const { CV_BUILDER_MAX, CV_IMPORT_MAX_LABEL, CV_TEMPLATES } = await import("./cv-builder-types.ts");
+const { CV_BUILDER_MAX, CV_IMPORT_MAX_LABEL, CV_PICKER_TEMPLATES } = await import("./cv-builder-types.ts");
 const { BETA_PREMIUM_UNTIL_LABEL } = await import("./beta-rules.ts");
 const { LUMEO_SYSTEM } = await import("./lumeo-system.ts");
 const { buildLumeoContext } = await import("./lumeo-panel.ts");
@@ -138,7 +138,7 @@ test("fiche de l'appli : les 8 fonctions, chiffres lus aux constantes", () => {
   for (const name of ["CV Builder", "Import de CV", "Adaptation à une offre", "Lettre de motivation", "Résumé d'offre", "Relances et rappels", "Objectif de la semaine", "Extension Chrome"]) {
     assert.ok(LUMEO_APP_GUIDE.includes(`- ${name}`), name);
   }
-  assert.ok(LUMEO_APP_GUIDE.includes(`${CV_TEMPLATES.length} modèles`));
+  assert.ok(LUMEO_APP_GUIDE.includes(`${CV_PICKER_TEMPLATES.length} modèles`));
   assert.ok(LUMEO_APP_GUIDE.includes(`${CV_IMPORT_MAX_LABEL} maximum`));
   assert.ok(LUMEO_APP_GUIDE.length < 3000, "fiche courte");
 });

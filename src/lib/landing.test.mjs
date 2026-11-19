@@ -41,7 +41,7 @@ test("aucun prix en euros écrit en dur sur la landing", () => {
 
 test("nombre de modèles, de points et de places lus dans le code", () => {
   assert.doesNotMatch(page, /\b\d+ modèles|\b\d+ places|\b\d+ points/);
-  for (const name of ["CV_TEMPLATES.length", "SCORE_TOTAL", "BETA_MAX_TESTERS", "BETA_REPORTS.length", "STEPS.length"]) {
+  for (const name of ["CV_PICKER_TEMPLATES.length", "SCORE_TOTAL", "BETA_MAX_TESTERS", "BETA_REPORTS.length", "STEPS.length"]) {
     assert.ok(page.includes(name), `${name} absent de la landing`);
   }
 });

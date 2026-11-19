@@ -66,6 +66,7 @@ import {
   fullName,
   isCvLang,
   isTemplateId,
+  CV_DEFAULT_TEMPLATE,
   translatedCvTitle,
   type CvAnalysis,
   type CvData,
@@ -131,7 +132,7 @@ export async function createBuilderCvAction(templateId: CvTemplateId, formData?:
         origin: "scratch",
       }),
       detail ? applicationCvTitle(name, detail.application.company) : "Mon CV",
-      isTemplateId(templateId) ? templateId : "minimaliste",
+      isTemplateId(templateId) ? templateId : CV_DEFAULT_TEMPLATE,
     );
     if (detail) await linkOrDiscard(id, applicationId);
   } catch (error) {
@@ -597,7 +598,7 @@ async function createApplicationCv(
 
 /**
  * Import, étape « Extraction du CV » : contenu du fichier extrait par l'IA, nouveau CV créé
- * (modèle Minimaliste), essai du mois décompté. Le fichier est ensuite supprimé. Champ
+ * (modèle par défaut), essai du mois décompté. Le fichier est ensuite supprimé. Champ
  * « applicationId » : CV lié à cette candidature, et mots-clés de son offre générés.
  */
 export async function extractCvImportAction(formData: FormData): Promise<ImportStepResult<{ id: string }>> {
@@ -735,7 +736,7 @@ export async function completeCvImportAction(
   id: string,
   input: { templateId: CvTemplateId; targetJob: string },
 ): Promise<{ ok: boolean }> {
-  const templateId = isTemplateId(input?.templateId) ? input.templateId : "minimaliste";
+  const templateId = isTemplateId(input?.templateId) ? input.templateId : CV_DEFAULT_TEMPLATE;
   const targetJob = String(input?.targetJob ?? "").trim().slice(0, 120);
   try {
     const cv = await getBuilderCv(String(id));

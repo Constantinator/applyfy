@@ -9,7 +9,7 @@ import { IconDocument } from "@/components/icons";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { CV_BUILDER_MAX, getBuilderCvByApplication, listBuilderCvs } from "@/lib/cv-builder";
-import { CV_TEMPLATES, type BuilderCvSummary } from "@/lib/cv-builder-types";
+import { CV_PICKER_TEMPLATES, type BuilderCvSummary } from "@/lib/cv-builder-types";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
 
@@ -53,7 +53,7 @@ function CvCardContent({ cv, offer, copyFor }: { cv: BuilderCvSummary; offer: Of
           {cv.title}
         </Link>
         <p className="mt-0.5 truncate text-[13px] text-muted dark:text-slate-400">
-          {[cv.jobTitle, CV_TEMPLATES.find((t) => t.id === cv.templateId)?.name].filter(Boolean).join(" · ")}
+          {cv.jobTitle}
         </p>
         <p className="mt-1 text-[13px] text-muted dark:text-slate-400">
           Modifié le {dateFormatter.format(new Date(cv.updatedAt))}
@@ -155,7 +155,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
             )}
             <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink dark:text-white">{heading}</h1>
             <p className="mt-2 text-muted dark:text-slate-400">
-              Choisis un modèle parmi {CV_TEMPLATES.length}, améliore ton CV avec l&apos;assistant IA et télécharge-le en PDF.
+              Choisis un modèle parmi {CV_PICKER_TEMPLATES.length}, améliore ton CV avec l&apos;assistant IA et télécharge-le en PDF.
             </p>
           </div>
           {cvs && cvs.length < CV_BUILDER_MAX && (
