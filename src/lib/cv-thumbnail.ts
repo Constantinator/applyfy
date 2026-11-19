@@ -115,6 +115,27 @@ export function thumbnailKey(data: CvData, language: CvLang) {
 }
 
 /**
+ * Carte visée par une touche dans le groupe de modèles (boutons radio) : flèches en boucle, Début, Fin ;
+ * null pour les autres touches.
+ */
+export function radioKeyTarget(key: string, index: number, count: number): number | null {
+  switch (key) {
+    case "ArrowRight":
+    case "ArrowDown":
+      return (index + 1) % count;
+    case "ArrowLeft":
+    case "ArrowUp":
+      return (index - 1 + count) % count;
+    case "Home":
+      return 0;
+    case "End":
+      return count - 1;
+    default:
+      return null;
+  }
+}
+
+/**
  * Mise à jour différée : `push` (clé, valeur) à chaque modification ; `onCommit` n'est appelé que
  * `THUMBNAIL_DELAY_MS` après la dernière, et seulement si la clé diffère de celle affichée.
  */

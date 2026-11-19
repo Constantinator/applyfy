@@ -17,6 +17,8 @@ import {
 } from "@/lib/cv-builder-types";
 
 import { CvFontFaces, CvThumbnail } from "./cv-html-preview";
+import { radioKeyTarget } from "@/lib/cv-thumbnail";
+
 import { CvPhotoPanel } from "./cv-photo-panel";
 import { useThumbnailData } from "./use-thumbnail-data";
 
@@ -68,33 +70,48 @@ export function TemplateGrid({
     const description = CV_TEMPLATES.find((t) => t.id === origin)?.description ?? "";
     cards.push({ id: origin, label: `Ton modèle de départ. ${description}`, caption: "Ton modèle de départ" });
   }
+  // Groupe de boutons radio : un seul arrêt Tab (la carte cochée, sinon la première), flèches pour changer.
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const checked = cards.findIndex((t) => t.id === selected);
+  const focusable = checked === -1 ? 0 : checked;
   return (
     <>
       <CvFontFaces />
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {cards.map((t) => {
+      <div role="radiogroup" aria-label="Modèles de CV" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {cards.map((t, i) => {
           const active = t.id === selected;
           return (
-            <li key={t.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(t.id)}
-                aria-pressed={active}
-                aria-label={t.label}
-                title={t.label}
-                className={`ui-focus flex w-full flex-col overflow-hidden rounded-block border-2 bg-white text-left transition dark:bg-slate-900 ${
-                  active
-                    ? "border-ink dark:border-blue-600 dark:ring-2 dark:ring-blue-500/20"
-                    : "border-line hover:border-line-strong dark:border-slate-700 dark:hover:border-blue-300"
-                }`}
-              >
-                <FittedThumbnail id={t.id} data={shown} language={language} />
-                {t.caption ? <span className="px-2.5 py-2 text-xs font-medium text-ink dark:text-slate-200">{t.caption}</span> : null}
-              </button>
-            </li>
+            <button
+              key={t.id}
+              ref={(el) => {
+                buttons.current[i] = el;
+              }}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={i === focusable ? 0 : -1}
+              onClick={() => onSelect(t.id)}
+              onKeyDown={(e) => {
+                const next = radioKeyTarget(e.key, i, cards.length);
+                if (next === null) return;
+                e.preventDefault();
+                onSelect(cards[next].id);
+                buttons.current[next]?.focus();
+              }}
+              aria-label={t.label}
+              title={t.label}
+              className={`ui-focus flex min-h-11 w-full flex-col overflow-hidden rounded-block border-2 bg-white text-left transition dark:bg-slate-900 ${
+                active
+                  ? "border-ink dark:border-blue-600 dark:ring-2 dark:ring-blue-500/20"
+                  : "border-line hover:border-line-strong dark:border-slate-700 dark:hover:border-blue-300"
+              }`}
+            >
+              <FittedThumbnail id={t.id} data={shown} language={language} />
+              {t.caption ? <span className="px-2.5 py-2 text-xs font-medium text-ink dark:text-slate-200">{t.caption}</span> : null}
+            </button>
           );
         })}
-      </ul>
+      </div>
       {origin ? (
         <p className="text-sm text-muted dark:text-slate-400">
           Ce modèle n&apos;est plus proposé. Tu peux le garder pendant cette session, ou passer à l&apos;un des modèles ci-dessus.
