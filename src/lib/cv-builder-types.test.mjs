@@ -671,3 +671,13 @@ test("le CV d'origine n'est jamais modifié par la correction", () => {
   fitCvData(raw);
   assert.equal(raw.summary.length, 2001);
 });
+
+test("photo trop grande : retirée avec un message, jamais tronquée en image cassée", () => {
+  const photo = "data:image/jpeg;base64,/9j/" + "A".repeat(CV_LIMITS.photo);
+  const { data, fixes } = fitCvData({ personal: { firstName: "Camille", photo } });
+  assert.equal(data.personal.photo, null, `photo enregistrée tronquée à ${data.personal.photo?.length} caractères`);
+  const fix = fixes.find((f) => f.path === "personal.photo");
+  assert.ok(fix);
+  assert.match(fix.message, /photo/i);
+  assert.doesNotMatch(fix.message, /data:|base64/);
+});

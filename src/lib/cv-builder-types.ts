@@ -128,6 +128,17 @@ export function skillLevelValue(level: SkillLevel) {
   return ["", "debutant", "intermediaire", "avance", "expert"].indexOf(level);
 }
 
+/**
+ * Photo facultative (traitée dans le navigateur, cv-photo.ts) : data URL d'un JPEG (FF D8 FF), ou
+ * d'un PNG enregistré avant le lot photo. Jamais WebP : le PDF (react-pdf) ne sait pas le dessiner.
+ */
+export const PHOTO_MAX_LENGTH = 400_000;
+export const PHOTO_JPEG_PREFIX = "data:image/jpeg;base64,/9j/";
+export const PHOTO_PNG_PREFIX = "data:image/png;base64,iVBORw0KGgo";
+export const PHOTO_DATA_URL = /^data:image\/(?:jpeg;base64,\/9j\/|png;base64,iVBORw0KGgo)[A-Za-z0-9+/]*={0,2}$/;
+/** Photo invalide ou trop lourde à l'enregistrement : retirée (jamais tronquée), avec ce message. */
+export const PHOTO_REFUSED_MESSAGE = "La photo n'a pas pu être enregistrée : choisis-la de nouveau (JPEG, PNG ou WebP).";
+
 /** Bornes : un CV tient sur 1 à 3 pages, la photo est redimensionnée dans le navigateur. */
 /** « Importer un CV » : PDF ou Word, 5 Mo maximum. */
 export const CV_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -155,8 +166,8 @@ export const CV_LIMITS = {
   bullets: 12,
   skills: 40,
   items: 20,
-  /** Photo en data URL (JPEG ~300 px) : ~50 Ko en pratique. */
-  photo: 400_000,
+  /** Photo en data URL (JPEG 400 px, cv-photo.ts) : 30 à 80 Ko en pratique. */
+  photo: PHOTO_MAX_LENGTH,
 };
 
 const text = (max: number) => z.string().max(max).default("");
@@ -256,7 +267,8 @@ export const CvDataSchema = z.object({
       photo: z
         .string()
         .max(CV_LIMITS.photo)
-        .regex(/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/)
+        // JPEG, ou PNG d'une photo enregistrée avant le lot photo (jamais WebP : le PDF ne sait pas le dessiner).
+        .regex(PHOTO_DATA_URL)
         .nullable()
         .default(null),
     })
@@ -348,6 +360,13 @@ export const CV_TEMPLATE_DEFAULTS: Record<
 
 /** Le modèle a des réglages de police, de taille et de marges. */
 export const hasCvSettings = (templateId: CvTemplateId) => CV_TEMPLATE_DEFAULTS[templateId].font !== undefined;
+
+/**
+ * Modèles qui dessinent la photo (ronde) quand le CV en a une. Les autres (Minimaliste, Classique,
+ * serif-centre) n'en affichent pas : la photo reste dans les données et réapparaît sur un modèle de cette liste.
+ */
+export const PHOTO_TEMPLATES: readonly CvTemplateId[] = ["moderne", "sidebar", "tech", "finance", "bandeau-droite", "lateral", "bandeau-gauche", "serif-compact"];
+export const templateHasPhoto = (templateId: CvTemplateId) => PHOTO_TEMPLATES.includes(templateId);
 
 /**
  * Réglages effectifs d'un modèle réglable : police, corps (points), facteur appliqué aux autres tailles
@@ -751,7 +770,11 @@ export function fitCvData(value: unknown): { data: CvData; fixes: CvFix[] } {
       const current = owner[key];
       const label = fieldLabel(keys);
       const path = keys.map(String).join(".");
-      if (issue.code === "too_big" && typeof current === "string") {
+      if (path === "personal.photo") {
+        // Jamais tronquée (une image coupée reste une data URL valide, mais cassée) : retirée.
+        owner[key] = null;
+        if (!fixes.some((f) => f.path === path)) fixes.push({ path, code: issue.code, message: PHOTO_REFUSED_MESSAGE });
+      } else if (issue.code === "too_big" && typeof current === "string") {
         owner[key] = current.slice(0, Number(issue.maximum));
         fixes.push({ path, code: issue.code, message: `${tooLong(label, Number(issue.maximum))} Seuls les ${issue.maximum} premiers caractères sont enregistrés : raccourcis-le pour garder ton texte.` });
       } else if (issue.code === "too_big" && Array.isArray(current)) {
