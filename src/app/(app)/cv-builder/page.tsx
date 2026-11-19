@@ -6,6 +6,7 @@ import { CopyCvForOfferButton } from "@/components/cv-builder/copy-cv-button";
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
 import { NewCvDialog } from "@/components/cv-builder/new-cv-dialog";
 import { IconDocument } from "@/components/icons";
+import { getAccountName } from "@/lib/account";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { CV_BUILDER_MAX, getBuilderCvByApplication, listBuilderCvs } from "@/lib/cv-builder";
@@ -109,6 +110,9 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
   const detail = typeof applicationId === "string" ? await getApplicationDetail(applicationId) : null;
   const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
 
+  // Nom du compte : repris dans un CV créé depuis zéro, et montré dans les vignettes du choix du modèle.
+  const accountName = await getAccountName().catch(() => null);
+
   let cvs: BuilderCvSummary[] | null = null;
   try {
     cvs = await listBuilderCvs();
@@ -171,6 +175,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
                     linkedCvTitle: linked?.title ?? null,
                   }
                 }
+                accountName={accountName}
               />
               {!detail && importLink}
             </div>

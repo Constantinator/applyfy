@@ -1,11 +1,13 @@
 "use client";
 
-import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 
 import { convertLegacyCvAction, createBuilderCvAction } from "@/app/actions/cv-builder";
 import { CV_DEFAULT_TEMPLATE, CvDataSchema, type CvData, type CvTemplateId } from "@/lib/cv-builder-types";
+import { newCvPreviewData } from "@/lib/cv-thumbnail";
 import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import type { AccountName } from "@/lib/person-name";
 
 import { CvFontFaces } from "./cv-html-preview";
 import { TemplateGrid } from "./cv-style-panel";
@@ -112,9 +114,12 @@ const TARGET_JOB_MAX = 120;
  */
 export function NewCvDialog({
   application = null,
+  accountName = null,
 }: {
   /** `linkedCvTitle` : nom du CV déjà lié, que le nouveau CV remplacera pour cette candidature. */
   application?: { id: string; position: string; hasLegacyCv: boolean; linkedCvTitle: string | null } | null;
+  /** Prénom et nom du compte (repris dans le CV créé) : montrés dans les vignettes s'ils sont connus. */
+  accountName?: AccountName | null;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const position = (application?.position ?? "").trim().slice(0, TARGET_JOB_MAX);
@@ -127,109 +132,117 @@ export function NewCvDialog({
   const titleId = useId();
   const jobId = useId();
   const jobReady = targetJob.trim().length >= TARGET_JOB_MIN;
+  // Contenu rendu seulement pendant l'ouverture : fenêtre fermée, vignettes démontées.
+  const [open, setOpen] = useState(false);
+  // Vignettes : le CV qui sera créé (nom du compte, poste visé), le reste en barres grises.
+  const preview = useMemo(() => newCvPreviewData(accountName, targetJob), [accountName, targetJob]);
 
-  function open() {
+  function openDialog() {
     setStep(firstStep);
+    setOpen(true);
     dialogRef.current?.showModal();
   }
 
   return (
     <>
-      <button type="button" onClick={open} className="ui-btn-primary">
+      <button type="button" onClick={openDialog} className="ui-btn-primary">
         {application ? "Créer un CV à partir de zéro" : "Créer un CV depuis zéro"}
       </button>
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
+        onClose={() => setOpen(false)}
         // Clic sur le fond assombri : fermeture.
         onClick={(e) => {
           if (e.target === e.currentTarget) dialogRef.current?.close();
         }}
         className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-2xl rounded-card bg-white p-0 backdrop:bg-slate-900/60 dark:bg-slate-900"
       >
-        <div className="flex max-h-[92vh] flex-col">
-          <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4 dark:border-slate-700">
-            <div>
-              {!jobKnown && <p className="text-xs font-medium text-muted dark:text-slate-400">Étape {step} sur 2</p>}
-              <h2 id={titleId} className="text-xl font-bold tracking-title text-ink dark:text-white">
-                {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
-              </h2>
-              {application?.linkedCvTitle && <CvReplacementNotice title={application.linkedCvTitle} className="mt-1" />}
+        {open && (
+          <div className="flex max-h-[92vh] flex-col">
+            <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4 dark:border-slate-700">
+              <div>
+                {!jobKnown && <p className="text-xs font-medium text-muted dark:text-slate-400">Étape {step} sur 2</p>}
+                <h2 id={titleId} className="text-xl font-bold tracking-title text-ink dark:text-white">
+                  {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
+                </h2>
+                {application?.linkedCvTitle && <CvReplacementNotice title={application.linkedCvTitle} className="mt-1" />}
+              </div>
+              <button
+                type="button"
+                onClick={() => dialogRef.current?.close()}
+                aria-label="Fermer"
+                className="rounded-block p-1.5 text-muted hover:bg-pill hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => dialogRef.current?.close()}
-              aria-label="Fermer"
-              className="rounded-block p-1.5 text-muted hover:bg-pill hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            </button>
-          </div>
 
-          {step === 1 ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (jobReady) setStep(2);
-              }}
-              className="space-y-5 p-6"
-            >
-              <div className="space-y-1.5">
-                <label htmlFor={jobId} className="text-sm font-medium text-ink dark:text-slate-200">
-                  Poste visé
-                </label>
-                <input
-                  id={jobId}
-                  value={targetJob}
-                  onChange={(e) => setTargetJob(e.target.value)}
-                  maxLength={TARGET_JOB_MAX}
-                  placeholder="Ex. Analyste financier, Développeur backend"
-                  autoFocus
-                  className="ui-input w-full"
-                />
-                <p className="text-xs text-muted dark:text-slate-400">
-                  {LUMEO_TEXTS.targetJobHelp}
-                </p>
-              </div>
-              <div className="flex justify-end">
-                <button type="submit" disabled={!jobReady} className="ui-btn-primary">
-                  Suivant
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                <TemplateGrid selected={templateId} data={EMPTY_CV} onSelect={setTemplateId} />
-              </div>
-              {application?.hasLegacyCv && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 dark:border-slate-700">
-                  <p className="min-w-0 flex-1 basis-64 text-xs text-muted dark:text-slate-400">
-                    Ton ancien CV est converti une seule fois, sans décompte. Cela peut prendre jusqu&apos;à une minute.
+            {step === 1 ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (jobReady) setStep(2);
+                }}
+                className="space-y-5 p-6"
+              >
+                <div className="space-y-1.5">
+                  <label htmlFor={jobId} className="text-sm font-medium text-ink dark:text-slate-200">
+                    Poste visé
+                  </label>
+                  <input
+                    id={jobId}
+                    value={targetJob}
+                    onChange={(e) => setTargetJob(e.target.value)}
+                    maxLength={TARGET_JOB_MAX}
+                    placeholder="Ex. Analyste financier, Développeur backend"
+                    autoFocus
+                    className="ui-input w-full"
+                  />
+                  <p className="text-xs text-muted dark:text-slate-400">
+                    {LUMEO_TEXTS.targetJobHelp}
                   </p>
-                  <form action={convertLegacyCvAction}>
-                    <input type="hidden" name="applicationId" value={application.id} />
-                    <SubmitButton className="ui-btn-secondary">Reprendre mon ancien CV</SubmitButton>
+                </div>
+                <div className="flex justify-end">
+                  <button type="submit" disabled={!jobReady} className="ui-btn-primary">
+                    Suivant
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                  <TemplateGrid selected={templateId} data={preview} onSelect={setTemplateId} />
+                </div>
+                {application?.hasLegacyCv && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-6 py-4 dark:border-slate-700">
+                    <p className="min-w-0 flex-1 basis-64 text-xs text-muted dark:text-slate-400">
+                      Ton ancien CV est converti une seule fois, sans décompte. Cela peut prendre jusqu&apos;à une minute.
+                    </p>
+                    <form action={convertLegacyCvAction}>
+                      <input type="hidden" name="applicationId" value={application.id} />
+                      <SubmitButton className="ui-btn-secondary">Reprendre mon ancien CV</SubmitButton>
+                    </form>
+                  </div>
+                )}
+                <div className={`flex items-center gap-3 border-t border-line px-6 py-4 dark:border-slate-700 ${jobKnown ? "justify-end" : "justify-between"}`}>
+                  {!jobKnown && (
+                    <button type="button" onClick={() => setStep(1)} className="ui-btn-secondary">
+                      Retour
+                    </button>
+                  )}
+                  <form action={createBuilderCvAction.bind(null, templateId)}>
+                    <input type="hidden" name="targetJob" value={targetJob.trim()} />
+                    {application && <input type="hidden" name="applicationId" value={application.id} />}
+                    <SubmitButton className="ui-btn-primary">Créer mon CV</SubmitButton>
                   </form>
                 </div>
-              )}
-              <div className={`flex items-center gap-3 border-t border-line px-6 py-4 dark:border-slate-700 ${jobKnown ? "justify-end" : "justify-between"}`}>
-                {!jobKnown && (
-                  <button type="button" onClick={() => setStep(1)} className="ui-btn-secondary">
-                    Retour
-                  </button>
-                )}
-                <form action={createBuilderCvAction.bind(null, templateId)}>
-                  <input type="hidden" name="targetJob" value={targetJob.trim()} />
-                  {application && <input type="hidden" name="applicationId" value={application.id} />}
-                  <SubmitButton className="ui-btn-primary">Créer mon CV</SubmitButton>
-                </form>
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
       </dialog>
     </>
   );

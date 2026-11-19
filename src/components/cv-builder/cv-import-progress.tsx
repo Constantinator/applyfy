@@ -12,13 +12,14 @@ import {
   scoreCvImportAction,
   type ImportStepResult,
 } from "@/app/actions/cv-builder";
-import { CV_IMPORT_FOLDER, type CvAnalysis } from "@/lib/cv-builder-types";
+import { CV_IMPORT_FOLDER, type CvAnalysis, type CvData } from "@/lib/cv-builder-types";
 import type { CvScore } from "@/lib/cv-score";
 import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import { createClient } from "@/lib/supabase/client";
 
 /** CV importé, prêt pour les résultats de l'analyse. */
-export type ImportedCv = { id: string; analysis: CvAnalysis | null; score: CvScore };
+/** CV importé ; `data` : son contenu (sans photo), pour les vignettes du choix du modèle, en mémoire seulement. */
+export type ImportedCv = { id: string; data: CvData; analysis: CvAnalysis | null; score: CvScore };
 
 const SUPABASE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
@@ -40,7 +41,7 @@ const STEPS = [
 const COACH_STEP = STEPS.length - 1;
 
 /** Ce que les étapes déjà terminées ont produit (une étape reprend là où la précédente s'est arrêtée). */
-type Progress = { path?: string; id?: string; score?: CvScore; analysis?: CvAnalysis | null };
+type Progress = { path?: string; id?: string; data?: CvData; score?: CvScore; analysis?: CvAnalysis | null };
 
 type StepError = { step: number; message: string };
 
@@ -142,6 +143,7 @@ export function CvImportProgress({
         const extracted = await extractCvImportAction(fileForm(file, p.path, applicationId));
         if (!extracted.ok) return extracted;
         p.id = extracted.value.id;
+        p.data = extracted.value.data;
         return { ok: true, value: null };
       }
       case 2: {
@@ -194,8 +196,8 @@ export function CvImportProgress({
   }
 
   function finish() {
-    const { id, score, analysis } = progress.current;
-    if (id && score) onDone({ id, score, analysis: analysis ?? null });
+    const { id, data, score, analysis } = progress.current;
+    if (id && data && score) onDone({ id, data, score, analysis: analysis ?? null });
   }
 
   useEffect(() => {

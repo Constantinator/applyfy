@@ -112,6 +112,7 @@ export function CvImportFlow({
           if (!opening) setStep(1);
         }}
         subtitle="Ton CV y est déjà repris."
+        data={imported?.data}
         footer={(selected) => (
           <>
             <button

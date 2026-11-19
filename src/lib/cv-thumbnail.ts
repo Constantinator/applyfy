@@ -1,4 +1,5 @@
-import type { CvData, CvLang } from "./cv-builder-types";
+import { CvDataSchema, type CvData, type CvLang } from "./cv-builder-types";
+import type { AccountName } from "./person-name";
 
 // Vignettes du sélecteur de modèle : le vrai CV de la personne, réduit à ce qui peut remplir la page 1,
 // rendu en HTML dans le navigateur (jamais envoyé ailleurs), mis à jour 400 ms après la dernière
@@ -88,6 +89,16 @@ function withBars(data: CvData): CvData {
 export function thumbnailData(data: CvData): CvData {
   const reduced = pageOne(data);
   return isNearlyEmpty(reduced) ? withBars(reduced) : reduced;
+}
+
+/**
+ * CV des vignettes de « Créer un CV depuis zéro » : le prénom et le nom du compte (s'ils sont connus) et
+ * le poste visé saisi à l'étape 1, comme dans le CV qui sera créé ; le reste en barres grises.
+ */
+export function newCvPreviewData(name: AccountName | null, targetJob: string): CvData {
+  return CvDataSchema.parse({
+    personal: { firstName: name?.firstName ?? "", lastName: name?.lastName ?? "", jobTitle: targetJob.trim() },
+  });
 }
 
 /** Empreinte courte d'une chaîne (FNV-1a), pour la photo : la clé ne la recopie pas. */

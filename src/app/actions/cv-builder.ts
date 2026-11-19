@@ -601,7 +601,7 @@ async function createApplicationCv(
  * (modèle par défaut), essai du mois décompté. Le fichier est ensuite supprimé. Champ
  * « applicationId » : CV lié à cette candidature, et mots-clés de son offre générés.
  */
-export async function extractCvImportAction(formData: FormData): Promise<ImportStepResult<{ id: string }>> {
+export async function extractCvImportAction(formData: FormData): Promise<ImportStepResult<{ id: string; data: CvData }>> {
   const user = await getCurrentUser();
   if (isSupabaseConfigured() && !user) return { ok: false, error: "Ta session a expiré : reconnecte-toi." };
   const gate = await importGate();
@@ -625,7 +625,8 @@ export async function extractCvImportAction(formData: FormData): Promise<ImportS
     if (path) await removeImport(path);
     revalidatePath("/cv-builder");
     if (detail) revalidatePath(`/candidatures/${applicationId}`);
-    return { ok: true, value: { id } };
+    // Le CV extrait, pour les vignettes du choix du modèle (gardé en mémoire de la page) : sans photo.
+    return { ok: true, value: { id, data: withoutPhoto(data) } };
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof CvBuilderError) return { ok: false, error: error.message };
