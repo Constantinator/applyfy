@@ -490,3 +490,9 @@ test("coach après une traduction : historique et premier message gardés, ni ef
   // Sans conversation : premier message réécrit dans la nouvelle langue (empreinte du contenu).
   assert.match(read("lib/coach-context.ts"), /contentKey: coachContentKey\(cvJson,/);
 });
+
+test("COACH_RULES : le bouton de l'onglet Style remplace le contenu (plus de copie traduite)", () => {
+  const prompt = read("lib/coach-prompt.ts");
+  assert.doesNotMatch(prompt, /copie traduite/);
+  assert.match(prompt, /de l'onglet Style, qui remplace en une fois le contenu du CV par sa traduction \(annulable juste après\)\./);
+});
