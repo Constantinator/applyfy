@@ -101,6 +101,52 @@ function toListing(job: RawJob): OfferListing | null {
   };
 }
 
+/** Message montré quand Adzuna renvoie autre chose que son API (page HTML, réponse non JSON). */
+const UNAVAILABLE = "Adzuna est momentanément indisponible. Réessaie plus tard.";
+
+/** En-têtes qui identifient une requête chez le fournisseur (support). */
+const REQUEST_ID_HEADERS = ["x-request-id", "x-correlation-id", "request-id", "x-amzn-requestid", "x-amz-cf-id", "cf-ray"];
+
+const isJson = (response: Response) => /json/i.test(response.headers.get("content-type") ?? "");
+const isHtml = (response: Response) => /html/i.test(response.headers.get("content-type") ?? "");
+
+/** Texte sans aucun secret : identifiants Adzuna et paramètres sensibles masqués. */
+function scrub(text: string): string {
+  let clean = text;
+  for (const secret of [process.env.ADZUNA_APP_ID, process.env.ADZUNA_APP_KEY]) {
+    if (secret && secret.length >= 4) clean = clean.split(secret).join("[masqué]");
+  }
+  return clean.replace(/((?:app_id|app_key|token)["'=:\s]+)[^&\s"',}]+/gi, "$1[masqué]");
+}
+
+/**
+ * Une seule ligne de journal par échec : statut, type de contenu, serveur, identifiant de requête
+ * et 200 premiers caractères du corps. Jamais d'adresse (elle contient app_id et app_key).
+ */
+async function logFailure(response: Response | null, error?: unknown) {
+  if (!response) {
+    const code = (error as { cause?: { code?: string } } | undefined)?.cause?.code;
+    const reason = error instanceof Error ? `${error.name}${code ? ` ${code}` : ""}` : "inconnue";
+    console.error(`[adzuna] échec recherche : réseau (${scrub(reason)})`);
+    return;
+  }
+  const requestId = REQUEST_ID_HEADERS.map((name) => response.headers.get(name)).find(Boolean) ?? "-";
+  const body = response.bodyUsed ? "" : await response.text().catch(() => "");
+  console.error(
+    `[adzuna] échec recherche : statut=${response.status} type=${response.headers.get("content-type") ?? "-"} ` +
+      `server=${response.headers.get("server") ?? "-"} requête=${scrub(requestId)} corps="${scrub(body.replace(/\s+/g, " ").trim().slice(0, 200))}"`,
+  );
+}
+
+/** Un seul nouvel essai, 400 ms plus tard, sur une réponse 5xx ou HTML (jamais sur un 4xx JSON). */
+async function withOneRetry(send: () => Promise<Response>): Promise<Response> {
+  const response = await send();
+  if (response.status < 500 && !isHtml(response)) return response;
+  await response.body?.cancel().catch(() => {});
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  return send();
+}
+
 export async function searchAdzuna(search: OfferSearch): Promise<OfferSearchResult> {
   const params = new URLSearchParams({
     app_id: process.env.ADZUNA_APP_ID ?? "",
@@ -119,26 +165,31 @@ export async function searchAdzuna(search: OfferSearch): Promise<OfferSearchResu
 
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/search/${search.page}?${params}`, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: SEARCH_REVALIDATE_SECONDS },
-    });
+    response = await withOneRetry(() =>
+      fetch(`${API_URL}/search/${search.page}?${params}`, {
+        headers: { Accept: "application/json" },
+        next: { revalidate: SEARCH_REVALIDATE_SECONDS },
+      }),
+    );
   } catch (error) {
-    console.error("[adzuna] recherche", error);
+    await logFailure(null, error);
     throw new AdzunaError("Le service d'Adzuna ne répond pas. Réessaie dans un instant.");
   }
-  if (!response.ok) {
-    console.error("[adzuna] recherche", response.status, await response.text().catch(() => ""));
+  if (!response.ok || !isJson(response)) {
+    await logFailure(response);
     throw new AdzunaError(
-      response.status === 429
-        ? "Trop de recherches en ce moment. Réessaie dans quelques secondes."
-        : response.status === 401 || response.status === 403
-          ? "Connexion à Adzuna impossible (identifiants refusés)."
-          : "Le service d'Adzuna ne répond pas. Réessaie dans un instant.",
+      isHtml(response) || (response.ok && !isJson(response))
+        ? UNAVAILABLE
+        : response.status === 429
+          ? "Trop de recherches en ce moment. Réessaie dans quelques secondes."
+          : response.status === 401 || response.status === 403
+            ? "Connexion à Adzuna impossible (identifiants refusés)."
+            : "Le service d'Adzuna ne répond pas. Réessaie dans un instant.",
     );
   }
 
-  const data = (await response.json()) as { results?: RawJob[]; count?: number };
+  const data = (await response.json().catch(() => null)) as { results?: RawJob[]; count?: number } | null;
+  if (!data) throw new AdzunaError(UNAVAILABLE);
   const offers = (data.results ?? []).map(toListing).filter((offer): offer is OfferListing => offer !== null);
   return { offers, total: data.count ?? offers.length };
 }
