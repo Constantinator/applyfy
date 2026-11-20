@@ -11,6 +11,7 @@ import { FollowUpBox } from "@/components/application/follow-up-box";
 import { StatusChanger } from "@/components/application/status-changer";
 import { Timeline } from "@/components/application/timeline";
 import { CollapsibleBox } from "@/components/collapsible-box";
+import { CompanyLogo } from "@/components/company-logo";
 import { SectorPill } from "@/components/sector-pill";
 import { FormattedText } from "@/components/formatted-text";
 import { IconSparkles } from "@/components/icons";
@@ -28,6 +29,7 @@ import { getAccountName } from "@/lib/account";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
+import { companyLogo } from "@/lib/company-logos";
 import { showLumeoSentLine } from "@/lib/lumeo-fiche";
 import { RELANCE_STATUSES } from "@/lib/lumeo-relance";
 import { LUMEO_FICHE_TEXTS } from "@/lib/lumeo-texts";
@@ -139,27 +141,34 @@ export default async function ApplicationPage({
 
         {/* En-tête */}
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] break-words text-ink dark:text-white">{app.company}</h1>
-            <SectorPill sector={app.sector} className="mt-2" />
-            <p className="mt-1.5 text-muted dark:text-slate-300">
-              {app.position}
-              {app.location && <span> · {app.location}</span>}
-              {app.offer_url && (
-                <>
-                  {" · "}
-                  <a href={app.offer_url} target="_blank" rel="noopener noreferrer" className="ui-link">
-                    Voir l&apos;offre
-                  </a>
-                </>
-              )}
-            </p>
-            {showLumeoSentLine(app) && (
-              <p className="mt-3 flex min-w-0 items-center gap-2.5 text-[13px] text-muted dark:text-slate-400">
-                <LumeoAvatar size={36} expression="content" />
-                <span className="min-w-0">{LUMEO_FICHE_TEXTS.sent}</span>
+          <div className="flex min-w-0 items-start gap-4">
+            <CompanyLogo
+              name={app.company}
+              src={companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 48)}
+              size={48}
+            />
+            <div className="min-w-0">
+              <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] break-words text-ink dark:text-white">{app.company}</h1>
+              <SectorPill sector={app.sector} className="mt-2" />
+              <p className="mt-1.5 text-muted dark:text-slate-300">
+                {app.position}
+                {app.location && <span> · {app.location}</span>}
+                {app.offer_url && (
+                  <>
+                    {" · "}
+                    <a href={app.offer_url} target="_blank" rel="noopener noreferrer" className="ui-link">
+                      Voir l&apos;offre
+                    </a>
+                  </>
+                )}
               </p>
-            )}
+              {showLumeoSentLine(app) && (
+                <p className="mt-3 flex min-w-0 items-center gap-2.5 text-[13px] text-muted dark:text-slate-400">
+                  <LumeoAvatar size={36} expression="content" />
+                  <span className="min-w-0">{LUMEO_FICHE_TEXTS.sent}</span>
+                </p>
+              )}
+            </div>
           </div>
           <StatusBadge status={app.status} />
         </div>

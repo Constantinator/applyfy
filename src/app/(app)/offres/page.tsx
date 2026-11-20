@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { IconBriefcase, IconClock, IconMapPin, IconSearch } from "@/components/icons";
-import { CompanyLogo } from "@/components/offers/company-logo";
+import { CompanyLogo } from "@/components/company-logo";
 import { OfferDetails } from "@/components/offers/offer-details";
 import { OfferLink } from "@/components/offers/offer-link";
 import { RecentSearchRecorder } from "@/components/offers/recent-search-recorder";
@@ -13,7 +13,8 @@ import { SectorPill } from "@/components/sector-pill";
 import { requireUser } from "@/lib/auth";
 import { detectOfferSector } from "@/lib/cv-sector-context";
 import type { Department } from "@/lib/geo";
-import { findCompanyDomain, getCompanyLogo, isJobBoardOfferId } from "@/lib/job-boards";
+import { companyLogo } from "@/lib/company-logos";
+import { isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
   CONTRACT_FILTERS,
@@ -124,10 +125,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   }
 
   const pageCount = result?.pageCount ?? 0;
-  const logoOf = (company: string | null) => {
-    const domain = findCompanyDomain(company);
-    return domain && getCompanyLogo(domain);
-  };
+  /** Logo de l'entreprise (liste vérifiée, sinon site de l'offre hors plateformes), ou null. */
+  const logoOf = (offer: OfferListing, size: 36 | 48) => companyLogo({ name: offer.company, offerUrl: offer.url }, size);
   /** Recherche effectuée (mots-clés recommandés compris), pour retrouver une offre à l'ajout. */
   const searchParamsOf = (target: number) => offerQueryParams({ ...query, page: target });
   const href = (target: number, offre: string | null = null) => {
@@ -323,11 +322,11 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                               isSelected ? "bg-[#F7F7F8] dark:bg-slate-800" : "hover:bg-surface dark:hover:bg-slate-800/60"
                             }`}
                           >
-                                                          <CompanyLogo
-                                name={offer.company}
-                                src={logoOf(offer.company)}
-                                fallbackSrc={SOURCE_LOGOS[offer.source]}
-                              />
+                            <CompanyLogo
+                              name={offer.company}
+                              src={logoOf(offer, 36)}
+                              fallbackSrc={SOURCE_LOGOS[offer.source]}
+                            />
                             <div className="min-w-0 flex-1">
                               <h3 className="text-[15px] leading-snug font-semibold text-ink dark:text-white">{offer.title}</h3>
                               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted dark:text-slate-300">
@@ -388,6 +387,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                 <OfferDetails
                   key={selected.id}
                   offer={selected}
+                  logo={logoOf(selected, 48)}
+                  sourceLogo={SOURCE_LOGOS[selected.source] ?? null}
                   backHref={href(page)}
                   search={searchParamsOf(page).toString()}
                 />

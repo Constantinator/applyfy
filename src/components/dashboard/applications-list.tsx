@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CompanyLogo } from "@/components/company-logo";
 import { SectorPill } from "@/components/sector-pill";
 import { daysSince, needsFollowUp } from "@/lib/follow-up";
 import type { Application, ApplicationStatus } from "@/lib/types";
@@ -30,11 +31,14 @@ function lastContactLabel(app: Application, now: Date) {
 
 export function ApplicationsList({
   applications,
+  logos,
   now,
   errors,
   onStatusChange,
 }: {
   applications: Application[];
+  /** Logo de chaque candidature, par identifiant (absent ou null : initiales). */
+  logos: Record<string, string | null>;
   /** Date de référence commune au serveur et au client (évite les écarts d'hydratation). */
   now: Date;
   /** Erreur du dernier changement de statut, par candidature. */
@@ -66,25 +70,28 @@ export function ApplicationsList({
           >
             <Link
               href={`/candidatures/${app.id}`}
-              className="min-w-0 flex-1 after:absolute after:inset-0 focus:outline-none"
+              className="flex min-w-0 flex-1 items-center gap-3.5 after:absolute after:inset-0 focus:outline-none"
             >
-              <span className="flex items-center gap-2 text-[15px] font-semibold text-ink group-hover:text-accent dark:text-white dark:group-hover:text-blue-300">
-                <span className="truncate">{app.company}</span>
-                {app.is_example && <ExampleBadge />}
-                <SectorPill sector={app.sector} />
-              </span>
-              <span className="mt-0.5 block text-[13px] break-words text-muted dark:text-slate-400">
-                {[app.position, app.location].filter(Boolean).join(" · ")}
-                {" · "}
-                {app.applied_at ? `envoyée le ${formatDate(app.applied_at)}` : "pas encore envoyée"}
-                {contact && (
-                  <>
-                    {" · "}
-                    <span className={needsFollowUp(app, now) ? "font-medium text-late dark:text-amber-300" : ""}>
-                      dernier contact {contact}
-                    </span>
-                  </>
-                )}
+              <CompanyLogo name={app.company} src={logos[app.id] ?? null} />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-[15px] font-semibold text-ink group-hover:text-accent dark:text-white dark:group-hover:text-blue-300">
+                  <span className="truncate">{app.company}</span>
+                  {app.is_example && <ExampleBadge />}
+                  <SectorPill sector={app.sector} />
+                </span>
+                <span className="mt-0.5 block text-[13px] break-words text-muted dark:text-slate-400">
+                  {[app.position, app.location].filter(Boolean).join(" · ")}
+                  {" · "}
+                  {app.applied_at ? `envoyée le ${formatDate(app.applied_at)}` : "pas encore envoyée"}
+                  {contact && (
+                    <>
+                      {" · "}
+                      <span className={needsFollowUp(app, now) ? "font-medium text-late dark:text-amber-300" : ""}>
+                        dernier contact {contact}
+                      </span>
+                    </>
+                  )}
+                </span>
               </span>
             </Link>
             <StatusSelect status={app.status} company={app.company} error={errors[app.id]} onChange={(status) => onStatusChange(app, status)} />

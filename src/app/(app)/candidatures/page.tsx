@@ -6,6 +6,7 @@ import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
 import { IconPlus } from "@/components/icons";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { getApplications } from "@/lib/applications";
+import { companyLogo } from "@/lib/company-logos";
 import { FOLLOW_UP_FILTER } from "@/lib/follow-up";
 import { DEFAULT_SORT, isSortKey } from "@/lib/sort-applications";
 import { isApplicationStatus } from "@/lib/types";
@@ -22,6 +23,13 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
   const { applications, source } = await getApplications();
   // Date de référence unique, transmise au client pour des calculs identiques des deux côtés.
   const now = new Date();
+  // Logos calculés côté serveur (la clé Logo.dev n'est lue qu'ici), transmis à la liste client.
+  const logos = Object.fromEntries(
+    applications.map((app) => [
+      app.id,
+      companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 36),
+    ]),
+  );
 
   return (
     <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
@@ -87,6 +95,7 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
             <ApplicationsView
               applications={applications}
               nowIso={now.toISOString()}
+              logos={logos}
               initialFilter={initialFilter}
               initialSort={initialSort}
             />

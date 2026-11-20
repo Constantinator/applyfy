@@ -23,11 +23,14 @@ const SEARCH_MIN_APPLICATIONS = 6;
 export function ApplicationsView({
   applications: saved,
   nowIso,
+  logos,
   initialFilter,
   initialSort,
 }: {
   applications: Application[];
   nowIso: string;
+  /** Logo de chaque candidature (adresse Logo.dev calculée côté serveur), null : initiales. */
+  logos: Record<string, string | null>;
   initialFilter: string;
   initialSort: SortKey;
 }) {
@@ -172,7 +175,7 @@ export function ApplicationsView({
           </button>
         </div>
       ) : (
-        <ApplicationsList applications={visible} now={now} errors={errors} onStatusChange={changeStatus} />
+        <ApplicationsList applications={visible} logos={logos} now={now} errors={errors} onStatusChange={changeStatus} />
       )}
     </div>
   );

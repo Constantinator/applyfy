@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { CompanyLogo } from "@/components/company-logo";
+import { companyLogo } from "@/lib/company-logos";
 import type { Sector } from "@/lib/cv-sector-context";
 import { getOffersForYou } from "@/lib/dashboard-offers";
 import { offerImportHref, type AppliedOffer } from "@/lib/offers-for-you";
@@ -33,12 +35,7 @@ export async function OffersForYou({
             key={offer.id}
             className="flex min-w-0 flex-col items-start rounded-card border border-line bg-card p-5 dark:border-slate-800 dark:bg-slate-900"
           >
-            <span
-              aria-hidden="true"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E4E4E7] bg-white text-lg font-bold text-ink dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            >
-              {offer.company.charAt(0).toUpperCase()}
-            </span>
+            <CompanyLogo name={offer.company} src={companyLogo({ name: offer.company, offerUrl: offer.url }, 44)} size={44} />
             <p className="mt-3 text-base font-semibold break-words text-ink dark:text-white">{offer.title}</p>
             <p className="mt-0.5 text-[13px] break-words text-muted dark:text-slate-300">{offer.company}</p>
             {offer.location && <p className="mt-0.5 text-[13px] break-words text-muted dark:text-slate-400">{offer.location}</p>}

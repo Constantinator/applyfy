@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CompanyLogo } from "@/components/company-logo";
 import { FormattedText } from "@/components/formatted-text";
 import { IconBriefcase, IconClock, IconMapPin } from "@/components/icons";
 import { OFFER_SOURCES, type OfferListing } from "@/lib/offer-types";
@@ -42,10 +43,16 @@ function ProfileList({ title, items }: { title: string; items: React.ReactNode[]
  */
 export function OfferDetails({
   offer,
+  logo,
+  sourceLogo,
   backHref,
   search,
 }: {
   offer: OfferListing;
+  /** Logo de l'entreprise (adresse Logo.dev calculée côté serveur), ou null : initiales. */
+  logo: string | null;
+  /** Logo de la source de l'offre, à défaut de celui de l'entreprise. */
+  sourceLogo: string | null;
   backHref: string;
   /** Paramètres d'URL de la recherche en cours. */
   search: string;
@@ -69,12 +76,15 @@ export function OfferDetails({
           Retour aux offres
         </Link>
 
-        <header className="space-y-1.5">
-          <h2 id="offre-titre" className="ui-title-sm font-bold">
-            {offer.title}
-          </h2>
-          <p className="text-muted dark:text-slate-300">{offer.company ?? "Entreprise non communiquée"}</p>
-          <p className="text-xs text-muted dark:text-slate-400">Source : {OFFER_SOURCES[offer.source]}</p>
+        <header className="flex items-start gap-4">
+          <CompanyLogo name={offer.company} src={logo} fallbackSrc={sourceLogo} size={48} />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <h2 id="offre-titre" className="ui-title-sm font-bold break-words">
+              {offer.title}
+            </h2>
+            <p className="text-muted dark:text-slate-300">{offer.company ?? "Entreprise non communiquée"}</p>
+            <p className="text-xs text-muted dark:text-slate-400">Source : {OFFER_SOURCES[offer.source]}</p>
+          </div>
         </header>
 
         <dl className="grid gap-4 rounded-block border border-line bg-surface p-[18px] sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-800/50">

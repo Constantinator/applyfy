@@ -84,25 +84,6 @@ export const JOB_BOARD_COMPANIES: Company[] = [
 
 const companyByKey = new Map(JOB_BOARD_COMPANIES.map((company) => [company.key, company]));
 
-const companyByName = new Map(JOB_BOARD_COMPANIES.map((company) => [normalize(company.name), company]));
-
-/** Domaine d'une entreprise connue, d'après son nom (offres France Travail et Adzuna comprises). */
-export function findCompanyDomain(name: string | null): string | null {
-  return (name && companyByName.get(normalize(name))?.domain) || null;
-}
-
-/**
- * Logo d'une entreprise (Logo.dev, successeur de Clearbit Logo) ; null sans clé
- * publique LOGO_DEV_TOKEN. `fallback=404` : pas de logo générique, l'affichage
- * remplace l'image manquante par les initiales.
- */
-export function getCompanyLogo(domain: string): string | null {
-  const token = process.env.LOGO_DEV_TOKEN;
-  if (!token) return null;
-  const params = new URLSearchParams({ token, size: "64", format: "png", retina: "true", fallback: "404" });
-  return `https://img.logo.dev/${encodeURIComponent(domain)}?${params}`;
-}
-
 // ---------------------------------------------------------------------------
 // Lecture des pages carrières
 // ---------------------------------------------------------------------------
