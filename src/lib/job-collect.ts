@@ -12,7 +12,15 @@ import type { Sector } from "./cv-sector-context";
 import { cleanLocation } from "./offer-location";
 
 export type AtsPlatform = "greenhouse" | "lever" | "lever-eu" | "ashby" | "smartrecruiters";
-export type AtsCompany = { name: string; platform: AtsPlatform; slug: string; products?: string[]; filterTitles?: boolean };
+export type AtsCompany = {
+  name: string;
+  /** Domaine du site vérifié à la main, pour le logo (null : pas encore vérifié, initiales). */
+  domain: string | null;
+  platform: AtsPlatform;
+  slug: string;
+  products?: string[];
+  filterTitles?: boolean;
+};
 
 /** Une offre lue sur une source, avant extraction des mots-clés. */
 export type RawOffer = {
