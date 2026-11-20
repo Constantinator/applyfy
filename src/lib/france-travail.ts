@@ -36,6 +36,47 @@ export class FranceTravailError extends OfferSourceError {}
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
+const SECRETS = () => [process.env.FRANCE_TRAVAIL_CLIENT_ID, process.env.FRANCE_TRAVAIL_CLIENT_SECRET, cachedToken?.value];
+
+/** En-têtes qui identifient une requête chez le fournisseur (support). */
+const REQUEST_ID_HEADERS = ["x-request-id", "x-correlation-id", "request-id", "x-amzn-requestid", "x-amz-cf-id", "cf-ray"];
+
+/** Réponse JSON annoncée par son type de contenu. */
+const isJson = (response: Response) => /json/i.test(response.headers.get("content-type") ?? "");
+
+/** Texte sans aucun secret : valeurs des variables d'environnement et paramètres sensibles masqués. */
+function scrub(text: string, secrets: (string | null | undefined)[]): string {
+  let clean = text;
+  for (const secret of secrets) if (secret && secret.length >= 4) clean = clean.split(secret).join("[masqué]");
+  return clean
+    .replace(/((?:client_id|client_secret|access_token|app_id|app_key|token)["'=:\s]+)[^&\s"',}<]+/gi, "$1[masqué]")
+    .replace(/(Bearer\s+)[^\s"',}<]+/gi, "$1[masqué]");
+}
+
+/**
+ * UNE ligne de journal par échec : source et étape, statut, type de contenu, serveur, identifiant
+ * de requête, 200 premiers caractères du corps (lu normalement avec text()). Jamais d'adresse ni
+ * de secret. Sans nouvel essai.
+ */
+async function logFailure(step: string, response: Response | null, error?: unknown) {
+  const secrets = SECRETS();
+  if (!response) {
+    const code = (error as { cause?: { code?: string } } | undefined)?.cause?.code;
+    const reason = error instanceof Error ? `${error.name}${code ? ` ${code}` : ""}` : "inconnue";
+    console.error(`[france-travail] échec ${step} : réseau (${scrub(reason, secrets)})`);
+    return;
+  }
+  const requestId = REQUEST_ID_HEADERS.map((name) => response.headers.get(name)).find(Boolean) ?? "-";
+  const body = response.bodyUsed ? "" : await response.text().catch(() => "");
+  console.error(
+    `[france-travail] échec ${step} : statut=${response.status} type=${response.headers.get("content-type") ?? "-"} ` +
+      `server=${response.headers.get("server") ?? "-"} requête=${scrub(requestId, secrets)} ` +
+      `corps="${scrub(body.replace(/\s+/g, " ").trim().slice(0, 200), secrets)}"`,
+  );
+}
+
+const UNEXPECTED = "Réponse inattendue de France Travail. Réessaie dans un instant.";
+
 async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now()) return cachedToken.value;
 
@@ -50,12 +91,15 @@ async function getAccessToken(): Promise<string> {
     }),
     cache: "no-store",
   });
-  if (!response.ok) {
-    console.error("[france-travail] jeton refusé", response.status, await response.text().catch(() => ""));
-    throw new FranceTravailError("Connexion à France Travail impossible (identifiants refusés).");
+  if (!response.ok || !isJson(response)) {
+    // Une page HTML (page de maintenance après redirection) est une réponse inattendue.
+    await logFailure("jeton", response);
+    throw new FranceTravailError(
+      response.ok || !isJson(response) ? UNEXPECTED : "Connexion à France Travail impossible (identifiants refusés).",
+    );
   }
-  const data = (await response.json()) as { access_token?: string; expires_in?: number };
-  if (!data.access_token) throw new FranceTravailError("Réponse inattendue de France Travail.");
+  const data = (await response.json().catch(() => null)) as { access_token?: string; expires_in?: number } | null;
+  if (!data?.access_token) throw new FranceTravailError(UNEXPECTED);
   // Marge d'une minute avant l'expiration annoncée.
   cachedToken = { value: data.access_token, expiresAt: Date.now() + ((data.expires_in ?? 1200) - 60) * 1000 };
   return cachedToken.value;
@@ -74,7 +118,13 @@ async function apiGet(path: string, init?: { revalidate?: number }): Promise<Res
     response = await call();
   }
   if (response.status === 429) {
+    await logFailure(path.split("?")[0], response);
     throw new FranceTravailError("Trop de recherches en ce moment. Réessaie dans quelques secondes.");
+  }
+  // Réponse réussie qui n'est pas du JSON (page HTML) : réponse inattendue. 204 : aucun contenu.
+  if (response.ok && response.status !== 204 && !isJson(response)) {
+    await logFailure(path.split("?")[0], response);
+    throw new FranceTravailError(UNEXPECTED);
   }
   return response;
 }
@@ -87,7 +137,10 @@ export type ReferenceItem = { code: string; libelle: string };
 
 async function getReference(name: "naturesContrats"): Promise<ReferenceItem[]> {
   const response = await apiGet(`/referentiel/${name}`, { revalidate: 86_400 });
-  if (!response.ok) throw new FranceTravailError("Chargement des filtres impossible.");
+  if (!response.ok) {
+    await logFailure("référentiel", response);
+    throw new FranceTravailError("Chargement des filtres impossible.");
+  }
   return ((await response.json()) as ReferenceItem[]).filter((item) => item.code && item.libelle);
 }
 
@@ -223,7 +276,7 @@ async function searchRange(filters: URLSearchParams, start: number, end: number)
   // 204 : aucun résultat ; 416 : page au-delà du nombre d'offres trouvées.
   if (response.status === 204 || response.status === 416) return { offers: [], total: 0 };
   if (!response.ok) {
-    console.error("[france-travail] recherche", response.status, await response.text().catch(() => ""));
+    await logFailure("recherche", response);
     throw new FranceTravailError(
       response.status === 400
         ? "Cette recherche n'est pas acceptée par France Travail : simplifie les mots-clés ou les filtres."
@@ -252,7 +305,7 @@ export async function getFranceTravailOffer(id: string): Promise<OfferListing | 
   const response = await apiGet(`/offres/${encodeURIComponent(id)}`);
   if (response.status === 404 || response.status === 204) return null;
   if (!response.ok) {
-    console.error("[france-travail] offre", response.status);
+    await logFailure("offre", response);
     throw new FranceTravailError("Impossible de récupérer cette offre. Réessaie dans un instant.");
   }
   return toListing((await response.json()) as RawOffer);

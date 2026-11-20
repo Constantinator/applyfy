@@ -101,6 +101,45 @@ function toListing(job: RawJob): OfferListing | null {
   };
 }
 
+const SECRETS = () => [process.env.ADZUNA_APP_ID, process.env.ADZUNA_APP_KEY];
+
+/** En-têtes qui identifient une requête chez le fournisseur (support). */
+const REQUEST_ID_HEADERS = ["x-request-id", "x-correlation-id", "request-id", "x-amzn-requestid", "x-amz-cf-id", "cf-ray"];
+
+/** Réponse JSON annoncée par son type de contenu. */
+const isJson = (response: Response) => /json/i.test(response.headers.get("content-type") ?? "");
+
+/** Texte sans aucun secret : valeurs des variables d'environnement et paramètres sensibles masqués. */
+function scrub(text: string, secrets: (string | null | undefined)[]): string {
+  let clean = text;
+  for (const secret of secrets) if (secret && secret.length >= 4) clean = clean.split(secret).join("[masqué]");
+  return clean
+    .replace(/((?:client_id|client_secret|access_token|app_id|app_key|token)["'=:\s]+)[^&\s"',}<]+/gi, "$1[masqué]")
+    .replace(/(Bearer\s+)[^\s"',}<]+/gi, "$1[masqué]");
+}
+
+/**
+ * UNE ligne de journal par échec : source et étape, statut, type de contenu, serveur, identifiant
+ * de requête, 200 premiers caractères du corps (lu normalement avec text()). Jamais d'adresse ni
+ * de secret. Sans nouvel essai.
+ */
+async function logFailure(step: string, response: Response | null, error?: unknown) {
+  const secrets = SECRETS();
+  if (!response) {
+    const code = (error as { cause?: { code?: string } } | undefined)?.cause?.code;
+    const reason = error instanceof Error ? `${error.name}${code ? ` ${code}` : ""}` : "inconnue";
+    console.error(`[adzuna] échec ${step} : réseau (${scrub(reason, secrets)})`);
+    return;
+  }
+  const requestId = REQUEST_ID_HEADERS.map((name) => response.headers.get(name)).find(Boolean) ?? "-";
+  const body = response.bodyUsed ? "" : await response.text().catch(() => "");
+  console.error(
+    `[adzuna] échec ${step} : statut=${response.status} type=${response.headers.get("content-type") ?? "-"} ` +
+      `server=${response.headers.get("server") ?? "-"} requête=${scrub(requestId, secrets)} ` +
+      `corps="${scrub(body.replace(/\s+/g, " ").trim().slice(0, 200), secrets)}"`,
+  );
+}
+
 export async function searchAdzuna(search: OfferSearch): Promise<OfferSearchResult> {
   const params = new URLSearchParams({
     app_id: process.env.ADZUNA_APP_ID ?? "",
@@ -124,13 +163,20 @@ export async function searchAdzuna(search: OfferSearch): Promise<OfferSearchResu
       next: { revalidate: SEARCH_REVALIDATE_SECONDS },
     });
   } catch (error) {
-    console.error("[adzuna] recherche", error);
+    await logFailure("recherche", null, error);
     throw new AdzunaError("Le service d'Adzuna ne répond pas. Réessaie dans un instant.");
   }
+  if (response.ok && !isJson(response)) {
+    // Page HTML (erreur nginx…) ou autre réponse que l'API : réponse inattendue.
+    await logFailure("recherche", response);
+    throw new AdzunaError("Réponse inattendue d'Adzuna. Réessaie dans un instant.");
+  }
   if (!response.ok) {
-    console.error("[adzuna] recherche", response.status, await response.text().catch(() => ""));
+    await logFailure("recherche", response);
     throw new AdzunaError(
-      response.status === 429
+      !isJson(response)
+        ? "Réponse inattendue d'Adzuna. Réessaie dans un instant."
+        : response.status === 429
         ? "Trop de recherches en ce moment. Réessaie dans quelques secondes."
         : response.status === 401 || response.status === 403
           ? "Connexion à Adzuna impossible (identifiants refusés)."
