@@ -80,14 +80,18 @@ const TRAILING_PLACES: ReadonlySet<string> = new Set(["france", "europe", "emea"
 /** Après ces mots, le lieu fait partie du nom (« Banque de France », « Électricité de France »). */
 const PLACE_PREPOSITIONS: ReadonlySet<string> = new Set(["de", "du", "des", "d"]);
 
-/** Le lieu n'est retiré que s'il reste au moins ce nombre de caractères (« Air France » reste entier). */
-const MIN_KEY_WITHOUT_PLACE = 4;
+/**
+ * Mots trop génériques pour être un nom à eux seuls : le lieu qui les suit est gardé (« Air France »
+ * n'est pas « Air », « Radio France » n'est pas « Radio »). Un sigle court reste traité comme avant
+ * (« EY France » → « ey », « PwC France » → « pwc », « AXA France » → « axa »).
+ */
+const GENERIC_BEFORE_PLACE: ReadonlySet<string> = new Set(["air", "business", "radio", "atout", "campus"]);
 
 /**
  * Mots du nom, normalisés : minuscules, sans accents, points d'abréviation supprimés
  * (« N.V. » → « nv »), autre ponctuation en espace, formes juridiques retirées, mots
- * géographiques retirés en fin de nom, sauf après une préposition ou s'il resterait moins de
- * 4 caractères. Ne renvoie jamais une liste vide si le nom a des mots.
+ * géographiques retirés en fin de nom, sauf après une préposition (« Banque de France ») ou un
+ * mot générique (« Air France »). Ne renvoie jamais une liste vide si le nom a des mots.
  */
 export function nameTokens(name: string | null | undefined): string[] {
   const tokens = baseTokens(name);
@@ -95,7 +99,8 @@ export function nameTokens(name: string | null | undefined): string[] {
     tokens.length > 1 &&
     TRAILING_PLACES.has(tokens[tokens.length - 1]) &&
     !PLACE_PREPOSITIONS.has(tokens[tokens.length - 2]) &&
-    tokens.slice(0, -1).join("").length >= MIN_KEY_WITHOUT_PLACE
+    !(tokens.length === 2 && GENERIC_BEFORE_PLACE.has(tokens[0])) &&
+    tokens.slice(0, -1).join("").length >= 2
   ) {
     tokens.pop();
   }
@@ -103,8 +108,8 @@ export function nameTokens(name: string | null | undefined): string[] {
 }
 
 /**
- * Clé calculée avant le lot 2b (lieu retiré dès qu'il restait 2 caractères : « Banque de France »
- * → « banquede »). Sert seulement à relire les lignes de company_domains écrites sous cette clé ;
+ * Clé calculée avant le lot 2b (lieu retiré même après une préposition ou un mot générique :
+ * « Banque de France » → « banquede », « Air France » → « air »). Sert seulement à relire les lignes de company_domains écrites sous cette clé ;
  * une telle ligne n'est reprise que si son nom affiché donne la clé actuelle demandée.
  */
 export function legacyNameKey(name: string | null | undefined): string {

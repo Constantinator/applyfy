@@ -48,15 +48,21 @@ test("nom normalisé (nameKey) : accents, casse, ponctuation, formes juridiques,
     ["SA", "sa"],
     ["France", "france"],
     ["Europe SAS", "europe"],
-    // Lot 2b : le lieu reste après une préposition, ou s'il resterait moins de 4 caractères.
+    // Lot 2b : le lieu reste après une préposition ou un mot générique ; un sigle court le perd toujours.
     ["Banque de France", "banquedefrance"],
     ["Électricité de France", "electricitedefrance"],
     ["EDF", "edf"],
     ["Crédit Agricole Ile-de-France", "creditagricoleiledefrance"],
     ["Caisse d'Epargne Ile de France", "caissedepargneiledefrance"],
     ["Air France", "airfrance"],
-    ["AXA France", "axafrance"],
-    ["Business France", "business"],
+    ["AXA France", "axa"],
+    ["EY France", "ey"],
+    ["PwC France", "pwc"],
+    ["BCG France", "bcg"],
+    ["ING France", "ing"],
+    ["BNP Paribas France", "bnpparibas"],
+    ["Business France", "businessfrance"],
+    ["Radio France", "radiofrance"],
     ["Orange France", "orange"],
   ];
   for (const [name, key] of cases) assert.equal(nameKey(name), key, name);
@@ -64,17 +70,26 @@ test("nom normalisé (nameKey) : accents, casse, ponctuation, formes juridiques,
   assert.equal(nameKey("  "), "");
 });
 
-test("lot 2b : clés modifiées par la nouvelle règle du lieu — aucune dans la liste vérifiée ; ancienne clé conservée pour relire la table", async () => {
+test("lot 2b : clés modifiées par la règle du lieu — liste exacte ; aucune dans la liste vérifiée ; ancienne clé pour relire la table", async () => {
   const { readFileSync } = await import("node:fs");
   const { legacyNameKey } = await import("./company-domain.ts");
   const ats = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
   const boards = [...readFileSync(new URL("./job-boards.ts", import.meta.url), "utf8").matchAll(/name: "([^"]+)", domain: "/g)].map((m) => m[1]);
-  const names = [...Object.values(ats).flat().map((company) => company.name), ...boards, ...Object.keys(COMPANY_ALIASES), ...Object.values(COMPANY_ALIASES)];
-  const changed = [...new Set(names)].filter((name) => nameKey(name) !== legacyNameKey(name));
-  assert.deepEqual(changed, [], "clés de la liste vérifiée modifiées : ajouter un alias");
-  assert.equal(legacyNameKey("Banque de France"), "banquede");
-  assert.equal(legacyNameKey("Air France"), "air");
-  assert.equal(legacyNameKey("KPMG France"), "kpmg");
+  const curated = [...Object.values(ats).flat().map((company) => company.name), ...boards, ...Object.keys(COMPANY_ALIASES), ...Object.values(COMPANY_ALIASES)];
+  assert.deepEqual([...new Set(curated)].filter((name) => nameKey(name) !== legacyNameKey(name)), [], "clés de la liste vérifiée modifiées : ajouter un alias");
+  // Noms suivis (lignes admin de la table comprises) : seules ces clés changent.
+  const tracked = [
+    "AXA France", "EY France", "PwC France", "BCG France", "ING France", "BNP Paribas France", "KPMG France", "Orange France",
+    "Air France", "Business France", "Banque de France", "Électricité de France", "Crédit Agricole Ile-de-France", "EY", "PwC", "KPMG",
+  ];
+  const changed = tracked.filter((name) => nameKey(name) !== legacyNameKey(name)).map((name) => `${name} : ${legacyNameKey(name)} → ${nameKey(name)}`);
+  assert.deepEqual(changed, [
+    "Air France : air → airfrance",
+    "Business France : business → businessfrance",
+    "Banque de France : banquede → banquedefrance",
+    "Électricité de France : electricitede → electricitedefrance",
+    "Crédit Agricole Ile-de-France : creditagricoleilede → creditagricoleiledefrance",
+  ]);
 });
 
 test("liste vérifiée : prioritaire, quel que soit le nom exact (casse, forme juridique)", () => {
