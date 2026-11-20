@@ -19,7 +19,9 @@ import { createInterface } from "node:readline/promises";
 
 registerHooks({
   resolve(specifier, context, next) {
-    return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
+    // Seulement pour les sources TypeScript du projet : jamais dans node_modules (require CJS).
+    const fromProject = context.parentURL?.includes("/src/") && !context.parentURL.includes("/node_modules/");
+    return next(fromProject && /^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
 
