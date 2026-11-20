@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { companyDomain, companyKey, domainMatchesName, isPlatformHost, registrableDomain, PLATFORM_DOMAINS, WEBMAIL_DOMAINS } =
+const { companyDomain, companyKey, domainMatchesName, isPlatformHost, registrableDomain, withAliases, COMPANY_ALIASES, PLATFORM_DOMAINS, WEBMAIL_DOMAINS } =
   await import("./company-domain.ts");
 
 const KNOWN = new Map([
@@ -127,4 +127,36 @@ test("ats-companies.json : chaque entreprise a un domaine principal valide, hors
     byName.set(company.name, domain);
   }
   assert.equal(byName.size, 78);
+});
+
+test("alias : anciens noms et noms juridiques sûrs → domaine de la liste vérifiée", async () => {
+  const { readFileSync } = await import("node:fs");
+  const data = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const base = new Map(Object.values(data).flat().map((company) => [companyKey(company.name), company.domain]));
+  const known = withAliases(base);
+  const of = (name, offerUrl = null) => companyDomain({ name, offerUrl }, known);
+  // Offres SmartRecruiters (og:site_name « MAZARS ») et ancien nom.
+  assert.equal(of("Mazars"), "forvismazars.com");
+  assert.equal(of("MAZARS"), "forvismazars.com");
+  assert.equal(of("Mazars Group"), "forvismazars.com");
+  assert.equal(of("Forvis Mazars"), "forvismazars.com");
+  assert.equal(of("TGTG"), "toogoodtogo.com");
+  assert.equal(of("TooGoodToGo"), "toogoodtogo.com");
+  assert.equal(of("BackMarket"), "backmarket.com");
+  assert.equal(of("Back Market SAS"), "backmarket.com");
+  assert.equal(of("Saint Gobain"), "saint-gobain.com");
+  assert.equal(of("AccorHotels"), "accor.com");
+  assert.equal(of("Robert Bosch GmbH"), "bosch.com");
+  assert.equal(of("Sendinblue"), "brevo.com");
+  assert.equal(of("vente-privee.com"), "veepee.fr");
+  assert.equal(of("Mistral AI"), "mistral.ai");
+  // Ambigu : pas d'alias ; seulement si le site de l'offre est cohérent.
+  assert.equal(of("Mistral"), null);
+  assert.equal(of("Mistral", "https://careers.mistral.ai/jobs/1"), "mistral.ai");
+  assert.equal(of("Vestiaire"), null);
+  // Chaque alias vise une entreprise de la liste et n'écrase aucune entrée existante.
+  for (const [alias, official] of Object.entries(COMPANY_ALIASES)) {
+    assert.ok(base.has(companyKey(official)), `${alias} → ${official} absent de la liste`);
+    assert.ok(!base.has(companyKey(alias)), `${alias} est déjà une entreprise de la liste`);
+  }
 });

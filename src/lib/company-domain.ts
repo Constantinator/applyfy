@@ -150,3 +150,34 @@ export function companyDomain(
   }
   return null;
 }
+
+/**
+ * Autres noms sûrs d'entreprises de la liste vérifiée (ancien nom, nom juridique, sigle
+ * usuel) → nom de la liste. Seulement sans ambiguïté : pas « Mistral » (nom commun à
+ * d'autres sociétés) ni « Vestiaire ». Les variantes d'écriture (« BackMarket »,
+ * « Saint Gobain », « Mazars Group ») sont déjà couvertes par companyKey().
+ */
+export const COMPANY_ALIASES: Readonly<Record<string, string>> = {
+  Mazars: "Forvis Mazars",
+  TGTG: "Too Good To Go",
+  AccorHotels: "Accor",
+  "Robert Bosch": "Bosch",
+  "Younited Credit": "Younited",
+  "Point72 Asset Management": "Point72",
+  Sendinblue: "Brevo",
+  "Vente-privee": "Veepee",
+  "Vente-privee.com": "Veepee",
+  "Eurofins Scientific": "Eurofins",
+  "Sisley Paris": "Sisley",
+  "Ubisoft Entertainment": "Ubisoft",
+};
+
+/** Domaines vérifiés complétés par les alias (un alias n'écrase jamais une entrée existante). */
+export function withAliases(known: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
+  const all = new Map(known);
+  for (const [alias, official] of Object.entries(COMPANY_ALIASES)) {
+    const domain = known.get(companyKey(official));
+    if (domain && !all.has(companyKey(alias))) all.set(companyKey(alias), domain);
+  }
+  return all;
+}
