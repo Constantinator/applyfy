@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { companyDomain, companyKey, domainMatchesName, isPlatformHost, registrableDomain, withAliases, COMPANY_ALIASES, PLATFORM_DOMAINS, WEBMAIL_DOMAINS } =
+const { companyDomain, nameKey, domainMatchesName, isPlatformHost, registrableDomain, withAliases, COMPANY_ALIASES, PLATFORM_DOMAINS, WEBMAIL_DOMAINS } =
   await import("./company-domain.ts");
 
 const KNOWN = new Map([
@@ -12,14 +12,47 @@ const KNOWN = new Map([
 ]);
 const domainOf = (name, offerUrl = null, contactEmail = null) => companyDomain({ name, offerUrl, contactEmail }, KNOWN);
 
-test("nom normalisé : accents, casse, ponctuation et forme juridique retirés", () => {
-  assert.equal(companyKey("Back Market SAS"), "backmarket");
-  assert.equal(companyKey("Société Générale"), "societegenerale");
-  assert.equal(companyKey("Mistral AI"), "mistralai");
-  assert.equal(companyKey("Acme Inc."), "acme");
-  assert.equal(companyKey("Groupe SEB"), "seb");
-  assert.equal(companyKey("AG2R La Mondiale"), "ag2rlamondiale");
-  assert.equal(companyKey(null), "");
+test("nom normalisé (nameKey) : accents, casse, ponctuation, formes juridiques, pays en fin de nom", () => {
+  const cases = [
+    ["Ing bank n.v. france", "ingbank"],
+    ["ING", "ing"],
+    ["BNP Paribas France", "bnpparibas"],
+    ["BNP Paribas S.A.", "bnpparibas"],
+    ["KPMG France", "kpmg"],
+    ["AXA France", "axa"],
+    ["Crédit Agricole Cib", "creditagricolecib"],
+    ["Crédit Agricole CIB", "creditagricolecib"],
+    ["Societe Generale", "societegenerale"],
+    ["Société Générale", "societegenerale"],
+    ["Kepler Cheuvreux SA", "keplercheuvreux"],
+    ["Onepoint", "onepoint"],
+    ["One Point", "onepoint"],
+    ["EY", "ey"],
+    ["Ernst & Young", "ernstyoung"],
+    ["Fidelity International", "fidelityinternational"],
+    ["Heritage Holdings", "heritageholdings"],
+    ["Groupe Alpha", "groupealpha"],
+    ["Bank of America", "bankofamerica"],
+    ["Virya Energy", "viryaenergy"],
+    ["France Travail", "francetravail"],
+    ["Emalec", "emalec"],
+    ["ClubFunding", "clubfunding"],
+    ["L'Oréal S.A.", "loreal"],
+    ["Deutsche Bank AG", "deutschebank"],
+    ["Back Market SAS", "backmarket"],
+    ["Mistral AI", "mistralai"],
+    ["Acme Inc.", "acme"],
+    // Lot 1 : companyKey retirait « groupe » ; nameKey le garde (homonymes).
+    ["Groupe SEB", "groupeseb"],
+    ["AG2R La Mondiale", "ag2rlamondiale"],
+    // Garde-fous : un nom fait seulement de forme juridique ou de pays reste lui-même.
+    ["SA", "sa"],
+    ["France", "france"],
+    ["Europe SAS", "europe"],
+  ];
+  for (const [name, key] of cases) assert.equal(nameKey(name), key, name);
+  assert.equal(nameKey(null), "");
+  assert.equal(nameKey("  "), "");
 });
 
 test("liste vérifiée : prioritaire, quel que soit le nom exact (casse, forme juridique)", () => {
@@ -33,6 +66,13 @@ test("liste vérifiée : prioritaire, quel que soit le nom exact (casse, forme j
 });
 
 test("plateformes : domaine principal exact, jamais une sous-chaîne", () => {
+  for (const host of ["media.licdn.com", "d1234.cloudfront.net", "s3.eu-west-3.amazonaws.com", "lh3.googleusercontent.com", "acme.blob.core.windows.net", "acme.csod.com", "ing.wd3.myworkdayjobs.com", "keplercheuvreux.teamtailor.com", "audencia.jobteaser.com", "hire.withgoogle.com", "acme.avature.net", "jobs.lu", "www.jobup.ch"]) {
+    assert.ok(isPlatformHost(host), host);
+  }
+  // Cas de la mesure du 19/11 : jamais un logo de plateforme ni de CDN.
+  assert.equal(domainOf("Harmonie Mutuelle", "https://media.licdn.com/dms/image/abc"), null);
+  assert.equal(domainOf("ING Bank N.V. France", "https://ing.wd3.myworkdayjobs.com/fr/job/1"), null);
+  assert.equal(domainOf("Kepler Cheuvreux", "https://keplercheuvreux.teamtailor.com/jobs/1"), null);
   for (const host of ["linkedin.com", "fr.linkedin.com", "www.indeed.fr", "jobs.lever.co", "boards.greenhouse.io", "jobs.ashbyhq.com", "jobs.smartrecruiters.com", "apply.workable.com", "www.welcometothejungle.com", "candidat.francetravail.fr", "bit.ly", "lnkd.in", "fr.talent.com"]) {
     assert.ok(isPlatformHost(host), host);
   }
@@ -132,13 +172,13 @@ test("ats-companies.json : chaque entreprise a un domaine principal valide, hors
 test("alias : anciens noms et noms juridiques sûrs → domaine de la liste vérifiée", async () => {
   const { readFileSync } = await import("node:fs");
   const data = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
-  const base = new Map(Object.values(data).flat().map((company) => [companyKey(company.name), company.domain]));
+  const base = new Map(Object.values(data).flat().map((company) => [nameKey(company.name), company.domain]));
   const known = withAliases(base);
   const of = (name, offerUrl = null) => companyDomain({ name, offerUrl }, known);
   // Offres SmartRecruiters (og:site_name « MAZARS ») et ancien nom.
   assert.equal(of("Mazars"), "forvismazars.com");
   assert.equal(of("MAZARS"), "forvismazars.com");
-  assert.equal(of("Mazars Group"), "forvismazars.com");
+  assert.equal(of("Mazars Group"), "forvismazars.com"); // alias explicite (« group » jamais retiré)
   assert.equal(of("Forvis Mazars"), "forvismazars.com");
   assert.equal(of("TGTG"), "toogoodtogo.com");
   assert.equal(of("TooGoodToGo"), "toogoodtogo.com");
@@ -156,7 +196,7 @@ test("alias : anciens noms et noms juridiques sûrs → domaine de la liste vér
   assert.equal(of("Vestiaire"), null);
   // Chaque alias vise une entreprise de la liste et n'écrase aucune entrée existante.
   for (const [alias, official] of Object.entries(COMPANY_ALIASES)) {
-    assert.ok(base.has(companyKey(official)), `${alias} → ${official} absent de la liste`);
-    assert.ok(!base.has(companyKey(alias)), `${alias} est déjà une entreprise de la liste`);
+    assert.ok(base.has(nameKey(official)), `${alias} → ${official} absent de la liste`);
+    assert.ok(!base.has(nameKey(alias)), `${alias} est déjà une entreprise de la liste`);
   }
 });

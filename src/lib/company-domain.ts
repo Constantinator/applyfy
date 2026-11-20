@@ -31,14 +31,21 @@ export const PLATFORM_DOMAINS: ReadonlySet<string> = new Set([
   "michaelpage.fr", "michaelpage.com", "pagepersonnel.fr", "hays.fr", "hays.com", "randstad.fr",
   "randstad.com", "adecco.fr", "adecco.com", "manpower.fr", "expectra.fr", "robertwalters.fr",
   "robertwalters.com", "roberthalf.com", "roberthalf.fr",
+  "csod.com", "cornerstoneondemand.com", "oraclecloud.com", "avature.net", "phenompeople.com",
+  "eightfold.ai", "talent-soft.com", "werecruit.io", "applytojob.com", "careers-page.com", "gupy.io",
+  "jobs.lu", "jobup.ch",
   // Raccourcisseurs et pages de liens
   "bit.ly", "tinyurl.com", "t.co", "linktr.ee", "forms.gle",
+  // Hébergements de fichiers et CDN (images d'un profil LinkedIn, pièces jointes…)
+  "licdn.com", "cloudfront.net", "amazonaws.com", "googleusercontent.com",
+  // Stockage Azure (*.blob.core.windows.net) : domaine principal windows.net, jamais le site d'une entreprise.
+  "windows.net",
 ]);
 
 /** Hôtes exacts de services génériques dont le domaine principal est une vraie entreprise (google.com). */
 export const PLATFORM_HOSTS: ReadonlySet<string> = new Set([
   "docs.google.com", "drive.google.com", "sites.google.com", "forms.google.com",
-  "forms.office.com", "onedrive.live.com", "notion.site",
+  "forms.office.com", "onedrive.live.com", "notion.site", "hire.withgoogle.com",
 ]);
 
 /** Messageries grand public : le domaine d'un e-mail de contact n'y dit rien de l'entreprise. */
@@ -57,19 +64,45 @@ const TWO_PART_SUFFIXES: ReadonlySet<string> = new Set([
   "co.nz", "co.za", "co.in", "co.il", "com.es", "com.pt", "gouv.fr", "asso.fr", "com.pl",
 ]);
 
-/** Formes juridiques retirées du nom (« Qonto SAS » → « qonto »). */
-const LEGAL_FORMS =
-  /\b(sas|sasu|sa|sarl|eurl|sca|snc|scop|gmbh|ag|inc|incorporated|ltd|limited|llc|plc|bv|nv|spa|srl|group|groupe|corp|corporation|co)\b/g;
+/** Formes juridiques retirées du nom, où qu'elles soient (« Qonto SAS » → « qonto »). */
+const LEGAL_FORMS: ReadonlySet<string> = new Set([
+  "sas", "sasu", "sa", "sarl", "sca", "snc", "eurl", "nv", "bv", "gmbh", "ag", "inc", "incorporated",
+  "ltd", "limited", "llc", "plc", "corp", "spa", "srl",
+]);
 
-/** Nom réduit à ses lettres et chiffres, sans accents ni forme juridique : « Back Market SAS » → « backmarket ». */
-export function companyKey(name: string | null | undefined): string {
-  return (name ?? "")
+/**
+ * Mots géographiques retirés seulement en fin de nom (« KPMG France » → « kpmg »), jamais en tête
+ * (« France Travail »). group, groupe, holding(s), international, bank et banque ne sont JAMAIS
+ * retirés : Fidelity International n'est pas Fidelity, Heritage Holdings n'est pas Heritage.
+ */
+const TRAILING_PLACES: ReadonlySet<string> = new Set(["france", "europe", "emea"]);
+
+/**
+ * Mots du nom, normalisés : minuscules, sans accents, points d'abréviation supprimés
+ * (« N.V. » → « nv »), autre ponctuation en espace, formes juridiques retirées, mots
+ * géographiques retirés en fin de nom. Ne renvoie jamais une liste vide si le nom a des mots.
+ */
+export function nameTokens(name: string | null | undefined): string[] {
+  const words = (name ?? "")
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
-    .replace(/&/g, " ")
-    .replace(LEGAL_FORMS, " ")
-    .replace(/[^a-z0-9]/g, "");
+    .replace(/\./g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+  const withoutLegal = words.filter((word) => !LEGAL_FORMS.has(word));
+  const tokens = withoutLegal.length ? withoutLegal : words;
+  while (tokens.length > 1 && TRAILING_PLACES.has(tokens[tokens.length - 1]) && tokens.slice(0, -1).join("").length >= 2) {
+    tokens.pop();
+  }
+  return tokens;
+}
+
+/** Clé de recherche d'une entreprise : « ING Bank N.V. France » → « ingbank », « Groupe Alpha » → « groupealpha ». */
+export function nameKey(name: string | null | undefined): string {
+  return nameTokens(name).join("");
 }
 
 const LABEL = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
@@ -112,7 +145,7 @@ export function isPlatformHost(host: string): boolean {
  * nom normalisé de l'entreprise ou l'inverse, la partie contenue faisant au moins 3 caractères.
  */
 export function domainMatchesName(domain: string, name: string | null | undefined): boolean {
-  const key = companyKey(name);
+  const key = nameKey(name);
   const label = domain.split(".")[0].replace(/[^a-z0-9]/g, "");
   const [short, long] = key.length <= label.length ? [key, label] : [label, key];
   return short.length >= 3 && long.includes(short);
@@ -126,13 +159,13 @@ export type CompanyDomainInput = {
 
 /**
  * Domaine fiable de l'entreprise, ou null (initiales, aucune requête vers Logo.dev).
- * `known` : domaines vérifiés à la main, indexés par companyKey(nom).
+ * `known` : domaines vérifiés à la main, indexés par nameKey(nom).
  */
 export function companyDomain(
   { name, offerUrl, contactEmail }: CompanyDomainInput,
   known: ReadonlyMap<string, string>,
 ): string | null {
-  const key = companyKey(name);
+  const key = nameKey(name);
   if (!key) return null;
   const listed = known.get(key);
   if (listed) return listed;
@@ -155,10 +188,12 @@ export function companyDomain(
  * Autres noms sûrs d'entreprises de la liste vérifiée (ancien nom, nom juridique, sigle
  * usuel) → nom de la liste. Seulement sans ambiguïté : pas « Mistral » (nom commun à
  * d'autres sociétés) ni « Vestiaire ». Les variantes d'écriture (« BackMarket »,
- * « Saint Gobain », « Mazars Group ») sont déjà couvertes par companyKey().
+ * « Saint Gobain », « Mazars SA ») sont déjà couvertes par nameKey() ; « group » n'étant jamais
+ * retiré, « Mazars Group » est un alias explicite.
  */
 export const COMPANY_ALIASES: Readonly<Record<string, string>> = {
   Mazars: "Forvis Mazars",
+  "Mazars Group": "Forvis Mazars",
   TGTG: "Too Good To Go",
   AccorHotels: "Accor",
   "Robert Bosch": "Bosch",
@@ -176,8 +211,8 @@ export const COMPANY_ALIASES: Readonly<Record<string, string>> = {
 export function withAliases(known: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
   const all = new Map(known);
   for (const [alias, official] of Object.entries(COMPANY_ALIASES)) {
-    const domain = known.get(companyKey(official));
-    if (domain && !all.has(companyKey(alias))) all.set(companyKey(alias), domain);
+    const domain = known.get(nameKey(official));
+    if (domain && !all.has(nameKey(alias))) all.set(nameKey(alias), domain);
   }
   return all;
 }

@@ -1,7 +1,7 @@
 import "server-only";
 
 import atsCompanies from "@/lib/ats-companies.json";
-import { companyDomain, companyKey, withAliases, type CompanyDomainInput } from "@/lib/company-domain";
+import { companyDomain, nameKey, withAliases, type CompanyDomainInput } from "@/lib/company-domain";
 import { JOB_BOARD_COMPANIES } from "@/lib/job-boards";
 
 // Adresses des logos d'entreprises (Logo.dev), calculées côté serveur : la clé publique
@@ -12,8 +12,8 @@ import { JOB_BOARD_COMPANIES } from "@/lib/job-boards";
 const KNOWN_DOMAINS: ReadonlyMap<string, string> = withAliases(new Map([
   ...Object.values(atsCompanies as Record<string, { name: string; domain: string }[]>)
     .flat()
-    .map((company) => [companyKey(company.name), company.domain] as const),
-  ...JOB_BOARD_COMPANIES.map((company) => [companyKey(company.name), company.domain] as const),
+    .map((company) => [nameKey(company.name), company.domain] as const),
+  ...JOB_BOARD_COMPANIES.map((company) => [nameKey(company.name), company.domain] as const),
 ]));
 
 /** Tailles d'affichage du logo, en pixels. */
