@@ -51,6 +51,16 @@ export async function needsOnboarding(): Promise<boolean> {
   return typeof user.user_metadata?.onboarding_completed_at !== "string";
 }
 
+/** Date de création du compte et parcours d'accueil marqué terminé (phase guidée du CV Builder). */
+export async function getOnboardingAccount(): Promise<{ createdAt: string | null; completed: boolean }> {
+  if (!isSupabaseConfigured()) return { createdAt: null, completed: true };
+  const user = await getAuthUser();
+  return {
+    createdAt: user?.created_at ?? null,
+    completed: typeof user?.user_metadata?.onboarding_completed_at === "string",
+  };
+}
+
 export async function completeOnboarding() {
   if (!isSupabaseConfigured()) {
     demoStore.onboardingCompleted = true;

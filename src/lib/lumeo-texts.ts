@@ -251,3 +251,22 @@ export const COACH_LIMIT_TEXTS = {
   later: "Plus tard, je continue sans",
   footer: "Pas de panique, ton CV t'attend.",
 } as const;
+
+/**
+ * Phase guidée du CV Builder (chemin A du parcours d'accueil). Voix de Lumeo : tutoiement,
+ * phrases courtes, sans emoji, aucun chiffre écrit ici.
+ */
+export const GUIDE_TEXTS = {
+  stepsLabel: "Étapes de ton installation",
+  steps: ["Améliore ton CV", "Télécharge-le", "Ajoute une offre"],
+  done: "fait",
+  skip: "Passer",
+  skipLabel: "Passer et aller au tableau de bord",
+  suggestions: ["Améliorer mon profil", "Reformuler mes expériences", "Vérifier les mots-clés"],
+  placeholder: "Pose ta question à Lumeo",
+  note: "Tu restes ici le temps de finir. « Passer » te ramène au tableau de bord.",
+  alreadyGood: "Mon CV est déjà bon, continuer",
+  download: "Télécharger mon CV",
+  congrats: "Beau travail, ton CV est prêt. Télécharge-le pour l'avoir sous la main, tu pourras toujours le modifier ensuite.",
+  downloadNote: "Un PDF prêt à envoyer. Ensuite, on ajoute une offre qui te plaît.",
+} as const;

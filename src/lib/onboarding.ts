@@ -1,5 +1,6 @@
-// Parcours d'accueil (/bienvenue) : écrans, barre de progression, reprise, date de coupure et
-// statistiques (fonctions pures, testables). Valeurs alignées avec la migration 0045.
+// Parcours d'accueil (/bienvenue, puis phase guidée du CV Builder) : écrans, barre de progression,
+// reprise, date de coupure et statistiques (fonctions pures, testables). Valeurs alignées avec les
+// migrations 0045 et 0047.
 
 /**
  * Mise en ligne du parcours : seuls les comptes créés à partir de cet instant le suivent. Les
@@ -7,13 +8,25 @@
  */
 export const ONBOARDING_LAUNCHED_AT = "2026-11-20T22:00:00Z";
 
-/** Tous les écrans connus de la base (migration 0045), dans l'ordre du parcours. */
-export const ONBOARDING_STEPS = ["accueil", "apport", "temps", "cv", "chemin_cv", "chemin_offre"] as const;
+/** Écrans de /bienvenue (migration 0045) ; chemin A : « chemin_cv », chemin B : « chemin_offre ». */
+export const ONBOARDING_SCREENS = ["accueil", "apport", "temps", "cv", "chemin_cv", "chemin_offre"] as const;
+export type OnboardingScreen = (typeof ONBOARDING_SCREENS)[number];
+
+/**
+ * Phase guidée du chemin A (migration 0047) : améliorer le CV dans l'éditeur, le télécharger,
+ * puis ajouter une offre.
+ */
+export const GUIDE_STEPS = ["guide_cv", "guide_telecharger", "guide_offre"] as const;
+export type GuideStep = (typeof GUIDE_STEPS)[number];
+/** Étapes de la phase guidée qui se passent dans l'éditeur du CV Builder. */
+export type GuideEditorStep = Extract<GuideStep, "guide_cv" | "guide_telecharger">;
+
+/** Toutes les étapes connues de la base, dans l'ordre du parcours. */
+export const ONBOARDING_STEPS = [...ONBOARDING_SCREENS, ...GUIDE_STEPS] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
-/** Écrans du parcours : tous ceux de la base (chemin A : « chemin_cv », chemin B : « chemin_offre »). */
-export const ONBOARDING_SCREENS = ONBOARDING_STEPS;
-export type OnboardingScreen = OnboardingStep;
+export const isGuideStep = (step: unknown): step is GuideStep =>
+  typeof step === "string" && (GUIDE_STEPS as readonly string[]).includes(step);
 
 /** Barre de progression : 4 segments (écran 1 ; écrans 2 et 2 bis ; écran 3 ; chemin A ou B). */
 export const ONBOARDING_SEGMENTS = 4;
@@ -24,6 +37,9 @@ const SEGMENT_OF: Record<OnboardingStep, number> = {
   cv: 3,
   chemin_cv: 4,
   chemin_offre: 4,
+  guide_cv: 4,
+  guide_telecharger: 4,
+  guide_offre: 4,
 };
 export const segmentOf = (step: OnboardingStep) => SEGMENT_OF[step];
 
@@ -69,9 +85,43 @@ export function nextScreen(step: OnboardingScreen, hasCv: HasCv | null = null): 
   }
 }
 
-/** Écran où reprendre : celui enregistré, l'écran 1 sinon. */
+/**
+ * Écran de /bienvenue où reprendre : celui enregistré ; pendant la phase guidée sans CV à ouvrir,
+ * le choix « importer ou créer » (chemin A) ; l'écran 1 sinon.
+ */
 export function resumeScreen(step: OnboardingStep | null | undefined): OnboardingScreen {
-  return step && (ONBOARDING_STEPS as readonly string[]).includes(step) ? step : "accueil";
+  if (isGuideStep(step)) return step === "guide_offre" ? "chemin_offre" : "chemin_cv";
+  return step && (ONBOARDING_SCREENS as readonly string[]).includes(step) ? (step as OnboardingScreen) : "accueil";
+}
+
+export type ResumeTarget = { kind: "bienvenue"; screen: OnboardingScreen } | { kind: "editeur"; cvId: string };
+
+/**
+ * Où reprendre le parcours : l'éditeur du dernier CV pendant la phase guidée (s'il existe), sinon
+ * l'écran de /bienvenue.
+ */
+export function resumeTarget(step: OnboardingStep | null | undefined, latestCvId: string | null): ResumeTarget {
+  if ((step === "guide_cv" || step === "guide_telecharger") && latestCvId) return { kind: "editeur", cvId: latestCvId };
+  return { kind: "bienvenue", screen: resumeScreen(step) };
+}
+
+/**
+ * Éditeur en mode guidé ? Seulement pour un compte créé après la mise en ligne, parcours ni
+ * terminé ni passé, phase guidée en cours, et sur le dernier CV de la personne. Sinon null :
+ * l'éditeur reste tel qu'avant (jamais de verrou pour un ancien compte).
+ */
+export function guidedEditorStep(input: {
+  createdAt: string | null | undefined;
+  metadataCompleted: boolean;
+  doneCookie: boolean;
+  progress: { step: string; completed: boolean } | null;
+  cvId: string;
+  latestCvId: string | null;
+}): GuideEditorStep | null {
+  if (!isAfterLaunch(input.createdAt) || input.metadataCompleted || input.doneCookie) return null;
+  if (!input.progress || input.progress.completed) return null;
+  if (input.progress.step !== "guide_cv" && input.progress.step !== "guide_telecharger") return null;
+  return input.cvId === input.latestCvId ? input.progress.step : null;
 }
 
 /** Destination de chaque action des chemins A et B. `link` : lien d'offre déjà validé. */
@@ -139,17 +189,17 @@ export type OnboardingStats = {
   signups: number;
   started: number;
   completed: number;
-  /** Parcours en cours, par écran où la personne s'est arrêtée. */
-  stoppedAt: Record<OnboardingScreen, number>;
+  /** Parcours en cours, par étape où la personne s'est arrêtée. */
+  stoppedAt: Record<OnboardingStep, number>;
   jobSearch: { oui: number; pas_encore: number; sans_reponse: number };
   hasCv: { oui: number; plus_tard: number; sans_reponse: number };
   /** Action choisie en fin de parcours (chemins A et B). */
   choice: Record<OnboardingChoice | "aucune", number>;
-  /** Nombre de fois où chaque écran a été passé. */
-  skipped: Record<OnboardingScreen, number>;
+  /** Nombre de fois où chaque étape a été passée. */
+  skipped: Record<OnboardingStep, number>;
 };
 
-const zeroByScreen = () => Object.fromEntries(ONBOARDING_SCREENS.map((s) => [s, 0])) as Record<OnboardingScreen, number>;
+const zeroByScreen = () => Object.fromEntries(ONBOARDING_STEPS.map((s) => [s, 0])) as Record<OnboardingStep, number>;
 
 /** Statistiques du parcours (/admin). */
 export function onboardingStats(rows: OnboardingRow[], signups: number): OnboardingStats {
@@ -165,12 +215,12 @@ export function onboardingStats(rows: OnboardingRow[], signups: number): Onboard
   };
   for (const row of rows) {
     if (row.completed_at) stats.completed++;
-    else stats.stoppedAt[resumeScreen(row.step)]++;
+    else stats.stoppedAt[(ONBOARDING_STEPS as readonly string[]).includes(row.step) ? row.step : "accueil"]++;
     stats.jobSearch[row.job_search ?? "sans_reponse"]++;
     stats.hasCv[row.has_cv ?? "sans_reponse"]++;
     stats.choice[row.choice ?? "aucune"]++;
     for (const step of row.skipped_steps) {
-      if (step in stats.skipped) stats.skipped[step as OnboardingScreen]++;
+      if (step in stats.skipped) stats.skipped[step]++;
     }
   }
   return stats;

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { finishOnboardingAction, saveOnboardingAction } from "@/app/actions/onboarding";
+import { finishOnboardingAction, saveOnboardingAction, startCvPathAction } from "@/app/actions/onboarding";
 import { IconBriefcase, IconPencil, IconPuzzle, IconUpload } from "@/components/icons";
 import { BrandLogo } from "@/components/logo";
 import { LumeoAvatar, type LumeoExpression } from "@/components/lumeo/lumeo-avatar";
@@ -22,6 +22,9 @@ import {
 } from "@/lib/onboarding";
 import { ONBOARDING_TEXTS as T } from "@/lib/lumeo-texts";
 import { OFFER_URL_MAX_LENGTH, parseOfferLink } from "@/lib/offer-limits";
+
+/** État du parcours affiché sur un écran de /bienvenue. */
+type ScreenState = OnboardingState & { step: OnboardingScreen };
 
 /** Expression de Lumeo et animation propre à chaque écran (CSS : globals.css, « ob- »). */
 const LUMEO_BY_SCREEN: Record<OnboardingScreen, { expression: LumeoExpression; motion: string }> = {
@@ -176,7 +179,7 @@ export function OnboardingFlow({
   timeSavingProof,
 }: {
   firstName: string | null;
-  initial: OnboardingState;
+  initial: ScreenState;
   /** Note « Gratuit : … import de CV par mois », null pour les comptes Premium et bêta. */
   importNote: string | null;
   /** Taille maximale d'un CV importé (CV_IMPORT_MAX_LABEL). */
@@ -184,7 +187,7 @@ export function OnboardingFlow({
   timeSavingProof?: ReactNode;
 }) {
   const router = useRouter();
-  const [state, setState] = useState<OnboardingState>(initial);
+  const [state, setState] = useState<ScreenState>(initial);
   const [leaving, setLeaving] = useState(false);
   const saves = useRef<Promise<unknown>>(Promise.resolve());
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -206,7 +209,7 @@ export function OnboardingFlow({
     return saves.current;
   }
 
-  function goTo(next: OnboardingState) {
+  function goTo(next: ScreenState) {
     setState(next);
     void queue(() => saveOnboardingAction(next));
   }
@@ -228,8 +231,14 @@ export function OnboardingFlow({
   const answerJob = (jobSearch: JobSearch) => advance({ ...state, jobSearch });
   // Écran 3 : chemin A (CV) ou chemin B (offre).
   const answerCv = (hasCv: HasCv) => advance({ ...state, hasCv });
-  // Chemins A et B : le choix est enregistré, le parcours terminé, puis la page de l'action s'ouvre.
+  // Chemin B : le choix est enregistré, le parcours terminé, puis la page de l'action s'ouvre.
   const choose = (choice: OnboardingChoice, link = "") => finish({ ...state, choice }, choiceDestination(choice, link));
+  // Chemin A : la phase guidée du CV Builder commence (sans la migration 0047 : parcours terminé).
+  const startCv = (choice: "import" | "zero") => {
+    if (leaving) return;
+    setLeaving(true);
+    void queue(() => startCvPathAction({ ...state, choice })).then(() => router.push(choiceDestination(choice)));
+  };
 
   const lumeo = LUMEO_BY_SCREEN[screen];
   const titleClass =
@@ -380,7 +389,7 @@ export function OnboardingFlow({
                   <ActionLink
                     key={choice}
                     href={choiceDestination(choice)}
-                    onChoose={() => choose(choice)}
+                    onChoose={() => startCv(choice)}
                     className={`${CARD} flex items-start gap-4`}
                   >
                     <span

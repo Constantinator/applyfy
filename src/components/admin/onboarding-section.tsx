@@ -1,12 +1,15 @@
-import { ONBOARDING_SCREENS, ONBOARDING_LAUNCHED_AT, type OnboardingScreen, type OnboardingStats } from "@/lib/onboarding";
+import { ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, type OnboardingStats, type OnboardingStep } from "@/lib/onboarding";
 
-const SCREEN_LABELS: Record<OnboardingScreen, string> = {
+const SCREEN_LABELS: Record<OnboardingStep, string> = {
   accueil: "Écran 1 · cherches-tu un job ?",
   apport: "Écran 2 · ce qu'Applyfy apporte",
   temps: "Écran 2 bis · gagner du temps",
   cv: "Écran 3 · as-tu un CV ?",
   chemin_cv: "Chemin A · importer ou créer le CV",
   chemin_offre: "Chemin B · ajouter ou trouver une offre",
+  guide_cv: "Phase guidée · améliorer le CV",
+  guide_telecharger: "Phase guidée · télécharger le CV",
+  guide_offre: "Phase guidée · ajouter une offre",
 };
 
 const launched = new Intl.DateTimeFormat("fr-FR", {
@@ -68,9 +71,9 @@ export function OnboardingSection({
       <div className="grid gap-4 lg:grid-cols-2">
         <Breakdown
           title="Arrêtés en cours de route, par écran"
-          rows={ONBOARDING_SCREENS.map((s) => [SCREEN_LABELS[s], stats.stoppedAt[s]])}
+          rows={ONBOARDING_STEPS.map((s) => [SCREEN_LABELS[s], stats.stoppedAt[s]])}
         />
-        <Breakdown title="Écrans passés (« Passer »)" rows={ONBOARDING_SCREENS.map((s) => [SCREEN_LABELS[s], stats.skipped[s]])} />
+        <Breakdown title="Écrans passés (« Passer »)" rows={ONBOARDING_STEPS.map((s) => [SCREEN_LABELS[s], stats.skipped[s]])} />
         <Breakdown
           title="Tu cherches un job en ce moment ?"
           rows={[

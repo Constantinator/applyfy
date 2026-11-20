@@ -81,7 +81,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   // Parcours d'accueil pas terminé (comptes créés après sa mise en ligne) : reprise à la bonne
   // étape. Jamais au retour de Stripe. Même règle que /bienvenue, qui renvoie ici sinon : pas de boucle.
-  if (!welcomePremium && (await getOnboardingEntry())) redirect("/bienvenue");
+  if (!welcomePremium) {
+    const onboarding = await getOnboardingEntry();
+    if (onboarding) redirect(onboarding.target.kind === "editeur" ? `/cv-builder/${onboarding.target.cvId}` : "/bienvenue");
+  }
 
   // Retour de Stripe Checkout : abonnement enregistré tout de suite, sans attendre le webhook.
   if (welcomePremium && typeof session_id === "string" && isStripeConfigured()) {

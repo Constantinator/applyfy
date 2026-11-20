@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
@@ -13,7 +14,11 @@ import {
 } from "@/app/actions/cv-builder";
 import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
 import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
-import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
+import { finishGuideAction, guideReadyToDownloadAction } from "@/app/actions/onboarding";
+import { GUIDE_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import type { GuideEditorStep } from "@/lib/onboarding";
+import { guideContentFingerprint, isCvImproved } from "@/lib/onboarding-guide";
 import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
@@ -48,6 +53,7 @@ import { CvContentPanel } from "./cv-content-panel";
 import { CvTranslatePanel } from "./cv-translate-panel";
 import { CvStylePanel } from "./cv-style-panel";
 import { FieldEditingContext, FieldInput } from "./form-controls";
+import { GuidedHeader } from "./guided-header";
 
 export type CvBuilderUsage = {
   /** Chat « Affiner avec l'IA » : utilisation du mois. */
@@ -124,7 +130,13 @@ export function CvBuilderEditor({
   scoring,
   openCoach = false,
   application = null,
+  guided = null,
 }: {
+  /**
+   * Phase guidée du parcours d'accueil (chemin A) : étape en cours, ou null (éditeur habituel).
+   * En-tête guidé à la place de « Retour » et « Menu », « Passer » toujours disponible.
+   */
+  guided?: GuideEditorStep | null;
   cv: BuilderCv;
   usage: CvBuilderUsage;
   /** Données du secteur pour le score (détecté à l'ouverture). */
@@ -150,7 +162,17 @@ export function CvBuilderEditor({
   const [originTemplate] = useState(cv.templateId);
   // CV créé depuis zéro : onglet « Contenu » en plus, ouvert d'abord (le CV est vide).
   const baseTabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
-  const [chosenTab, setTab] = useState<TabId>(openCoach ? "chat" : baseTabs[0][0]);
+  // Phase guidée : Lumeo d'abord.
+  const [chosenTab, setTab] = useState<TabId>(openCoach || guided ? "chat" : baseTabs[0][0]);
+  // Phase guidée : étape en cours (null : terminée, passée, ou éditeur habituel).
+  const [guideStep, setGuideStep] = useState<GuideEditorStep | null>(guided);
+  const guideStepRef = useRef(guideStep);
+  useEffect(() => {
+    guideStepRef.current = guideStep;
+  }, [guideStep]);
+  // Contenu à l'ouverture : la première sauvegarde ne compte comme « amélioré » que s'il a changé.
+  const guideBaseline = useRef(guideContentFingerprint(cv.data));
+  const router = useRouter();
   const [data, setData] = useState<CvData>(cv.data);
   // Langue des titres des rubriques : celle du contenu quand elle est décidable, sinon la colonne
   // (fixée par une traduction ou un import), sinon le français.
@@ -232,6 +254,12 @@ export function CvBuilderEditor({
       // Sauvegarde partie avant une traduction faite ici : refusée par le serveur, la traduction
       // (déjà affichée) l'a remplacée. Rien à signaler.
       if (!result.ok && result.stale && (dataRef.current.translationId ?? null) !== sent) return true;
+      // Phase guidée : contenu enregistré différent de celui de l'ouverture → étape « télécharger ».
+      if (result.ok && guideStepRef.current === "guide_cv" && isCvImproved(guideBaseline.current, data)) {
+        guideStepRef.current = "guide_telecharger";
+        setGuideStep("guide_telecharger");
+        void guideReadyToDownloadAction(false).catch(() => undefined);
+      }
       if (current !== version.current) return result.ok; // une modification plus récente suivra
       if (result.ok) {
         photoTracker.current.confirm(photo, result.photoRefused ? null : shownPhoto);
@@ -415,6 +443,12 @@ export function CvBuilderEditor({
       link.download = fileName(title);
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      // Phase guidée : CV téléchargé (amélioré ou non), le parcours se termine ici pour l'instant.
+      if (guideStepRef.current) {
+        guideStepRef.current = null;
+        setGuideStep(null);
+        void finishGuideAction(null).catch(() => undefined);
+      }
     } catch (error) {
       console.error("[cv-builder] PDF", error);
       setSaveError("Le PDF n'a pas pu être généré. Réessaie dans un instant.");
@@ -423,29 +457,56 @@ export function CvBuilderEditor({
     }
   }
 
+  // Phase guidée : « Passer » enregistre d'abord la modification en attente, puis termine le
+  // parcours et mène au tableau de bord. Jamais désactivé (un second clic est simplement ignoré).
+  const skipping = useRef(false);
+  async function skipGuide() {
+    if (skipping.current) return;
+    skipping.current = true;
+    const saved = await flushSave().catch(() => false);
+    if (!saved && !window.confirm(LEAVE_MESSAGE)) {
+      skipping.current = false;
+      return;
+    }
+    await finishGuideAction(guideStepRef.current).catch(() => undefined);
+    router.push("/dashboard");
+  }
+
+  function alreadyGood() {
+    guideStepRef.current = "guide_telecharger";
+    setGuideStep("guide_telecharger");
+    void guideReadyToDownloadAction(true).catch(() => undefined);
+  }
+
   return (
     // Plein écran : la page entière sur grand écran (score et chat à gauche, aperçu à droite).
     <div className="flex flex-col lg:h-dvh">
+      {guideStep && <GuidedHeader step={guideStep} onSkip={() => void skipGuide()} />}
       {/* Barre du haut : retour, menu de l'application, titre, enregistrement, téléchargement. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-white px-3 py-2 sm:px-4 dark:border-slate-800 dark:bg-slate-900">
-        <Link
-          href={application ? `/candidatures/${application.id}` : "/cv-builder"}
-          onClick={(e) => {
-            if (!canLeave()) e.preventDefault();
-          }}
-          className="ui-btn-secondary gap-1.5 px-4 py-2 text-[13px]"
-        >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-            <path d="M12 4l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Retour
-        </Link>
-        <button type="button" onClick={openMenu} aria-haspopup="dialog" className="ui-btn-secondary gap-1.5 px-4 py-2 text-[13px]">
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-            <path d="M3 5h14M3 10h14M3 15h14" strokeLinecap="round" />
-          </svg>
-          Menu
-        </button>
+        {/* Phase guidée : ni « Retour » ni « Menu » (seule sortie : « Passer », dans l'en-tête guidé). */}
+        {!guideStep && (
+          <>
+            <Link
+              href={application ? `/candidatures/${application.id}` : "/cv-builder"}
+              onClick={(e) => {
+                if (!canLeave()) e.preventDefault();
+              }}
+              className="ui-btn-secondary gap-1.5 px-4 py-2 text-[13px]"
+            >
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                <path d="M12 4l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Retour
+            </Link>
+            <button type="button" onClick={openMenu} aria-haspopup="dialog" className="ui-btn-secondary gap-1.5 px-4 py-2 text-[13px]">
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                <path d="M3 5h14M3 10h14M3 15h14" strokeLinecap="round" />
+              </svg>
+              Menu
+            </button>
+          </>
+        )}
         <FieldEditingContext value={titleEditing}>
           <FieldInput
             aria-label="Nom du CV"
@@ -466,7 +527,7 @@ export function CvBuilderEditor({
           {SAVE_LABELS[status]}
         </p>
         <button type="button" onClick={download} disabled={downloading} className="ui-btn-primary px-5 py-2.5 text-[13px]">
-          {downloading ? "Génération du PDF…" : "Télécharger en PDF"}
+          {downloading ? "Génération du PDF…" : guideStep === "guide_telecharger" ? GUIDE_TEXTS.download : "Télécharger en PDF"}
         </button>
       </div>
       {saveError && (
@@ -481,6 +542,30 @@ export function CvBuilderEditor({
           <div className="shrink-0">
             <CvScorePanel score={score} offerLabel={offerScoreLabel(scoringContext)} />
           </div>
+          {guideStep === "guide_telecharger" && (
+            // Félicitations de Lumeo : le bouton de l'en-tête devient « Télécharger mon CV ».
+            <section aria-labelledby="guide-ready" className="flex shrink-0 items-start gap-3 rounded-block border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+              <LumeoAvatar size={36} expression="felicite" />
+              <div className="min-w-0">
+                <h2 id="guide-ready" className="text-sm font-semibold text-ink dark:text-white">
+                  {GUIDE_TEXTS.congrats}
+                </h2>
+                <p className="mt-1 text-[13px] text-muted dark:text-slate-300">{GUIDE_TEXTS.downloadNote}</p>
+              </div>
+            </section>
+          )}
+          {guideStep === "guide_cv" && (
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13px] text-muted dark:text-slate-300">
+              <p className="min-w-0">{GUIDE_TEXTS.note}</p>
+              <button
+                type="button"
+                onClick={alreadyGood}
+                className="ui-focus inline-flex min-h-11 items-center font-medium text-ink underline underline-offset-2 hover:text-accent dark:text-white"
+              >
+                {GUIDE_TEXTS.alreadyGood}
+              </button>
+            </div>
+          )}
           <div role="tablist" aria-label="Panneau de l'éditeur" className="flex shrink-0 flex-wrap gap-1.5">
             {tabs.map(([id, label]) => (
               <button
@@ -544,6 +629,7 @@ export function CvBuilderEditor({
                 minimal
                 markdown
                 persona="lumeo"
+                {...(guideStep ? { suggestions: GUIDE_TEXTS.suggestions, placeholder: GUIDE_TEXTS.placeholder } : {})}
               />
             )}
           </div>

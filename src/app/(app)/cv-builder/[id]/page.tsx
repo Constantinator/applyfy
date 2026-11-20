@@ -9,6 +9,7 @@ import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { getBuilderCv } from "@/lib/cv-builder";
 import { offerLanguage } from "@/lib/coach-offer";
+import { getGuidedEditorStep } from "@/lib/onboarding-server";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
 import { readCvSuggestions } from "@/lib/cv-types";
 
@@ -27,6 +28,8 @@ export default async function CvBuilderEditorPage({ params, searchParams }: Page
   const detail = cv.applicationId ? await getApplicationDetail(cv.applicationId) : null;
   const scoring = await loadBuilderCvScoring(cv.data, cv.applicationId, detail);
   const analysis = readCvSuggestions(detail?.application.cv_suggestions);
+  // Phase guidée du parcours d'accueil (comptes récents seulement, dernier CV) ; null sinon.
+  const guided = await getGuidedEditorStep(cv.id);
 
   return (
     // Éditeur en plein écran (sans barre de navigation de l'application, cf. app-nav-context).
@@ -35,6 +38,7 @@ export default async function CvBuilderEditorPage({ params, searchParams }: Page
         cv={cv}
         scoring={scoring}
         openCoach={onglet === "chat"}
+        guided={guided}
         application={
           detail && {
             id: detail.application.id,

@@ -2,17 +2,21 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import { completeOnboarding, needsOnboarding } from "./account";
+import { completeOnboarding, getOnboardingAccount, needsOnboarding } from "./account";
 import { listAllUsers } from "./admin-metrics";
 import { requireUser } from "./auth";
 import {
+  guidedEditorStep,
   isAfterLaunch,
   onboardingStats,
-  resumeScreen,
+  resumeTarget,
+  withSkipped,
+  type GuideEditorStep,
   type OnboardingRow,
   type OnboardingScreen,
   type OnboardingState,
   type OnboardingStats,
+  type ResumeTarget,
 } from "./onboarding";
 import { isMissingTable } from "./optional-columns";
 import { createAdminClient } from "./supabase/admin";
@@ -29,42 +33,156 @@ import { createClient } from "./supabase/server";
  */
 const DONE_COOKIE = "applyfy_parcours_fini";
 
-export type OnboardingEntry = { screen: OnboardingScreen; state: OnboardingState };
+/**
+ * Parcours à reprendre : où (écran de /bienvenue, ou éditeur du CV pendant la phase guidée) et
+ * l'état enregistré. `screen` : écran de /bienvenue à afficher si la cible est /bienvenue.
+ */
+export type OnboardingEntry = { target: ResumeTarget; screen: OnboardingScreen; state: OnboardingState };
 
-/** Parcours à proposer maintenant (avec l'écran où reprendre), ou null. */
+type ProgressRow = {
+  step: OnboardingState["step"];
+  job_search: OnboardingState["jobSearch"];
+  has_cv: OnboardingState["hasCv"];
+  choice: OnboardingState["choice"];
+  skipped_steps: OnboardingState["skipped"];
+  completed_at: string | null;
+};
+
+/** Ligne du compte connecté ; « illisible » si la lecture échoue (table absente…). */
+async function readOwnRow(userId: string): Promise<ProgressRow | null | "illisible"> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("onboarding_progress")
+    .select("step, job_search, has_cv, choice, skipped_steps, completed_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    if (isMissingTable(error)) console.error("[onboarding] table absente (migration 0045) : pas de parcours");
+    else console.error("[onboarding] lecture", error.message);
+    return "illisible";
+  }
+  return (data as ProgressRow | null) ?? null;
+}
+
+const stateOf = (row: ProgressRow | null): OnboardingState => ({
+  step: row?.step ?? "accueil",
+  jobSearch: row?.job_search ?? null,
+  hasCv: row?.has_cv ?? null,
+  choice: row?.choice ?? null,
+  skipped: row?.skipped_steps ?? [],
+});
+
+/** Identifiant du dernier CV modifié du compte, ou null (aucun, ou lecture impossible). */
+async function latestCvId(userId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cv_builder")
+    .select("id")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) console.error("[onboarding] dernier CV", error.message);
+  return (data?.id as string | undefined) ?? null;
+}
+
+const isGuidedEditorStep = (step: string | undefined) => step === "guide_cv" || step === "guide_telecharger";
+
+/** Parcours à proposer maintenant (avec l'endroit où reprendre), ou null. */
 export async function getOnboardingEntry(): Promise<OnboardingEntry | null> {
   try {
     if (!(await needsOnboarding())) return null;
     const user = await requireUser();
     if ((await cookies()).get(DONE_COOKIE)?.value === user.id) return null;
 
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("onboarding_progress")
-      .select("step, job_search, has_cv, choice, skipped_steps, completed_at")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (error) {
-      if (isMissingTable(error)) console.error("[onboarding] table absente (migration 0045) : pas de parcours");
-      else console.error("[onboarding] lecture", error.message);
-      return null;
-    }
-    if (data?.completed_at) return null;
-    const screen = resumeScreen(data?.step);
-    return {
-      screen,
-      state: {
-        step: screen,
-        jobSearch: data?.job_search ?? null,
-        hasCv: data?.has_cv ?? null,
-        choice: data?.choice ?? null,
-        skipped: data?.skipped_steps ?? [],
-      },
-    };
+    const row = await readOwnRow(user.id);
+    if (row === "illisible" || row?.completed_at) return null;
+    // Phase guidée : l'éditeur du dernier CV (s'il existe ; sinon le choix « importer ou créer »).
+    const cvId = isGuidedEditorStep(row?.step) ? await latestCvId(user.id) : null;
+    const target = resumeTarget(row?.step, cvId);
+    const screen = target.kind === "bienvenue" ? target.screen : "chemin_cv";
+    return { target, screen, state: { ...stateOf(row), step: screen } };
   } catch (error) {
     console.error("[onboarding] état", error);
     return null;
   }
+}
+
+/**
+ * Éditeur de ce CV en mode guidé ? L'étape (améliorer ou télécharger), ou null : jamais pour un
+ * ancien compte, un parcours terminé ou passé, ou un autre CV que le dernier. Sans échec.
+ */
+export async function getGuidedEditorStep(cvId: string): Promise<GuideEditorStep | null> {
+  try {
+    const account = await getOnboardingAccount();
+    // Ancien compte ou parcours terminé : aucune lecture de plus.
+    if (!isAfterLaunch(account.createdAt) || account.completed) return null;
+    const user = await requireUser();
+    const doneCookie = (await cookies()).get(DONE_COOKIE)?.value === user.id;
+    if (doneCookie) return null;
+    const row = await readOwnRow(user.id);
+    if (row === "illisible" || !row || !isGuidedEditorStep(row.step)) return null;
+    return guidedEditorStep({
+      createdAt: account.createdAt,
+      metadataCompleted: account.completed,
+      doneCookie,
+      progress: { step: row.step, completed: Boolean(row.completed_at) },
+      cvId,
+      latestCvId: await latestCvId(user.id),
+    });
+  } catch (error) {
+    console.error("[onboarding] éditeur guidé", error);
+    return null;
+  }
+}
+
+/**
+ * Chemin A : la phase guidée commence (étape « guide_cv »). Si la base la refuse (migration 0047
+ * pas encore appliquée) ou en cas d'erreur, le parcours est terminé comme avant. true : guidée.
+ */
+export async function startGuidedPhase(state: OnboardingState): Promise<boolean> {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase.from("onboarding_progress").upsert(
+    {
+      user_id: user.id,
+      step: "guide_cv",
+      job_search: state.jobSearch,
+      has_cv: state.hasCv,
+      choice: state.choice,
+      skipped_steps: state.skipped,
+    },
+    { onConflict: "user_id" },
+  );
+  if (!error) return true;
+  if (error.code === "23514") console.error("[onboarding] phase guidée refusée par la base (migration 0047 absente) : parcours terminé");
+  else console.error("[onboarding] phase guidée", error.message);
+  await finishOnboarding(state);
+  return false;
+}
+
+/**
+ * Phase guidée, étape 1 terminée (CV amélioré, ou « Mon CV est déjà bon ») : étape
+ * « guide_telecharger ». Sans effet hors de l'étape « guide_cv ».
+ */
+export async function advanceGuideToDownload(skipped: boolean) {
+  const user = await requireUser();
+  const row = await readOwnRow(user.id);
+  if (row === "illisible" || !row || row.completed_at || row.step !== "guide_cv") return;
+  const state = stateOf(row);
+  await saveOnboardingState({ ...(skipped ? withSkipped(state, "guide_cv") : state), step: "guide_telecharger" });
+}
+
+/**
+ * Fin de la phase guidée : « Passer » (étape notée comme passée) ou CV téléchargé. Le parcours
+ * est terminé (marque du navigateur posée d'abord, jamais de boucle).
+ */
+export async function finishGuidedPhase(skippedStep: GuideEditorStep | null) {
+  const user = await requireUser();
+  const row = await readOwnRow(user.id).catch(() => "illisible" as const);
+  const base: OnboardingState =
+    row === "illisible" || !row ? { step: "guide_cv", jobSearch: null, hasCv: "oui", choice: null, skipped: [] } : stateOf(row);
+  await finishOnboarding(skippedStep ? withSkipped(base, skippedStep) : base);
 }
 
 /** Enregistre la progression (une ligne par compte, remplacée à chaque écran). */

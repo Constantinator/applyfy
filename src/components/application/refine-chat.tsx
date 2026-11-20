@@ -148,6 +148,7 @@ export function RefineChat({
   undoable = true,
   persona,
   suggestions,
+  placeholder,
   tagline,
   links,
   layout = "card",
@@ -199,6 +200,8 @@ export function RefineChat({
   persona?: "lumeo";
   /** Suggestions propres au contexte (panneau global : selon la page), à la place de celles du document. */
   suggestions?: readonly string[];
+  /** Texte du champ de saisie, s'il diffère de celui du document. */
+  placeholder?: string;
   /** Accroche du bandeau de Lumeo, si elle diffère de celle du CV Builder. */
   tagline?: string;
   /** Liens markdown autorisés dans les réponses (sinon : texte seul). */
@@ -364,6 +367,31 @@ export function RefineChat({
     setMessages((list) => list.map((m) => (m.id === message.id ? { ...m, undone: true } : m)));
   }
 
+  // Suggestions : un clic remplit le champ (panneau global : la question part tout de suite).
+  const suggestionButtons = (
+    <div className="flex flex-wrap gap-2">
+      {shownSuggestions.map((suggestion) => (
+        <button
+          key={suggestion}
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            // Panneau : la suggestion est posée telle quelle ; ailleurs, elle remplit le champ.
+            if (panel) {
+              void send(suggestion);
+              return;
+            }
+            setInput(suggestion);
+            inputRef.current?.focus();
+          }}
+          className="ui-focus ui-hit relative rounded-full bg-box px-3 py-1.5 text-xs font-medium text-prose transition hover:bg-[#E9E9EB] disabled:opacity-50 dark:border dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-blue-500/15 dark:hover:text-blue-300"
+        >
+          {suggestion}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <section
       aria-labelledby={titleId}
@@ -508,32 +536,15 @@ export function RefineChat({
         )}
       </div>
 
-      {minimal ? null : !aiEnabled ? (
+      {minimal ? (
+        // Chat épuré (CV Builder) : seulement les suggestions passées par la page (phase guidée).
+        suggestions && aiEnabled && !limitReached ? suggestionButtons : null
+      ) : !aiEnabled ? (
         <p className="text-xs text-muted dark:text-slate-400">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached && !panel ? (
         <UsageLimitBanner resetLabel={resetLabel} message={limitMessage} premiumBadge={limitMessage !== undefined} />
       ) : shownSuggestions.length === 0 || (panel && (messages.length > 0 || pending)) ? null : (
-        <div className="flex flex-wrap gap-2">
-          {shownSuggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                // Panneau : la suggestion est posée telle quelle ; ailleurs, elle remplit le champ.
-                if (panel) {
-                  void send(suggestion);
-                  return;
-                }
-                setInput(suggestion);
-                inputRef.current?.focus();
-              }}
-              className="ui-focus ui-hit relative rounded-full bg-box px-3 py-1.5 text-xs font-medium text-prose transition hover:bg-[#E9E9EB] disabled:opacity-50 dark:border dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-blue-500/15 dark:hover:text-blue-300"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
+        suggestionButtons
       )}
 
       <form
@@ -561,7 +572,7 @@ export function RefineChat({
           rows={2}
           maxLength={REFINE_MESSAGE_MAX_LENGTH}
           disabled={disabled}
-          placeholder={texts.placeholder}
+          placeholder={placeholder ?? texts.placeholder}
           className="ui-input min-w-0 flex-1 resize-none py-2.5"
         />
         <button

@@ -22,6 +22,8 @@ export default async function WelcomePage() {
   await requireUser();
   const entry = await getOnboardingEntry();
   if (!entry) redirect("/dashboard");
+  // Phase guidée en cours, CV déjà créé : on reprend dans l'éditeur.
+  if (entry.target.kind === "editeur") redirect(`/cv-builder/${entry.target.cvId}`);
 
   const [accountName, premium] = await Promise.all([
     getAccountName().catch(() => null),

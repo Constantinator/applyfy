@@ -34,7 +34,17 @@ test("barre : 4 segments (écran 1 ; écrans 2 et 2 bis ; écran 3 ; chemin A ou
   assert.equal(ONBOARDING_SEGMENTS, 4);
   assert.deepEqual(
     ONBOARDING_STEPS.map((step) => [step, segmentOf(step)]),
-    [["accueil", 1], ["apport", 2], ["temps", 2], ["cv", 3], ["chemin_cv", 4], ["chemin_offre", 4]],
+    [
+      ["accueil", 1],
+      ["apport", 2],
+      ["temps", 2],
+      ["cv", 3],
+      ["chemin_cv", 4],
+      ["chemin_offre", 4],
+      ["guide_cv", 4],
+      ["guide_telecharger", 4],
+      ["guide_offre", 4],
+    ],
   );
 });
 
@@ -120,11 +130,31 @@ test("statistiques admin : commencés, terminés, arrêts, réponses, écrans pa
   assert.equal(stats.signups, 6);
   assert.equal(stats.started, 5);
   assert.equal(stats.completed, 2);
-  assert.deepEqual(stats.stoppedAt, { accueil: 0, apport: 1, temps: 1, cv: 0, chemin_cv: 0, chemin_offre: 1 });
+  assert.deepEqual(stats.stoppedAt, {
+    accueil: 0,
+    apport: 1,
+    temps: 1,
+    cv: 0,
+    chemin_cv: 0,
+    chemin_offre: 1,
+    guide_cv: 0,
+    guide_telecharger: 0,
+    guide_offre: 0,
+  });
   assert.deepEqual(stats.jobSearch, { oui: 3, pas_encore: 1, sans_reponse: 1 });
   assert.deepEqual(stats.hasCv, { oui: 1, plus_tard: 2, sans_reponse: 2 });
   assert.deepEqual(stats.choice, { import: 1, zero: 0, lien: 0, recherche: 1, aucune: 3 });
-  assert.deepEqual(stats.skipped, { accueil: 1, apport: 1, temps: 0, cv: 1, chemin_cv: 0, chemin_offre: 0 });
+  assert.deepEqual(stats.skipped, {
+    accueil: 1,
+    apport: 1,
+    temps: 0,
+    cv: 1,
+    chemin_cv: 0,
+    chemin_offre: 0,
+    guide_cv: 0,
+    guide_telecharger: 0,
+    guide_offre: 0,
+  });
 });
 
 /** Toutes les phrases du parcours (fonctions appelées avec des valeurs de test). */
@@ -167,12 +197,14 @@ test("textes : ceux validés, prénom facultatif", () => {
   assert.equal(`${T.cheminOffre.searchIntro} ${T.cheminOffre.search}`, "Pas d'offre sous la main ? Trouver une offre");
 });
 
-test("chemins A et B : chaque action enregistre son choix et termine le parcours", () => {
+test("chemins A et B : chaque action enregistre son choix ; B termine le parcours, A ouvre la phase guidée", () => {
   const flow = read("components/onboarding/onboarding-flow.tsx");
   assert.match(flow, /const choose = \(choice: OnboardingChoice, link = ""\) => finish\(\{ \.\.\.state, choice \}, choiceDestination\(choice, link\)\);/);
   assert.match(flow, /\["import", IconUpload,/);
   assert.match(flow, /\["zero", IconPencil,/);
-  assert.match(flow, /onChoose=\{\(\) => choose\(choice\)\}/);
+  // Chemin A : la phase guidée commence (sans la migration 0047 : parcours terminé, cf. guide).
+  assert.match(flow, /onChoose=\{\(\) => startCv\(choice\)\}/);
+  assert.match(flow, /startCvPathAction\(\{ \.\.\.state, choice \}\)\)\.then\(\(\) => router\.push\(choiceDestination\(choice\)\)\)/);
   assert.match(flow, /<OfferLinkForm onSubmit=\{\(link\) => choose\("lien", link\)\}/);
   assert.match(flow, /onChoose=\{\(\) => choose\("recherche"\)\}/);
   // Fin : choix et completed_at en base, marque du compte, marque du navigateur.
@@ -226,8 +258,9 @@ test("écran 2 bis : sans chiffre ; emplacement de preuve facultatif, vide dans 
 test("migration 0045 : mêmes valeurs que le code, RLS, retour arrière", () => {
   const sql = read("../supabase/migrations/0045_onboarding.sql");
   const list = (values) => values.map((v) => `'${v}'`).join(", ");
-  assert.match(sql, new RegExp(`check \\(step in \\(${list(ONBOARDING_STEPS)}\\)\\)`));
-  assert.ok(sql.includes(`skipped_steps <@ array[${list(ONBOARDING_STEPS)}]::text[]`));
+  // 0045 : les écrans de /bienvenue (la 0047 ajoute les étapes de la phase guidée).
+  assert.match(sql, new RegExp(`check \\(step in \\(${list(ONBOARDING_SCREENS)}\\)\\)`));
+  assert.ok(sql.includes(`skipped_steps <@ array[${list(ONBOARDING_SCREENS)}]::text[]`));
   assert.match(sql, /check \(job_search in \('oui', 'pas_encore'\)\)/);
   assert.match(sql, /check \(has_cv in \('oui', 'plus_tard'\)\)/);
   assert.match(sql, /check \(choice in \('import', 'zero', 'lien', 'recherche'\)\)/);
@@ -276,14 +309,18 @@ test("animations : toutes dans prefers-reduced-motion: no-preference", () => {
 
 test("redirections : tableau de bord ↔ /bienvenue, même règle des deux côtés (pas de boucle)", () => {
   const dashboard = read("app/(app)/dashboard/page.tsx");
-  assert.match(dashboard, /if \(!welcomePremium && \(await getOnboardingEntry\(\)\)\) redirect\("\/bienvenue"\);/);
+  assert.match(
+    dashboard,
+    /const onboarding = await getOnboardingEntry\(\);\s*if \(onboarding\) redirect\(onboarding\.target\.kind === "editeur" \? `\/cv-builder\/\$\{onboarding\.target\.cvId\}` : "\/bienvenue"\);/,
+  );
   const page = read("app/(onboarding)/bienvenue/page.tsx");
   assert.match(page, /const entry = await getOnboardingEntry\(\);\s*if \(!entry\) redirect\("\/dashboard"\);/);
+  assert.match(page, /if \(entry\.target\.kind === "editeur"\) redirect\(`\/cv-builder\/\$\{entry\.target\.cvId\}`\);/);
   assert.match(read("proxy.ts"), /"\/bienvenue"\]/);
   const server = read("lib/onboarding-server.ts");
   // Fin du parcours : marque posée dans le navigateur avant les écritures en base.
   assert.ok(server.indexOf("cookies()).set(DONE_COOKIE") < server.indexOf("saveOnboardingState(state, true)"));
   // Table absente ou illisible : pas de parcours.
   assert.match(server, /isMissingTable\(error\)/);
-  assert.match(server, /return null;\s*\}\s*if \(data\?\.completed_at\) return null;/);
+  assert.match(server, /if \(row === "illisible" \|\| row\?\.completed_at\) return null;/);
 });
