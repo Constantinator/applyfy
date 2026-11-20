@@ -269,4 +269,21 @@ export const GUIDE_TEXTS = {
   download: "Télécharger mon CV",
   congrats: "Beau travail, ton CV est prêt. Télécharge-le pour l'avoir sous la main, tu pourras toujours le modifier ensuite.",
   downloadNote: "Un PDF prêt à envoyer. Ensuite, on ajoute une offre qui te plaît.",
+  /** Écran de l'offre (étape 3) : titre, champ et liens repris du chemin B (ONBOARDING_TEXTS.cheminOffre). */
+  offerNote: "Ensuite, on pourra adapter ton CV à cette offre.",
+  offerLater: "Plus tard, aller au tableau de bord",
+} as const;
+
+/**
+ * Bandeau de Lumeo sur la fiche de la candidature ajoutée pendant la phase guidée (une seule
+ * fois). Le nombre d'adaptations est lu dans AI_MONTHLY_LIMITS.cvb_chat.
+ */
+export const GUIDE_BANNER_TEXTS = {
+  label: "Lumeo",
+  title: "Bien joué. Je peux adapter ton CV à cette offre, ou te préparer une lettre. Tu choisis.",
+  adapt: "Adapter mon CV",
+  letter: "Écrire ma lettre",
+  later: "Plus tard",
+  close: "Fermer",
+  freeNote: (adaptations: number) => `Gratuit : ${adaptations} adaptation${adaptations > 1 ? "s" : ""} par mois.`,
 } as const;

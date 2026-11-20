@@ -15,7 +15,7 @@ import {
 import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
 import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
 import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
-import { finishGuideAction, guideReadyToDownloadAction } from "@/app/actions/onboarding";
+import { finishGuideAction, guideDownloadedAction, guideReadyToDownloadAction } from "@/app/actions/onboarding";
 import { GUIDE_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import type { GuideEditorStep } from "@/lib/onboarding";
 import { guideContentFingerprint, isCvImproved } from "@/lib/onboarding-guide";
@@ -443,11 +443,11 @@ export function CvBuilderEditor({
       link.download = fileName(title);
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      // Phase guidée : CV téléchargé (amélioré ou non), le parcours se termine ici pour l'instant.
+      // Phase guidée : CV téléchargé (amélioré ou non), étape suivante : l'écran de l'offre.
       if (guideStepRef.current) {
         guideStepRef.current = null;
-        setGuideStep(null);
-        void finishGuideAction(null).catch(() => undefined);
+        await guideDownloadedAction().catch(() => undefined);
+        router.push("/bienvenue");
       }
     } catch (error) {
       console.error("[cv-builder] PDF", error);
@@ -526,7 +526,13 @@ export function CvBuilderEditor({
         >
           {SAVE_LABELS[status]}
         </p>
-        <button type="button" onClick={download} disabled={downloading} className="ui-btn-primary px-5 py-2.5 text-[13px]">
+        <button
+          type="button"
+          onClick={download}
+          disabled={downloading}
+          // Étape 2 de la phase guidée : halo qui pulse doucement (animations réduites : aucun).
+          className={`ui-btn-primary px-5 py-2.5 text-[13px] ${guideStep === "guide_telecharger" ? "ob-halo" : ""}`}
+        >
           {downloading ? "Génération du PDF…" : guideStep === "guide_telecharger" ? GUIDE_TEXTS.download : "Télécharger en PDF"}
         </button>
       </div>
@@ -544,8 +550,10 @@ export function CvBuilderEditor({
           </div>
           {guideStep === "guide_telecharger" && (
             // Félicitations de Lumeo : le bouton de l'en-tête devient « Télécharger mon CV ».
-            <section aria-labelledby="guide-ready" className="flex shrink-0 items-start gap-3 rounded-block border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <LumeoAvatar size={36} expression="felicite" />
+            <section aria-labelledby="guide-ready" className="ob-rise-1 flex shrink-0 items-start gap-3 rounded-block border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+              <span className="ob-hop shrink-0">
+                <LumeoAvatar size={36} expression="felicite" celebrate />
+              </span>
               <div className="min-w-0">
                 <h2 id="guide-ready" className="text-sm font-semibold text-ink dark:text-white">
                   {GUIDE_TEXTS.congrats}

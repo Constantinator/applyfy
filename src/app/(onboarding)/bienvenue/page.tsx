@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
-import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
+import { GuideOfferScreen, OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { getAccountName } from "@/lib/account";
 import { AI_MONTHLY_LIMITS } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
@@ -24,6 +24,8 @@ export default async function WelcomePage() {
   if (!entry) redirect("/dashboard");
   // Phase guidée en cours, CV déjà créé : on reprend dans l'éditeur.
   if (entry.target.kind === "editeur") redirect(`/cv-builder/${entry.target.cvId}`);
+  // Phase guidée, CV téléchargé : « Quelle offre t'intéresse ? ».
+  if (entry.target.kind === "offre") return <GuideOfferScreen />;
 
   const [accountName, premium] = await Promise.all([
     getAccountName().catch(() => null),

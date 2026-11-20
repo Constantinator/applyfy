@@ -37,6 +37,10 @@ import { LUMEO_FICHE_TEXTS } from "@/lib/lumeo-texts";
 import { fullName } from "@/lib/person-name";
 import { getBuilderCvByApplication } from "@/lib/cv-builder";
 import { getLatestProfileCvText, listProfileCvs } from "@/lib/profile";
+import { shouldShowGuideBanner } from "@/lib/onboarding-server";
+import { AI_MONTHLY_LIMITS } from "@/lib/ai-usage-limits";
+import { GUIDE_BANNER_TEXTS } from "@/lib/lumeo-texts";
+import { GuideFicheBanner } from "@/components/onboarding/guide-fiche-banner";
 
 // Lettre (Server Actions de cette page) : 30 à 90 s.
 export const maxDuration = 120;
@@ -76,7 +80,7 @@ export default async function ApplicationPage({
 }: PageProps<"/candidatures/[id]">) {
   const { id } = await params;
   const { creee } = await searchParams;
-  const [detail, profileCvs, accountName, usage, latestProfileCvText, linkedCv] = await Promise.all([
+  const [detail, profileCvs, accountName, usage, latestProfileCvText, linkedCv, guideBanner] = await Promise.all([
     getApplicationDetail(id),
     // Non bloquant : la fiche reste affichée même si le profil est indisponible
     // (ex. migration 0007 pas encore appliquée).
@@ -94,6 +98,8 @@ export default async function ApplicationPage({
     getLatestProfileCvText(),
     // Sans échec (null si indisponible) : CV du CV Builder lié à cette candidature.
     getBuilderCvByApplication(id),
+    // Sans échec : bandeau de Lumeo si cette candidature vient de la phase guidée (une seule fois).
+    shouldShowGuideBanner(id),
   ]);
   if (!detail) notFound();
 
@@ -279,6 +285,13 @@ export default async function ApplicationPage({
           </div>
         </div>
       </main>
+      {guideBanner && (
+        <GuideFicheBanner
+          applicationId={app.id}
+          // Mention du plan gratuit : jamais pour Premium ni bêta (usage.premium).
+          freeNote={usage.premium ? null : GUIDE_BANNER_TEXTS.freeNote(AI_MONTHLY_LIMITS.cvb_chat)}
+        />
+      )}
     </div>
   );
 }

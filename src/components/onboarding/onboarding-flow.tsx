@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { finishOnboardingAction, saveOnboardingAction, startCvPathAction } from "@/app/actions/onboarding";
+import { finishGuideAction, finishOnboardingAction, saveOnboardingAction, startCvPathAction } from "@/app/actions/onboarding";
+import { GuidedHeader } from "@/components/cv-builder/guided-header";
 import { IconBriefcase, IconPencil, IconPuzzle, IconUpload } from "@/components/icons";
 import { BrandLogo } from "@/components/logo";
 import { LumeoAvatar, type LumeoExpression } from "@/components/lumeo/lumeo-avatar";
 import {
   ONBOARDING_SEGMENTS,
   choiceDestination,
+  guideOfferDestination,
   nextScreen,
   segmentOf,
   withSkipped,
@@ -20,7 +22,7 @@ import {
   type OnboardingScreen,
   type OnboardingState,
 } from "@/lib/onboarding";
-import { ONBOARDING_TEXTS as T } from "@/lib/lumeo-texts";
+import { GUIDE_TEXTS, ONBOARDING_TEXTS as T } from "@/lib/lumeo-texts";
 import { OFFER_URL_MAX_LENGTH, parseOfferLink } from "@/lib/offer-limits";
 
 /** État du parcours affiché sur un écran de /bienvenue. */
@@ -430,6 +432,71 @@ export function OnboardingFlow({
               </p>
             </>
           )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/**
+ * Phase guidée, étape 3 : « Quelle offre t'intéresse ? ». Même en-tête guidé que l'éditeur, même
+ * formulaire et mêmes liens que le chemin B. Le lien mène au formulaire de candidature (accueil=1 :
+ * la création termine le parcours) ; « Trouver une offre », « Plus tard » et « Passer » le terminent
+ * tout de suite. Aucun lien Premium.
+ */
+export function GuideOfferScreen() {
+  const router = useRouter();
+  const [leaving, setLeaving] = useState(false);
+
+  function leave(task: () => Promise<unknown>, href: string) {
+    if (leaving) return;
+    setLeaving(true);
+    // Quoi qu'il arrive à l'enregistrement, la personne part (pas de blocage, pas de boucle).
+    void task()
+      .catch(() => undefined)
+      .then(() => router.push(href));
+  }
+
+  const later = () => leave(() => finishGuideAction("guide_offre"), "/dashboard");
+
+  return (
+    <div className="flex min-h-dvh flex-1 flex-col bg-page text-ink">
+      <GuidedHeader step="guide_offre" onSkip={later} />
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:py-12">
+        <div className="flex w-full max-w-[560px] flex-col items-center gap-6">
+          <div className="ob-pop">
+            <div className="ob-think">
+              <LumeoAvatar size={120} expression="reflechit" bubbles standalone />
+            </div>
+          </div>
+          <div className="space-y-2 text-center">
+            <h1 className="ob-rise-1 text-center text-[32px] leading-[1.1] font-bold tracking-[-0.035em] text-ink sm:text-[42px]">
+              {T.cheminOffre.title}
+            </h1>
+            <p className="ob-rise-1 text-lg text-muted">{T.cheminOffre.subtitle}</p>
+          </div>
+          {/* Lien de l'offre : vers le formulaire de candidature, sans terminer le parcours ici. */}
+          <OfferLinkForm onSubmit={(link) => leave(async () => undefined, guideOfferDestination(link))} disabled={leaving} />
+          <p className="ob-rise-2 text-center text-sm text-muted">{GUIDE_TEXTS.offerNote}</p>
+          <div className="ob-rise-2 flex flex-col items-center gap-1 text-sm text-muted">
+            <p>
+              {T.cheminOffre.searchIntro}{" "}
+              <ActionLink
+                href={choiceDestination("recherche")}
+                onChoose={() => leave(() => finishGuideAction(null, "recherche"), choiceDestination("recherche"))}
+                className="ui-focus font-medium text-accent underline underline-offset-2 hover:text-ink"
+              >
+                {T.cheminOffre.search}
+              </ActionLink>
+            </p>
+            <ActionLink
+              href="/dashboard"
+              onChoose={later}
+              className="ui-focus inline-flex min-h-11 items-center font-medium text-ink underline underline-offset-2 hover:text-accent"
+            >
+              {GUIDE_TEXTS.offerLater}
+            </ActionLink>
+          </div>
         </div>
       </main>
     </div>

@@ -106,7 +106,10 @@ export function NewApplicationForm({
   aiEnabled,
   summaryUsage,
   resetLabel,
+  fromGuide = false,
 }: {
+  /** Arrivée depuis l'écran de l'offre de la phase guidée : transmis à la création (accueil=1). */
+  fromGuide?: boolean;
   /** Lien reçu dans l'adresse (tableau de bord) : importé une fois, à l'arrivée sur la page. */
   initialOfferUrl?: string | null;
   /** Lien reçu dans l'adresse, mais invalide : formulaire normal, avec un message. */
@@ -302,6 +305,7 @@ export function NewApplicationForm({
 
   return (
     <form action={formAction} noValidate className="space-y-5">
+      {fromGuide && <input type="hidden" name="accueil" value="1" />}
       {state.status === "error" && state.message && (
         <p
           role="alert"

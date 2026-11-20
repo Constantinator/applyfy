@@ -12,6 +12,8 @@ import {
   resumeTarget,
   withSkipped,
   type GuideEditorStep,
+  type GuideStep,
+  type OnboardingChoice,
   type OnboardingRow,
   type OnboardingScreen,
   type OnboardingState,
@@ -174,15 +176,89 @@ export async function advanceGuideToDownload(skipped: boolean) {
 }
 
 /**
- * Fin de la phase guidée : « Passer » (étape notée comme passée) ou CV téléchargé. Le parcours
- * est terminé (marque du navigateur posée d'abord, jamais de boucle).
+ * CV téléchargé pendant la phase guidée (amélioré ou non) : étape « guide_offre » (écran de
+ * l'offre). Sans effet hors des étapes de l'éditeur.
  */
-export async function finishGuidedPhase(skippedStep: GuideEditorStep | null) {
+export async function advanceGuideToOffer() {
+  const user = await requireUser();
+  const row = await readOwnRow(user.id);
+  if (row === "illisible" || !row || row.completed_at || !isGuidedEditorStep(row.step)) return;
+  await saveOnboardingState({ ...stateOf(row), step: "guide_offre" });
+}
+
+/**
+ * Fin de la phase guidée : « Passer » ou « Plus tard » (étape notée comme passée), ou « Trouver
+ * une offre » (choix noté). Le parcours est terminé (marque du navigateur posée d'abord, jamais
+ * de boucle).
+ */
+export async function finishGuidedPhase(skippedStep: GuideStep | null, choice: OnboardingChoice | null = null) {
   const user = await requireUser();
   const row = await readOwnRow(user.id).catch(() => "illisible" as const);
   const base: OnboardingState =
     row === "illisible" || !row ? { step: "guide_cv", jobSearch: null, hasCv: "oui", choice: null, skipped: [] } : stateOf(row);
-  await finishOnboarding(skippedStep ? withSkipped(base, skippedStep) : base);
+  const state = choice ? { ...base, choice } : base;
+  await finishOnboarding(skippedStep ? withSkipped(state, skippedStep) : state);
+}
+
+/**
+ * Candidature créée depuis l'écran de l'offre (accueil=1) : seulement si l'étape en base est
+ * « guide_offre », la candidature est notée (bandeau de sa fiche) et le parcours terminé. Sans
+ * effet sinon. Sans échec : une erreur est journalisée, la candidature est créée quoi qu'il arrive.
+ */
+export async function completeGuideWithApplication(applicationId: string) {
+  try {
+    const user = await requireUser();
+    const row = await readOwnRow(user.id);
+    if (row === "illisible" || !row || row.completed_at || row.step !== "guide_offre") return;
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("onboarding_progress")
+      .update({ guide_application_id: applicationId })
+      .eq("user_id", user.id);
+    if (error) console.error("[onboarding] candidature de la phase guidée", error.message);
+    await finishOnboarding({ ...stateOf(row), choice: "lien" });
+  } catch (error) {
+    console.error("[onboarding] candidature de la phase guidée", error);
+  }
+}
+
+/**
+ * Bandeau de Lumeo sur la fiche : seulement pour la candidature créée depuis la phase guidée, tant
+ * qu'il n'a pas été vu. Sans échec : false si la lecture échoue (colonnes absentes…).
+ */
+export async function shouldShowGuideBanner(applicationId: string): Promise<boolean> {
+  try {
+    const account = await getOnboardingAccount();
+    if (!isAfterLaunch(account.createdAt)) return false; // ancien compte : jamais
+    const user = await requireUser();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("onboarding_progress")
+      .select("guide_application_id, fiche_banner_seen_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) {
+      console.error("[onboarding] bandeau de la fiche", error.message);
+      return false;
+    }
+    return data?.guide_application_id === applicationId && !data.fiche_banner_seen_at;
+  } catch (error) {
+    console.error("[onboarding] bandeau de la fiche", error);
+    return false;
+  }
+}
+
+/** Bandeau affiché dans le navigateur : noté comme vu (il ne réapparaîtra plus). */
+export async function markGuideBannerSeen(applicationId: string) {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("onboarding_progress")
+    .update({ fiche_banner_seen_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .eq("guide_application_id", applicationId)
+    .is("fiche_banner_seen_at", null);
+  if (error) throw new Error(`Bandeau de la fiche : ${error.message}`);
 }
 
 /** Enregistre la progression (une ligne par compte, remplacée à chaque écran). */

@@ -94,7 +94,11 @@ export function resumeScreen(step: OnboardingStep | null | undefined): Onboardin
   return step && (ONBOARDING_SCREENS as readonly string[]).includes(step) ? (step as OnboardingScreen) : "accueil";
 }
 
-export type ResumeTarget = { kind: "bienvenue"; screen: OnboardingScreen } | { kind: "editeur"; cvId: string };
+export type ResumeTarget =
+  | { kind: "bienvenue"; screen: OnboardingScreen }
+  | { kind: "editeur"; cvId: string }
+  /** Phase guidée, étape 3 : écran « Quelle offre t'intéresse ? » de /bienvenue. */
+  | { kind: "offre" };
 
 /**
  * Où reprendre le parcours : l'éditeur du dernier CV pendant la phase guidée (s'il existe), sinon
@@ -102,6 +106,7 @@ export type ResumeTarget = { kind: "bienvenue"; screen: OnboardingScreen } | { k
  */
 export function resumeTarget(step: OnboardingStep | null | undefined, latestCvId: string | null): ResumeTarget {
   if ((step === "guide_cv" || step === "guide_telecharger") && latestCvId) return { kind: "editeur", cvId: latestCvId };
+  if (step === "guide_offre") return { kind: "offre" };
   return { kind: "bienvenue", screen: resumeScreen(step) };
 }
 
@@ -136,6 +141,14 @@ export function choiceDestination(choice: OnboardingChoice, link = ""): string {
     case "recherche":
       return "/offres";
   }
+}
+
+/**
+ * Phase guidée, écran de l'offre : le formulaire de candidature avec le lien, et `accueil=1` pour
+ * que la création de la candidature termine le parcours (vérifié côté serveur).
+ */
+export function guideOfferDestination(link: string): string {
+  return `/candidatures/nouvelle?lien=${encodeURIComponent(link)}&accueil=1`;
 }
 
 /** « Passer » : l'écran est noté comme passé (une seule fois). */

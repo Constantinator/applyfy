@@ -9,10 +9,13 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guidedEditorStep, resumeTarget } = await import("./onboarding.ts");
+const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guideOfferDestination, guidedEditorStep, resumeTarget } = await import(
+  "./onboarding.ts"
+);
+const { AI_MONTHLY_LIMITS } = await import("./ai-usage-limits.ts");
 const { guideContentFingerprint, guideStepIndex, isCvImproved } = await import("./onboarding-guide.ts");
 const { CvDataSchema } = await import("./cv-builder-types.ts");
-const { GUIDE_TEXTS: T } = await import("./lumeo-texts.ts");
+const { GUIDE_BANNER_TEXTS: B, GUIDE_TEXTS: T, ONBOARDING_TEXTS: O } = await import("./lumeo-texts.ts");
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const after = new Date(Date.parse(ONBOARDING_LAUNCHED_AT) + 3_600_000).toISOString();
@@ -24,7 +27,8 @@ test("reprise selon l'étape : éditeur du dernier CV pendant la phase guidée, 
   // Import raté ou fenêtre de création fermée : retour au choix « importer ou créer ».
   assert.deepEqual(resumeTarget("guide_cv", null), { kind: "bienvenue", screen: "chemin_cv" });
   assert.deepEqual(resumeTarget("guide_telecharger", null), { kind: "bienvenue", screen: "chemin_cv" });
-  assert.deepEqual(resumeTarget("guide_offre", "cv-1"), { kind: "bienvenue", screen: "chemin_offre" });
+  assert.deepEqual(resumeTarget("guide_offre", "cv-1"), { kind: "offre" });
+  assert.deepEqual(resumeTarget("guide_offre", null), { kind: "offre" });
   assert.deepEqual(resumeTarget("temps", "cv-1"), { kind: "bienvenue", screen: "temps" });
   assert.deepEqual(resumeTarget(null, null), { kind: "bienvenue", screen: "accueil" });
 });
@@ -110,8 +114,12 @@ test("téléchargement : bouton « Télécharger mon CV » à l'étape 2, félic
   assert.equal(T.downloadNote, "Un PDF prêt à envoyer. Ensuite, on ajoute une offre qui te plaît.");
   const editor = read("components/cv-builder/cv-builder-editor.tsx");
   assert.match(editor, /guideStep === "guide_telecharger" \? GUIDE_TEXTS\.download : "Télécharger en PDF"/);
-  // Lot 6a : après le téléchargement (amélioré ou non), le parcours se termine.
-  assert.match(editor, /if \(guideStepRef\.current\) \{\s*guideStepRef\.current = null;\s*setGuideStep\(null\);\s*void finishGuideAction\(null\)/);
+  // Après le téléchargement (amélioré ou non) : l'écran de l'offre.
+  assert.match(editor, /if \(guideStepRef\.current\) \{\s*guideStepRef\.current = null;\s*await guideDownloadedAction\(\)\.catch\(\(\) => undefined\);\s*router\.push\("\/bienvenue"\);/);
+  const server = read("lib/onboarding-server.ts");
+  const offer = server.slice(server.indexOf("export async function advanceGuideToOffer"), server.indexOf("export async function finishGuidedPhase"));
+  assert.match(offer, /!isGuidedEditorStep\(row\.step\)\) return;/);
+  assert.match(offer, /step: "guide_offre"/);
 });
 
 test("sans la migration 0047 : le chemin A garde le comportement d'avant", () => {
@@ -149,4 +157,89 @@ test("textes : tutoiement, sans emoji, sans chiffre en dur, ni « illimité », 
   for (const path of ["components/cv-builder/guided-header.tsx", "lib/onboarding-guide.ts"]) {
     assert.doesNotMatch(read(path), /\/premium|Premium|illimit/i, path);
   }
+});
+
+test("écran de l'offre : en-tête guidé, formulaire et liens du chemin B, aucun lien Premium", () => {
+  const flow = read("components/onboarding/onboarding-flow.tsx");
+  const screen = flow.slice(flow.indexOf("export function GuideOfferScreen"));
+  assert.match(screen, /<GuidedHeader step="guide_offre" onSkip=\{later\} \/>/);
+  assert.match(screen, /<OfferLinkForm onSubmit=\{\(link\) => leave\(async \(\) => undefined, guideOfferDestination\(link\)\)\}/);
+  assert.match(screen, /T\.cheminOffre\.title/);
+  assert.match(screen, /T\.cheminOffre\.subtitle/);
+  assert.match(screen, /GUIDE_TEXTS\.offerNote/);
+  // « Trouver une offre » termine le parcours au clic ; « Plus tard » et « Passer » aussi.
+  assert.match(screen, /finishGuideAction\(null, "recherche"\), choiceDestination\("recherche"\)/);
+  assert.match(screen, /const later = \(\) => leave\(\(\) => finishGuideAction\("guide_offre"\), "\/dashboard"\);/);
+  assert.doesNotMatch(screen, /premium|PlanChoice/i);
+  assert.equal(T.offerNote, "Ensuite, on pourra adapter ton CV à cette offre.");
+  assert.equal(T.offerLater, "Plus tard, aller au tableau de bord");
+  assert.equal(O.cheminOffre.title, "Quelle offre t'intéresse ?");
+  assert.equal(O.cheminOffre.subtitle, "Colle le lien, je remplis la fiche pour toi.");
+  assert.equal(guideOfferDestination("https://a.fr/o?x=1"), "/candidatures/nouvelle?lien=https%3A%2F%2Fa.fr%2Fo%3Fx%3D1&accueil=1");
+  // /bienvenue : l'écran de l'offre pour l'étape « guide_offre » (reprise depuis /dashboard).
+  assert.match(read("app/(onboarding)/bienvenue/page.tsx"), /if \(entry\.target\.kind === "offre"\) return <GuideOfferScreen \/>;/);
+});
+
+test("création de la candidature : accueil=1 termine le parcours seulement à l'étape « guide_offre »", () => {
+  const action = read("app/actions/applications.ts");
+  assert.match(action, /if \(formData\.get\("accueil"\) === "1"\) await completeGuideWithApplication\(id\);\s*revalidateApplicationLists\(\);\s*redirect\(`\/candidatures\/\$\{id\}\?creee=1`\);/);
+  const server = read("lib/onboarding-server.ts");
+  const complete = server.slice(server.indexOf("export async function completeGuideWithApplication"), server.indexOf("export async function shouldShowGuideBanner"));
+  assert.match(complete, /if \(row === "illisible" \|\| !row \|\| row\.completed_at \|\| row\.step !== "guide_offre"\) return;/);
+  assert.match(complete, /update\(\{ guide_application_id: applicationId \}\)/);
+  assert.match(complete, /await finishOnboarding\(\{ \.\.\.stateOf\(row\), choice: "lien" \}\);/);
+  assert.match(complete, /^export async function completeGuideWithApplication[^{]*\{\s*try \{/, "sans échec");
+  const form = read("components/application/new-application-form.tsx");
+  assert.match(form, /\{fromGuide && <input type="hidden" name="accueil" value="1" \/>\}/);
+  assert.match(read("app/(app)/candidatures/nouvelle/page.tsx"), /fromGuide=\{accueil === "1"\}/);
+});
+
+test("bandeau de la fiche : seulement la candidature de la phase guidée, une seule fois, non bloquant", () => {
+  const server = read("lib/onboarding-server.ts");
+  const show = server.slice(server.indexOf("export async function shouldShowGuideBanner"), server.indexOf("export async function markGuideBannerSeen"));
+  assert.match(show, /if \(!isAfterLaunch\(account\.createdAt\)\) return false;/);
+  assert.match(show, /return data\?\.guide_application_id === applicationId && !data\.fiche_banner_seen_at;/);
+  assert.match(show, /if \(error\) \{[\s\S]*?return false;/, "colonnes absentes : pas de bandeau");
+  const seen = server.slice(server.indexOf("export async function markGuideBannerSeen"));
+  assert.match(seen, /\.eq\("guide_application_id", applicationId\)\s*\.is\("fiche_banner_seen_at", null\)/);
+  const banner = read("components/onboarding/guide-fiche-banner.tsx");
+  // « Vu » dès l'affichage dans le navigateur (pas quand le serveur prépare la page).
+  assert.match(banner, /useEffect\(\(\) => \{[\s\S]{0,120}guideBannerSeenAction\(applicationId\)/);
+  assert.match(banner, /<aside/);
+  assert.doesNotMatch(banner, /role="dialog"|aria-modal/);
+  assert.match(banner, /fixed inset-x-3 bottom-3/, "mobile : carte en bas");
+  assert.match(banner, /href=\{`\/cv-builder\?applicationId=\$\{applicationId\}`\} className="ui-btn-primary"/);
+  assert.match(banner, /href=\{`\/candidatures\/\$\{applicationId\}\/lettre`\} className="ui-btn-secondary"/);
+  assert.match(banner, /aria-label=\{T\.close\}/);
+  const page = read("app/(app)/candidatures/[id]/page.tsx");
+  assert.match(page, /freeNote=\{usage\.premium \? null : GUIDE_BANNER_TEXTS\.freeNote\(AI_MONTHLY_LIMITS\.cvb_chat\)\}/);
+  assert.equal(B.title, "Bien joué. Je peux adapter ton CV à cette offre, ou te préparer une lettre. Tu choisis.");
+  assert.deepEqual([B.adapt, B.letter, B.later], ["Adapter mon CV", "Écrire ma lettre", "Plus tard"]);
+  assert.equal(B.freeNote(AI_MONTHLY_LIMITS.cvb_chat), `Gratuit : ${AI_MONTHLY_LIMITS.cvb_chat} adaptations par mois.`);
+  assert.equal(B.freeNote(2), "Gratuit : 2 adaptations par mois.");
+  const texts = [B.label, B.title, B.adapt, B.letter, B.later, B.close].join("\n");
+  assert.doesNotMatch(texts, /\d|illimit|sans limite|premium/i);
+  assert.doesNotMatch(texts, /\p{Extended_Pictographic}/u);
+});
+
+test("animations de la phase guidée : dans prefers-reduced-motion: no-preference", () => {
+  const css = read("app/globals.css");
+  const start = css.indexOf("@media (prefers-reduced-motion: no-preference) {\n  @keyframes ob-fill");
+  let depth = 0;
+  let end = start;
+  for (let i = css.indexOf("{", start); i < css.length; i++) {
+    if (css[i] === "{") depth++;
+    if (css[i] === "}" && --depth === 0) {
+      end = i;
+      break;
+    }
+  }
+  const block = css.slice(start, end);
+  for (const name of ["@keyframes ob-slide", "@keyframes ob-halo", ".ob-hop", ".ob-halo", ".ob-slide-in"]) assert.ok(block.includes(name), name);
+  const outside = css.slice(0, start) + css.slice(end + 1);
+  assert.doesNotMatch(outside, /ob-(slide|halo|hop)/);
+  const editor = read("components/cv-builder/cv-builder-editor.tsx");
+  assert.match(editor, /guideStep === "guide_telecharger" \? "ob-halo" : ""/);
+  assert.match(editor, /<span className="ob-hop shrink-0">\s*<LumeoAvatar size=\{36\} expression="felicite" celebrate \/>/);
+  assert.match(read("components/onboarding/guide-fiche-banner.tsx"), /className="ob-slide-in fixed/);
 });
