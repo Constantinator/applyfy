@@ -6,6 +6,7 @@ import { appUrl } from "./app-url";
 import { buildActivationEmail } from "./email/activation-email";
 import { isEmailConfigured, sendEmail } from "./email/brevo";
 import { isUnsubscribed } from "./email/unsubscribe-token";
+import { onboardingEmailVariant, type OnboardingProgressRead } from "./onboarding";
 import { createAdminClient } from "./supabase/admin";
 import { firstNameOf } from "./welcome-email";
 
@@ -58,6 +59,9 @@ export async function runActivationJob({ dryRun = false, now = new Date() } = {}
   if (error) throw new Error(`Lecture des candidatures impossible : ${error.message}`);
   const withApplications = new Set((apps ?? []).map((a) => a.user_id as string));
 
+  // Parcours d'accueil : variante du texte. Lecture impossible ou table absente : variante « fini ».
+  const progress = await readProgress(supabase, candidates.map((u) => u.id));
+
   const base = appUrl();
   for (const user of candidates) {
     if (withApplications.has(user.id)) continue;
@@ -77,8 +81,13 @@ export async function runActivationJob({ dryRun = false, now = new Date() } = {}
           buildActivationEmail({
             to: user.email!,
             firstName: firstNameOf(metadata),
-            dashboardUrl: `${base}/dashboard`,
+            baseUrl: base,
             userId: user.id,
+            variant: onboardingEmailVariant({
+              createdAt: user.created_at,
+              metadataCompleted: typeof metadata.onboarding_completed_at === "string",
+              progress: progress === "illisible" ? "illisible" : (progress.get(user.id) ?? null),
+            }),
           }),
         );
       } catch (sendError) {
@@ -93,4 +102,22 @@ export async function runActivationJob({ dryRun = false, now = new Date() } = {}
   }
 
   return result;
+}
+
+/** Parcours d'accueil des comptes donnés ; « illisible » si la lecture échoue (table absente…). */
+async function readProgress(
+  supabase: ReturnType<typeof createAdminClient>,
+  userIds: string[],
+): Promise<Map<string, Exclude<OnboardingProgressRead, "illisible" | null>> | "illisible"> {
+  try {
+    const { data, error } = await supabase.from("onboarding_progress").select("user_id, completed_at").in("user_id", userIds);
+    if (error) {
+      console.error("[activation] parcours d'accueil illisible", error.message);
+      return "illisible";
+    }
+    return new Map((data ?? []).map((row) => [row.user_id as string, { completed: Boolean(row.completed_at) }]));
+  } catch (error) {
+    console.error("[activation] parcours d'accueil illisible", error);
+    return "illisible";
+  }
 }

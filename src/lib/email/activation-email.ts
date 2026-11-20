@@ -1,4 +1,6 @@
-// Email d'activation (J+2) : compte créé sans aucune candidature. Gabarit commun : layout.ts.
+// Email d'activation (J+2) : compte créé sans aucune candidature. Gabarit commun : layout.ts ;
+// textes selon l'état du parcours d'accueil : accueil-content.ts.
+import { activationEmailContent, type OnboardingEmailVariant } from "./accueil-content";
 import type { EmailMessage } from "./brevo";
 import { SIGNATURE, emailButton, emailLink, emailParagraph, emailSignature, escapeHtml, renderEmail } from "./layout";
 import { oneClickUnsubscribeUrl, unsubscribeUrl } from "./unsubscribe-token";
@@ -6,33 +8,35 @@ import { oneClickUnsubscribeUrl, unsubscribeUrl } from "./unsubscribe-token";
 export function buildActivationEmail(input: {
   to: string;
   firstName: string | null;
-  dashboardUrl: string;
+  /** Adresse du site (sans « / » final) : le bouton y ajoute sa page. */
+  baseUrl: string;
   userId: string;
+  variant: OnboardingEmailVariant;
 }): EmailMessage {
-  const { firstName, dashboardUrl } = input;
+  const content = activationEmailContent(input.variant, input.firstName);
+  const buttonUrl = `${input.baseUrl}${content.button.path}`;
   const unsubscribeLink = unsubscribeUrl(input.userId);
-  const subject = "Tu n'as pas encore ajouté ta première candidature";
-  const greeting = firstName ? `Salut ${firstName},` : "Salut,";
-  const intro =
-    "Ton espace Applyfy est prêt, il ne manque plus que ta première candidature. Ensuite, tu suis tout au même endroit : statuts, relances, CV et lettres.";
-  // Import par lien : jusqu'à ~33 s de délais cumulés (offer-import.ts), d'où « moins d'une minute ».
-  const hint = "Colle juste l'URL de l'offre, Applyfy fait le reste. Ça prend moins d'une minute.";
-  const button = "Ajouter ma première candidature";
+  const { subject } = content;
   const footer = "Tu reçois cet email car tu as créé ton compte Applyfy.";
 
   const html = renderEmail({
     title: subject,
     rows: [
-      emailParagraph(escapeHtml(greeting)),
-      emailParagraph(escapeHtml(intro)),
-      emailButton(button, dashboardUrl),
-      emailParagraph(escapeHtml(hint), { muted: true }),
+      ...content.paragraphs.map((paragraph) => emailParagraph(escapeHtml(paragraph))),
+      emailButton(content.button.label, buttonUrl),
+      ...(content.hint ? [emailParagraph(escapeHtml(content.hint), { muted: true })] : []),
       emailSignature(),
     ],
     footer: `${escapeHtml(footer)} ${emailLink("Se désinscrire des emails", unsubscribeLink)}`,
   });
 
-  const text = `${greeting}\n\n${intro}\n\n${button} : ${dashboardUrl}\n\n${hint}\n\n${SIGNATURE}\n\n—\n${footer} Se désinscrire des emails : ${unsubscribeLink}`;
+  const text = [
+    ...content.paragraphs,
+    `${content.button.label} : ${buttonUrl}`,
+    ...(content.hint ? [content.hint] : []),
+    SIGNATURE,
+    `—\n${footer} Se désinscrire des emails : ${unsubscribeLink}`,
+  ].join("\n\n");
 
   return { to: input.to, subject, html, text, unsubscribeUrl: oneClickUnsubscribeUrl(input.userId) };
 }

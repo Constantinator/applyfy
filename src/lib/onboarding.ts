@@ -175,3 +175,21 @@ export function onboardingStats(rows: OnboardingRow[], signups: number): Onboard
   }
   return stats;
 }
+
+/** Progression lue en base pour un e-mail : null sans ligne, « illisible » si la lecture échoue. */
+export type OnboardingProgressRead = { completed: boolean } | null | "illisible";
+
+/**
+ * Variante des e-mails d'accueil : « en_cours » seulement si le parcours concerne ce compte (créé
+ * après la mise en ligne) et n'est pas terminé. Lecture impossible ou table absente : « fini »,
+ * la variante neutre.
+ */
+export function onboardingEmailVariant(input: {
+  createdAt: string | null | undefined;
+  metadataCompleted: boolean;
+  progress: OnboardingProgressRead;
+}): "en_cours" | "fini" {
+  if (!isAfterLaunch(input.createdAt) || input.metadataCompleted) return "fini";
+  if (input.progress === "illisible" || input.progress?.completed) return "fini";
+  return "en_cours";
+}

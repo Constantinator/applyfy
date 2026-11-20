@@ -7,6 +7,8 @@ import { appUrl } from "./app-url";
 import { isEmailConfigured, sendEmail } from "./email/brevo";
 import { isUnsubscribed } from "./email/unsubscribe-token";
 import { buildWelcomeEmail } from "./email/welcome-email";
+import { onboardingEmailVariant, type OnboardingProgressRead } from "./onboarding";
+import { isMissingTable } from "./optional-columns";
 import { cleanNamePart } from "./person-name";
 import type { createClient } from "./supabase/server";
 
@@ -38,15 +40,38 @@ export async function queueWelcomeEmail(supabase: Awaited<ReturnType<typeof crea
     const { error } = await supabase.auth.updateUser({ data: { welcome_email_sent_at: new Date().toISOString() } });
     if (error) throw new Error(error.message);
 
-    const base = appUrl();
+    const variant = onboardingEmailVariant({
+      createdAt: user.created_at,
+      metadataCompleted: typeof metadata.onboarding_completed_at === "string",
+      progress: await readOwnProgress(supabase, user.id),
+    });
     const message = buildWelcomeEmail({
       to: user.email,
       firstName: firstNameOf(metadata),
-      dashboardUrl: `${base}/dashboard`,
+      baseUrl: appUrl(),
       userId: user.id,
+      variant,
     });
     after(() => sendEmail(message).catch((sendError) => console.error("[welcome-email] envoi", sendError)));
   } catch (error) {
     console.error("[welcome-email]", error);
+  }
+}
+
+/** Parcours d'accueil du compte (sa propre ligne, RLS) ; « illisible » si la lecture échoue. */
+async function readOwnProgress(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<OnboardingProgressRead> {
+  try {
+    const { data, error } = await supabase.from("onboarding_progress").select("completed_at").eq("user_id", userId).maybeSingle();
+    if (error) {
+      if (!isMissingTable(error)) console.error("[welcome-email] parcours", error.message);
+      return "illisible";
+    }
+    return data ? { completed: Boolean(data.completed_at) } : null;
+  } catch (error) {
+    console.error("[welcome-email] parcours", error);
+    return "illisible";
   }
 }
