@@ -14,8 +14,8 @@ import { cleanLocation } from "./offer-location";
 export type AtsPlatform = "greenhouse" | "lever" | "lever-eu" | "ashby" | "smartrecruiters";
 export type AtsCompany = {
   name: string;
-  /** Domaine du site vérifié à la main, pour le logo (null : pas encore vérifié, initiales). */
-  domain: string | null;
+  /** Domaine du site vérifié à la main, pour le logo. */
+  domain: string;
   platform: AtsPlatform;
   slug: string;
   products?: string[];

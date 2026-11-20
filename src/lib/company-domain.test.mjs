@@ -111,25 +111,20 @@ test("cohérence nom/domaine : homonymes et agences → initiales", () => {
   assert.equal(domainOf("BNP Paribas", "https://group.bnpparibas/emploi"), null);
 });
 
-test("ats-companies.json : chaque entreprise a un domaine vérifié valide, ou null (initiales) pour les cas douteux", async () => {
+test("ats-companies.json : chaque entreprise a un domaine principal valide, hors plateformes et messageries", async () => {
   const { readFileSync } = await import("node:fs");
   const data = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
   const companies = Object.values(data).flat();
   const byName = new Map();
   for (const company of companies) {
-    assert.ok("domain" in company, `${company.name} : champ domain manquant`);
     const { domain } = company;
-    if (domain !== null) {
-      assert.equal(registrableDomain(domain), domain, `${company.name} : ${domain} n'est pas un domaine principal valide`);
-      assert.ok(!isPlatformHost(domain), `${company.name} : ${domain} est une plateforme`);
-      assert.ok(!WEBMAIL_DOMAINS.has(domain), `${company.name} : ${domain} est une messagerie`);
-    }
+    assert.equal(typeof domain, "string", `${company.name} : domaine manquant`);
+    assert.equal(registrableDomain(domain), domain, `${company.name} : ${domain} n'est pas un domaine principal valide`);
+    assert.ok(!isPlatformHost(domain), `${company.name} : ${domain} est une plateforme`);
+    assert.ok(!WEBMAIL_DOMAINS.has(domain), `${company.name} : ${domain} est une messagerie`);
     // Une même entreprise (plusieurs secteurs) a toujours le même domaine.
     if (byName.has(company.name)) assert.equal(byName.get(company.name), domain, company.name);
     byName.set(company.name, domain);
   }
-  // Sites protégés contre les robots ou en maintenance au contrôle du 19/11/2026 : à vérifier à l'œil.
-  const pending = [...byName].filter(([, domain]) => domain === null).map(([name]) => name).sort();
-  assert.deepEqual(pending, ["Alten", "Boulanger", "Jacquemus", "Kiabi", "Saint-Gobain", "SeLoger"]);
   assert.equal(byName.size, 78);
 });

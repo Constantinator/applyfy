@@ -10,9 +10,8 @@ import { JOB_BOARD_COMPANIES } from "@/lib/job-boards";
 
 /** Domaines vérifiés à la main : pages carrières de « Trouver une offre » et entreprises collectées. */
 const KNOWN_DOMAINS: ReadonlyMap<string, string> = new Map([
-  ...Object.values(atsCompanies as Record<string, { name: string; domain: string | null }[]>)
+  ...Object.values(atsCompanies as Record<string, { name: string; domain: string }[]>)
     .flat()
-    .filter((company): company is { name: string; domain: string } => Boolean(company.domain))
     .map((company) => [companyKey(company.name), company.domain] as const),
   ...JOB_BOARD_COMPANIES.map((company) => [companyKey(company.name), company.domain] as const),
 ]);
