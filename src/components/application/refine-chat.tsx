@@ -8,8 +8,10 @@ import { REFINE_MESSAGE_MAX_LENGTH } from "@/lib/cv-types";
 import type { LumeoProposalState } from "@/lib/lumeo-actions";
 import { isNearBottom, lumeoScrollAction } from "@/lib/lumeo-panel";
 import { LUMEO_PANEL_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import type { CoachLimitInfo } from "@/lib/coach-limit-rules";
 import type { DocumentChatResult } from "@/lib/refine";
 
+import { CoachLimitScreen } from "@/components/lumeo/coach-limit-screen";
 import { LumeoAvatar, type LumeoExpression } from "@/components/lumeo/lumeo-avatar";
 import { LumeoHeader } from "@/components/lumeo/lumeo-header";
 
@@ -232,6 +234,8 @@ export function RefineChat({
   const [used, setUsed] = useState(usage.used);
   // Limite signalée par le serveur (compteur de la page éventuellement périmé).
   const [limitHit, setLimitHit] = useState(false);
+  // Limite du jour du coach (plan gratuit) : écran par-dessus le chat, à la place d'un message.
+  const [coachLimit, setCoachLimit] = useState<CoachLimitInfo | null>(null);
   const localNextId = useRef(initialMessages.length);
   // Conversation partagée (store) ou propre à ce chat.
   const messages = store ? store.messages : localMessages;
@@ -298,7 +302,12 @@ export function RefineChat({
     onPendingChange(true);
     try {
       const result = await refine(applicationId, readDocument(), request, history);
-      if (result.ok) {
+      if (result.coachLimit) {
+        // La question reste dans le champ : elle pourra être posée demain ou avec Premium.
+        setMessages((list) => list.slice(0, -1));
+        setInput(request);
+        setCoachLimit(result.coachLimit);
+      } else if (result.ok) {
         // html null : réponse sans modification du document (rien à annuler).
         const previousHtml = result.html === null ? undefined : replaceDocument(result.html);
         setUsed(result.usage.used);
@@ -360,10 +369,20 @@ export function RefineChat({
       aria-labelledby={titleId}
       className={
         panel
-          ? "flex min-h-0 flex-1 flex-col gap-4 print:hidden"
-          : `ui-card space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`
+          ? "relative flex min-h-0 flex-1 flex-col gap-4 print:hidden"
+          : `ui-card relative space-y-4 p-5 print:hidden ${fill ? "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" : ""}`
       }
     >
+      {coachLimit && (
+        <CoachLimitScreen
+          paymentEnabled={coachLimit.paymentEnabled}
+          onClose={() => {
+            setCoachLimit(null);
+            // Retour au chat : le focus revient dans le champ de saisie.
+            requestAnimationFrame(() => inputRef.current?.focus());
+          }}
+        />
+      )}
       {persona === "lumeo" ? (
         <LumeoHeader id={titleId} tagline={tagline} expression={messages.length === 0 && !openingPending ? "salue" : "neutre"} />
       ) : minimal ? (

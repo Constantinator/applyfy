@@ -839,3 +839,38 @@ body:has([data-theme-off]) {
   .ob-think .lumeo-bubble-1 { animation: ob-blink 1.2s ease-in-out infinite; }
   .ob-think .lumeo-bubble-2 { animation: ob-blink 1.2s ease-in-out 0.3s infinite; }
 }
+
+/*
+ * Écran de limite du coach (CoachLimitScreen). Tout est dans prefers-reduced-motion: no-preference :
+ * sans animation, l'écran s'affiche directement dans son état final. Aucun clic n'est bloqué.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes cl-pop {
+    0% { transform: scale(0.6) rotate(-8deg); }
+    60% { transform: scale(1.08) rotate(3deg); }
+    100% { transform: none; }
+  }
+  @keyframes cl-breathe {
+    0%, 100% { transform: none; }
+    35% { transform: scale(1.04); }
+    70% { transform: scale(0.97); }
+  }
+  @keyframes cl-z {
+    0% { transform: translate(-4px, 6px); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translate(6px, -8px); opacity: 0; }
+  }
+  @keyframes cl-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .cl-pop { animation: cl-pop 0.6s ease-out both; }
+  .cl-sleep { animation: cl-breathe 3.6s ease-in-out 0.6s infinite; }
+  .cl-sleep .lumeo-z {
+    transform-box: view-box;
+    animation: cl-z 2.6s ease-in-out infinite;
+  }
+  .cl-rise-1 { animation: cl-rise 0.5s ease-out 0.2s both; }
+  .cl-rise-2 { animation: cl-rise 0.5s ease-out 0.35s both; }
+}

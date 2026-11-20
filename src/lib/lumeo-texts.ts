@@ -240,3 +240,14 @@ export const ONBOARDING_TEXTS = {
   },
   continue: "Continuer",
 } as const;
+
+/**
+ * Écran de limite du coach (plan gratuit, cf. components/lumeo/coach-limit-screen). Voix de Lumeo :
+ * tutoiement, phrases courtes, sans emoji ; le nombre de questions est lu dans CVB_COACH_DAILY_LIMIT.
+ */
+export const COACH_LIMIT_TEXTS = {
+  title: (limit: number) => `Tu as utilisé tes ${limit} questions du jour.`,
+  subtitle: "Ton quota quotidien est atteint. Il se renouvelle demain, ou tout de suite avec Premium.",
+  later: "Plus tard, je continue sans",
+  footer: "Pas de panique, ton CV t'attend.",
+} as const;

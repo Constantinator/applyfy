@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { useFormStatus } from "react-dom";
 
 import { startCheckoutAction } from "@/app/actions/premium";
@@ -22,7 +23,8 @@ function CheckoutButton({ plan, featured, disabled }: { plan: PremiumPlan; featu
 
 /** Une formule : nom, prix ramené au mois, facturation et bouton de paiement. */
 function PlanOption({ plan, featured, paymentEnabled }: { plan: PremiumPlan; featured: boolean; paymentEnabled: boolean }) {
-  const titleId = `plan-choice-${plan.key}`;
+  // Identifiant unique : la carte du tableau de bord et l'écran de limite peuvent cohabiter.
+  const titleId = `${useId()}-${plan.key}`;
   return (
     <section
       aria-labelledby={titleId}
@@ -60,10 +62,11 @@ function PlanOption({ plan, featured, paymentEnabled }: { plan: PremiumPlan; fea
  * Les deux formules Premium côte à côte (l'une sous l'autre sur mobile), prix lus dans
  * premium-plans. Commun à la carte « Passe au Premium » et à l'écran de limite du coach.
  */
-export function PlanChoice({ paymentEnabled }: { paymentEnabled: boolean }) {
+export function PlanChoice({ paymentEnabled, stacked = false }: { paymentEnabled: boolean; stacked?: boolean }) {
   return (
     <div className="space-y-2">
-      <div className="grid gap-5 pt-3 sm:grid-cols-2">
+      {/* stacked : toujours l'une sous l'autre (espace étroit, comme le chat). */}
+      <div className={`grid gap-5 pt-3 ${stacked ? "" : "sm:grid-cols-2"}`}>
         <PlanOption plan={PREMIUM_MONTHLY_PLAN} featured={false} paymentEnabled={paymentEnabled} />
         <PlanOption plan={PREMIUM_QUARTERLY_PLAN} featured paymentEnabled={paymentEnabled} />
       </div>

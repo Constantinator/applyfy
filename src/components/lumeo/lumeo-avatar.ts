@@ -84,7 +84,8 @@ const FACES: Record<LumeoExpression, Shape[]> = {
     ["path", { d: "M15.5 26 Q18.5 29 21.5 26", ...line(FACE) }],
     ["path", { d: "M26.5 26 Q29.5 29 32.5 26", ...line(FACE) }],
     ["path", { d: "M21.5 35.5 H26.5", ...line(BLUE) }],
-    ["path", { d: "M38 2.5 H44 L38 9 H44", ...line(BLUE, 2) }],
+    // « Z » : classe « lumeo-z » (il monte en s'estompant sur l'écran de limite du coach).
+    ["path", { d: "M38 2.5 H44 L38 9 H44", ...line(BLUE, 2), className: "lumeo-z" }],
   ],
   // Sourcils relevés au centre, bouche vers le bas.
   desole: [

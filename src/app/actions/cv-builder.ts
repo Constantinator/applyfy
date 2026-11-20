@@ -14,7 +14,8 @@ import {
 } from "@/lib/ai-usage-limits";
 import { applicationCvDraft, applicationCvTitle, ensureOfferKeywords } from "@/lib/application-cv";
 import { getApplicationDetail, saveCvSuggestions, type ApplicationDetailResult } from "@/lib/applications";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
+import { coachLimitInfo, recordCoachLimitHit } from "@/lib/coach-limit";
 import {
   adaptCvToOffer,
   claudeErrorMessage,
@@ -847,7 +848,9 @@ async function coachGate() {
   const gate = await checkAiAccess("cvb_coach");
   if (!gate.ok) return { ok: false as const, error: gate.message, limitReached: false };
   if (!gate.usage.premium && (await countAiUsageToday("cvb_coach")) >= CVB_COACH_DAILY_LIMIT) {
-    return { ok: false as const, error: CVB_COACH_DAILY_MESSAGE, limitReached: false };
+    // Refus enregistré après la réponse (jamais bloquant) ; écran de limite côté navigateur.
+    recordCoachLimitHit((await requireUser()).id, "editeur");
+    return { ok: false as const, error: CVB_COACH_DAILY_MESSAGE, limitReached: false, coachLimit: coachLimitInfo() };
   }
   return { ok: true as const, chat: gate.usage.counts.cvb_chat };
 }

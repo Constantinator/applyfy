@@ -9,6 +9,7 @@ import { getApplicationDetail, getApplications, type ApplicationDetailResult } f
 import { requireUser } from "@/lib/auth";
 import { getMyBeta, hasBetaPremium } from "@/lib/beta";
 import { answerLumeo, ClaudeRefusalError, isClaudeConfigured, type LumeoAnswer } from "@/lib/claude";
+import { coachLimitInfo, recordCoachLimitHit } from "@/lib/coach-limit";
 import { getBuilderCv, getBuilderCvByApplication, getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
@@ -99,7 +100,11 @@ export async function askLumeoAction(where: string, _html: string, message: stri
 
   // Borne de sécurité mensuelle du compteur (cvb_coach) : traitée comme la limite du jour.
   const gate = isLimitReached(usage.counts.cvb_coach) ? "daily" : lumeoGate({ premium: usage.premium, coachToday, usedToday: usage.usedToday });
-  if (gate === "quota") return { ok: true, reply: "", html: null, usage: counter, limitNotice: lumeoGateMessage(gate) };
+  if (gate === "quota") {
+    // Limite du jour du coach (plan gratuit) : refus enregistré après la réponse, écran de limite.
+    recordCoachLimitHit(user.id, "panneau");
+    return { ok: true, reply: "", html: null, usage: counter, limitNotice: lumeoGateMessage(gate), coachLimit: coachLimitInfo() };
+  }
   if (gate === "daily") return sorry(lumeoGateMessage(gate));
   const rate = await checkAiRateLimit();
   if (!rate.ok) return sorry(T.rate);

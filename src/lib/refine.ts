@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { CoachLimitInfo } from "./coach-limit-rules";
 import { checkAiAccess, recordAiUsage } from "./ai-usage";
 import { type AiUsageCount } from "./ai-usage-limits";
 import type { LumeoProposal } from "./lumeo-actions";
@@ -46,8 +47,10 @@ export type DocumentChatResult =
       sorry?: boolean;
       /** Lumeo : action proposée (carte de confirmation) ; rien n'est exécuté sans le clic. */
       proposal?: LumeoProposal;
+      /** Limite du jour du coach (plan gratuit) : écran de limite par-dessus le chat, sans message. */
+      coachLimit?: CoachLimitInfo;
     }
-  | { ok: false; error: string; limitReached?: boolean };
+  | { ok: false; error: string; limitReached?: boolean; coachLimit?: CoachLimitInfo };
 
 /** Nombre d'échanges précédents transmis à Claude comme contexte. */
 const HISTORY_MAX = 6;
