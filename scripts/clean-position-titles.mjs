@@ -4,13 +4,15 @@
 //   Simulation à blanc (par défaut, AUCUNE écriture) :  node scripts/clean-position-titles.mjs
 //   Écriture, après relecture du rapport :              node scripts/clean-position-titles.mjs --apply
 //   Retour arrière (position_original → position) :      node scripts/clean-position-titles.mjs --restore
+//   Sans clavier interactif (ex. « ! » dans Claude Code) : ajouter --oui --attendu N, N étant le
+//   nombre de titres relu dans la simulation ; le script refuse d'écrire si le nombre diffère.
 //
 // Périmètre : candidatures avec un lien d'offre, hors exemple, dont position_original est vide et
 // dont le titre change. Une candidature sans lien d'offre n'est jamais touchée.
 // --apply écrit position (nettoyé) et position_original (titre d'origine) en une seule mise à
 // jour par candidature, par lots de 50, sans jamais écraser une position_original remplie.
 // --restore recopie position_original dans position et la remet à null.
-// Écriture seulement après une confirmation tapée (« o »). Lit NEXT_PUBLIC_SUPABASE_URL et
+// Écriture seulement après une confirmation tapée (« o » ; réponse vide = annulé) ou --oui --attendu N. Lit NEXT_PUBLIC_SUPABASE_URL et
 // SUPABASE_SERVICE_ROLE_KEY dans .env.local (ou l'environnement) sans jamais les afficher.
 // Le rapport ne contient que des titres : ni identifiant, ni nom de personne.
 
@@ -32,12 +34,23 @@ const { createClient } = await import("@supabase/supabase-js");
 const ROOT = new URL("../", import.meta.url);
 const APPLY = process.argv.includes("--apply");
 const RESTORE = process.argv.includes("--restore");
+const OUI = process.argv.includes("--oui");
 
 const fail = (message) => {
   console.error(`ÉCHEC : ${message}`);
   process.exit(1);
 };
 if (APPLY && RESTORE) fail("--apply et --restore ne vont pas ensemble.");
+
+// --attendu N ou --attendu=N : nombre exact de titres à écrire.
+const attenduIndex = process.argv.findIndex((arg) => arg === "--attendu" || arg.startsWith("--attendu="));
+let EXPECTED = null;
+if (attenduIndex !== -1) {
+  const arg = process.argv[attenduIndex];
+  const raw = arg.includes("=") ? arg.slice(arg.indexOf("=") + 1) : process.argv[attenduIndex + 1];
+  if (!/^\d+$/.test(raw ?? "")) fail("--attendu demande un nombre entier (ex. --attendu 78).");
+  EXPECTED = Number(raw);
+}
 
 // --- Configuration (valeurs jamais affichées) ------------------------------------------------
 const fileEnv = existsSync(new URL(".env.local", ROOT))
@@ -88,11 +101,24 @@ async function updateRow(id, values, guard) {
   return data.length === 1;
 }
 
+// Réponse tapée ; "" si l'entrée se ferme sans réponse (jamais d'attente sans fin).
 async function confirm(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = (await rl.question(`\n${question}`)).trim().toLowerCase();
+  const answer = await new Promise((resolve) => {
+    rl.once("close", () => resolve(""));
+    rl.question(`\n${question}`).then(resolve, () => resolve(""));
+  });
   rl.close();
-  return answer === "o";
+  return answer;
 }
 
-await runTitleBackfill({ mode, rows, updateRow, confirm, log: (line) => console.log(line) });
+await runTitleBackfill({
+  mode,
+  rows,
+  updateRow,
+  confirm,
+  log: (line) => console.log(line),
+  interactive: Boolean(process.stdin.isTTY),
+  preConfirmed: OUI,
+  expected: EXPECTED,
+});

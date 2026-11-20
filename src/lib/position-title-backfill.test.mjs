@@ -11,7 +11,7 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { BATCH_SIZE, EXCLUDED_TITLES, planCleanup, planRestore, runTitleBackfill, writeInBatches } = await import(
+const { BATCH_SIZE, EXCLUDED_TITLES, confirmWrite, planCleanup, planRestore, runTitleBackfill, writeInBatches } = await import(
   "./position-title-backfill.ts"
 );
 
@@ -42,8 +42,8 @@ function memoryDb(rows) {
   return { table, writes, updateRow, rows: () => [...table.values()].map((r) => ({ ...r })) };
 }
 
-const yes = async () => true;
-const no = async () => false;
+const yes = async () => "o";
+const no = async () => "";
 const quiet = () => {};
 
 test("périmètre : lien d'offre obligatoire, exemple exclu, original déjà gardé ignoré", () => {
@@ -69,7 +69,7 @@ test("mode à blanc : rapport sans aucune écriture ni confirmation", async () =
     mode: "dry-run",
     rows: db.rows(),
     updateRow: db.updateRow,
-    confirm: async () => ((asked = true), true),
+    confirm: async () => ((asked = true), "o"),
     log: (line) => lines.push(line),
   });
   assert.equal(result.written, 0);
@@ -180,7 +180,10 @@ test("aucun mot protégé perdu : Stage, Alternance, Manager, Stagiaire, Junior,
 test("script : à blanc par défaut, confirmation « o », gardes Supabase, aucun secret affiché", () => {
   const script = readFileSync(new URL("../../scripts/clean-position-titles.mjs", import.meta.url), "utf8");
   assert.match(script, /const mode = APPLY \? "apply" : RESTORE \? "restore" : "dry-run";/);
-  assert.match(script, /answer === "o"/);
+  assert.ok(script.includes("interactive: Boolean(process.stdin.isTTY)"));
+  assert.match(script, /preConfirmed: OUI,\s+expected: EXPECTED,/);
+  assert.ok(script.includes('rl.once("close", () => resolve(""))'));
+  assert.match(script, /if \(!\/\^\\d\+\$\/\.test\(raw \?\? ""\)\) fail\(/); // --attendu doit être un entier
   assert.match(script, /query\.is\("position_original", null\)/);
   assert.match(script, /query\.not\("position_original", "is", null\)/);
   assert.doesNotMatch(script, /console\.(log|error)\([^)]*(env\(|SERVICE_ROLE_KEY\)|fileEnv)/);
@@ -211,4 +214,109 @@ test("liste d'exclusion : les 2 titres exacts ne sont jamais écrits, une varian
     assert.ok(EXCLUDED_TITLES.has(kept.position));
   }
   assert.match(lines.join("\n"), /2 titre\(s\) changeraient, 0 resteraient identiques, 2 exclu\(s\) par la liste/);
+});
+
+// --- Feu vert avant écriture : --oui, --attendu, clavier ------------------------------------------
+
+/** Lance --apply sur 3 titres à nettoyer avec les options données ; rend écritures et journal. */
+async function applyWith(options) {
+  const db = memoryDb([
+    row({ id: "a" }),
+    row({ id: "b", position: "Contrôleur bancaire H/F" }),
+    row({ id: "c", position: "Stage - Consultant - Paris (H/F)" }),
+  ]);
+  const lines = [];
+  let asked = 0;
+  const result = await runTitleBackfill({
+    mode: "apply",
+    rows: db.rows(),
+    updateRow: db.updateRow,
+    confirm: async () => (asked++, options.answer ?? ""),
+    log: (line) => lines.push(line),
+    ...options,
+  });
+  return { result, db, log: lines.join("\n"), asked };
+}
+
+test("--oui sans --attendu : refusé, rien n'est écrit", async () => {
+  const { result, db, log, asked } = await applyWith({ preConfirmed: true, interactive: false });
+  assert.equal(result.written, 0);
+  assert.equal(db.writes.length, 0);
+  assert.equal(asked, 0);
+  assert.match(log, /Refusé : --oui exige --attendu N \(nombre de titres relu dans la simulation, ici 3\)/);
+});
+
+test("--oui --attendu avec un mauvais nombre : refusé, le message dit pourquoi", async () => {
+  const { result, db, log } = await applyWith({ preConfirmed: true, expected: 78, interactive: false });
+  assert.equal(result.written, 0);
+  assert.equal(db.writes.length, 0);
+  assert.match(log, /Refusé : 3 titre\(s\) à écrire, mais --attendu 78\. Rien n'a été écrit\./);
+});
+
+test("--oui --attendu avec le bon nombre : liste affichée, annonce, écriture sans question", async () => {
+  const { result, db, log, asked } = await applyWith({ preConfirmed: true, expected: 3, interactive: false });
+  assert.equal(result.written, 3);
+  assert.equal(asked, 0);
+  assert.ok(db.writes.every((w) => w.values.position_original !== null && w.values.position !== w.values.position_original));
+  assert.match(log, /Contrôleur bancaire H\/F\n {4}→ Contrôleur bancaire/);
+  assert.match(log, /3 titre\(s\) à écrire \(confirmé par --oui --attendu 3\)\./);
+  assert.match(log, /3 titre\(s\) nettoyé\(s\)/);
+});
+
+test("--oui --attendu ne contourne pas la garde : un original déjà rempli n'est jamais écrasé", async () => {
+  const db = memoryDb([row({ id: "a" }), row({ id: "b", position: "Contrôleur bancaire H/F" })]);
+  const rows = db.rows();
+  db.table.get("b").position_original = "déjà gardé";
+  const result = await runTitleBackfill({
+    mode: "apply", rows, updateRow: db.updateRow, confirm: no, log: quiet, preConfirmed: true, expected: 2, interactive: false,
+  });
+  assert.equal(result.written, 1);
+  assert.equal(db.table.get("b").position_original, "déjà gardé");
+  assert.equal(db.table.get("b").position, "Contrôleur bancaire H/F");
+});
+
+test("sans clavier et sans --oui : refusé avec le message clair, aucune question posée", async () => {
+  const { result, db, log, asked } = await applyWith({ interactive: false, answer: "o" });
+  assert.equal(result.written, 0);
+  assert.equal(db.writes.length, 0);
+  assert.equal(asked, 0);
+  assert.match(log, /Pas de clavier interactif : lance avec --oui --attendu 3, ou dans un vrai terminal pour taper « o »\. Rien n'a été écrit\./);
+});
+
+test("au clavier : réponse vide ou autre que « o » = annulé ; « o » = écrit", async () => {
+  for (const answer of ["", "  ", "n", "oui", "O "]) {
+    const { result, db, log } = await applyWith({ interactive: true, answer });
+    if (answer.trim().toLowerCase() === "o") {
+      assert.equal(result.written, 3, JSON.stringify(answer));
+      continue;
+    }
+    assert.equal(result.written, 0, JSON.stringify(answer));
+    assert.equal(db.writes.length, 0);
+    assert.match(log, /Annulé : rien n'a été écrit\./);
+  }
+  const ok = await applyWith({ interactive: true, answer: "o" });
+  assert.equal(ok.result.written, 3);
+});
+
+test("--restore suit le même feu vert", async () => {
+  const db = memoryDb([row({ id: "a" })]);
+  await runTitleBackfill({ mode: "apply", rows: db.rows(), updateRow: db.updateRow, confirm: yes, log: quiet });
+  const lines = [];
+  const refused = await runTitleBackfill({
+    mode: "restore", rows: db.rows(), updateRow: db.updateRow, confirm: yes, log: (l) => lines.push(l), interactive: false,
+  });
+  assert.equal(refused.written, 0);
+  assert.match(lines.join("\n"), /Pas de clavier interactif/);
+  const restored = await runTitleBackfill({
+    mode: "restore", rows: db.rows(), updateRow: db.updateRow, confirm: no, log: quiet, preConfirmed: true, expected: 1, interactive: false,
+  });
+  assert.equal(restored.written, 1);
+  assert.equal(db.table.get("a").position, "Analyste financier (H/F)");
+});
+
+test("confirmWrite : --attendu vérifié aussi au clavier", async () => {
+  const lines = [];
+  const ok = await confirmWrite(5, "?", { confirm: yes, log: (l) => lines.push(l), interactive: true, expected: 4 });
+  assert.equal(ok, false);
+  assert.match(lines.join("\n"), /5 titre\(s\) à écrire, mais --attendu 4/);
 });

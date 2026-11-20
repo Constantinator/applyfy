@@ -92,20 +92,58 @@ export type RunOptions = {
   mode: "dry-run" | "apply" | "restore";
   rows: TitleRow[];
   updateRow: UpdateRow;
-  /** Pose la question et rend true seulement si l'utilisateur tape « o ». */
-  confirm: (question: string) => Promise<boolean>;
+  /** Pose la question et rend la réponse tapée ("" si rien n'est tapé ou si l'entrée se ferme). */
+  confirm: (question: string) => Promise<string>;
   log: (line: string) => void;
+  /** Clavier interactif disponible (terminal) : sinon, seule --oui --attendu N permet d'écrire. */
+  interactive?: boolean;
+  /** --oui : confirmation déjà donnée à la lecture de la simulation ; exige --attendu. */
+  preConfirmed?: boolean;
+  /** --attendu N : nombre exact de titres à écrire, sinon refus. */
+  expected?: number | null;
 };
 
-/** Déroulé complet : rapport, puis écriture seulement en --apply / --restore et après « o ». */
-export async function runTitleBackfill({ mode, rows, updateRow, confirm, log }: RunOptions) {
+type Gate = Pick<RunOptions, "confirm" | "log" | "interactive" | "preConfirmed" | "expected">;
+
+/**
+ * Feu vert avant toute écriture. --oui : accepté seulement avec --attendu égal au nombre de
+ * titres à écrire. Sans --oui : clavier interactif obligatoire, et seule la réponse « o » vaut
+ * accord (réponse vide ou autre = annulé). Chaque refus dit pourquoi ; rien n'est écrit.
+ */
+export async function confirmWrite(count: number, question: string, gate: Gate): Promise<boolean> {
+  const { confirm, log, interactive = true, preConfirmed = false, expected = null } = gate;
+  if (expected != null && expected !== count) {
+    log(`Refusé : ${count} titre(s) à écrire, mais --attendu ${expected}. Rien n'a été écrit.`);
+    return false;
+  }
+  if (preConfirmed) {
+    if (expected == null) {
+      log(`Refusé : --oui exige --attendu N (nombre de titres relu dans la simulation, ici ${count}). Rien n'a été écrit.`);
+      return false;
+    }
+    log(`${count} titre(s) à écrire (confirmé par --oui --attendu ${expected}).`);
+    return true;
+  }
+  if (!interactive) {
+    log(`Pas de clavier interactif : lance avec --oui --attendu ${count}, ou dans un vrai terminal pour taper « o ». Rien n'a été écrit.`);
+    return false;
+  }
+  if ((await confirm(question)).trim().toLowerCase() !== "o") {
+    log("Annulé : rien n'a été écrit.");
+    return false;
+  }
+  return true;
+}
+
+/** Déroulé complet : rapport, puis écriture seulement en --apply / --restore et après le feu vert. */
+export async function runTitleBackfill(options: RunOptions) {
+  const { mode, rows, updateRow, log } = options;
   if (mode === "restore") {
     const restores = planRestore(rows);
     log(`${restores.length} titre(s) à rétablir depuis position_original.`);
     for (const r of restores) log(`  ${r.before}  ←  ${r.after}`);
     if (restores.length === 0) return { written: 0 };
-    if (!(await confirm(`Rétablir ${restores.length} titre(s) ? Tape « o » pour confirmer : `))) {
-      log("Annulé : rien n'a été écrit.");
+    if (!(await confirmWrite(restores.length, `Rétablir ${restores.length} titre(s) ? Tape « o » pour confirmer : `, options))) {
       return { written: 0 };
     }
     const written = await writeInBatches(restores, (r) =>
@@ -125,8 +163,7 @@ export async function runTitleBackfill({ mode, rows, updateRow, confirm, log }: 
     return { written: 0 };
   }
   if (changes.length === 0) return { written: 0 };
-  if (!(await confirm(`Écrire ${changes.length} titre(s) nettoyé(s) ? Tape « o » pour confirmer : `))) {
-    log("Annulé : rien n'a été écrit.");
+  if (!(await confirmWrite(changes.length, `Écrire ${changes.length} titre(s) nettoyé(s) ? Tape « o » pour confirmer : `, options))) {
     return { written: 0 };
   }
   const written = await writeInBatches(changes, (c) =>
