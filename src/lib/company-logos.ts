@@ -9,7 +9,7 @@ import { JOB_BOARD_COMPANIES } from "@/lib/job-boards";
 // Logo.dev (jamais relayée par notre serveur, interdit par leurs conditions).
 
 /** Domaines vérifiés à la main (pages carrières de « Trouver une offre », entreprises collectées), plus leurs alias. */
-const KNOWN_DOMAINS: ReadonlyMap<string, string> = withAliases(new Map([
+export const KNOWN_COMPANY_DOMAINS: ReadonlyMap<string, string> = withAliases(new Map([
   ...Object.values(atsCompanies as Record<string, { name: string; domain: string }[]>)
     .flat()
     .map((company) => [nameKey(company.name), company.domain] as const),
@@ -40,6 +40,6 @@ export function companyLogo(
   size: LogoSize,
   shared?: ReadonlyMap<string, SharedDomainRow>,
 ): string | null {
-  const domain = companyDomain(input, KNOWN_DOMAINS, shared);
+  const domain = companyDomain(input, KNOWN_COMPANY_DOMAINS, shared);
   return domain && logoUrl(domain, size);
 }

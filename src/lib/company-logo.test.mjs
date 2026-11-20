@@ -34,7 +34,7 @@ test("adresse Logo.dev : construite côté serveur seulement, PNG au double de l
   const logos = source("lib/company-logos.ts");
   assert.match(logos, /^import "server-only";/);
   assert.match(logos, /size: String\(size \* 2\), format: "png", fallback: "404"/);
-  assert.match(logos, /const domain = companyDomain\(input, KNOWN_DOMAINS, shared\);\s+return domain && logoUrl\(domain, size\);/);
+  assert.match(logos, /const domain = companyDomain\(input, KNOWN_COMPANY_DOMAINS, shared\);\s+return domain && logoUrl\(domain, size\);/);
   // La clé n'est lue nulle part ailleurs.
   for (const path of ["components/company-logo.tsx", "components/dashboard/applications-list.tsx", "components/dashboard/applications-view.tsx", "components/offers/offer-details.tsx"]) {
     assert.doesNotMatch(source(path), /LOGO_DEV_TOKEN|img\.logo\.dev/, path);

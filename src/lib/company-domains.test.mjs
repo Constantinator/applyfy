@@ -57,7 +57,7 @@ test("lecture groupée : une seule requête pour tous les noms (clés uniques), 
     ["KPMG France", "KPMG", "Groupe Alpha", null, "", "A"],
   );
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], { table: "company_domains", columns: "name_key, domain, status", column: "name_key", values: ["kpmg", "groupealpha"] });
+  assert.deepEqual(calls[0], { table: "company_domains", columns: "name_key, display_name, domain, status", column: "name_key", values: ["kpmg", "groupealpha"] });
   assert.deepEqual([...table], [["kpmg", { domain: "kpmg.com", status: "verified" }], ["groupealpha", { domain: null, status: "none" }]]);
   // Aucun nom : aucune requête.
   assert.equal((await read(fakeClient({ data: [], error: null }, calls), [null, ""])).size, 0);
@@ -98,20 +98,25 @@ test("clé secrète Logo.dev : jamais dans un fichier client, jamais NEXT_PUBLIC
   assert.match(readFileSync(new URL("lib/company-domains-store.ts", SRC), "utf8"), /^import "server-only";/);
 });
 
-test("jamais d'écriture d'un domaine déduit : le seul appel d'écriture passe par un résultat de recherche", async () => {
-  const { readFileSync } = await import("node:fs");
+test("jamais d'écriture d'un domaine déduit : l'écriture passe seulement par upsertParams(acceptSearch(...))", async () => {
   const read = (path) => readFileSync(new URL(path, new URL("./", import.meta.url)), "utf8").replace(/^\s*(\/\/|\*|\/\*).*$/gm, "");
-  // Le code de l'application ne fait que lire la table ; l'écriture (rpc upsert_company_domain) n'est
-  // que dans le script de rattrapage, à partir de upsertParams(acceptSearch(...)).
+  // Lecture seule : affichage, lecture groupée, store (la résolution est déléguée au module dédié).
   for (const path of ["./company-domain.ts", "./company-logos.ts", "./company-domains-read.ts", "./company-domains-store.ts"]) {
     assert.doesNotMatch(read(path), /upsert_company_domain|\.insert\(|\.upsert\(|\.update\(/, path);
   }
+  const resolver = read("./company-domain-resolve.ts");
+  assert.equal(resolver.match(/upsert_company_domain"/g)?.length, 2); // type du client + unique appel
+  assert.match(resolver, /const acceptance = acceptSearch\(displayName, outcome\.candidates\);/);
+  assert.match(resolver, /client\.rpc\("upsert_company_domain", upsertParams\(displayName, acceptance, attempts, now\)\)/);
+  assert.doesNotMatch(resolver, /\.insert\(|\.upsert\(|\.update\(|process\.env/);
   assert.match(read("../../scripts/backfill-company-domains.mjs"), /rpc\("upsert_company_domain", upsertParams\(/);
 });
 
 test("rattrapage : simulation à blanc par défaut, confirmation « o », plafond 1 000, arrêt sur 401/402/429, clé jamais affichée", () => {
   const script = readFileSync(new URL("../../scripts/backfill-company-domains.mjs", import.meta.url), "utf8");
-  assert.match(script, /const APPLY = process\.argv\.includes\("--apply"\);/);
+  assert.match(script, /const APPLY = process\.argv\.includes\("--apply"\) && !AMBIGUS;/);
+  // --ambigus : lecture seule, sortie avant toute écriture.
+  assert.ok(script.indexOf("if (AMBIGUS) {") < script.indexOf(".rpc("));
   assert.match(script, /if \(!APPLY\) \{\s+console\.log\("[^"]*Simulation à blanc : rien n'a été écrit\./);
   assert.match(script, /if \(answer !== "o"\) \{/);
   assert.match(script, /const MAX_NAMES = 1000;/);

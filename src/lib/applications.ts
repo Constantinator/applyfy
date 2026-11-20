@@ -1,6 +1,7 @@
 import "server-only";
 
 import { requireUser } from "./auth";
+import { scheduleCompanyDomainResolution } from "./company-domains-store";
 import type { CvStyle } from "./cv-style";
 import { detectOfferSector } from "./cv-sector-context";
 import type { CvSuggestions } from "./cv-types";
@@ -260,6 +261,9 @@ export async function createApplication(input: NewApplicationInput): Promise<str
     .from("application_events")
     .insert(events.map((e) => ({ ...e, application_id: data.id, user_id: user.id })));
   if (eventsError) throw new Error(eventsError.message);
+
+  // Logo : domaine cherché en tâche de fond, après la réponse. Sans effet sur la création.
+  scheduleCompanyDomainResolution(fields.company);
 
   return data.id as string;
 }

@@ -77,12 +77,46 @@ const LEGAL_FORMS: ReadonlySet<string> = new Set([
  */
 const TRAILING_PLACES: ReadonlySet<string> = new Set(["france", "europe", "emea"]);
 
+/** Après ces mots, le lieu fait partie du nom (« Banque de France », « Électricité de France »). */
+const PLACE_PREPOSITIONS: ReadonlySet<string> = new Set(["de", "du", "des", "d"]);
+
+/** Le lieu n'est retiré que s'il reste au moins ce nombre de caractères (« Air France » reste entier). */
+const MIN_KEY_WITHOUT_PLACE = 4;
+
 /**
  * Mots du nom, normalisés : minuscules, sans accents, points d'abréviation supprimés
  * (« N.V. » → « nv »), autre ponctuation en espace, formes juridiques retirées, mots
- * géographiques retirés en fin de nom. Ne renvoie jamais une liste vide si le nom a des mots.
+ * géographiques retirés en fin de nom, sauf après une préposition ou s'il resterait moins de
+ * 4 caractères. Ne renvoie jamais une liste vide si le nom a des mots.
  */
 export function nameTokens(name: string | null | undefined): string[] {
+  const tokens = baseTokens(name);
+  while (
+    tokens.length > 1 &&
+    TRAILING_PLACES.has(tokens[tokens.length - 1]) &&
+    !PLACE_PREPOSITIONS.has(tokens[tokens.length - 2]) &&
+    tokens.slice(0, -1).join("").length >= MIN_KEY_WITHOUT_PLACE
+  ) {
+    tokens.pop();
+  }
+  return tokens;
+}
+
+/**
+ * Clé calculée avant le lot 2b (lieu retiré dès qu'il restait 2 caractères : « Banque de France »
+ * → « banquede »). Sert seulement à relire les lignes de company_domains écrites sous cette clé ;
+ * une telle ligne n'est reprise que si son nom affiché donne la clé actuelle demandée.
+ */
+export function legacyNameKey(name: string | null | undefined): string {
+  const tokens = baseTokens(name);
+  while (tokens.length > 1 && TRAILING_PLACES.has(tokens[tokens.length - 1]) && tokens.slice(0, -1).join("").length >= 2) {
+    tokens.pop();
+  }
+  return tokens.join("");
+}
+
+/** Mots normalisés, formes juridiques retirées (sans retrait du lieu). */
+function baseTokens(name: string | null | undefined): string[] {
   const words = (name ?? "")
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
@@ -93,12 +127,13 @@ export function nameTokens(name: string | null | undefined): string[] {
     .split(" ")
     .filter(Boolean);
   const withoutLegal = words.filter((word) => !LEGAL_FORMS.has(word));
-  const tokens = withoutLegal.length ? withoutLegal : words;
-  while (tokens.length > 1 && TRAILING_PLACES.has(tokens[tokens.length - 1]) && tokens.slice(0, -1).join("").length >= 2) {
-    tokens.pop();
-  }
-  return tokens;
+  return withoutLegal.length ? withoutLegal : words;
 }
+
+/** Noms de remplacement (offre sans entreprise) : jamais recherchés. */
+export const PLACEHOLDER_NAME_KEYS: ReadonlySet<string> = new Set([
+  "entreprisenoncommuniquee", "nonprecise", "confidentiel", "confidentielle",
+]);
 
 /** Clé de recherche d'une entreprise : « ING Bank N.V. France » → « ingbank », « Groupe Alpha » → « groupealpha ». */
 export function nameKey(name: string | null | undefined): string {

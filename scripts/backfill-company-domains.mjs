@@ -4,6 +4,8 @@
 //   Simulation à blanc (par défaut, AUCUNE écriture) :  node scripts/backfill-company-domains.mjs
 //   Écriture, après relecture du rapport :              node scripts/backfill-company-domains.mjs --apply
 //   Option : --limit=200 (plafond de noms recherchés, 1 000 au plus).
+//   Analyse des noms ambigus (lecture seule, AUCUNE écriture) : node scripts/backfill-company-domains.mjs --ambigus
+//     relance la recherche sur les seules lignes « ambiguous » et affiche les candidats en concurrence.
 //
 // Lit NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY et LOGO_DEV_SECRET_KEY dans .env.local
 // (ou l'environnement) sans jamais les afficher. Aucun appel au modèle. Le rapport ne contient
@@ -25,18 +27,19 @@ registerHooks({
   },
 });
 
-const { nameKey, withAliases } = await import("../src/lib/company-domain.ts");
+const { PLACEHOLDER_NAME_KEYS, nameKey, withAliases } = await import("../src/lib/company-domain.ts");
+const { isDue } = await import("../src/lib/company-domain-resolve.ts");
 const { acceptSearch, searchLogoDev, upsertParams } = await import("../src/lib/logo-dev-search.ts");
 const { createClient } = await import("@supabase/supabase-js");
 
 const ROOT = new URL("../", import.meta.url);
-const APPLY = process.argv.includes("--apply");
+const AMBIGUS = process.argv.includes("--ambigus");
+const APPLY = process.argv.includes("--apply") && !AMBIGUS;
 const MAX_NAMES = 1000;
 const limitArg = process.argv.find((arg) => arg.startsWith("--limit="));
 const LIMIT = Math.min(MAX_NAMES, Math.max(1, Number(limitArg?.slice(8)) || MAX_NAMES));
 const BATCH = 50;
 const PAUSE_MS = 150; // ≤ 400 recherches par minute (limite Community : 500)
-const PLACEHOLDER_NAMES = new Set(["entreprisenoncommuniquee", "nonprecise", "confidentiel", "confidentielle"]);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const fail = (message) => {
@@ -61,6 +64,29 @@ const db = createClient(env("NEXT_PUBLIC_SUPABASE_URL"), env("SUPABASE_SERVICE_R
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// --- Analyse des noms ambigus (lecture seule) -------------------------------------------------
+if (AMBIGUS) {
+  console.log("Analyse des noms ambigus : lecture seule, aucune écriture en base.");
+  const { data, error } = await db.from("company_domains").select("name_key, display_name").eq("status", "ambiguous").limit(MAX_NAMES);
+  if (error) fail(`lecture de company_domains (${error.code ?? "erreur"})`);
+  console.log(`${data.length} noms ambigus.
+`);
+  for (const row of data) {
+    const outcome = await searchLogoDev(row.display_name, { secretKey: SECRET });
+    if (outcome.kind === "stop") fail(`arrêt Logo.dev (${outcome.reason} ${outcome.status}).`);
+    if (outcome.kind !== "ok") {
+      console.log(`| ${row.display_name} | ${row.name_key} | erreur ${outcome.kind === "error" ? outcome.reason : "ignoré"} |`);
+      continue;
+    }
+    const acceptance = acceptSearch(row.display_name, outcome.candidates);
+    const competing = acceptance.status === "ambiguous" ? acceptance.competing.map((c) => `${c.name} → ${c.domain}`).join(" ; ") : "—";
+    const top = outcome.candidates.slice(0, 5).map((c) => `${c.name} → ${c.domain}`).join(" ; ");
+    console.log(`| ${row.display_name} | ${row.name_key} | ${acceptance.status} | en concurrence : ${competing} | 5 premiers : ${top} |`);
+    await sleep(PAUSE_MS);
+  }
+  process.exit(0);
+}
+
 console.log(APPLY ? "Mode ÉCRITURE (--apply) : confirmation demandée avant d'écrire." : "Simulation à blanc : aucune écriture en base.");
 
 // --- Noms distincts des candidatures et des offres ---------------------------------------------
@@ -79,7 +105,7 @@ const allNames = [...(await readNames("applications")), ...(await readNames("job
 const byKey = new Map();
 for (const name of allNames) {
   const key = nameKey(name);
-  if (key.length < 2 || PLACEHOLDER_NAMES.has(key)) continue;
+  if (key.length < 2 || PLACEHOLDER_NAME_KEYS.has(key)) continue;
   const variants = byKey.get(key) ?? new Map();
   variants.set(name, (variants.get(name) ?? 0) + 1);
   byKey.set(key, variants);
@@ -112,8 +138,7 @@ if (tableMissing) {
   console.log("Attention : table company_domains illisible (migration 0041 pas encore lancée ?). Tous les noms sont traités comme nouveaux.");
 }
 const now = new Date();
-const due = (row) =>
-  !row || (row.source !== "admin" && (row.status === "none" || row.status === "ambiguous") && row.next_try_at && new Date(row.next_try_at) <= now);
+const due = (row) => isDue(row, now);
 const todo = keys.filter((key) => due(existing.get(key)));
 const skipped = keys.length - todo.length;
 const selected = todo.slice(0, LIMIT);

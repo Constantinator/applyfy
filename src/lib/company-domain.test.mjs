@@ -19,7 +19,6 @@ test("nom normalisé (nameKey) : accents, casse, ponctuation, formes juridiques,
     ["BNP Paribas France", "bnpparibas"],
     ["BNP Paribas S.A.", "bnpparibas"],
     ["KPMG France", "kpmg"],
-    ["AXA France", "axa"],
     ["Crédit Agricole Cib", "creditagricolecib"],
     ["Crédit Agricole CIB", "creditagricolecib"],
     ["Societe Generale", "societegenerale"],
@@ -49,10 +48,33 @@ test("nom normalisé (nameKey) : accents, casse, ponctuation, formes juridiques,
     ["SA", "sa"],
     ["France", "france"],
     ["Europe SAS", "europe"],
+    // Lot 2b : le lieu reste après une préposition, ou s'il resterait moins de 4 caractères.
+    ["Banque de France", "banquedefrance"],
+    ["Électricité de France", "electricitedefrance"],
+    ["EDF", "edf"],
+    ["Crédit Agricole Ile-de-France", "creditagricoleiledefrance"],
+    ["Caisse d'Epargne Ile de France", "caissedepargneiledefrance"],
+    ["Air France", "airfrance"],
+    ["AXA France", "axafrance"],
+    ["Business France", "business"],
+    ["Orange France", "orange"],
   ];
   for (const [name, key] of cases) assert.equal(nameKey(name), key, name);
   assert.equal(nameKey(null), "");
   assert.equal(nameKey("  "), "");
+});
+
+test("lot 2b : clés modifiées par la nouvelle règle du lieu — aucune dans la liste vérifiée ; ancienne clé conservée pour relire la table", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { legacyNameKey } = await import("./company-domain.ts");
+  const ats = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const boards = [...readFileSync(new URL("./job-boards.ts", import.meta.url), "utf8").matchAll(/name: "([^"]+)", domain: "/g)].map((m) => m[1]);
+  const names = [...Object.values(ats).flat().map((company) => company.name), ...boards, ...Object.keys(COMPANY_ALIASES), ...Object.values(COMPANY_ALIASES)];
+  const changed = [...new Set(names)].filter((name) => nameKey(name) !== legacyNameKey(name));
+  assert.deepEqual(changed, [], "clés de la liste vérifiée modifiées : ajouter un alias");
+  assert.equal(legacyNameKey("Banque de France"), "banquede");
+  assert.equal(legacyNameKey("Air France"), "air");
+  assert.equal(legacyNameKey("KPMG France"), "kpmg");
 });
 
 test("liste vérifiée : prioritaire, quel que soit le nom exact (casse, forme juridique)", () => {
