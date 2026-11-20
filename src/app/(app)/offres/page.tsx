@@ -14,7 +14,8 @@ import { requireUser } from "@/lib/auth";
 import { detectOfferSector } from "@/lib/cv-sector-context";
 import type { Department } from "@/lib/geo";
 import { loadCompanyDomains } from "@/lib/company-domains-store";
-import { companyLogo } from "@/lib/company-logos";
+import { logLogoCoverage } from "@/lib/company-domain";
+import { KNOWN_COMPANY_DOMAINS, companyLogo } from "@/lib/company-logos";
 import { isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
@@ -128,6 +129,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   const pageCount = result?.pageCount ?? 0;
   // Domaines de la table partagée pour les entreprises affichées (une seule requête).
   const sharedDomains = await loadCompanyDomains([...(result?.offers ?? []).map((offer) => offer.company), selected?.company]);
+  // Mesure de la couverture des logos : nombres seulement, en mémoire, sans requête ni délai.
+  if (result) logLogoCoverage(result.offers, KNOWN_COMPANY_DOMAINS, sharedDomains);
   /** Logo de l'entreprise (liste vérifiée, table partagée, sinon site de l'offre hors plateformes), ou null. */
   const logoOf = (offer: OfferListing, size: 36 | 48) => companyLogo({ name: offer.company, offerUrl: offer.url }, size, sharedDomains);
   /** Recherche effectuée (mots-clés recommandés compris), pour retrouver une offre à l'ajout. */

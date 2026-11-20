@@ -57,7 +57,7 @@ test("lecture groupée : une seule requête pour tous les noms (clés uniques), 
     ["KPMG France", "KPMG", "Groupe Alpha", null, "", "A"],
   );
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], { table: "company_domains", columns: "name_key, display_name, domain, status", column: "name_key", values: ["kpmg", "groupealpha"] });
+  assert.deepEqual(calls[0], { table: "company_domains", columns: "name_key, display_name, domain, status, source", column: "name_key", values: ["kpmg", "groupealpha"] });
   assert.deepEqual([...table], [["kpmg", { domain: "kpmg.com", status: "verified" }], ["groupealpha", { domain: null, status: "none" }]]);
   // Aucun nom : aucune requête.
   assert.equal((await read(fakeClient({ data: [], error: null }, calls), [null, ""])).size, 0);

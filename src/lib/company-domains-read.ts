@@ -5,7 +5,8 @@
 import { legacyNameKey, nameKey } from "./company-domain";
 
 export type CompanyDomainStatus = "verified" | "ambiguous" | "none" | "blocked";
-export type CompanyDomainRow = { domain: string | null; status: CompanyDomainStatus };
+/** `source` : « admin » (posé à la main), « logo_dev_search »… ; absente si inconnue. */
+export type CompanyDomainRow = { domain: string | null; status: CompanyDomainStatus; source?: string };
 /** Lignes de company_domains indexées par nameKey. */
 export type CompanyDomainsTable = ReadonlyMap<string, CompanyDomainRow>;
 
@@ -84,11 +85,11 @@ export function makeCompanyDomainsReader(log: (message: string) => void, { timeo
     if (keys.length === 0) return EMPTY_COMPANY_DOMAINS;
     try {
       const { data, error } = await withTimeout(
-        client.from("company_domains").select("name_key, display_name, domain, status").in("name_key", keys),
+        client.from("company_domains").select("name_key, display_name, domain, status, source").in("name_key", keys),
         timeoutMs,
       );
       if (error || !Array.isArray(data)) throw new Error(error?.code ?? "réponse illisible");
-      const rows = (data as { name_key?: unknown; display_name?: unknown; domain?: unknown; status?: unknown }[]).flatMap((row) =>
+      const rows = (data as { name_key?: unknown; display_name?: unknown; domain?: unknown; status?: unknown; source?: unknown }[]).flatMap((row) =>
         typeof row.name_key === "string" &&
         (row.status === "verified" || row.status === "ambiguous" || row.status === "none" || row.status === "blocked")
           ? [{
@@ -96,13 +97,14 @@ export function makeCompanyDomainsReader(log: (message: string) => void, { timeo
               display_name: typeof row.display_name === "string" ? row.display_name : null,
               domain: typeof row.domain === "string" ? row.domain : null,
               status: row.status as CompanyDomainStatus,
+              source: typeof row.source === "string" ? row.source : null,
             }]
           : [],
       );
       const table = new Map<string, CompanyDomainRow>();
       for (const name of names) {
         const row = pickRow(rows, name);
-        if (row) table.set(nameKey(name), { domain: row.domain, status: row.status });
+        if (row) table.set(nameKey(name), { domain: row.domain, status: row.status, ...(row.source ? { source: row.source } : {}) });
       }
       return table;
     } catch (error) {

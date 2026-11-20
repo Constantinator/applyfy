@@ -198,7 +198,12 @@ export type CompanyDomainInput = {
 };
 
 /** Ligne de la table partagée company_domains (migration 0041), indexée par nameKey. */
-export type SharedDomainRow = { domain: string | null; status: "verified" | "ambiguous" | "none" | "blocked" };
+export type SharedDomainRow = {
+  domain: string | null;
+  status: "verified" | "ambiguous" | "none" | "blocked";
+  /** « admin » : domaine posé à la main (accepté même s'il figure dans les plateformes) ; « logo_dev_search »… */
+  source?: string | null;
+};
 
 /**
  * Domaine fiable de l'entreprise, ou null (initiales, aucune requête vers Logo.dev). Ordre :
@@ -220,7 +225,9 @@ export function companyDomain(
   if (listed) return listed;
   if (row?.status === "verified" && row.domain) {
     const domain = registrableDomain(row.domain);
-    if (domain && !isPlatformHost(domain)) return domain;
+    // La liste des plateformes ne vise que les domaines trouvés automatiquement ou déduits :
+    // une ligne posée à la main (source « admin », ex. Adecco → adecco.fr) est acceptée telle quelle.
+    if (domain && (row.source === "admin" || !isPlatformHost(domain))) return domain;
   }
 
   const host = urlHost(offerUrl);
@@ -272,6 +279,8 @@ export const EXPLICIT_DOMAINS: Readonly<Record<string, string>> = {
   ING: "ing.com",
   "AXA France": "axa.fr",
   AXA: "axa.fr",
+  // Lot 2d : clé « banquedefrance » (l'ancienne clé « banquede » reste lue dans la table).
+  "Banque de France": "banque-france.fr",
   // Lot 2c (vérifiés : candidats Logo.dev, et réponse du site quand il ne bloque pas les robots).
   "Leroy Merlin": "leroymerlin.fr",
   "Leroy Merlin France": "leroymerlin.fr",
@@ -295,4 +304,70 @@ export function withAliases(known: ReadonlyMap<string, string>): ReadonlyMap<str
     if (domain && !all.has(nameKey(alias))) all.set(nameKey(alias), domain);
   }
   return all;
+}
+
+/** Origine du domaine d'une entreprise affichée, pour la mesure de couverture des logos. */
+export type DomainOrigin = "liste" | "table" | "url" | "ambigu_none" | "inconnu" | "sans_nom";
+
+/**
+ * Même ordre que companyDomain : nom absent ou de remplacement, ligne « blocked », liste vérifiée,
+ * ligne « verified » de la table, déduction par l'adresse de l'offre ; sinon ligne ambiguous / none
+ * (ou domaine refusé), ou nom jamais cherché.
+ */
+export function domainOrigin(
+  input: CompanyDomainInput,
+  known: ReadonlyMap<string, string>,
+  shared: ReadonlyMap<string, SharedDomainRow> = new Map(),
+): DomainOrigin {
+  const key = nameKey(input.name);
+  if (key.length < 2 || PLACEHOLDER_NAME_KEYS.has(key)) return "sans_nom";
+  const row = shared.get(key);
+  if (row?.status === "blocked") return "ambigu_none";
+  const domain = companyDomain(input, known, shared);
+  if (domain && known.get(key) === domain) return "liste";
+  if (domain && row?.status === "verified" && registrableDomain(row.domain) === domain) return "table";
+  if (domain) return "url";
+  return row ? "ambigu_none" : "inconnu";
+}
+
+/**
+ * Ligne de journal de couverture des logos pour une page de résultats et une source :
+ * « [offres] logos source=ft n=10 liste=… table=… url=… ambigu_none=… inconnu=… sans_nom=… ».
+ * Seulement des nombres : jamais de nom d'entreprise.
+ */
+export function logoCoverageLine(
+  source: string,
+  offers: readonly { company: string | null | undefined; url?: string | null }[],
+  known: ReadonlyMap<string, string>,
+  shared: ReadonlyMap<string, SharedDomainRow>,
+): string {
+  const counts: Record<DomainOrigin, number> = { liste: 0, table: 0, url: 0, ambigu_none: 0, inconnu: 0, sans_nom: 0 };
+  for (const offer of offers) counts[domainOrigin({ name: offer.company, offerUrl: offer.url }, known, shared)]++;
+  const parts = (Object.keys(counts) as DomainOrigin[]).map((origin) => `${origin}=${counts[origin]}`);
+  return `[offres] logos source=${source.replace(/[^a-z]/g, "")} n=${offers.length} ${parts.join(" ")}`;
+}
+
+/** Sources mesurées sur « Trouver une offre » et leur libellé dans le journal. */
+const MEASURED_SOURCES = [["france-travail", "ft"], ["adzuna", "adzuna"]] as const;
+
+/**
+ * Journalise la couverture des logos d'une page de résultats : une ligne par source mesurée
+ * présente sur la page (France Travail, Adzuna). Calcul en mémoire sur les données déjà lues ;
+ * ne lève jamais d'exception (un échec donne une ligne d'erreur, la page s'affiche normalement).
+ */
+export function logLogoCoverage(
+  offers: readonly { source: string; company: string | null | undefined; url?: string | null }[],
+  known: ReadonlyMap<string, string>,
+  shared: ReadonlyMap<string, SharedDomainRow>,
+  log: (line: string) => void = console.log,
+  logError: (line: string) => void = console.error,
+): void {
+  try {
+    for (const [source, label] of MEASURED_SOURCES) {
+      const page = offers.filter((offer) => offer.source === source);
+      if (page.length > 0) log(logoCoverageLine(label, page, known, shared));
+    }
+  } catch (error) {
+    logError(`[offres] logos : comptage impossible (${error instanceof Error ? error.name : "erreur"})`);
+  }
 }

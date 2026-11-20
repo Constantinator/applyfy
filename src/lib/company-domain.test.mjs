@@ -277,6 +277,7 @@ test("domaines explicites : chaque nom donne le bon domaine ; aucune autre clé 
     ["Leroy Merlin", "leroymerlin.fr"], ["Leroy Merlin France", "leroymerlin.fr"], ["LEROY MERLIN SAS", "leroymerlin.fr"],
     ["Crédit Agricole Personal Finance & Mobility", "ca-personalfinancemobility.com"], ["CA Personal Finance & Mobility", "ca-personalfinancemobility.com"],
     ["WisdomTree", "wisdomtree.com"], ["WisdomTree UK", "wisdomtree.com"], ["Wisdomtree uk", "wisdomtree.com"],
+    ["Banque de France", "banque-france.fr"],
   ]) {
     assert.equal(companyDomain({ name }, all), domain, name);
   }
@@ -291,12 +292,155 @@ test("domaines explicites : chaque nom donne le bon domaine ; aucune autre clé 
   const aliasKeys = new Set(Object.keys(COMPANY_ALIASES).map(nameKey));
   const added = [...all.keys()].filter((key) => !base.has(key) && !aliasKeys.has(key)).sort();
   assert.deepEqual(added, [
-    "axa", "bcg", "capersonalfinancemobility", "creditagricolepersonalfinancemobility", "ing", "leroymerlin", "wisdomtree", "wisdomtreeuk",
+    "axa", "banquedefrance", "bcg", "capersonalfinancemobility", "creditagricolepersonalfinancemobility", "ing", "leroymerlin", "wisdomtree", "wisdomtreeuk",
   ]);
-  assert.equal(Object.keys(EXPLICIT_DOMAINS).length, 12);
+  assert.equal(Object.keys(EXPLICIT_DOMAINS).length, 13);
   // Le domaine explicite passe avant la table partagée, mais jamais avant une ligne « blocked ».
   assert.equal(companyDomain({ name: "ING Bank" }, all), null);
   for (const name of Object.keys(EXPLICIT_DOMAINS)) {
     assert.equal(companyDomain({ name }, all, new Map([[nameKey(name), { domain: null, status: "blocked" }]])), null, name);
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Lot logos 2d : Banque de France (domaine explicite), ligne admin acceptée même pour un domaine
+// de la liste des plateformes (Adecco), mesure de couverture des logos sur « Trouver une offre ».
+// ---------------------------------------------------------------------------------------------
+const { registerHooks } = await import("node:module");
+registerHooks({
+  resolve(specifier, context, next) {
+    return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
+  },
+});
+const { readFileSync: readSource } = await import("node:fs");
+const { domainOrigin, legacyNameKey, logLogoCoverage, logoCoverageLine } = await import("./company-domain.ts");
+const { keysToRead, makeCompanyDomainsReader } = await import("./company-domains-read.ts");
+
+const KNOWN_2D = withAliases(new Map([["mirakl", "mirakl.com"]]));
+const row2d = (status, domain, source = "logo_dev_search") => ({ status, domain, source });
+
+test("Banque de France : domaine explicite sous la clé banquedefrance, ancienne clé banquede toujours lue", () => {
+  assert.equal(nameKey("Banque de France"), "banquedefrance");
+  assert.equal(legacyNameKey("Banque de France"), "banquede");
+  assert.equal(KNOWN_2D.get("banquedefrance"), "banque-france.fr");
+  assert.equal(companyDomain({ name: "Banque de France" }, KNOWN_2D), "banque-france.fr");
+  assert.equal(companyDomain({ name: "BANQUE DE FRANCE" }, KNOWN_2D), "banque-france.fr");
+  assert.deepEqual(keysToRead(["Banque de France"]).sort(), ["banquede", "banquedefrance"]);
+  // Une ligne « blocked » l'emporte toujours, même sur la liste explicite.
+  const blocked = new Map([["banquedefrance", row2d("blocked", null, "admin")]]);
+  assert.equal(companyDomain({ name: "Banque de France" }, KNOWN_2D, blocked), null);
+  // « Banque » seule ou « Banque de Savoie » ne reprennent pas ce domaine.
+  assert.equal(companyDomain({ name: "Banque" }, KNOWN_2D), null);
+  assert.equal(companyDomain({ name: "Banque de Savoie" }, KNOWN_2D), null);
+});
+
+test("Adecco France : la ligne admin donne adecco.fr malgré la liste des plateformes", () => {
+  assert.equal(isPlatformHost("adecco.fr"), true);
+  const shared = new Map([["adecco", row2d("verified", "adecco.fr", "admin")]]);
+  assert.equal(companyDomain({ name: "Adecco France" }, KNOWN_2D, shared), "adecco.fr");
+  assert.equal(domainOrigin({ name: "Adecco France" }, KNOWN_2D, shared), "table");
+});
+
+test("plateforme toujours refusée hors saisie admin : recherche Logo.dev, URL, e-mail", () => {
+  // Ligne trouvée par la recherche Logo.dev : refusée si le domaine est une plateforme.
+  const searched = new Map([["adecco", row2d("verified", "adecco.fr", "logo_dev_search")]]);
+  assert.equal(companyDomain({ name: "Adecco France" }, KNOWN_2D, searched), null);
+  // Ligne sans source connue : traitée comme automatique.
+  const unknown = new Map([["adecco", { status: "verified", domain: "adecco.fr" }]]);
+  assert.equal(companyDomain({ name: "Adecco France" }, KNOWN_2D, unknown), null);
+  // Déduction par l'adresse de l'offre ou l'e-mail du contact : refusée.
+  assert.equal(companyDomain({ name: "Adecco", offerUrl: "https://www.adecco.fr/offre/123" }, KNOWN_2D), null);
+  assert.equal(companyDomain({ name: "Adecco", contactEmail: "rh@adecco.fr" }, KNOWN_2D), null);
+  // Une ligne admin « blocked » l'emporte toujours.
+  const blocked = new Map([["adecco", row2d("blocked", "adecco.fr", "admin")]]);
+  assert.equal(companyDomain({ name: "Adecco France" }, KNOWN_2D, blocked), null);
+  // Une ligne admin dont le domaine n'est pas un domaine valide reste refusée.
+  const invalid = new Map([["adecco", row2d("verified", "pas un domaine", "admin")]]);
+  assert.equal(companyDomain({ name: "Adecco France" }, KNOWN_2D, invalid), null);
+});
+
+test("lecture de company_domains : la colonne source est lue et transmise", async () => {
+  let columns = "";
+  const client = {
+    from: () => ({
+      select: (cols) => {
+        columns = cols;
+        return {
+          in: async () => ({
+            data: [{ name_key: "adecco", display_name: "Adecco", domain: "adecco.fr", status: "verified", source: "admin" }],
+            error: null,
+          }),
+        };
+      },
+    }),
+  };
+  const table = await makeCompanyDomainsReader(() => {})(client, ["Adecco France"]);
+  assert.match(columns, /\bsource\b/);
+  assert.deepEqual(table.get("adecco"), { domain: "adecco.fr", status: "verified", source: "admin" });
+  assert.equal(companyDomain({ name: "Adecco France" }, KNOWN_2D, table), "adecco.fr");
+});
+
+const OFFERS = [
+  { source: "france-travail", company: "Mirakl", url: "https://candidat.francetravail.fr/1" }, // liste
+  { source: "france-travail", company: "Adecco France", url: "https://candidat.francetravail.fr/2" }, // table (admin)
+  { source: "france-travail", company: "Boulangerie Durand", url: "https://www.boulangerie-durand.fr/emploi" }, // url
+  { source: "france-travail", company: "Climb", url: "https://candidat.francetravail.fr/3" }, // ambigu_none
+  { source: "france-travail", company: "Société Inconnue SAS", url: "https://candidat.francetravail.fr/4" }, // inconnu
+  { source: "france-travail", company: null, url: "https://candidat.francetravail.fr/5" }, // sans_nom
+  { source: "adzuna", company: "Entreprise non communiquée", url: "https://www.adzuna.fr/details/6" }, // sans_nom
+  { source: "adzuna", company: "Mirakl", url: "https://www.adzuna.fr/details/7" }, // liste
+  { source: "job-boards", company: "Mirakl", url: "https://jobs.mirakl.com/8" }, // non mesurée
+];
+const SHARED = new Map([
+  ["adecco", row2d("verified", "adecco.fr", "admin")],
+  ["climb", row2d("ambiguous", null)],
+]);
+
+test("mesure : une ligne par source mesurée, comptes justes", () => {
+  const lines = [];
+  logLogoCoverage(OFFERS, KNOWN_2D, SHARED, (line) => lines.push(line), () => assert.fail("aucune erreur attendue"));
+  assert.deepEqual(lines, [
+    "[offres] logos source=ft n=6 liste=1 table=1 url=1 ambigu_none=1 inconnu=1 sans_nom=1",
+    "[offres] logos source=adzuna n=2 liste=1 table=0 url=0 ambigu_none=0 inconnu=0 sans_nom=1",
+  ]);
+  // Page sans offre France Travail ni Adzuna : aucune ligne.
+  const none = [];
+  logLogoCoverage([OFFERS[8]], KNOWN_2D, SHARED, (line) => none.push(line));
+  assert.deepEqual(none, []);
+});
+
+test("mesure : la ligne ne contient que des nombres, jamais un nom d'entreprise ni une adresse", () => {
+  const lines = [];
+  logLogoCoverage(OFFERS, KNOWN_2D, SHARED, (line) => lines.push(line));
+  for (const line of lines) {
+    assert.match(line, /^\[offres\] logos source=(ft|adzuna) n=\d+ liste=\d+ table=\d+ url=\d+ ambigu_none=\d+ inconnu=\d+ sans_nom=\d+$/);
+    for (const offer of OFFERS) {
+      if (offer.company) assert.ok(!line.toLowerCase().includes(offer.company.toLowerCase().split(" ")[0]), line);
+      assert.ok(!line.includes(offer.url), line);
+    }
+  }
+  assert.doesNotMatch(logoCoverageLine("france-travail<script>", [], KNOWN_2D, SHARED), /[<>-]/);
+});
+
+test("mesure : un échec du comptage ne lève jamais d'exception (la page s'affiche)", () => {
+  const broken = { get() { throw new TypeError("carte cassée"); } };
+  const lines = [];
+  const errors = [];
+  assert.doesNotThrow(() => logLogoCoverage(OFFERS, broken, SHARED, (l) => lines.push(l), (l) => errors.push(l)));
+  assert.deepEqual(lines, []);
+  assert.deepEqual(errors, ["[offres] logos : comptage impossible (TypeError)"]);
+  // Offres illisibles : idem.
+  assert.doesNotThrow(() => logLogoCoverage(null, KNOWN_2D, SHARED, () => {}, (l) => errors.push(l)));
+  assert.equal(errors.length, 2);
+});
+
+test("page /offres : mesure appelée une fois, sur les données déjà lues, sans await", () => {
+  const page = readSource(new URL("../app/(app)/offres/page.tsx", import.meta.url), "utf8");
+  const calls = page.match(/logLogoCoverage\(/g) ?? [];
+  assert.equal(calls.length, 1);
+  assert.match(page, /if \(result\) logLogoCoverage\(result\.offers, KNOWN_COMPANY_DOMAINS, sharedDomains\);/);
+  assert.doesNotMatch(page, /await logLogoCoverage/);
+  // Appelée après la lecture unique de company_domains (aucune requête de plus).
+  assert.equal((page.match(/loadCompanyDomains\(/g) ?? []).length, 1);
+  assert.ok(page.indexOf("loadCompanyDomains(") < page.indexOf("logLogoCoverage(result"));
 });
