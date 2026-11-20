@@ -261,8 +261,9 @@ export const COMPANY_ALIASES: Readonly<Record<string, string>> = {
 };
 
 /**
- * Domaines vérifiés à la main pour des entreprises absentes de la liste (sigles trop courts pour
- * la recherche par nom). « BCG France » et « BCG » donnent la même clé (bcg), etc.
+ * Domaines vérifiés à la main pour des entreprises absentes de la liste : sigles trop courts pour
+ * la recherche par nom, marques à sites par pays que la règle d'ambiguïté laisse en initiales
+ * (lot 2c : Leroy Merlin). « BCG France » et « BCG » donnent la même clé (bcg), etc.
  */
 export const EXPLICIT_DOMAINS: Readonly<Record<string, string>> = {
   "BCG France": "bcg.com",
@@ -271,6 +272,13 @@ export const EXPLICIT_DOMAINS: Readonly<Record<string, string>> = {
   ING: "ing.com",
   "AXA France": "axa.fr",
   AXA: "axa.fr",
+  // Lot 2c (vérifiés : candidats Logo.dev, et réponse du site quand il ne bloque pas les robots).
+  "Leroy Merlin": "leroymerlin.fr",
+  "Leroy Merlin France": "leroymerlin.fr",
+  "Crédit Agricole Personal Finance & Mobility": "ca-personalfinancemobility.com",
+  "CA Personal Finance & Mobility": "ca-personalfinancemobility.com",
+  WisdomTree: "wisdomtree.com",
+  "WisdomTree UK": "wisdomtree.com",
 };
 
 /**

@@ -265,23 +265,38 @@ test("ordre : blocked (initiales) > liste vérifiée > table partagée « verifi
   assert.equal(companyDomain({ name: "Alan" }, KNOWN), "alan.com");
 });
 
-test("domaines explicites : BCG, ING, AXA (et « … France ») donnent le bon domaine ; aucune autre clé ne change", async () => {
+test("domaines explicites : chaque nom donne le bon domaine ; aucune autre clé ne change", async () => {
   const { readFileSync } = await import("node:fs");
   const { EXPLICIT_DOMAINS } = await import("./company-domain.ts");
   const ats = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
   const boards = [...readFileSync(new URL("./job-boards.ts", import.meta.url), "utf8").matchAll(/name: "([^"]+)", domain: "([^"]+)"/g)].map((m) => ({ name: m[1], domain: m[2] }));
   const base = new Map([...Object.values(ats).flat(), ...boards].map((company) => [nameKey(company.name), company.domain]));
   const all = withAliases(base);
-  for (const [name, domain] of [["BCG France", "bcg.com"], ["BCG", "bcg.com"], ["ING France", "ing.com"], ["ING", "ing.com"], ["AXA France", "axa.fr"], ["AXA", "axa.fr"]]) {
+  for (const [name, domain] of [
+    ["BCG France", "bcg.com"], ["BCG", "bcg.com"], ["ING France", "ing.com"], ["ING", "ing.com"], ["AXA France", "axa.fr"], ["AXA", "axa.fr"],
+    ["Leroy Merlin", "leroymerlin.fr"], ["Leroy Merlin France", "leroymerlin.fr"], ["LEROY MERLIN SAS", "leroymerlin.fr"],
+    ["Crédit Agricole Personal Finance & Mobility", "ca-personalfinancemobility.com"], ["CA Personal Finance & Mobility", "ca-personalfinancemobility.com"],
+    ["WisdomTree", "wisdomtree.com"], ["WisdomTree UK", "wisdomtree.com"], ["Wisdomtree uk", "wisdomtree.com"],
+  ]) {
     assert.equal(companyDomain({ name }, all), domain, name);
+  }
+  // Domaines principaux valides, jamais une plateforme ; aucune entrée explicite en double sur une clé de la liste.
+  for (const [name, domain] of Object.entries(EXPLICIT_DOMAINS)) {
+    assert.equal(registrableDomain(domain), domain, name);
+    assert.equal(isPlatformHost(domain), false, name);
+    assert.equal(base.has(nameKey(name)), false, `${name} : déjà dans la liste vérifiée`);
   }
   // Ajouts par rapport à la liste : alias existants + exactement bcg, ing, axa ; aucune entrée modifiée.
   for (const [key, domain] of base) assert.equal(all.get(key), domain, key);
   const aliasKeys = new Set(Object.keys(COMPANY_ALIASES).map(nameKey));
   const added = [...all.keys()].filter((key) => !base.has(key) && !aliasKeys.has(key)).sort();
-  assert.deepEqual(added, ["axa", "bcg", "ing"]);
-  assert.equal(Object.keys(EXPLICIT_DOMAINS).length, 6);
+  assert.deepEqual(added, [
+    "axa", "bcg", "capersonalfinancemobility", "creditagricolepersonalfinancemobility", "ing", "leroymerlin", "wisdomtree", "wisdomtreeuk",
+  ]);
+  assert.equal(Object.keys(EXPLICIT_DOMAINS).length, 12);
   // Le domaine explicite passe avant la table partagée, mais jamais avant une ligne « blocked ».
   assert.equal(companyDomain({ name: "ING Bank" }, all), null);
-  assert.equal(companyDomain({ name: "AXA" }, all, new Map([["axa", { domain: null, status: "blocked" }]])), null);
+  for (const name of Object.keys(EXPLICIT_DOMAINS)) {
+    assert.equal(companyDomain({ name }, all, new Map([[nameKey(name), { domain: null, status: "blocked" }]])), null, name);
+  }
 });
