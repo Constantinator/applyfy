@@ -404,7 +404,7 @@ export function RefineChat({
           <p className="py-6 text-center text-sm text-muted dark:text-slate-400">{texts.empty}</p>
         )}
         {openingPending && (
-          <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-500">
+          <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-400">
             {persona === "lumeo" ? (
               <LumeoAvatar size={36} expression="reflechit" />
             ) : (
@@ -457,14 +457,14 @@ export function RefineChat({
                   setMessages((list) => list.map((m) => (m.id === message.id && m.proposal ? { ...m, proposal: { ...m.proposal, ...patch } } : m))),
                 )}
               {message.undone ? (
-                <span className="pl-1 text-xs text-muted dark:text-slate-500">Modification annulée.</span>
+                <span className="pl-1 text-xs text-muted dark:text-slate-400">Modification annulée.</span>
               ) : (
                 message === lastUndoable &&
                 !pending && (
                   <button
                     type="button"
                     onClick={() => undo(message)}
-                    className="ui-focus ui-hit relative pl-1 text-xs font-medium text-muted underline underline-offset-2 hover:text-ink dark:text-slate-500 dark:hover:text-slate-900"
+                    className="ui-focus ui-hit relative pl-1 text-xs font-medium text-muted underline underline-offset-2 hover:text-ink dark:text-slate-400 dark:hover:text-slate-900"
                   >
                     Annuler cette modification
                   </button>
@@ -475,7 +475,7 @@ export function RefineChat({
           ),
         )}
         {pending && (
-          <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-500">
+          <p role="status" className="flex items-center gap-2 text-sm text-muted dark:text-slate-400">
             {persona === "lumeo" ? (
               <LumeoAvatar size={36} expression="reflechit" />
             ) : (
@@ -490,7 +490,7 @@ export function RefineChat({
       </div>
 
       {minimal ? null : !aiEnabled ? (
-        <p className="text-xs text-muted dark:text-slate-500">Fonctionnalité non activée (clé API Claude manquante).</p>
+        <p className="text-xs text-muted dark:text-slate-400">Fonctionnalité non activée (clé API Claude manquante).</p>
       ) : limitReached && !panel ? (
         <UsageLimitBanner resetLabel={resetLabel} message={limitMessage} premiumBadge={limitMessage !== undefined} />
       ) : shownSuggestions.length === 0 || (panel && (messages.length > 0 || pending)) ? null : (

@@ -7,7 +7,7 @@ import { READY_SCORE, scoreLabel, scoreTone, type CvScore } from "@/lib/cv-score
 /** Couleurs du score : rouge sous 70, orange de 70 à 79, vert à partir de 80. */
 export const SCORE_TONES = {
   red: { stroke: "#dc2626", bar: "bg-red-500", text: "text-red-600 dark:text-red-400" },
-  orange: { stroke: "#f97316", bar: "bg-orange-500", text: "text-orange-600 dark:text-orange-400" },
+  orange: { stroke: "#f97316", bar: "bg-orange-500", text: "text-orange-700 dark:text-orange-400" },
   green: { stroke: "#16a34a", bar: "bg-green-600", text: "text-green-700 dark:text-green-400" },
 } as const;
 

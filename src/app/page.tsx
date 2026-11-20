@@ -186,7 +186,7 @@ const SUPPORT_DISPLAY: Record<
   yes: {
     symbol: "✓",
     label: "Oui",
-    className: "text-green-600",
+    className: "text-green-700",
     size: "text-lg font-bold",
   },
   no: {
@@ -510,7 +510,7 @@ export default function LandingPage() {
               </Reveal>
 
               <Reveal className={`col-span-6 lg:col-span-2 ${SOFT_CARD}`}>
-                <p className="text-[40px] font-extrabold tracking-[-0.04em] text-green-600 md:text-[44px]">
+                <p className="text-[40px] font-extrabold tracking-[-0.04em] text-green-700 md:text-[44px]">
                   {HERO_EXAMPLE_SCORE}
                   <span className="text-[17px] font-medium tracking-normal text-muted md:text-lg"> / {SCORE_TOTAL}</span>
                 </p>

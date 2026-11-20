@@ -224,7 +224,7 @@ export function CvImportProgress({
                 <p
                   className={`text-sm ${
                     state === "todo"
-                      ? "text-muted dark:text-slate-500"
+                      ? "text-muted dark:text-slate-400"
                       : state === "error"
                         ? "font-medium text-red-700 dark:text-red-300"
                         : state === "current"

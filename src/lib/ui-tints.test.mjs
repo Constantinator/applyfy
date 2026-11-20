@@ -156,3 +156,20 @@ test("tuiles du Tableau de bord : teintes par fonction, sans hexadécimal ; jaug
   for (const color of ["#dc2626", "#f97316", "#16a34a"]) assert.ok(gauge.includes(color), color);
   assert.equal(cssVar("late"), "#c2410c");
 });
+
+test("score du CV : texte (rouge, orange, vert) à au moins 4,5:1 sur blanc et sur le fond de page", () => {
+  // Valeurs Tailwind des nuances autorisées pour le texte du score (mode clair).
+  const TEXT_HEX = { "red-600": "#dc2626", "red-700": "#b91c1c", "orange-700": "#c2410c", "green-700": "#15803d" };
+  const gauge = source("components/cv-builder/cv-score-card.tsx");
+  const block = /export const SCORE_TONES = \{([\s\S]*?)\} as const;/.exec(gauge)?.[1];
+  assert.ok(block, "SCORE_TONES introuvable");
+  const tones = [...block.matchAll(/(\w+): \{[^}]*text: "text-([a-z]+-\d{3}) /g)].map(([, tone, shade]) => [tone, shade]);
+  assert.deepEqual(tones.map(([tone]) => tone), ["red", "orange", "green"]);
+  for (const [tone, shade] of tones) {
+    const hex = TEXT_HEX[shade];
+    assert.ok(hex, `${tone} : nuance ${shade} non répertoriée`);
+    for (const bg of ["#ffffff", cssVar("page")]) {
+      assert.ok(contrast(hex, bg) >= 4.5, `${tone} (${shade}) sur ${bg} : ${contrast(hex, bg).toFixed(2)}`);
+    }
+  }
+});
