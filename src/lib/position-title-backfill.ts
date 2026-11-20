@@ -26,24 +26,45 @@ export type UpdateRow = (
 export const BATCH_SIZE = 50;
 
 /**
+ * Titres d'origine exclus du rattrapage (comparaison exacte) : le nettoyage les rendrait moins
+ * bons que l'original (nom propre « Symfony » et accents absents ; entité « SWEN CP » en
+ * minuscules). Relus et exclus par Constantin à la simulation du 20 novembre 2026 ; ils restent
+ * tels quels, sans titre d'origine gardé.
+ */
+export const EXCLUDED_TITLES: ReadonlySet<string> = new Set([
+  "DEVELOPPEUR PHP SYMFONY EXPERIMENTE H/F",
+  "STAGE - ANALYSTE RISQUES (F/H) - SWEN CP",
+]);
+
+/**
  * Titres à nettoyer : candidatures avec un lien d'offre, hors exemple, sans titre d'origine déjà
  * gardé, et dont le titre change. Une candidature sans lien d'offre n'est jamais touchée.
  */
-export function planCleanup(rows: TitleRow[]): { changes: TitleChange[]; unchanged: number; outOfScope: number } {
+export function planCleanup(rows: TitleRow[]): {
+  changes: TitleChange[];
+  unchanged: number;
+  outOfScope: number;
+  excluded: number;
+} {
   const changes: TitleChange[] = [];
   let unchanged = 0;
   let outOfScope = 0;
+  let excluded = 0;
   for (const row of rows) {
     const position = row.position?.trim() ?? "";
     if (!row.offer_url?.trim() || row.is_example || row.position_original != null || !position) {
       outOfScope++;
       continue;
     }
+    if (EXCLUDED_TITLES.has(row.position ?? "")) {
+      excluded++;
+      continue;
+    }
     const after = tidyImportedTitle(position, { company: row.company, location: row.location }).slice(0, 160);
     if (after === row.position) unchanged++;
     else changes.push({ id: row.id, before: row.position ?? "", after });
   }
-  return { changes, unchanged, outOfScope };
+  return { changes, unchanged, outOfScope, excluded };
 }
 
 /** Titres à rétablir : toute candidature dont le titre d'origine est gardé. */
@@ -94,10 +115,10 @@ export async function runTitleBackfill({ mode, rows, updateRow, confirm, log }: 
     return { written };
   }
 
-  const { changes, unchanged, outOfScope } = planCleanup(rows);
+  const { changes, unchanged, outOfScope, excluded } = planCleanup(rows);
   for (const c of changes) log(`  ${c.before}\n    → ${c.after}`);
   log(
-    `${changes.length} titre(s) changeraient, ${unchanged} resteraient identiques, ${outOfScope} hors périmètre (sans lien d'offre, exemple, ou original déjà gardé).`,
+    `${changes.length} titre(s) changeraient, ${unchanged} resteraient identiques, ${excluded} exclu(s) par la liste, ${outOfScope} hors périmètre (sans lien d'offre, exemple, ou original déjà gardé).`,
   );
   if (mode === "dry-run") {
     log("Simulation à blanc : aucune écriture en base.");

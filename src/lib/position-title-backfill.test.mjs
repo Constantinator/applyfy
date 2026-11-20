@@ -11,7 +11,7 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { BATCH_SIZE, planCleanup, planRestore, runTitleBackfill, writeInBatches } = await import(
+const { BATCH_SIZE, EXCLUDED_TITLES, planCleanup, planRestore, runTitleBackfill, writeInBatches } = await import(
   "./position-title-backfill.ts"
 );
 
@@ -77,7 +77,7 @@ test("mode à blanc : rapport sans aucune écriture ni confirmation", async () =
   assert.equal(asked, false);
   const report = lines.join("\n");
   assert.match(report, /Analyste financier \(H\/F\)\n {4}→ Analyste financier/);
-  assert.match(report, /2 titre\(s\) changeraient, 0 resteraient identiques/);
+  assert.match(report, /2 titre\(s\) changeraient, 0 resteraient identiques, 0 exclu\(s\)/);
   assert.match(report, /aucune écriture/);
   assert.doesNotMatch(report, /uuid-/); // aucun identifiant dans le rapport
 });
@@ -162,7 +162,7 @@ test("aucun mot protégé perdu : Stage, Alternance, Manager, Stagiaire, Junior,
     "Analyste financier junior - Bac+4/5 - Stage (H/F)",
     "Stage - Siège Social - Debt Capital Market (DCM) & Rating H/F",
     "Stage IT M&A – Tech & IT Due Diligence et PMI F/H",
-    "DEVELOPPEUR PHP SYMFONY EXPERIMENTE H/F",
+    "DEVELOPPEUR PHP SENIOR H/F", // (le titre exact « … SYMFONY EXPERIMENTE H/F » est exclu)
   ];
   const { changes } = planCleanup(titles.map((position, i) => row({ id: String(i), position, location: "93 - LE BOURGET" })));
   assert.equal(changes.length, titles.length);
@@ -185,4 +185,30 @@ test("script : à blanc par défaut, confirmation « o », gardes Supabase, aucu
   assert.match(script, /query\.not\("position_original", "is", null\)/);
   assert.doesNotMatch(script, /console\.(log|error)\([^)]*(env\(|SERVICE_ROLE_KEY\)|fileEnv)/);
   assert.doesNotMatch(script, /\.delete\(|\.upsert\(|\.insert\(/);
+});
+
+test("liste d'exclusion : les 2 titres exacts ne sont jamais écrits, une variante l'est", async () => {
+  assert.deepEqual([...EXCLUDED_TITLES], ["DEVELOPPEUR PHP SYMFONY EXPERIMENTE H/F", "STAGE - ANALYSTE RISQUES (F/H) - SWEN CP"]);
+  const db = memoryDb([
+    row({ id: "php", position: "DEVELOPPEUR PHP SYMFONY EXPERIMENTE H/F", location: "34 - Montpellier" }),
+    row({ id: "swen", position: "STAGE - ANALYSTE RISQUES (F/H) - SWEN CP" }),
+    row({ id: "variante", position: "STAGE - ANALYSTE RISQUES (F/H)" }),
+    row({ id: "autre", position: "Contrôleur bancaire H/F" }),
+  ]);
+  const lines = [];
+  const result = await runTitleBackfill({
+    mode: "apply",
+    rows: db.rows(),
+    updateRow: db.updateRow,
+    confirm: yes,
+    log: (line) => lines.push(line),
+  });
+  assert.equal(result.written, 2);
+  assert.deepEqual(db.writes.map((w) => w.id).sort(), ["autre", "variante"]);
+  for (const id of ["php", "swen"]) {
+    const kept = db.table.get(id);
+    assert.equal(kept.position_original, null);
+    assert.ok(EXCLUDED_TITLES.has(kept.position));
+  }
+  assert.match(lines.join("\n"), /2 titre\(s\) changeraient, 0 resteraient identiques, 2 exclu\(s\) par la liste/);
 });
