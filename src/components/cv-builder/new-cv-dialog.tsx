@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 
 import { convertLegacyCvAction, createBuilderCvAction } from "@/app/actions/cv-builder";
@@ -115,7 +115,10 @@ const TARGET_JOB_MAX = 120;
 export function NewCvDialog({
   application = null,
   accountName = null,
+  autoOpen = false,
 }: {
+  /** Ouverte dès l'arrivée sur la page (?nouveau=1, depuis le parcours d'accueil). */
+  autoOpen?: boolean;
   /** `linkedCvTitle` : nom du CV déjà lié, que le nouveau CV remplacera pour cette candidature. */
   application?: { id: string; position: string; hasLegacyCv: boolean; linkedCvTitle: string | null } | null;
   /** Prénom et nom du compte (repris dans le CV créé) : montrés dans les vignettes s'ils sont connus. */
@@ -133,7 +136,7 @@ export function NewCvDialog({
   const jobId = useId();
   const jobReady = targetJob.trim().length >= TARGET_JOB_MIN;
   // Contenu rendu seulement pendant l'ouverture : fenêtre fermée, vignettes démontées.
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   // Vignettes : le CV qui sera créé (nom du compte, poste visé), le reste en barres grises.
   const preview = useMemo(() => newCvPreviewData(accountName, targetJob), [accountName, targetJob]);
 
@@ -142,6 +145,14 @@ export function NewCvDialog({
     setOpen(true);
     dialogRef.current?.showModal();
   }
+
+  // Une seule fois, à l'arrivée sur la page.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (!autoOpen || autoOpened.current) return;
+    autoOpened.current = true;
+    dialogRef.current?.showModal();
+  }, [autoOpen]);
 
   return (
     <>
@@ -164,7 +175,7 @@ export function NewCvDialog({
               <div>
                 {!jobKnown && <p className="text-xs font-medium text-muted dark:text-slate-400">Étape {step} sur 2</p>}
                 <h2 id={titleId} className="text-xl font-bold tracking-title text-ink dark:text-white">
-                  {step === 1 ? "Quel poste visez-vous ?" : "Choisis un modèle"}
+                  {step === 1 ? "Quel poste vises-tu ?" : "Choisis un modèle"}
                 </h2>
                 {application?.linkedCvTitle && <CvReplacementNotice title={application.linkedCvTitle} className="mt-1" />}
               </div>

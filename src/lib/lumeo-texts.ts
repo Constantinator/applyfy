@@ -220,5 +220,23 @@ export const ONBOARDING_TEXTS = {
     later: { title: "Plus tard", detail: "On commence par une offre." },
     importNote: (imports: number) => `Gratuit : ${imports} import${imports > 1 ? "s" : ""} de CV par mois.`,
   },
+  cheminCv: {
+    title: "On part de ton CV.",
+    subtitle: "Importe-le, ou on le construit ensemble, question par question.",
+    import: { title: "Importer mon CV", detail: (maxSize: string) => `PDF ou Word, ${maxSize} max.` },
+    zero: { title: "Le créer de zéro", detail: "Je te guide pas à pas." },
+    note: "Tu pourras tout modifier ensuite.",
+  },
+  cheminOffre: {
+    title: "Quelle offre t'intéresse ?",
+    subtitle: "Colle le lien, je remplis la fiche pour toi.",
+    label: "Lien de l'offre",
+    placeholder: "https://…",
+    submit: "Ajouter l'offre",
+    empty: "Colle le lien de l'offre pour l'ajouter.",
+    invalid: "Ce lien n'est pas valide. Il doit commencer par https://",
+    searchIntro: "Pas d'offre sous la main ?",
+    search: "Trouver une offre",
+  },
   continue: "Continuer",
 } as const;

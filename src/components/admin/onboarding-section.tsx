@@ -5,6 +5,8 @@ const SCREEN_LABELS: Record<OnboardingScreen, string> = {
   apport: "Écran 2 · ce qu'Applyfy apporte",
   temps: "Écran 2 bis · gagner du temps",
   cv: "Écran 3 · as-tu un CV ?",
+  chemin_cv: "Chemin A · importer ou créer le CV",
+  chemin_offre: "Chemin B · ajouter ou trouver une offre",
 };
 
 const launched = new Intl.DateTimeFormat("fr-FR", {
@@ -83,6 +85,16 @@ export function OnboardingSection({
             ["Ajouter mon CV", stats.hasCv.oui],
             ["Plus tard", stats.hasCv.plus_tard],
             ["Sans réponse", stats.hasCv.sans_reponse],
+          ]}
+        />
+        <Breakdown
+          title="Action choisie en fin de parcours"
+          rows={[
+            ["Importer mon CV", stats.choice.import],
+            ["Le créer de zéro", stats.choice.zero],
+            ["Ajouter une offre par lien", stats.choice.lien],
+            ["Trouver une offre", stats.choice.recherche],
+            ["Aucune (passé ou arrêté)", stats.choice.aucune],
           ]}
         />
       </div>

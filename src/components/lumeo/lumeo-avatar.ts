@@ -95,6 +95,12 @@ const FACES: Record<LumeoExpression, Shape[]> = {
   ],
 };
 
+/** Bulles de réflexion (classes « lumeo-bubble-1 » et « -2 » : clignotement animé à part). */
+const THOUGHT_BUBBLES: Shape[] = [
+  ["circle", { cx: 40.5, cy: 8.5, r: 2, ...fill(BLUE), className: "lumeo-bubble-1" }],
+  ["circle", { cx: 45, cy: 3.5, r: 2.5, ...fill(BLUE), className: "lumeo-bubble-2" }],
+];
+
 /** Tête, oreilles et antenne, communes à toutes les expressions. */
 const HEAD: Shape[] = [
   ["path", { d: "M24 13 V7", ...line(BODY, 2.5) }],
@@ -112,6 +118,8 @@ export type LumeoAvatarProps = {
   inverse?: boolean;
   /** « felicite » : les deux étincelles grossissent une fois (sauf animation réduite). */
   celebrate?: boolean;
+  /** « reflechit » : deux petites bulles bleues en haut à droite (parcours d'accueil). */
+  bubbles?: boolean;
   className?: string;
 };
 
@@ -121,9 +129,10 @@ export function LumeoAvatar({
   standalone = false,
   inverse = false,
   celebrate = false,
+  bubbles = false,
   className = "",
 }: LumeoAvatarProps): ReactElement {
-  const shapes = [...HEAD, ...FACES[expression]];
+  const shapes = [...HEAD, ...FACES[expression], ...(bubbles && expression === "reflechit" ? THOUGHT_BUBBLES : [])];
   return createElement(
     "svg",
     {

@@ -1,23 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { finishOnboardingAction, saveOnboardingAction } from "@/app/actions/onboarding";
-import { IconBriefcase, IconPencil, IconPuzzle } from "@/components/icons";
+import { IconBriefcase, IconPencil, IconPuzzle, IconUpload } from "@/components/icons";
 import { BrandLogo } from "@/components/logo";
 import { LumeoAvatar, type LumeoExpression } from "@/components/lumeo/lumeo-avatar";
 import {
   ONBOARDING_SEGMENTS,
+  choiceDestination,
   nextScreen,
   segmentOf,
   withSkipped,
   type HasCv,
   type JobSearch,
+  type OnboardingChoice,
   type OnboardingScreen,
   type OnboardingState,
 } from "@/lib/onboarding";
 import { ONBOARDING_TEXTS as T } from "@/lib/lumeo-texts";
+import { OFFER_URL_MAX_LENGTH, parseOfferLink } from "@/lib/offer-limits";
 
 /** Expression de Lumeo et animation propre à chaque écran (CSS : globals.css, « ob- »). */
 const LUMEO_BY_SCREEN: Record<OnboardingScreen, { expression: LumeoExpression; motion: string }> = {
@@ -25,6 +29,8 @@ const LUMEO_BY_SCREEN: Record<OnboardingScreen, { expression: LumeoExpression; m
   apport: { expression: "content", motion: "ob-jump" },
   temps: { expression: "etonne", motion: "ob-wow" },
   cv: { expression: "neutre", motion: "ob-tilt" },
+  chemin_cv: { expression: "content", motion: "ob-nod" },
+  chemin_offre: { expression: "reflechit", motion: "ob-think" },
 };
 
 const APPORT_ICONS = { suivi: IconBriefcase, cv: IconPencil, remplir: IconPuzzle } as const;
@@ -65,6 +71,85 @@ function ProgressBar({ segment }: { segment: number }) {
   );
 }
 
+/**
+ * Action d'un chemin : vrai lien (destination visible, ouverture dans un onglet possible). Clic
+ * simple : le choix est enregistré et le parcours terminé avant de partir.
+ */
+function ActionLink({
+  href,
+  onChoose,
+  className,
+  children,
+}: {
+  href: string;
+  onChoose: () => void;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={className}
+      onClick={(e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        onChoose();
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** Chemin B : lien d'une offre, vérifié avant de partir (message lisible, jamais bloquant). */
+function OfferLinkForm({ onSubmit, disabled }: { onSubmit: (link: string) => void; disabled: boolean }) {
+  const [value, setValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const text = value.trim();
+    const link = parseOfferLink(text);
+    if (!text) setError(T.cheminOffre.empty);
+    else if (!link) setError(T.cheminOffre.invalid);
+    else onSubmit(link);
+  }
+
+  return (
+    <form noValidate onSubmit={submit} className="ob-rise-2 w-full space-y-2">
+      <label htmlFor="ob-offer-link" className="block text-sm font-semibold text-ink">
+        {T.cheminOffre.label}
+      </label>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <input
+          id="ob-offer-link"
+          type="url"
+          inputMode="url"
+          autoComplete="url"
+          maxLength={OFFER_URL_MAX_LENGTH}
+          placeholder={T.cheminOffre.placeholder}
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (error) setError(null);
+          }}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "ob-offer-error" : undefined}
+          className="h-14 w-full min-w-0 flex-1 rounded-2xl border-[1.5px] border-[#E4E4E7] bg-white px-4 text-base text-ink placeholder:text-muted focus:border-accent focus:outline-none focus-visible:ring-3 focus-visible:ring-accent/20 aria-invalid:border-[#B91C1C]"
+        />
+        <button type="submit" disabled={disabled} className="ui-btn-primary h-14 px-6 text-[15px]">
+          {T.cheminOffre.submit}
+        </button>
+      </div>
+      {error && (
+        <p id="ob-offer-error" role="alert" className="text-sm font-medium text-[#B91C1C]">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
 function Pill({ children, tone }: { children: ReactNode; tone: "grey" | "blue" }) {
   return (
     <span
@@ -87,16 +172,19 @@ export function OnboardingFlow({
   firstName,
   initial,
   importNote,
+  importMaxLabel,
   timeSavingProof,
 }: {
   firstName: string | null;
-  initial: OnboardingState & { step: OnboardingScreen };
+  initial: OnboardingState;
   /** Note « Gratuit : … import de CV par mois », null pour les comptes Premium et bêta. */
   importNote: string | null;
+  /** Taille maximale d'un CV importé (CV_IMPORT_MAX_LABEL). */
+  importMaxLabel: string;
   timeSavingProof?: ReactNode;
 }) {
   const router = useRouter();
-  const [state, setState] = useState<OnboardingState & { step: OnboardingScreen }>(initial);
+  const [state, setState] = useState<OnboardingState>(initial);
   const [leaving, setLeaving] = useState(false);
   const saves = useRef<Promise<unknown>>(Promise.resolve());
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -118,13 +206,13 @@ export function OnboardingFlow({
     return saves.current;
   }
 
-  function goTo(next: OnboardingState & { step: OnboardingScreen }) {
+  function goTo(next: OnboardingState) {
     setState(next);
     void queue(() => saveOnboardingAction(next));
   }
 
   function advance(from: OnboardingState) {
-    const next = nextScreen(screen);
+    const next = nextScreen(screen, from.hasCv);
     if (next) goTo({ ...from, step: next });
     else finish(from, "/dashboard");
   }
@@ -138,7 +226,10 @@ export function OnboardingFlow({
 
   const skip = () => advance(withSkipped(state, screen));
   const answerJob = (jobSearch: JobSearch) => advance({ ...state, jobSearch });
-  const answerCv = (hasCv: HasCv) => finish({ ...state, hasCv }, hasCv === "oui" ? "/cv-builder" : "/dashboard");
+  // Écran 3 : chemin A (CV) ou chemin B (offre).
+  const answerCv = (hasCv: HasCv) => advance({ ...state, hasCv });
+  // Chemins A et B : le choix est enregistré, le parcours terminé, puis la page de l'action s'ouvre.
+  const choose = (choice: OnboardingChoice, link = "") => finish({ ...state, choice }, choiceDestination(choice, link));
 
   const lumeo = LUMEO_BY_SCREEN[screen];
   const titleClass =
@@ -169,7 +260,7 @@ export function OnboardingFlow({
         <div key={screen} className="flex w-full max-w-[560px] flex-col items-center gap-6">
           <div className="ob-pop">
             <div className={lumeo.motion}>
-              <LumeoAvatar size={120} expression={lumeo.expression} standalone />
+              <LumeoAvatar size={120} expression={lumeo.expression} bubbles={screen === "chemin_offre"} standalone />
             </div>
           </div>
 
@@ -268,6 +359,66 @@ export function OnboardingFlow({
                 </button>
               </div>
               {importNote && <p className="ob-rise-2 text-center text-sm text-muted">{importNote}</p>}
+            </>
+          )}
+
+          {screen === "chemin_cv" && (
+            <>
+              <div className="space-y-2 text-center">
+                <h1 ref={titleRef} tabIndex={-1} className={titleClass}>
+                  {T.cheminCv.title}
+                </h1>
+                <p className="ob-rise-1 text-lg text-muted">{T.cheminCv.subtitle}</p>
+              </div>
+              <div className="ob-rise-2 grid w-full gap-3 sm:grid-cols-2">
+                {(
+                  [
+                    ["import", IconUpload, T.cheminCv.import.title, T.cheminCv.import.detail(importMaxLabel)],
+                    ["zero", IconPencil, T.cheminCv.zero.title, T.cheminCv.zero.detail],
+                  ] as const
+                ).map(([choice, Icon, title, detail]) => (
+                  <ActionLink
+                    key={choice}
+                    href={choiceDestination(choice)}
+                    onChoose={() => choose(choice)}
+                    className={`${CARD} flex items-start gap-4`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF4FF] text-accent"
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[17px] font-semibold text-ink">{title}</span>
+                      <span className="mt-1 block text-sm text-muted">{detail}</span>
+                    </span>
+                  </ActionLink>
+                ))}
+              </div>
+              <p className="ob-rise-2 text-center text-sm text-muted">{T.cheminCv.note}</p>
+            </>
+          )}
+
+          {screen === "chemin_offre" && (
+            <>
+              <div className="space-y-2 text-center">
+                <h1 ref={titleRef} tabIndex={-1} className={titleClass}>
+                  {T.cheminOffre.title}
+                </h1>
+                <p className="ob-rise-1 text-lg text-muted">{T.cheminOffre.subtitle}</p>
+              </div>
+              <OfferLinkForm onSubmit={(link) => choose("lien", link)} disabled={leaving} />
+              <p className="ob-rise-2 text-center text-sm text-muted">
+                {T.cheminOffre.searchIntro}{" "}
+                <ActionLink
+                  href={choiceDestination("recherche")}
+                  onChoose={() => choose("recherche")}
+                  className="ui-focus font-medium text-accent underline underline-offset-2 hover:text-ink"
+                >
+                  {T.cheminOffre.search}
+                </ActionLink>
+              </p>
             </>
           )}
         </div>

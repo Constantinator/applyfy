@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { ClearSearchParams } from "@/components/clear-search-params";
 import { CopyCvForOfferButton } from "@/components/cv-builder/copy-cv-button";
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
 import { NewCvDialog } from "@/components/cv-builder/new-cv-dialog";
@@ -104,7 +105,7 @@ function CvSection({ id, title, ...list }: { id: string; title: string } & Param
  */
 export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-builder">) {
   await connection();
-  const { erreur, applicationId } = await searchParams;
+  const { erreur, applicationId, nouveau } = await searchParams;
 
   // Candidature de l'utilisateur, vérifiée ici.
   const detail = typeof applicationId === "string" ? await getApplicationDetail(applicationId) : null;
@@ -147,6 +148,8 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
   return (
     <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page flex-1 space-y-8">
+        {/* Retiré de l'adresse dès l'arrivée : recharger la page ne rouvre pas la fenêtre. */}
+        {nouveau !== undefined && !detail && <ClearSearchParams />}
         <div className="space-y-5">
           <div>
             {detail && (
@@ -176,6 +179,8 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
                   }
                 }
                 accountName={accountName}
+                // Depuis le parcours d'accueil : la fenêtre de création s'ouvre tout de suite.
+                autoOpen={!detail && nouveau === "1"}
               />
               {!detail && importLink}
             </div>

@@ -6,6 +6,7 @@ import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { getAccountName } from "@/lib/account";
 import { AI_MONTHLY_LIMITS } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
+import { CV_IMPORT_MAX_LABEL } from "@/lib/cv-builder-types";
 import { ONBOARDING_TEXTS } from "@/lib/lumeo-texts";
 import { getOnboardingEntry } from "@/lib/onboarding-server";
 import { isPremium } from "@/lib/subscription";
@@ -33,6 +34,7 @@ export default async function WelcomePage() {
       firstName={accountName?.firstName ?? null}
       initial={{ ...entry.state, step: entry.screen }}
       importNote={premium ? null : ONBOARDING_TEXTS.cv.importNote(AI_MONTHLY_LIMITS.cvb_import)}
+      importMaxLabel={CV_IMPORT_MAX_LABEL}
     />
   );
 }

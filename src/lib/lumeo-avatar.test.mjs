@@ -76,3 +76,12 @@ test("textes de Lumeo : courts, au tutoiement", () => {
     assert.doesNotMatch(text, /\bvous\b|\bvotre\b|\bvos\b/i, key);
   }
 });
+
+test("« reflechit » : deux bulles bleues seulement sur demande (parcours d'accueil)", () => {
+  assert.doesNotMatch(render({ expression: "reflechit" }), /lumeo-bubble/);
+  const svg = render({ expression: "reflechit", bubbles: true });
+  assert.match(svg, /class="lumeo-bubble-1"/);
+  assert.match(svg, /class="lumeo-bubble-2"/);
+  // Sur une autre expression, la demande est sans effet.
+  assert.equal(render({ expression: "content", bubbles: true }), render({ expression: "content" }));
+});

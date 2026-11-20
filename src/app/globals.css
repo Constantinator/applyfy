@@ -818,4 +818,24 @@ body:has([data-theme-off]) {
   }
   /* Écran 3 : la tête penche. */
   .ob-tilt { animation: ob-tilt 3.2s ease-in-out 0.8s infinite; }
+
+  @keyframes ob-nod {
+    0%, 40%, 100% { transform: none; }
+    10%, 30% { transform: translateY(7px); }
+    20% { transform: none; }
+  }
+  @keyframes ob-blink {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 1; }
+  }
+  @keyframes ob-lean {
+    0%, 100% { transform: none; }
+    50% { transform: rotate(-4deg); }
+  }
+  /* Chemin A : il hoche la tête deux fois, en boucle. */
+  .ob-nod { animation: ob-nod 3s ease-in-out 1s infinite; }
+  /* Chemin B : il réfléchit, la tête penchée, les deux bulles clignotent en décalé. */
+  .ob-think { animation: ob-lean 3s ease-in-out 0.8s infinite; }
+  .ob-think .lumeo-bubble-1 { animation: ob-blink 1.2s ease-in-out infinite; }
+  .ob-think .lumeo-bubble-2 { animation: ob-blink 1.2s ease-in-out 0.3s infinite; }
 }

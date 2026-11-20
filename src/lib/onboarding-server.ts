@@ -41,7 +41,7 @@ export async function getOnboardingEntry(): Promise<OnboardingEntry | null> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("onboarding_progress")
-      .select("step, job_search, has_cv, skipped_steps, completed_at")
+      .select("step, job_search, has_cv, choice, skipped_steps, completed_at")
       .eq("user_id", user.id)
       .maybeSingle();
     if (error) {
@@ -57,6 +57,7 @@ export async function getOnboardingEntry(): Promise<OnboardingEntry | null> {
         step: screen,
         jobSearch: data?.job_search ?? null,
         hasCv: data?.has_cv ?? null,
+        choice: data?.choice ?? null,
         skipped: data?.skipped_steps ?? [],
       },
     };
@@ -76,6 +77,7 @@ export async function saveOnboardingState(state: OnboardingState, completed = fa
       step: state.step,
       job_search: state.jobSearch,
       has_cv: state.hasCv,
+      choice: state.choice,
       skipped_steps: state.skipped,
       ...(completed ? { completed_at: new Date().toISOString() } : {}),
     },
@@ -110,7 +112,7 @@ export async function getOnboardingAdminStats(): Promise<
   try {
     const supabase = createAdminClient();
     const [{ data, error }, users] = await Promise.all([
-      supabase.from("onboarding_progress").select("step, job_search, has_cv, skipped_steps, completed_at"),
+      supabase.from("onboarding_progress").select("step, job_search, has_cv, choice, skipped_steps, completed_at"),
       listAllUsers(supabase),
     ]);
     if (error) {
