@@ -10,8 +10,10 @@ import { createClient } from "@supabase/supabase-js";
 // admin (lib/admin-metrics, après requireAdmin), aux offres collées versées dans les
 // statistiques de mots-clés (lib/user-job-offers, sans donnée utilisateur) et à la lecture des
 // offres collectées (lib/dashboard-offers, colonnes sans donnée utilisateur), ainsi qu'au cron de
-// collecte des offres (app/api/cron/collecte, sans donnée utilisateur). Ne jamais l'utiliser
-// ailleurs dans une page ou une action déclenchée par un utilisateur.
+// collecte des offres (app/api/cron/collecte, sans donnée utilisateur), ainsi qu'à la lecture
+// des domaines d'entreprises (lib/company-domains-store, table sans règle d'accès, lue seulement
+// pour les noms affichés à la personne connectée). Ne jamais l'utiliser ailleurs dans une page ou
+// une action déclenchée par un utilisateur.
 
 export function isAdminConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
