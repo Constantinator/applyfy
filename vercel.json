@@ -52,6 +52,10 @@
     {
       "path": "/api/cron/collecte/luxe",
       "schedule": "0 12 * * 0"
+    },
+    {
+      "path": "/api/cron/domaines",
+      "schedule": "0 13 * * 0"
     }
   ]
 }

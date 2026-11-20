@@ -214,7 +214,11 @@ test("tâche de fond : uniquement dans after(), toute erreur rattrapée (planifi
 });
 
 test("rien pendant le rendu : la recherche Logo.dev n'est importée par aucune page, aucun composant, aucune route", () => {
-  const allowed = new Set(["lib/company-domain-resolve.ts", "lib/company-domains-store.ts", "lib/logo-dev-search.ts", "lib/applications.ts"]);
+  const allowed = new Set([
+    "lib/company-domain-resolve.ts", "lib/company-domains-store.ts", "lib/logo-dev-search.ts", "lib/applications.ts",
+    // Lot 2b-2 : passage du dimanche (cron), jamais une page.
+    "lib/company-domain-sweep.ts", "app/api/cron/domaines/route.ts",
+  ]);
   for (const path of files(SRC)) {
     const label = path.pathname.slice(SRC.pathname.length);
     const text = readFileSync(path, "utf8");
@@ -224,6 +228,7 @@ test("rien pendant le rendu : la recherche Logo.dev n'est importée par aucune p
   }
   // Pages et composants n'appellent que la lecture (loadCompanyDomains), jamais la planification.
   for (const path of files(new URL("app/", SRC)).concat(files(new URL("components/", SRC)))) {
+    if (path.pathname.endsWith("/app/api/cron/domaines/route.ts")) continue; // route cron, lit la clé
     assert.doesNotMatch(readFileSync(path, "utf8"), /scheduleCompanyDomainResolution|LOGO_DEV_SECRET_KEY/, path.pathname);
   }
 });

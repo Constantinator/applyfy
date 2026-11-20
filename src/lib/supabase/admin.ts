@@ -14,7 +14,8 @@ import { createClient } from "@supabase/supabase-js";
 // des domaines d'entreprises (lib/company-domains-store, table sans règle d'accès, lue seulement
 // pour les noms affichés à la personne connectée, et écrite en tâche de fond après la création
 // d'une candidature, à partir d'un résultat de recherche Logo.dev, sans aucune donnée de la
-// personne au-delà du nom de l'entreprise). Ne jamais l'utiliser ailleurs dans une page ou
+// personne au-delà du nom de l'entreprise), ainsi qu'au cron des nouveaux essais de ces domaines
+// (app/api/cron/domaines, noms d'entreprises seulement, bilan chiffré). Ne jamais l'utiliser ailleurs dans une page ou
 // une action déclenchée par un utilisateur.
 
 export function isAdminConfigured() {
