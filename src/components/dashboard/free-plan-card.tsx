@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { buildFreePlanLines, type FreePlanCounts } from "@/lib/free-plan";
 
 /** Carte « Ton plan gratuit » : utilisation réelle des quotas, sans message d'alerte. */
@@ -34,9 +32,6 @@ export function FreePlanCard({ counts }: { counts: FreePlanCounts }) {
           </li>
         ))}
       </ul>
-      <Link href="/premium" className="ui-btn-secondary mt-6">
-        Passer au Premium
-      </Link>
     </section>
   );
 }

@@ -37,6 +37,8 @@ const PROMISE_FILES = [
   "app/(app)/profil/page.tsx",
   "app/(app)/dashboard/page.tsx",
   "components/beta/beta-join-dialog.tsx",
+  "components/dashboard/premium-card.tsx",
+  "components/premium/plan-choice.tsx",
   "app/page.tsx",
   "lib/ai-usage-limits.ts",
   "components/application/refine-chat.tsx",

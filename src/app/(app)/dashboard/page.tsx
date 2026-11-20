@@ -11,6 +11,7 @@ import { FreePlanCard } from "@/components/dashboard/free-plan-card";
 import { MyWeekCard } from "@/components/dashboard/my-week-card";
 import { OfferLinkForm } from "@/components/dashboard/offer-link-form";
 import { OffersForYou } from "@/components/dashboard/offers-for-you";
+import { PremiumCard } from "@/components/dashboard/premium-card";
 import { Reveal } from "@/components/dashboard/reveal";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { TodoCard } from "@/components/dashboard/todo-card";
@@ -281,6 +282,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 triggerClassName="ui-btn-secondary"
               />
             </section>
+          </Reveal>
+        )}
+
+        {/* Comptes gratuits seulement (ni Premium, ni beta testeur actif), toujours en dernier. */}
+        {freeAccount && source !== "demo" && (
+          <Reveal index={nextReveal()}>
+            <PremiumCard paymentEnabled={isStripeConfigured()} />
           </Reveal>
         )}
       </main>

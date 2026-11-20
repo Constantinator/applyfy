@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { safeRedirectPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { createExampleApplication } from "@/lib/example-application";
 import { queueWelcomeEmail } from "@/lib/welcome-email";
 
 // Retour de « Continuer avec Google » (OAuth Supabase, PKCE) : ?code=… échangé contre une
@@ -22,7 +21,6 @@ export async function GET(request: NextRequest) {
     // Première connexion Google = inscription : email de bienvenue (une seule fois).
     if (ok) {
       await queueWelcomeEmail(supabase, data.user);
-      await createExampleApplication(supabase, data.user);
     }
   } else if (searchParams.get("error")) {
     console.error(
