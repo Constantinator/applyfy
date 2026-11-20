@@ -1,6 +1,7 @@
 // Textes des e-mails de bienvenue et de relance J+2, selon l'état du parcours d'accueil (fonctions
-// pures, testables). Voix de Lumeo : tutoiement, phrases courtes, sans emoji, aucun chiffre ni
-// durée non mesurés. Sujets, mise en page et lien de désinscription : inchangés (gabarits).
+// pures, testables). Signés par Constantin : tutoiement, phrases courtes, pas de première personne
+// de Lumeo, sans emoji, aucun chiffre ni durée non mesurés. Mise en page et lien de désinscription :
+// gabarits.
 
 /** « en_cours » : parcours d'accueil commencé ou pas encore ouvert ; « fini » : terminé, ou sans objet. */
 export type OnboardingEmailVariant = "en_cours" | "fini";
@@ -22,8 +23,7 @@ export function welcomeEmailContent(variant: OnboardingEmailVariant, firstName: 
     return {
       subject: "Bienvenue sur Applyfy",
       paragraphs: [
-        firstName ? `Salut ${firstName}, moi c'est Lumeo.` : "Salut, moi c'est Lumeo.",
-        "Ton compte est prêt. Reprends où tu en étais : ton CV ou ta première offre, comme tu veux.",
+        `${firstName ? `Salut ${firstName}` : "Salut"}, ton compte est prêt. Tu peux reprendre où tu en étais : ton CV ou ta première offre, comme tu veux.`,
       ],
       // /dashboard renvoie au parcours tant qu'il n'est pas fini.
       button: { label: "Reprendre", path: "/dashboard" },
@@ -42,10 +42,10 @@ export function welcomeEmailContent(variant: OnboardingEmailVariant, firstName: 
 export function activationEmailContent(variant: OnboardingEmailVariant, firstName: string | null): AccueilEmailContent {
   if (variant === "en_cours") {
     return {
-      subject: "Tu n'as pas encore ajouté ta première candidature",
+      subject: "Ton parcours Applyfy t'attend",
       paragraphs: [
         hello(firstName),
-        "Tu n'as pas fini de t'installer. Il reste une ou deux questions, puis on avance sur ton CV ou ta première offre.",
+        "Ton installation est presque terminée. Il reste une ou deux questions, puis on avance sur ton CV ou ta première offre.",
       ],
       button: { label: "Reprendre", path: "/dashboard" },
       hint: null,
@@ -53,7 +53,7 @@ export function activationEmailContent(variant: OnboardingEmailVariant, firstNam
   }
   return {
     subject: "Tu n'as pas encore ajouté ta première candidature",
-    paragraphs: [hello(firstName), "Ta première candidature t'attend. Colle le lien d'une offre, je remplis la fiche pour toi."],
+    paragraphs: [hello(firstName), "Ta première candidature t'attend. Colle le lien d'une offre, Applyfy remplit la fiche pour toi."],
     button: { label: "Ajouter une offre", path: "/candidatures/nouvelle" },
     hint: null,
   };

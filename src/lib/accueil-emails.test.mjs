@@ -31,13 +31,15 @@ test("bienvenue, parcours non fini : texte validé, bouton « Reprendre » vers 
   assert.deepEqual(welcomeEmailContent("en_cours", "Inès"), {
     subject: "Bienvenue sur Applyfy",
     paragraphs: [
-      "Salut Inès, moi c'est Lumeo.",
-      "Ton compte est prêt. Reprends où tu en étais : ton CV ou ta première offre, comme tu veux.",
+      "Salut Inès, ton compte est prêt. Tu peux reprendre où tu en étais : ton CV ou ta première offre, comme tu veux.",
     ],
     button: { label: "Reprendre", path: "/dashboard" },
     hint: null,
   });
-  assert.equal(welcomeEmailContent("en_cours", null).paragraphs[0], "Salut, moi c'est Lumeo.");
+  assert.equal(
+    welcomeEmailContent("en_cours", null).paragraphs[0],
+    "Salut, ton compte est prêt. Tu peux reprendre où tu en étais : ton CV ou ta première offre, comme tu veux.",
+  );
 });
 
 test("bienvenue, parcours fini : texte actuel, sans promesse chiffrée", () => {
@@ -52,17 +54,17 @@ test("bienvenue, parcours fini : texte actuel, sans promesse chiffrée", () => {
 
 test("relance J+2 : « Reprendre » si le parcours n'est pas fini, « Ajouter une offre » sinon", () => {
   assert.deepEqual(activationEmailContent("en_cours", "Inès"), {
-    subject: "Tu n'as pas encore ajouté ta première candidature",
+    subject: "Ton parcours Applyfy t'attend",
     paragraphs: [
       "Salut Inès,",
-      "Tu n'as pas fini de t'installer. Il reste une ou deux questions, puis on avance sur ton CV ou ta première offre.",
+      "Ton installation est presque terminée. Il reste une ou deux questions, puis on avance sur ton CV ou ta première offre.",
     ],
     button: { label: "Reprendre", path: "/dashboard" },
     hint: null,
   });
   assert.deepEqual(activationEmailContent("fini", null), {
     subject: "Tu n'as pas encore ajouté ta première candidature",
-    paragraphs: ["Salut,", "Ta première candidature t'attend. Colle le lien d'une offre, je remplis la fiche pour toi."],
+    paragraphs: ["Salut,", "Ta première candidature t'attend. Colle le lien d'une offre, Applyfy remplit la fiche pour toi."],
     button: { label: "Ajouter une offre", path: "/candidatures/nouvelle" },
     hint: null,
   });
@@ -81,6 +83,8 @@ test("textes : aucun chiffre ni durée en dur, tutoiement, sans emoji, ni « ill
   assert.doesNotMatch(text, /illimit|sans limite/i);
   assert.doesNotMatch(text, /\bvous\b|\bvotre\b|\bvos\b/i);
   assert.doesNotMatch(text, /\p{Extended_Pictographic}/u);
+  // Signés par Constantin : plus de première personne de Lumeo.
+  assert.doesNotMatch(text, /Lumeo|\bje\b|\bj'|\bmoi\b/i);
   for (const path of ["lib/email/welcome-email.ts", "lib/email/activation-email.ts", "lib/email/accueil-content.ts"]) {
     assert.doesNotMatch(read(path), /illimit|sans limite|moins d'une minute/i, path);
   }
