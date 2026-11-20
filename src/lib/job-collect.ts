@@ -43,15 +43,20 @@ export type AtsCompany = {
   slug: string;
   products?: string[];
   filterTitles?: boolean;
-  /** Tous les secteurs de l'entreprise (passage précédent, pour la règle du 429). */
-  sectors?: Sector[];
 };
 
 /** Entreprises d'un secteur, dans l'ordre du fichier (anciennes avant les nouvelles). */
 export function companiesForSector(companies: readonly CareerCompany[], sector: Sector): AtsCompany[] {
   return companies
     .filter((company) => company.sectors.includes(sector))
-    .map(({ filterTitles, ...company }) => ({ ...company, ...(filterTitles?.includes(sector) ? { filterTitles: true } : {}) }));
+    .map(({ name, domain, platform, slug, products, filterTitles }) => ({
+      name,
+      domain,
+      platform,
+      slug,
+      ...(products ? { products } : {}),
+      ...(filterTitles?.includes(sector) ? { filterTitles: true } : {}),
+    }));
 }
 
 /** Identifiant stable d'une entreprise dans job_collect_exclusions : « plateforme:identifiant ». */
@@ -661,8 +666,8 @@ export type CollectRun = {
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : String(error);
 
-/** Passages relus pour trouver le précédent passage de chaque entreprise (10 secteurs par semaine). */
-const PREVIOUS_RUNS_READ = 30;
+/** Règle du 429 : le passage précédent pris en compte a commencé il y a au moins ce nombre de jours. */
+export const RATE_LIMIT_MEMORY_MIN_DAYS = 5;
 const KNOWN_LOOKUP_CHUNK = 200;
 
 /**
@@ -681,25 +686,24 @@ export async function loadExclusions(supabase: SupabaseClient): Promise<Set<stri
 }
 
 /**
- * Entreprises arrêtées par un 429 lors de leur passage précédent (dernier passage d'un de leurs
- * secteurs). Sans échec : colonne absente ou journal illisible → aucune.
+ * Entreprises arrêtées par un 429 lors du passage précédent de CE secteur, celui de la semaine
+ * d'avant : le plus récent commencé il y a au moins 5 jours. Jamais un autre secteur (même jour ou
+ * non), jamais un passage de moins de 5 jours (relance à la main). Sans échec : colonne absente ou
+ * journal illisible → aucune.
  */
-async function previouslyRateLimited(supabase: SupabaseClient, companies: AtsCompany[]): Promise<Set<string>> {
+async function previouslyRateLimited(supabase: SupabaseClient, sector: Sector, now: number): Promise<Set<string>> {
   try {
     const { data, error } = await supabase
       .from("job_collect_runs")
-      .select("sector, companies_rate_limited")
+      .select("started_at, companies_rate_limited")
+      .eq("sector", sector)
+      .eq("source", COLLECT_SOURCE)
+      .lte("started_at", new Date(now - RATE_LIMIT_MEMORY_MIN_DAYS * DAY_MS).toISOString())
       .order("started_at", { ascending: false })
-      .limit(PREVIOUS_RUNS_READ);
+      .limit(1);
     if (error) throw error;
-    const runs = (data ?? []) as { sector: string; companies_rate_limited: string[] | null }[];
-    const names = new Set<string>();
-    for (const company of companies) {
-      const sectors: string[] = company.sectors ?? [];
-      const previous = runs.find((run) => sectors.includes(run.sector));
-      if (previous?.companies_rate_limited?.includes(company.name)) names.add(company.name);
-    }
-    return names;
+    const previous = ((data ?? []) as { companies_rate_limited: string[] | null }[])[0];
+    return new Set(previous?.companies_rate_limited ?? []);
   } catch (caught) {
     console.warn("[collecte] journal des 429 illisible (migration 0043 ?)", errorMessage(caught));
     return new Set();
@@ -727,8 +731,15 @@ function knownOffersIn(supabase: SupabaseClient): KnownOffers {
   };
 }
 
-/** Retrait noté dans job_collect_exclusions ; sans échec (l'entreprise reste arrêtée pour le passage). */
-async function recordExclusion(supabase: SupabaseClient, company: AtsCompany, blocked: NonNullable<CompanyOffers["blocked"]>) {
+/**
+ * Retrait noté dans job_collect_exclusions ; false si l'écriture a échoué (erreur dans la console).
+ * Sans échec : l'entreprise reste arrêtée pour ce passage, mais sera relue au suivant.
+ */
+async function recordExclusion(
+  supabase: SupabaseClient,
+  company: AtsCompany,
+  blocked: NonNullable<CompanyOffers["blocked"]>,
+): Promise<boolean> {
   try {
     const { error } = await supabase.from("job_collect_exclusions").upsert(
       {
@@ -740,10 +751,15 @@ async function recordExclusion(supabase: SupabaseClient, company: AtsCompany, bl
       { onConflict: "company_key", ignoreDuplicates: true },
     );
     if (error) throw error;
+    return true;
   } catch (caught) {
     console.error("[collecte] retrait non enregistré", company.name, errorMessage(caught));
+    return false;
   }
 }
+
+/** Mention ajoutée au nom, dans companies_excluded, quand le retrait n'a pas pu être enregistré. */
+export const EXCLUSION_NOT_SAVED = " (retrait non enregistré)";
 
 /** Colonnes ajoutées par la migration 0043 ; codes PostgREST / Postgres d'une colonne inconnue. */
 const MISSING_COLUMN = /PGRST204|42703/;
@@ -755,7 +771,8 @@ const MISSING_COLUMN = /PGRST204|42703/;
  * base (les refus d'accès sont seulement signalés).
  *
  * Refus d'accès : 401, 403 ou défi anti-robot → entreprise retirée tout de suite ; 429 sans défi →
- * arrêtée pour ce passage, retirée si son passage précédent avait déjà reçu un 429.
+ * arrêtée pour ce passage, retirée si le passage de la semaine précédente du même secteur (au moins
+ * 5 jours avant) l'avait déjà notée en 429.
  */
 export async function runSectorCollection({
   sector,
@@ -788,7 +805,7 @@ export async function runSectorCollection({
     excludedNames.push(company.name);
     return false;
   });
-  const strikes = supabase ? await previouslyRateLimited(supabase, active) : new Set<string>();
+  const strikes = supabase ? await previouslyRateLimited(supabase, sector, started) : new Set<string>();
 
   try {
     collection = await collectSector({
@@ -821,8 +838,10 @@ export async function runSectorCollection({
           rateLimited.push(company.name);
           return;
         }
-        excludedNames.push(company.name);
-        if (supabase) await recordExclusion(supabase, company, blocked);
+        // Plus aucune requête vers elle pendant ce passage (lecture déjà arrêtée), même si
+        // l'écriture du retrait échoue : le journal le dit alors à côté du nom.
+        const saved = supabase ? await recordExclusion(supabase, company, blocked) : true;
+        excludedNames.push(saved ? company.name : `${company.name}${EXCLUSION_NOT_SAVED}`);
       },
     });
     if (supabase) await refreshTrends(supabase, sector);

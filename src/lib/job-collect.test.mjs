@@ -16,6 +16,7 @@ const {
   COLLECT_BUDGET_MS,
   COLLECTED_OFFERS_MAX_DAYS,
   PURGE_MIN_REMAINING_MS,
+  RATE_LIMIT_MEMORY_MIN_DAYS,
   STORED_DESCRIPTION_MAX_LENGTH,
   USER_OFFERS_MAX_DAYS,
   purgeCutoffs,
@@ -673,7 +674,7 @@ async function quiet(fn) {
  * Base simulée pour les retraits : job_collect_exclusions, journal relu (passages précédents),
  * offres déjà connues. `missingMigration` : table et colonnes de la migration 0043 absentes.
  */
-function fakeGuardDb({ exclusions = [], previousRuns = [], known = [], missingMigration = false } = {}) {
+function fakeGuardDb({ exclusions = [], previousRuns = [], known = [], missingMigration = false, failExclusionWrite = false } = {}) {
   const db = { excluded: [], inserts: [], logs: [], rows: [] };
   const ok = (data) => ({ data, error: null });
   const noTable = { data: null, error: { code: "PGRST205", message: "Could not find the table 'public.job_collect_exclusions'" } };
@@ -681,17 +682,32 @@ function fakeGuardDb({ exclusions = [], previousRuns = [], known = [], missingMi
     if (table === "job_collect_exclusions") {
       return {
         select: async () => (missingMigration ? noTable : ok(exclusions.map((company_key) => ({ company_key })))),
-        upsert: async (row) => (missingMigration ? noTable : (db.excluded.push(row), { error: null })),
+        upsert: async (row) =>
+          missingMigration || failExclusionWrite
+            ? { error: { code: "23514", message: "new row violates check constraint \"job_collect_exclusions_company_key_check\"" } }
+            : (db.excluded.push(row), { error: null }),
       };
     }
     if (table === "job_collect_runs") {
+      // Journal relu : filtres eq / lte, tri décroissant sur started_at et limite appliqués comme Postgres.
+      const filters = [];
+      let limit = Infinity;
+      const chain = {
+        eq: (column, value) => (filters.push((run) => run[column] === value), chain),
+        lte: (column, value) => (filters.push((run) => run[column] <= value), chain),
+        order: () => chain,
+        limit: async (count) => {
+          limit = count;
+          if (missingMigration) return { data: null, error: { code: "42703", message: "column job_collect_runs.companies_rate_limited does not exist" } };
+          const runs = previousRuns
+            .map((run) => ({ source: "ats", ...run }))
+            .filter((run) => filters.every((keep) => keep(run)))
+            .sort((a, b) => b.started_at.localeCompare(a.started_at));
+          return ok(runs.slice(0, limit));
+        },
+      };
       return {
-        select: () => ({
-          order: () => ({
-            limit: async () =>
-              missingMigration ? { data: null, error: { code: "42703", message: "column job_collect_runs.companies_rate_limited does not exist" } } : ok(previousRuns),
-          }),
-        }),
+        select: () => chain,
         insert: (row) => ({
           select: () => ({
             single: async () => {
@@ -761,7 +777,7 @@ test("fichier unique : filtre du métier et produits résolus par secteur", () =
   assert.equal(pennylane("finance").filterTitles, undefined);
   assert.equal(pennylane("marketing").filterTitles, true);
   assert.equal(pennylane("rh").filterTitles, undefined);
-  assert.deepEqual(pennylane("finance").sectors, ["finance", "marketing", "creatif", "rh"]);
+  assert.equal(pennylane("finance").sectors, undefined, "secteurs non transmis à la collecte");
   const withProducts = companies.filter((company) => company.products?.length);
   for (const company of withProducts)
     for (const sector of company.sectors) assert.deepEqual(companiesForSector(companies, sector).find((c) => c.name === company.name).products, company.products);
@@ -776,9 +792,15 @@ test("ordre de lecture : dans chaque secteur, les anciennes entreprises avant le
   for (const sector of ["rh", "tech"]) assert.equal(companiesForSector(added, sector).at(-1).name, "Nouvelle");
 });
 
-test("clés des retraits : chaque entreprise du fichier respecte le format de job_collect_exclusions", () => {
+test("clés des retraits : les 78 clés actuelles et une clé Oracle passent la contrainte de la migration", () => {
   const pattern = new RegExp(/company_key ~ '([^']+)'/.exec(exclusionsMigration)[1]);
-  for (const company of careerCompanies()) assert.match(companyKey(company), pattern, company.name);
+  const keys = careerCompanies().map(companyKey);
+  assert.equal(keys.length, 78);
+  for (const key of keys) assert.match(key, pattern);
+  assert.match("oracle:fa-errt-saasfaprod1.fa.ocs.oraclecloud.com/CX_2001", pattern);
+  assert.match(companyKey({ platform: "lever-eu", slug: "jacquemus" }), pattern);
+  // Refusées : majuscule dans la plateforme, espace, deux-points en trop, identifiant vide.
+  for (const bad of ["Oracle:x", "ashby:mon slug", "ashby:a:b", "ashby:"]) assert.doesNotMatch(bad, pattern, bad);
   assert.equal(companyKey({ platform: "smartrecruiters", slug: "Ubisoft2" }), "smartrecruiters:Ubisoft2");
 });
 
@@ -869,25 +891,86 @@ test("passage : 401 et défi anti-robot retirent aussi tout de suite", async () 
   }
 });
 
-test("429 sans défi : arrêtée pour le passage, retirée seulement au deuxième passage consécutif", async () => {
-  const companies = runCompanies.map((c) => ({ ...c, sectors: ["tech", "rh"] }));
-  const run = (db) => quiet(() => runSectorCollection({ sector: "tech", companies, supabase: db, get: refusingGet("http_429"), matchKeywords: match }));
+// Règle du 429 : passage « tech » du dimanche 22/11 à 03:00 UTC.
+const SUNDAY = Date.parse("2026-11-22T03:00:00.000Z");
+const hoursBefore = (hours) => new Date(SUNDAY - hours * 3_600_000).toISOString();
+const run429 = (db) =>
+  quiet(() => runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: refusingGet("http_429"), matchKeywords: match, now: () => SUNDAY }));
 
-  const first = fakeGuardDb({ previousRuns: [{ sector: "rh", companies_rate_limited: [] }] });
-  const run1 = await run(first);
-  assert.deepEqual([run1.companiesRateLimited, run1.companiesExcluded, run1.companiesFailed, first.excluded.length], [["A"], [], ["A"], 0]);
-  assert.deepEqual(first.logs[0].companies_rate_limited, ["A"]);
+test("429 sans défi : premier 429, arrêtée pour le passage et notée, jamais retirée", async () => {
+  assert.equal(RATE_LIMIT_MEMORY_MIN_DAYS, 5);
+  const db = fakeGuardDb();
+  const run = await run429(db);
+  assert.deepEqual([run.companiesRateLimited, run.companiesExcluded, run.companiesFailed, db.excluded.length], [["A"], [], ["A"], 0]);
+  assert.deepEqual(db.logs[0].companies_rate_limited, ["A"]);
+});
 
-  // Passage précédent de A : le plus récent de ses secteurs (rh), déjà en 429.
-  const second = fakeGuardDb({ previousRuns: [{ sector: "rh", companies_rate_limited: ["A"] }, { sector: "tech", companies_rate_limited: [] }] });
-  const run2 = await run(second);
-  assert.deepEqual([run2.companiesRateLimited, run2.companiesExcluded], [[], ["A"]]);
-  assert.deepEqual(second.excluded.map((row) => [row.company_key, row.reason]), [["ashby:a", "http_429"]]);
+test("429 : retirée au deuxième passage consécutif, celui de la semaine précédente du même secteur", async () => {
+  const db = fakeGuardDb({ previousRuns: [{ sector: "tech", started_at: hoursBefore(7 * 24), companies_rate_limited: ["A"] }] });
+  const run = await run429(db);
+  assert.deepEqual([run.companiesRateLimited, run.companiesExcluded], [[], ["A"]]);
+  assert.deepEqual(db.excluded.map((row) => [row.company_key, row.reason]), [["ashby:a", "http_429"]]);
+});
 
-  // Un passage sans 429 entre les deux : compteur remis à zéro.
-  const reset = fakeGuardDb({ previousRuns: [{ sector: "tech", companies_rate_limited: [] }, { sector: "rh", companies_rate_limited: ["A"] }] });
-  const run3 = await run(reset);
-  assert.deepEqual([run3.companiesRateLimited, run3.companiesExcluded, reset.excluded.length], [["A"], [], 0]);
+test("429 : un autre secteur, même le même jour, ne compte jamais", async () => {
+  const db = fakeGuardDb({
+    previousRuns: [
+      { sector: "rh", started_at: hoursBefore(1), companies_rate_limited: ["A"] }, // même dimanche, une heure avant
+      { sector: "rh", started_at: hoursBefore(7 * 24), companies_rate_limited: ["A"] }, // semaine précédente, autre secteur
+      { sector: "tech", started_at: hoursBefore(7 * 24), companies_rate_limited: [] },
+    ],
+  });
+  const run = await run429(db);
+  assert.deepEqual([run.companiesRateLimited, run.companiesExcluded, db.excluded.length], [["A"], [], 0]);
+});
+
+test("429 : un passage du même secteur de moins de 5 jours (relance à la main) est ignoré", async () => {
+  // Relance 2 jours avant, avec un 429 : ignorée ; la semaine précédente n'en avait pas.
+  const recentOnly = fakeGuardDb({
+    previousRuns: [
+      { sector: "tech", started_at: hoursBefore(2 * 24), companies_rate_limited: ["A"] },
+      { sector: "tech", started_at: hoursBefore(7 * 24), companies_rate_limited: [] },
+    ],
+  });
+  const run1 = await run429(recentOnly);
+  assert.deepEqual([run1.companiesRateLimited, run1.companiesExcluded], [["A"], []]);
+  // Juste sous 5 jours : ignoré aussi ; juste au-dessus : pris en compte.
+  const under = fakeGuardDb({ previousRuns: [{ sector: "tech", started_at: hoursBefore(5 * 24 - 1), companies_rate_limited: ["A"] }] });
+  assert.deepEqual((await run429(under)).companiesExcluded, []);
+  const over = fakeGuardDb({ previousRuns: [{ sector: "tech", started_at: hoursBefore(5 * 24 + 1), companies_rate_limited: ["A"] }] });
+  assert.deepEqual((await run429(over)).companiesExcluded, ["A"]);
+});
+
+test("429 : consécutif seulement — une semaine sans 429 entre les deux remet le compteur à zéro", async () => {
+  const db = fakeGuardDb({
+    previousRuns: [
+      { sector: "tech", started_at: hoursBefore(7 * 24), companies_rate_limited: [] },
+      { sector: "tech", started_at: hoursBefore(14 * 24), companies_rate_limited: ["A"] },
+    ],
+  });
+  const run = await run429(db);
+  assert.deepEqual([run.companiesRateLimited, run.companiesExcluded, db.excluded.length], [["A"], [], 0]);
+});
+
+test("retrait non enregistré (écriture refusée) : entreprise sautée pour le passage, erreur dans la console et le journal", async () => {
+  const db = fakeGuardDb({ failExclusionWrite: true });
+  const calls = [];
+  const errors = [];
+  const original = { warn: console.warn, error: console.error, info: console.info };
+  console.warn = console.info = () => {};
+  console.error = (...args) => errors.push(args.join(" "));
+  let run;
+  try {
+    run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: refusingGet("http_403", "a", calls), matchKeywords: match });
+  } finally {
+    Object.assign(console, original);
+  }
+  assert.equal(calls.filter((url) => url.endsWith("job-board/a")).length, 1, "une seule requête vers l'entreprise refusée");
+  assert.deepEqual([run.error, run.companiesRead, run.offersCreated], [null, 3, 1]);
+  assert.deepEqual(run.companiesExcluded, ["A (retrait non enregistré)"]);
+  assert.deepEqual(db.logs[0].companies_excluded, ["A (retrait non enregistré)"]);
+  assert.equal(db.excluded.length, 0);
+  assert.ok(errors.some((line) => /retrait non enregistré A .*check constraint/.test(line)), errors.join("\n"));
 });
 
 test("panne 5xx (réponse illisible) : échec ordinaire, personne n'est retiré ni compté en 429", async () => {
@@ -906,7 +989,8 @@ test("essai à blanc : refus signalés sans rien écrire, offres par entreprise 
 test("migration 0043 absente : la collecte tourne, le journal est écrit sans les nouvelles colonnes", async () => {
   const db = fakeGuardDb({ missingMigration: true });
   const run = await quiet(() => runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: refusingGet("http_403"), matchKeywords: match }));
-  assert.deepEqual([run.error, run.offersCreated, run.companiesExcluded, run.partial], [null, 1, ["A"], false]);
+  // Table absente : retrait impossible à enregistrer, l'entreprise est sautée et le journal le dit.
+  assert.deepEqual([run.error, run.offersCreated, run.companiesExcluded, run.partial], [null, 1, ["A (retrait non enregistré)"], false]);
   assert.equal(db.inserts.length, 2);
   assert.ok("companies_empty" in db.inserts[0]);
   assert.ok(!("companies_empty" in db.inserts[1]) && !("companies_excluded" in db.inserts[1]));
