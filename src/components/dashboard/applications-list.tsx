@@ -70,9 +70,12 @@ export function ApplicationsList({
           >
             <Link
               href={`/candidatures/${app.id}`}
-              className="flex min-w-0 flex-1 items-center gap-3.5 after:absolute after:inset-0 focus:outline-none"
+              className="flex min-w-0 flex-1 items-start gap-3.5 after:absolute after:inset-0 focus:outline-none"
             >
-              <CompanyLogo name={app.company} src={logos[app.id] ?? null} />
+              {/* Hauteur de la ligne du nom (1lh) : logo centré sur le nom, pas sur tout le bloc. */}
+              <span className="flex h-[1lh] shrink-0 items-center text-[15px]">
+                <CompanyLogo name={app.company} src={logos[app.id] ?? null} />
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2 text-[15px] font-semibold text-ink group-hover:text-accent dark:text-white dark:group-hover:text-blue-300">
                   <span className="truncate">{app.company}</span>

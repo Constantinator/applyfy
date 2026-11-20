@@ -142,11 +142,14 @@ export default async function ApplicationPage({
         {/* En-tête */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-4">
-            <CompanyLogo
-              name={app.company}
-              src={companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 48)}
-              size={48}
-            />
+            {/* Hauteur d'une ligne du titre (1lh) : logo centré sur la première ligne, même sur deux lignes. */}
+            <div className="flex h-[1lh] shrink-0 items-center text-[36px] leading-[1.1]">
+              <CompanyLogo
+                name={app.company}
+                src={companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 48)}
+                size={48}
+              />
+            </div>
             <div className="min-w-0">
               <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] break-words text-ink dark:text-white">{app.company}</h1>
               <SectorPill sector={app.sector} className="mt-2" />

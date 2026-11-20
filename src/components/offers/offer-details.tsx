@@ -77,7 +77,10 @@ export function OfferDetails({
         </Link>
 
         <header className="flex items-start gap-4">
-          <CompanyLogo name={offer.company} src={logo} fallbackSrc={sourceLogo} size={48} />
+          {/* Hauteur d'une ligne du titre (ui-title-sm, 1lh) : logo centré sur la première ligne. */}
+          <div className="flex h-[1lh] shrink-0 items-center text-[20px] leading-[1.25]">
+            <CompanyLogo name={offer.company} src={logo} fallbackSrc={sourceLogo} size={48} />
+          </div>
           <div className="min-w-0 flex-1 space-y-1.5">
             <h2 id="offre-titre" className="ui-title-sm font-bold break-words">
               {offer.title}
