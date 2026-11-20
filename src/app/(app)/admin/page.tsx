@@ -4,6 +4,7 @@ import { connection } from "next/server";
 
 import { DailyChart } from "@/components/admin/daily-chart";
 import { FeedbackSection } from "@/components/admin/feedback-section";
+import { OnboardingSection } from "@/components/admin/onboarding-section";
 import { MonthPicker } from "@/components/admin/month-picker";
 import {
   AI_ACTION_COSTS,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/admin-metrics";
 import { AI_USAGE_LABELS } from "@/lib/ai-usage-limits";
 import { betaActivity, listBetaTesters } from "@/lib/beta-admin";
+import { getOnboardingAdminStats } from "@/lib/onboarding-server";
 import { getTrafficMetrics, isTrafficConfigured, type TrafficMetrics } from "@/lib/vercel-analytics";
 
 export const metadata: Metadata = { title: "Admin — Applyfy", robots: { index: false } };
@@ -118,10 +120,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   await connection();
   await requireAdmin();
   const { mois } = await searchParams;
-  const [m, feedback, betaTesters] = await Promise.all([
+  const [m, feedback, betaTesters, onboarding] = await Promise.all([
     getAdminMetrics(typeof mois === "string" ? mois : undefined),
     getFeedbackMetrics(),
     listBetaTesters(),
+    getOnboardingAdminStats(),
   ]);
   // Trafic (Vercel Web Analytics) du mois choisi ; sans jeton ou en cas d'erreur, la
   // section l'indique et le reste du tableau de bord s'affiche normalement.
@@ -597,6 +600,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               </tbody>
             </table>
           </div>
+        </Section>
+
+        {/* Parcours d'accueil (/bienvenue) : nouveaux comptes, indépendant du sélecteur */}
+        <Section id="admin-parcours" title="Parcours d'accueil">
+          <OnboardingSection result={onboarding} />
         </Section>
 
         {/* 6. Avis utilisateurs (tous les mois, indépendant du sélecteur) */}

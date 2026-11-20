@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/candidatures", "/profil", "/offres", "/premium", "/extension", "/cv-builder", "/lumeo", "/admin", "/beta"];
+const PROTECTED_PREFIXES = ["/dashboard", "/candidatures", "/profil", "/offres", "/premium", "/extension", "/cv-builder", "/lumeo", "/admin", "/beta", "/bienvenue"];
 const AUTH_PAGES = ["/login", "/signup"];
 
 function matches(pathname: string, prefixes: string[]) {

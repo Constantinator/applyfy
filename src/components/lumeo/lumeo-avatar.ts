@@ -8,7 +8,7 @@ import { createElement, type ReactElement, type SVGProps } from "react";
  * Écrit sans JSX (createElement) pour être rendu tel quel par les tests (`node --test`).
  */
 
-export const LUMEO_SIZES = [24, 36, 56, 72, 96] as const;
+export const LUMEO_SIZES = [24, 36, 56, 72, 96, 120] as const;
 export type LumeoSize = (typeof LUMEO_SIZES)[number];
 
 export const LUMEO_EXPRESSIONS = [
@@ -70,8 +70,9 @@ const FACES: Record<LumeoExpression, Shape[]> = {
     ["rect", { x: 16, y: 21, width: 5, height: 9, rx: 2.5, ...fill(FACE) }],
     ["path", { d: "M26.5 26.5 Q29.5 22 32.5 26.5", ...line(FACE) }],
     smile("M18 33.5 Q24 40 30 33.5"),
-    ["path", { d: "M41 27 Q45.5 22 44.5 13", ...line(BODY, 2.5) }],
-    ["circle", { cx: 44.5, cy: 10, r: 3.5, ...fill(BODY) }],
+    // Bras levé : classe « lumeo-arm » (signe de la main animé dans le parcours d'accueil).
+    ["path", { d: "M41 27 Q45.5 22 44.5 13", ...line(BODY, 2.5), className: "lumeo-arm" }],
+    ["circle", { cx: 44.5, cy: 10, r: 3.5, ...fill(BODY), className: "lumeo-arm" }],
   ],
   felicite: [
     ...happyEyes,
@@ -143,7 +144,8 @@ export function LumeoAvatar({
       cy: 5.5,
       r: 3.5,
       style: { fill: BLUE },
-      className: expression === "reflechit" ? "animate-pulse motion-reduce:animate-none" : undefined,
+      // « lumeo-antenna » : repère pour les animations du parcours d'accueil (sans effet ailleurs).
+      className: expression === "reflechit" ? "lumeo-antenna animate-pulse motion-reduce:animate-none" : "lumeo-antenna",
     }),
     ...shapes.map(([tag, { sparkle: isSparkle, ...props }], i) =>
       createElement(tag, {

@@ -182,3 +182,43 @@ export const BETA_TIME_TEXTS = {
   addApplication: "Ajouter une candidature",
   error: "L'enregistrement a échoué. Réessaie dans un instant.",
 } as const;
+
+/**
+ * Parcours d'accueil (/bienvenue, cf. lib/onboarding). Voix de Lumeo : tutoiement, phrases
+ * courtes, sans emoji, aucun chiffre écrit ici (la note d'import lit AI_MONTHLY_LIMITS).
+ */
+export const ONBOARDING_TEXTS = {
+  pageTitle: "Bienvenue",
+  skip: "Passer",
+  skipLabel: "Passer cet écran",
+  progress: (step: number, total: number) => `Étape ${step} sur ${total}`,
+  lumeo: "Lumeo",
+  accueil: {
+    title: (firstName: string | null) => (firstName ? `Salut ${firstName}, moi c'est Lumeo.` : "Salut, moi c'est Lumeo."),
+    question: "Tu cherches un job en ce moment ?",
+    oui: { title: "Oui, je cherche", detail: "Je t'aide à postuler plus vite." },
+    pasEncore: { title: "Pas encore", detail: "On prépare le terrain ensemble." },
+    note: "Ça me sert à te proposer la bonne suite.",
+  },
+  apport: {
+    title: "Applyfy t'aide à postuler sans te perdre.",
+    items: [
+      { key: "suivi", title: "Suivre tes candidatures", detail: "Toutes au même endroit, avec leur statut.", soon: false },
+      { key: "cv", title: "Améliorer ton CV et tes lettres", detail: "Je te pose les bonnes questions, sans rien inventer.", soon: false },
+      { key: "remplir", title: "Remplir tes candidatures", detail: "Une extension remplit les champs à ta place.", soon: true },
+    ],
+    soon: "Bientôt",
+  },
+  temps: {
+    title: "Applyfy t'aide à gagner du temps sur chaque candidature.",
+    detail: "Ton CV, tes lettres et ton suivi au même endroit.",
+  },
+  cv: {
+    title: "Tu as déjà un CV ?",
+    subtitle: "Je pars de lui pour te donner des conseils précis.",
+    add: { title: "Ajouter mon CV", badge: "Conseillé", detail: "Import (PDF ou Word) ou création guidée." },
+    later: { title: "Plus tard", detail: "On commence par une offre." },
+    importNote: (imports: number) => `Gratuit : ${imports} import${imports > 1 ? "s" : ""} de CV par mois.`,
+  },
+  continue: "Continuer",
+} as const;

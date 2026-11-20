@@ -23,6 +23,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBetaSpotsLeft, getMyBeta } from "@/lib/beta";
 import { pendingBetaReport } from "@/lib/beta-rules";
 import { getLatestBuilderCv } from "@/lib/cv-builder";
+import { getOnboardingEntry } from "@/lib/onboarding-server";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
@@ -77,6 +78,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }
     redirect(`/candidatures?${query}`);
   }
+
+  // Parcours d'accueil pas terminé (comptes créés après sa mise en ligne) : reprise à la bonne
+  // étape. Jamais au retour de Stripe. Même règle que /bienvenue, qui renvoie ici sinon : pas de boucle.
+  if (!welcomePremium && (await getOnboardingEntry())) redirect("/bienvenue");
 
   // Retour de Stripe Checkout : abonnement enregistré tout de suite, sans attendre le webhook.
   if (welcomePremium && typeof session_id === "string" && isStripeConfigured()) {

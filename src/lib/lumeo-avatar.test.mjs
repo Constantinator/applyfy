@@ -10,8 +10,8 @@ const { LUMEO_TEXTS } = await import("./lumeo-texts.ts");
 
 const render = (props) => renderToStaticMarkup(createElement(LumeoAvatar, props));
 
-test("8 expressions et 5 tailles", () => {
-  assert.deepEqual([...LUMEO_SIZES], [24, 36, 56, 72, 96]);
+test("8 expressions et 6 tailles", () => {
+  assert.deepEqual([...LUMEO_SIZES], [24, 36, 56, 72, 96, 120]);
   assert.equal(LUMEO_EXPRESSIONS.length, 8);
 });
 

@@ -1,0 +1,134 @@
+// Parcours d'accueil (/bienvenue) : écrans, barre de progression, reprise, date de coupure et
+// statistiques (fonctions pures, testables). Valeurs alignées avec la migration 0045.
+
+/**
+ * Mise en ligne du parcours : seuls les comptes créés à partir de cet instant le suivent. Les
+ * comptes plus anciens ne le voient jamais.
+ */
+export const ONBOARDING_LAUNCHED_AT = "2026-11-20T22:00:00Z";
+
+/** Tous les écrans connus de la base (migration 0045), dans l'ordre du parcours. */
+export const ONBOARDING_STEPS = ["accueil", "apport", "temps", "cv", "chemin_cv", "chemin_offre"] as const;
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+
+/** Écrans disponibles aujourd'hui (les chemins A et B arrivent au lot suivant). */
+export const ONBOARDING_SCREENS = ["accueil", "apport", "temps", "cv"] as const satisfies readonly OnboardingStep[];
+export type OnboardingScreen = (typeof ONBOARDING_SCREENS)[number];
+
+/** Barre de progression : 4 segments (écran 1 ; écrans 2 et 2 bis ; écran 3 ; chemin A ou B). */
+export const ONBOARDING_SEGMENTS = 4;
+const SEGMENT_OF: Record<OnboardingStep, number> = {
+  accueil: 1,
+  apport: 2,
+  temps: 2,
+  cv: 3,
+  chemin_cv: 4,
+  chemin_offre: 4,
+};
+export const segmentOf = (step: OnboardingStep) => SEGMENT_OF[step];
+
+export type JobSearch = "oui" | "pas_encore";
+export type HasCv = "oui" | "plus_tard";
+
+/** Ce que le parcours enregistre (une ligne par compte). */
+export type OnboardingState = {
+  step: OnboardingStep;
+  jobSearch: JobSearch | null;
+  hasCv: HasCv | null;
+  skipped: OnboardingStep[];
+};
+
+export const INITIAL_ONBOARDING_STATE: OnboardingState = { step: "accueil", jobSearch: null, hasCv: null, skipped: [] };
+
+/** Écran suivant, ou null : le parcours est terminé (tableau de bord). */
+export function nextScreen(step: OnboardingScreen): OnboardingScreen | null {
+  const index = ONBOARDING_SCREENS.indexOf(step);
+  return ONBOARDING_SCREENS[index + 1] ?? null;
+}
+
+/** Écran où reprendre : celui enregistré s'il existe aujourd'hui, sinon le plus proche avant lui. */
+export function resumeScreen(step: OnboardingStep | null | undefined): OnboardingScreen {
+  if (!step) return "accueil";
+  if ((ONBOARDING_SCREENS as readonly string[]).includes(step)) return step as OnboardingScreen;
+  return ONBOARDING_SCREENS[ONBOARDING_SCREENS.length - 1];
+}
+
+/** « Passer » : l'écran est noté comme passé (une seule fois). */
+export function withSkipped(state: OnboardingState, step: OnboardingStep): OnboardingState {
+  return state.skipped.includes(step) ? state : { ...state, skipped: [...state.skipped, step] };
+}
+
+/** Compte assez récent pour suivre le parcours (créé à partir de la mise en ligne). */
+export function isAfterLaunch(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false;
+  const created = Date.parse(createdAt);
+  return !Number.isNaN(created) && created >= Date.parse(ONBOARDING_LAUNCHED_AT);
+}
+
+const isOneOf = <T extends string>(values: readonly T[], value: unknown): value is T =>
+  typeof value === "string" && (values as readonly string[]).includes(value);
+
+/** État reçu du navigateur, validé ; null s'il est invalide. */
+export function parseOnboardingState(input: unknown): OnboardingState | null {
+  const data = (input ?? {}) as Record<string, unknown>;
+  if (!isOneOf(ONBOARDING_STEPS, data.step)) return null;
+  const jobSearch = data.jobSearch ?? null;
+  const hasCv = data.hasCv ?? null;
+  if (jobSearch !== null && !isOneOf(["oui", "pas_encore"] as const, jobSearch)) return null;
+  if (hasCv !== null && !isOneOf(["oui", "plus_tard"] as const, hasCv)) return null;
+  if (!Array.isArray(data.skipped) || data.skipped.length > ONBOARDING_STEPS.length) return null;
+  if (!data.skipped.every((step) => isOneOf(ONBOARDING_STEPS, step))) return null;
+  return {
+    step: data.step,
+    jobSearch: jobSearch as JobSearch | null,
+    hasCv: hasCv as HasCv | null,
+    skipped: [...new Set(data.skipped as OnboardingStep[])],
+  };
+}
+
+/** Ligne de la table onboarding_progress, telle que lue par l'admin. */
+export type OnboardingRow = {
+  step: OnboardingStep;
+  job_search: JobSearch | null;
+  has_cv: HasCv | null;
+  skipped_steps: OnboardingStep[];
+  completed_at: string | null;
+};
+
+export type OnboardingStats = {
+  /** Comptes créés depuis la mise en ligne. */
+  signups: number;
+  started: number;
+  completed: number;
+  /** Parcours en cours, par écran où la personne s'est arrêtée. */
+  stoppedAt: Record<OnboardingScreen, number>;
+  jobSearch: { oui: number; pas_encore: number; sans_reponse: number };
+  hasCv: { oui: number; plus_tard: number; sans_reponse: number };
+  /** Nombre de fois où chaque écran a été passé. */
+  skipped: Record<OnboardingScreen, number>;
+};
+
+const zeroByScreen = () => Object.fromEntries(ONBOARDING_SCREENS.map((s) => [s, 0])) as Record<OnboardingScreen, number>;
+
+/** Statistiques du parcours (/admin). */
+export function onboardingStats(rows: OnboardingRow[], signups: number): OnboardingStats {
+  const stats: OnboardingStats = {
+    signups,
+    started: rows.length,
+    completed: 0,
+    stoppedAt: zeroByScreen(),
+    jobSearch: { oui: 0, pas_encore: 0, sans_reponse: 0 },
+    hasCv: { oui: 0, plus_tard: 0, sans_reponse: 0 },
+    skipped: zeroByScreen(),
+  };
+  for (const row of rows) {
+    if (row.completed_at) stats.completed++;
+    else stats.stoppedAt[resumeScreen(row.step)]++;
+    stats.jobSearch[row.job_search ?? "sans_reponse"]++;
+    stats.hasCv[row.has_cv ?? "sans_reponse"]++;
+    for (const step of row.skipped_steps) {
+      if (step in stats.skipped) stats.skipped[step as OnboardingScreen]++;
+    }
+  }
+  return stats;
+}

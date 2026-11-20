@@ -4,12 +4,13 @@ import { cache } from "react";
 
 import { requireUser } from "./auth";
 import { demoStore } from "./demo-data";
+import { isAfterLaunch } from "./onboarding";
 import { readAccountName, type AccountName } from "./person-name";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 // Données du compte stockées dans les métadonnées Supabase Auth (user_metadata) :
 // - first_name, last_name : renseignés à l'inscription ou depuis « Mon profil » ;
-// - onboarding_completed_at : écran de bienvenue vu.
+// - onboarding_completed_at : parcours d'accueil (/bienvenue) terminé.
 
 /**
  * Métadonnées du compte connecté, lues une fois par rendu. getUser (et non les claims
@@ -39,11 +40,15 @@ export async function saveAccountName(name: AccountName) {
   await updateMetadata({ first_name: name.firstName, last_name: name.lastName });
 }
 
-/** L'écran de bienvenue doit-il encore être affiché ? */
+/**
+ * Le parcours d'accueil (/bienvenue) doit-il être proposé ? Seulement aux comptes créés après sa
+ * mise en ligne (ONBOARDING_LAUNCHED_AT), tant qu'il n'est pas terminé. Jamais en mode démo.
+ */
 export async function needsOnboarding(): Promise<boolean> {
-  if (!isSupabaseConfigured()) return !demoStore.onboardingCompleted;
-  const metadata = await getUserMetadata();
-  return typeof metadata.onboarding_completed_at !== "string";
+  if (!isSupabaseConfigured()) return false;
+  const user = await getAuthUser();
+  if (!user || !isAfterLaunch(user.created_at)) return false;
+  return typeof user.user_metadata?.onboarding_completed_at !== "string";
 }
 
 export async function completeOnboarding() {

@@ -753,3 +753,69 @@ body:has([data-theme-off]) {
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 }
+
+/*
+ * Parcours d'accueil (/bienvenue). Tout est dans prefers-reduced-motion: no-preference : sans
+ * animation, chaque élément s'affiche directement dans son état final. Rien n'est bloqué pendant
+ * une animation (aucun pointer-events, contenu cliquable dès l'affichage).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes ob-fill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes ob-pop {
+    0% { transform: scale(0.6) rotate(-8deg); }
+    60% { transform: scale(1.08) rotate(3deg); }
+    100% { transform: none; }
+  }
+  @keyframes ob-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes ob-wave {
+    0%, 100% { transform: rotate(0); }
+    30% { transform: rotate(-16deg); }
+    70% { transform: rotate(14deg); }
+  }
+  @keyframes ob-jump {
+    0%, 24%, 100% { transform: none; }
+    12% { transform: translateY(-14px); }
+  }
+  @keyframes ob-wow {
+    0%, 100% { transform: none; }
+    50% { transform: scale(1.14); }
+  }
+  @keyframes ob-pulse {
+    0%, 100% { transform: none; }
+    50% { transform: scale(1.6); }
+  }
+  @keyframes ob-tilt {
+    0%, 100% { transform: none; }
+    25% { transform: rotate(-7deg); }
+    75% { transform: rotate(7deg); }
+  }
+
+  .ob-fill { transform-origin: left center; animation: ob-fill 0.7s cubic-bezier(0.22, 0.8, 0.3, 1) 0.1s both; }
+  .ob-pop { animation: ob-pop 0.6s ease-out both; }
+  .ob-rise-1 { animation: ob-rise 0.5s ease-out 0.2s both; }
+  .ob-rise-2 { animation: ob-rise 0.5s ease-out 0.35s both; }
+
+  /* Écran 1 : trois signes de la main, autour de l'épaule. */
+  .ob-wave .lumeo-arm {
+    transform-box: view-box;
+    transform-origin: 41px 27px;
+    animation: ob-wave 0.9s ease-in-out 0.8s 3;
+  }
+  /* Écran 2 : petits sauts. */
+  .ob-jump { animation: ob-jump 2.4s ease-in-out 0.8s infinite; }
+  /* Écran 2 bis : un « wow », puis l'antenne pulse. */
+  .ob-wow { animation: ob-wow 0.6s ease-out 0.7s 1; }
+  .ob-wow .lumeo-antenna {
+    transform-box: view-box;
+    transform-origin: 24px 5.5px;
+    animation: ob-pulse 1.4s ease-in-out 1.3s infinite;
+  }
+  /* Écran 3 : la tête penche. */
+  .ob-tilt { animation: ob-tilt 3.2s ease-in-out 0.8s infinite; }
+}
