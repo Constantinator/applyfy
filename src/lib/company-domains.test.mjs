@@ -97,3 +97,31 @@ test("clé secrète Logo.dev : jamais dans un fichier client, jamais NEXT_PUBLIC
   assert.doesNotMatch(readFileSync(new URL("lib/logo-dev-search.ts", SRC), "utf8"), /process\.env/);
   assert.match(readFileSync(new URL("lib/company-domains-store.ts", SRC), "utf8"), /^import "server-only";/);
 });
+
+test("jamais d'écriture d'un domaine déduit : le seul appel d'écriture passe par un résultat de recherche", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (path) => readFileSync(new URL(path, new URL("./", import.meta.url)), "utf8").replace(/^\s*(\/\/|\*|\/\*).*$/gm, "");
+  // Le code de l'application ne fait que lire la table ; l'écriture (rpc upsert_company_domain) n'est
+  // que dans le script de rattrapage, à partir de upsertParams(acceptSearch(...)).
+  for (const path of ["./company-domain.ts", "./company-logos.ts", "./company-domains-read.ts", "./company-domains-store.ts"]) {
+    assert.doesNotMatch(read(path), /upsert_company_domain|\.insert\(|\.upsert\(|\.update\(/, path);
+  }
+  assert.match(read("../../scripts/backfill-company-domains.mjs"), /rpc\("upsert_company_domain", upsertParams\(/);
+});
+
+test("rattrapage : simulation à blanc par défaut, confirmation « o », plafond 1 000, arrêt sur 401/402/429, clé jamais affichée", () => {
+  const script = readFileSync(new URL("../../scripts/backfill-company-domains.mjs", import.meta.url), "utf8");
+  assert.match(script, /const APPLY = process\.argv\.includes\("--apply"\);/);
+  assert.match(script, /if \(!APPLY\) \{\s+console\.log\("[^"]*Simulation à blanc : rien n'a été écrit\./);
+  assert.match(script, /if \(answer !== "o"\) \{/);
+  assert.match(script, /const MAX_NAMES = 1000;/);
+  assert.match(script, /if \(outcome\.kind === "stop"\) \{\s+stop = outcome;\s+break search;/);
+  assert.match(script, /if \(!SECRET\) fail\("LOGO_DEV_SECRET_KEY absente/);
+  // Une seule écriture, par la fonction SQL ; aucune donnée d'utilisateur lue au-delà du nom d'entreprise.
+  assert.equal(script.match(/\.rpc\(/g)?.length, 1);
+  assert.match(script, /select\("company"\)/);
+  assert.doesNotMatch(script, /user_id|email/);
+  for (const line of script.split("\n").filter((l) => /console\.|fail\(/.test(l))) {
+    assert.doesNotMatch(line, /\$\{SECRET\}|\$\{env\(/, line.trim());
+  }
+});
