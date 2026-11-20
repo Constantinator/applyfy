@@ -10,13 +10,17 @@ function initials(name: string | null) {
 }
 
 const SIZES = {
-  36: "h-9 w-9 text-sm",
-  44: "h-11 w-11 text-base",
-  48: "h-12 w-12 text-lg",
+  36: "h-9 w-9 text-sm rounded-xl",
+  44: "h-11 w-11 text-base rounded-xl",
+  48: "h-12 w-12 text-lg rounded-xl",
+  56: "h-14 w-14 text-xl rounded-[14px]",
 } as const;
 
+/** 56 px dès 640 px de large, 44 px en dessous (en-tête de la fiche candidature). */
+const RESPONSIVE_56 = "h-11 w-11 text-base rounded-[14px] sm:h-14 sm:w-14 sm:text-xl";
+
 /** Carré blanc avec liseré, blanc aussi en mode sombre (logos à fond transparent). */
-const TILE = "shrink-0 rounded-xl bg-white ring-1 ring-line";
+const TILE = "shrink-0 bg-white ring-1 ring-line";
 
 /**
  * Logo d'une entreprise (`src`, adresse Logo.dev calculée côté serveur), sinon `fallbackSrc`
@@ -30,13 +34,17 @@ export function CompanyLogo({
   src,
   fallbackSrc = null,
   size = 36,
+  mobileSize,
 }: {
   name: string | null;
   src: string | null;
   fallbackSrc?: string | null;
   size?: keyof typeof SIZES;
+  /** Taille sous 640 px de large (seulement 44 avec size 56). */
+  mobileSize?: 44;
 }) {
   const [failed, setFailed] = useState<string[]>([]);
+  const box = size === 56 && mobileSize === 44 ? RESPONSIVE_56 : SIZES[size];
   const current = [src, fallbackSrc].find((url): url is string => Boolean(url) && !failed.includes(url!));
 
   if (current) {
@@ -51,12 +59,12 @@ export function CompanyLogo({
         loading="lazy"
         referrerPolicy="origin"
         onError={() => setFailed((urls) => [...urls, current])}
-        className={`${SIZES[size]} ${TILE} object-contain`}
+        className={`${box} ${TILE} object-contain`}
       />
     );
   }
   return (
-    <span aria-hidden="true" className={`${SIZES[size]} ${TILE} flex items-center justify-center font-bold text-ink`}>
+    <span aria-hidden="true" className={`${box} ${TILE} flex items-center justify-center font-bold text-ink`}>
       {initials(name)}
     </span>
   );

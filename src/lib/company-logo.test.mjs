@@ -24,9 +24,10 @@ test("CompanyLogo : chargé par le navigateur, sans relais ni chemin de page tra
   assert.match(logo, /onError=/);
   assert.match(logo, /\{initials\(name\)\}/);
   // Carré blanc, aussi en mode sombre : aucune classe dark: sur le carré.
-  assert.match(logo, /const TILE = "shrink-0 rounded-xl bg-white ring-1 ring-line";/);
+  assert.match(logo, /const TILE = "shrink-0 bg-white ring-1 ring-line";/);
   assert.doesNotMatch(logo, /dark:/);
-  assert.match(logo, /36: "h-9 w-9[^"]*",\s+44: "h-11 w-11[^"]*",\s+48: "h-12 w-12[^"]*"/);
+  assert.match(logo, /36: "h-9 w-9[^"]*",\s+44: "h-11 w-11[^"]*",\s+48: "h-12 w-12[^"]*",\s+56: "h-14 w-14[^"]*rounded-\[14px\]"/);
+  assert.match(logo, /const RESPONSIVE_56 = "h-11 w-11 [^"]*sm:h-14 sm:w-14[^"]*";/);
 });
 
 test("adresse Logo.dev : construite côté serveur seulement, PNG au double de l'affichage, fallback=404", () => {
@@ -47,7 +48,7 @@ test("écrans : logo dans Offres pour toi, /offres (liste et panneau), /candidat
   assert.match(source("components/offers/offer-details.tsx"), /<CompanyLogo name=\{offer\.company\} src=\{logo\} fallbackSrc=\{sourceLogo\} size=\{48\} \/>/);
   assert.match(source("app/(app)/candidatures/page.tsx"), /companyLogo\(\{ name: app\.company, offerUrl: app\.offer_url, contactEmail: app\.contact_email \}, 36\)/);
   assert.match(source("components/dashboard/applications-list.tsx"), /<CompanyLogo name=\{app\.company\} src=\{logos\[app\.id\] \?\? null\} \/>/);
-  assert.match(source("app/(app)/candidatures/[id]/page.tsx"), /companyLogo\(\{ name: app\.company, offerUrl: app\.offer_url, contactEmail: app\.contact_email \}, 48\)/);
+  assert.match(source("app/(app)/candidatures/[id]/page.tsx"), /companyLogo\(\{ name: app\.company, offerUrl: app\.offer_url, contactEmail: app\.contact_email \}, 56\)\}\s+size=\{56\}\s+mobileSize=\{44\}/);
   for (const path of ["components/dashboard/todo-card.tsx", "components/landing/demo-dashboard.tsx", "lib/email/reminder-email.ts"]) {
     assert.doesNotMatch(source(path), /CompanyLogo|companyLogo|logo\.dev/i, path);
   }

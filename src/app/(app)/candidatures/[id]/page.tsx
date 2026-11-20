@@ -139,41 +139,52 @@ export default async function ApplicationPage({
           </p>
         )}
 
-        {/* En-tête */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-4">
-            {/* Hauteur d'une ligne du titre (1lh) : logo centré sur la première ligne, même sur deux lignes. */}
-            <div className="flex h-[1lh] shrink-0 items-center text-[36px] leading-[1.1]">
+        {/* En-tête : poste en titre, entreprise · lieu · secteur dessous, logo centré sur ce bloc ;
+            statut et lien de l'offre à droite (dessous sur écran étroit). Au moins 14 px sous le
+            lien de retour (marge négative de celui-ci compensée). */}
+        <div className="mt-3">
+          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+            <div className="flex min-w-0 flex-[1_1_18rem] items-center gap-4">
               <CompanyLogo
                 name={app.company}
-                src={companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 48)}
-                size={48}
+                src={companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 56)}
+                size={56}
+                mobileSize={44}
               />
+              <div className="min-w-0">
+                <h1
+                  title={app.position}
+                  className="line-clamp-2 text-[24px] leading-[1.15] font-bold tracking-[-0.035em] break-words text-ink sm:text-[30px] dark:text-white"
+                >
+                  {app.position}
+                </h1>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-base">
+                  <span className="font-medium break-words text-ink dark:text-white">{app.company}</span>
+                  {app.location && <span className="break-words text-muted dark:text-slate-400">· {app.location}</span>}
+                  <SectorPill sector={app.sector} />
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] break-words text-ink dark:text-white">{app.company}</h1>
-              <SectorPill sector={app.sector} className="mt-2" />
-              <p className="mt-1.5 text-muted dark:text-slate-300">
-                {app.position}
-                {app.location && <span> · {app.location}</span>}
-                {app.offer_url && (
-                  <>
-                    {" · "}
-                    <a href={app.offer_url} target="_blank" rel="noopener noreferrer" className="ui-link">
-                      Voir l&apos;offre
-                    </a>
-                  </>
-                )}
-              </p>
-              {showLumeoSentLine(app) && (
-                <p className="mt-3 flex min-w-0 items-center gap-2.5 text-[13px] text-muted dark:text-slate-400">
-                  <LumeoAvatar size={36} expression="content" />
-                  <span className="min-w-0">{LUMEO_FICHE_TEXTS.sent}</span>
-                </p>
+            <div className="flex shrink-0 flex-wrap items-center gap-3">
+              <StatusBadge status={app.status} />
+              {app.offer_url && (
+                <a
+                  href={app.offer_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ui-focus inline-flex min-h-11 items-center rounded-full border-[1.5px] border-accent bg-white px-[18px] text-sm font-semibold text-accent transition hover:bg-blue-50"
+                >
+                  Voir l&apos;offre
+                </a>
               )}
             </div>
           </div>
-          <StatusBadge status={app.status} />
+          {showLumeoSentLine(app) && (
+            <p className="mt-[18px] flex min-w-0 items-center gap-2.5 text-[13px] text-muted dark:text-slate-400">
+              <LumeoAvatar size={36} expression="content" />
+              <span className="min-w-0">{LUMEO_FICHE_TEXTS.sent}</span>
+            </p>
+          )}
         </div>
 
         {/* Sur mobile : statut et contact, puis le contenu, puis l'historique. */}

@@ -17,7 +17,7 @@ const KNOWN_DOMAINS: ReadonlyMap<string, string> = withAliases(new Map([
 ]));
 
 /** Tailles d'affichage du logo, en pixels. */
-export type LogoSize = 36 | 44 | 48;
+export type LogoSize = 36 | 44 | 48 | 56;
 
 /**
  * Logo d'un domaine, demandé au double de la taille d'affichage (écrans haute densité), en
