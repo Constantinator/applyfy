@@ -27,7 +27,7 @@ const PROCESSORS = [
   },
   {
     name: "Logo.dev",
-    role: "Affichage des logos d'entreprises (offres, candidatures, tableau de bord) : ton navigateur charge chaque logo depuis les serveurs de Logo.dev, qui reçoivent ton adresse IP et le domaine de l'entreprise concernée (par exemple qonto.com), sans ton nom ni ton adresse e-mail",
+    role: "Affichage des logos d'entreprises (offres, candidatures, tableau de bord) : ton navigateur charge chaque logo depuis les serveurs de Logo.dev, qui reçoivent ton adresse IP et le domaine de l'entreprise concernée (par exemple qonto.com), sans ton nom ni ton adresse e-mail. Pour retrouver le site d'une entreprise, Applyfy envoie son nom à Logo.dev depuis ses serveurs, sans ton identité ni aucune autre information de ta candidature",
     url: "https://www.logo.dev/legal/privacy",
   },
   {
@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Politique de confidentialité"
-      updatedOn="19 novembre 2026"
+      updatedOn="20 novembre 2026"
       intro="Applyfy t'aide à suivre ta recherche d'emploi. Cette page explique quelles données sont collectées, pourquoi, combien de temps elles sont conservées et comment exercer tes droits, conformément au Règlement général sur la protection des données (RGPD)."
     >
       <LegalSection title="Responsable du traitement">

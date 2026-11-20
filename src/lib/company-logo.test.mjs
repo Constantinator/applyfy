@@ -63,6 +63,6 @@ test("attribution Logo.dev dans le pied de page commun (pages publiques comprise
   assert.match(footer, /<a href="https:\/\/logo\.dev" className=\{LINK\}>\s+Logos fournis par Logo\.dev\s+<\/a>/);
   assert.match(source("app/layout.tsx"), /<SiteFooter \/>/);
   const policy = source("app/(legal)/politique-confidentialite/page.tsx");
-  assert.match(policy, /Affichage des logos d'entreprises \(offres, candidatures, tableau de bord\) : ton navigateur charge chaque logo depuis les serveurs de Logo\.dev, qui reçoivent ton adresse IP et le domaine de l'entreprise concernée \(par exemple qonto\.com\), sans ton nom ni ton adresse e-mail/);
+  assert.match(policy, /Affichage des logos d'entreprises \(offres, candidatures, tableau de bord\) : ton navigateur charge chaque logo depuis les serveurs de Logo\.dev, qui reçoivent ton adresse IP et le domaine de l'entreprise concernée \(par exemple qonto\.com\), sans ton nom ni ton adresse e-mail\. Pour retrouver le site d'une entreprise, Applyfy envoie son nom à Logo\.dev depuis ses serveurs, sans ton identité ni aucune autre information de ta candidature"/);
   assert.doesNotMatch(policy, /logos d'entreprises dans « Trouver une offre »/);
 });
