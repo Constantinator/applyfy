@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
-import { BetaError, joinBeta, submitBetaReport } from "@/lib/beta";
+import { BetaError, joinBeta, saveTimeSaving, submitBetaReport } from "@/lib/beta";
 import { parseReportAnswers } from "@/lib/beta-rules";
+import { parseTimeSaving } from "@/lib/beta-time-saving";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export type BetaActionResult = { ok: true } | { ok: false; error: string };
@@ -46,5 +47,25 @@ export async function submitBetaReportAction(number: number, input: unknown): Pr
     return { ok: false, error: "L'envoi a échoué. Réessaie dans un instant." };
   }
   revalidatePath("/beta");
+  return { ok: true };
+}
+
+/** « Ton temps par candidature » : une réponse par testeur, modifiable. */
+export async function saveTimeSavingAction(input: unknown): Promise<BetaActionResult> {
+  if (!isSupabaseConfigured()) return { ok: false, error: DEMO_MESSAGE };
+  await requireUser();
+  const answer = parseTimeSaving(input);
+  if (typeof answer === "string") return { ok: false, error: answer };
+
+  try {
+    await saveTimeSaving(answer);
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof BetaError) return { ok: false, error: error.message };
+    console.error("[beta] temps gagné", error);
+    return { ok: false, error: "L'enregistrement a échoué. Réessaie dans un instant." };
+  }
+  revalidatePath("/beta");
+  revalidatePath("/admin/beta");
   return { ok: true };
 }

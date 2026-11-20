@@ -159,3 +159,26 @@ export const LUMEO_ACTION_TEXTS = {
   profile: "Mon profil",
   premium: "Voir Premium",
 } as const;
+
+/**
+ * Bloc « Ton temps par candidature » de la page Beta testing (cf. lib/beta-time-saving).
+ * Voix de Lumeo : tutoiement, phrases courtes, sans emoji. Aucun chiffre écrit ici : le gain
+ * affiché est toujours calculé à partir des réponses.
+ */
+export const BETA_TIME_TEXTS = {
+  title: "Ton temps par candidature",
+  intro: "Deux questions. Tes réponses nous aident à mesurer ce qu'Applyfy te fait gagner.",
+  help: "Compte tout : lire l'offre, adapter ton CV, écrire ta lettre, envoyer.",
+  before: "Avant Applyfy, combien de temps te prenait une candidature ?",
+  after: "Avec Applyfy, combien de temps te prend-elle ?",
+  unit: "minutes",
+  save: "Enregistrer",
+  saving: "Enregistrement…",
+  saved: "C'est noté. Tu peux modifier tes réponses quand tu veux.",
+  gain: (percent: number) => `Tu gagnes environ ${percent} % de temps par candidature.`,
+  noGain: "Pas encore de temps gagné. Dis-nous ce qui te ralentit dans les messages.",
+  negative: "Applyfy te prend plus de temps qu'avant. Dis-nous pourquoi dans les messages.",
+  needApplication: "Ajoute d'abord une candidature pour répondre.",
+  addApplication: "Ajouter une candidature",
+  error: "L'enregistrement a échoué. Réessaie dans un instant.",
+} as const;

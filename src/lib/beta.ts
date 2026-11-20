@@ -4,6 +4,8 @@ import { cache } from "react";
 
 import { getCurrentUser } from "./auth";
 import { BETA_PREMIUM_UNTIL, type BetaReportAnswers, type BetaStatus } from "./beta-rules";
+import type { TimeSavingAnswer } from "./beta-time-saving";
+import { isMissingTable } from "./optional-columns";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 // Participation de l'utilisateur connecté au programme beta (tables beta_testers et
@@ -111,5 +113,65 @@ export async function submitBetaReport(number: number, answers: BetaReportAnswer
   if (error) {
     if (REPORT_ERRORS[error.message]) throw new BetaError(REPORT_ERRORS[error.message]);
     throw new Error(`Envoi du rapport impossible : ${error.message}`);
+  }
+}
+
+// --- Temps gagné par candidature (table beta_time_savings, migration 0044) ---------------------
+
+export type MyTimeSaving = {
+  /** Réponse enregistrée, ou null. */
+  answer: (TimeSavingAnswer & { updatedAt: string }) | null;
+  /** Vraies candidatures (l'exemple ne compte pas) : il en faut au moins une pour répondre. */
+  realApplications: number;
+};
+
+/**
+ * Réponse de l'utilisateur connecté ; null si le bloc ne peut pas être affiché (table absente,
+ * lecture impossible, mode démo). Sans échec.
+ */
+export async function getMyTimeSaving(): Promise<MyTimeSaving | null> {
+  if (!isSupabaseConfigured()) return null;
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const supabase = await createClient();
+  const [saving, applications] = await Promise.all([
+    supabase.from("beta_time_savings").select("minutes_before, minutes_after, updated_at").eq("user_id", user.id).maybeSingle(),
+    supabase
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_example", false),
+  ]);
+  if (saving.error) {
+    if (isMissingTable(saving.error)) console.error("[beta] temps gagné : table absente (migration 0044)");
+    else console.error("[beta] temps gagné, lecture", saving.error.message);
+    return null;
+  }
+  if (applications.error) {
+    console.error("[beta] temps gagné, candidatures", applications.error.message);
+    return null;
+  }
+  return {
+    answer: saving.data
+      ? { before: saving.data.minutes_before, after: saving.data.minutes_after, updatedAt: saving.data.updated_at }
+      : null,
+    realApplications: applications.count ?? 0,
+  };
+}
+
+const TIME_SAVING_ERRORS: Record<string, string> = {
+  non_inscrit: "Tu ne fais pas partie du programme beta.",
+  retire: "Ton accès beta a été retiré : tu ne peux plus répondre.",
+  sans_candidature: "Ajoute d'abord une candidature pour répondre.",
+  minutes_invalides: "Indique un nombre entier de minutes, de 1 à 600.",
+};
+
+export async function saveTimeSaving({ before, after }: TimeSavingAnswer) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_beta_time_saving", { p_before: before, p_after: after });
+  if (error) {
+    if (TIME_SAVING_ERRORS[error.message]) throw new BetaError(TIME_SAVING_ERRORS[error.message]);
+    throw new Error(`Enregistrement du temps gagné impossible : ${error.message}`);
   }
 }

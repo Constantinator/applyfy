@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
 import { TesterMessages } from "@/components/beta/beta-messages";
 import { BetaReports } from "@/components/beta/beta-reports";
+import { BetaTimeSavingForm } from "@/components/beta/beta-time-saving-form";
 import { requireUser } from "@/lib/auth";
-import { getMyBeta } from "@/lib/beta";
+import { getMyBeta, getMyTimeSaving } from "@/lib/beta";
 import { getMyBetaMessages } from "@/lib/beta-messages";
 import { BETA_PREMIUM_UNTIL_LABEL } from "@/lib/beta-rules";
+import { timeSavingEligibility } from "@/lib/beta-time-saving";
+import { BETA_TIME_TEXTS } from "@/lib/lumeo-texts";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Beta testing — Applyfy" };
@@ -17,10 +21,12 @@ export default async function BetaPage() {
   await connection(); // statut des rapports calculé à chaque visite
   if (!isSupabaseConfigured()) redirect("/dashboard");
   await requireUser();
-  const [beta, messages] = await Promise.all([getMyBeta(), getMyBetaMessages()]);
+  const [beta, messages, timeSaving] = await Promise.all([getMyBeta(), getMyBetaMessages(), getMyTimeSaving()]);
   if (!beta) redirect("/dashboard"); // ne participe pas au programme
 
   const active = beta.status === "active";
+  // Temps gagné : masqué si la table manque (migration 0044) ou pour un accès retiré.
+  const timeEligibility = timeSaving ? timeSavingEligibility(beta.status, timeSaving.realApplications) : null;
   const reason = beta.suspensionReason
     ? ` : ${beta.suspensionReason.charAt(0).toLowerCase()}${beta.suspensionReason.slice(1)}`
     : "";
@@ -58,6 +64,27 @@ export default async function BetaPage() {
           </div>
           <BetaReports joinedAt={beta.joinedAt} active={active} submitted={beta.reports} />
         </section>
+
+        {timeSaving && timeEligibility !== null && timeEligibility !== "retire" && (
+          <section aria-labelledby="beta-time-title" className="space-y-4 ui-card p-5 sm:p-7">
+            <div>
+              <h2 id="beta-time-title" className="ui-title-sm">
+                {BETA_TIME_TEXTS.title}
+              </h2>
+              <p className="mt-1 text-sm text-muted">{BETA_TIME_TEXTS.intro}</p>
+            </div>
+            {timeEligibility === "ok" ? (
+              <BetaTimeSavingForm initial={timeSaving.answer} />
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-ink">{BETA_TIME_TEXTS.needApplication}</p>
+                <Link href="/candidatures/nouvelle" className="ui-btn-secondary">
+                  {BETA_TIME_TEXTS.addApplication}
+                </Link>
+              </div>
+            )}
+          </section>
+        )}
 
         <section aria-labelledby="beta-messages-title" className="space-y-4 ui-card p-5 sm:p-7">
           <div>

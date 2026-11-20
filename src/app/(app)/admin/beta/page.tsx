@@ -10,7 +10,7 @@ import {
 } from "@/components/admin/beta-admin-controls";
 import { AdminThread, BroadcastMessageForm } from "@/components/beta/beta-messages";
 import { requireAdmin } from "@/lib/admin-metrics";
-import { betaActivity, listBetaTesters, type BetaActivity } from "@/lib/beta-admin";
+import { betaActivity, listBetaTesters, listBetaTimeSavings, type BetaActivity } from "@/lib/beta-admin";
 import { listBetaThreads } from "@/lib/beta-messages";
 import {
   BETA_MAX_TESTERS,
@@ -22,6 +22,14 @@ import {
   type BetaReportStatus,
   type BetaStatus,
 } from "@/lib/beta-rules";
+import {
+  TIME_SAVING_FLAG_LABELS,
+  TIME_SAVING_PUBLIC_MIN_RESPONSES,
+  floorPercent,
+  gainPercent,
+  timeSavingFlags,
+  timeSavingStats,
+} from "@/lib/beta-time-saving";
 import { isEmailConfigured } from "@/lib/email/brevo";
 
 export const metadata: Metadata = { title: "Beta testeurs — Admin Applyfy", robots: { index: false } };
@@ -55,7 +63,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
   await connection();
   await requireAdmin();
   const { a: messageTarget, fil } = await searchParams;
-  const [testers, threads] = await Promise.all([listBetaTesters(), listBetaThreads()]);
+  const [testers, threads, timeSavings] = await Promise.all([listBetaTesters(), listBetaThreads(), listBetaTimeSavings()]);
 
   if (!testers) {
     return (
@@ -77,6 +85,11 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
   const active = testers.filter((t) => t.status === "active");
   const activity = betaActivity(testers);
   const submittedCount = testers.reduce((sum, t) => sum + t.submittedCount, 0);
+  // Temps gagné : toutes les réponses comptent (aucune exclusion), signalements pour contacter.
+  const emailById = new Map(testers.map((t) => [t.userId, t.email]));
+  const timeRows = timeSavings.status === "ok" ? timeSavings.rows : [];
+  const timeStats = timeSavingStats(timeRows);
+  const canAnswerCount = testers.filter((t) => t.status !== "removed").length;
   const target = typeof messageTarget === "string" && testers.some((t) => t.userId === messageTarget) ? messageTarget : "all";
 
   // Messagerie interne : un fil par testeur, les plus récents d'abord.
@@ -111,7 +124,7 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="ui-card-soft p-5">
             <p className="text-[13px] text-muted">Testeurs actifs</p>
             <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">
@@ -134,6 +147,24 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
             <p className="text-[13px] text-muted">Rapports reçus</p>
             <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">{submittedCount}</p>
           </div>
+          <a href="#beta-temps" className="ui-card-soft block p-5 hover:ring-1 hover:ring-line-strong">
+            <p className="text-[13px] text-muted">Temps gagné</p>
+            {timeSavings.status === "ok" ? (
+              <>
+                <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">
+                  {timeStats.count}
+                  <span className="text-base font-medium text-muted"> / {canAnswerCount} réponses</span>
+                </p>
+                {timeStats.meanPercent !== null && (
+                  <p className="mt-1 text-xs text-muted">Gain moyen {timeStats.meanPercent} %</p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-muted">
+                {timeSavings.status === "absente" ? "Applique la migration 0044" : "Lecture impossible"}
+              </p>
+            )}
+          </a>
         </div>
 
         <section aria-labelledby="beta-ajout" className="space-y-3">
@@ -260,6 +291,103 @@ export default async function BetaAdminPage({ searchParams }: PageProps<"/admin/
                 </tbody>
               </table>
             </div>
+          )}
+        </section>
+
+        {/* Temps gagné par candidature (réponses des testeurs, modifiables) */}
+        <section id="beta-temps" aria-labelledby="beta-temps-title" className="scroll-mt-22 space-y-3">
+          <h2 id="beta-temps-title" className="ui-title-sm">
+            Temps gagné par candidature
+          </h2>
+          {timeSavings.status === "absente" ? (
+            <p className="ui-notice px-4 py-3 text-sm">
+              Applique la migration 0044 (table beta_time_savings) dans Supabase.
+            </p>
+          ) : timeSavings.status === "erreur" ? (
+            <p className="ui-notice-error px-4 py-3 text-sm">Les réponses n&apos;ont pas pu être lues. Réessaie dans un instant.</p>
+          ) : (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="ui-card-soft p-5">
+                  <p className="text-[13px] text-muted">Réponses</p>
+                  <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">{timeStats.count}</p>
+                </div>
+                <div className="ui-card-soft p-5">
+                  <p className="text-[13px] text-muted">Gain moyen</p>
+                  <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">
+                    {timeStats.meanPercent === null ? "—" : `${timeStats.meanPercent} %`}
+                  </p>
+                </div>
+                <div className="ui-card-soft p-5">
+                  <p className="text-[13px] text-muted">Gain médian</p>
+                  <p className="text-[30px] leading-tight font-bold tracking-[-0.03em] text-ink tabular-nums">
+                    {timeStats.medianPercent === null ? "—" : `${timeStats.medianPercent} %`}
+                  </p>
+                </div>
+                <div className="ui-card-soft p-5">
+                  <p className="text-[13px] text-muted">Chiffre public</p>
+                  <p className="mt-1 text-sm font-medium text-ink">
+                    {timeStats.publicReady
+                      ? "Affichable"
+                      : `Pas encore (${timeStats.count} sur ${TIME_SAVING_PUBLIC_MIN_RESPONSES})`}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted">
+                Gain = 1 − après / avant, arrondi à l&apos;entier inférieur. Toutes les réponses comptent, gains
+                négatifs ou nuls compris ; les signalements servent seulement à contacter la personne.
+              </p>
+              {timeRows.length === 0 ? (
+                <p className="text-sm text-muted">Aucune réponse pour l&apos;instant.</p>
+              ) : (
+                <div className="ui-card overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b border-line">
+                      <tr>
+                        <th className={th}>Email</th>
+                        <th className={th}>Avant</th>
+                        <th className={th}>Après</th>
+                        <th className={th}>Gain</th>
+                        <th className={th}>Mise à jour</th>
+                        <th className={th}>Signalements</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line-soft">
+                      {timeRows.map((row) => {
+                        const flags = timeSavingFlags(row);
+                        return (
+                          <tr key={row.userId}>
+                            <td className={`${td} break-all`}>{emailById.get(row.userId) ?? "(compte supprimé)"}</td>
+                            <td className={`${td} whitespace-nowrap tabular-nums`}>{row.before} min</td>
+                            <td className={`${td} whitespace-nowrap tabular-nums`}>{row.after} min</td>
+                            <td className={`${td} whitespace-nowrap font-medium tabular-nums`}>
+                              {floorPercent(gainPercent(row))} %
+                            </td>
+                            <td className={`${td} whitespace-nowrap`}>{shortDate.format(new Date(row.updatedAt))}</td>
+                            <td className={td}>
+                              {flags.length === 0 ? (
+                                <span className="text-muted">—</span>
+                              ) : (
+                                <span className="flex flex-wrap gap-1">
+                                  {flags.map((flag) => (
+                                    <span
+                                      key={flag}
+                                      className="rounded-full bg-[#FFFBEB] px-2 py-0.5 text-xs font-medium text-[#92400E] ring-1 ring-[#FDE68A]"
+                                    >
+                                      {TIME_SAVING_FLAG_LABELS[flag]}
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </section>
 

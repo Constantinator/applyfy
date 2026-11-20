@@ -10,6 +10,11 @@ export function isMissingColumn(error: DbError, column: string) {
   );
 }
 
+/** Table absente (migration pas encore appliquée) : 42P01 côté Postgres, PGRST205 côté PostgREST. */
+export function isMissingTable(error: DbError) {
+  return Boolean(error && (error.code === "42P01" || error.code === "PGRST205"));
+}
+
 /**
  * Appelle `insert` avec les colonnes facultatives ; retire une à une celles que la base ne connaît
  * pas (au plus une fois chacune). Toute autre erreur est rendue telle quelle.

@@ -14,6 +14,7 @@ import {
 } from "./beta-rules";
 import { buildBetaMessageEmail } from "./email/beta-emails";
 import { isEmailConfigured, sendEmail } from "./email/brevo";
+import { isMissingTable } from "./optional-columns";
 import { createAdminClient } from "./supabase/admin";
 
 // Tableau de bord des beta testeurs (/admin/beta) : lecture de tous les testeurs et
@@ -248,4 +249,33 @@ export async function sendBetaMessage(target: string, subject: string, message: 
     }
   }
   return { sent, skipped, failed, recipients: recipients.length };
+}
+
+// --- Temps gagné par candidature (table beta_time_savings, migration 0044) ---------------------
+
+export type BetaTimeSavingRow = { userId: string; before: number; after: number; updatedAt: string };
+
+/** Réponses de tous les testeurs : « absente » si la migration 0044 n'est pas appliquée. */
+export async function listBetaTimeSavings(): Promise<
+  { status: "ok"; rows: BetaTimeSavingRow[] } | { status: "absente" } | { status: "erreur" }
+> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("beta_time_savings")
+    .select("user_id, minutes_before, minutes_after, updated_at")
+    .order("updated_at", { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) return { status: "absente" };
+    console.error("[beta-admin] temps gagné", error.message);
+    return { status: "erreur" };
+  }
+  return {
+    status: "ok",
+    rows: (data ?? []).map((r) => ({
+      userId: r.user_id as string,
+      before: r.minutes_before as number,
+      after: r.minutes_after as number,
+      updatedAt: r.updated_at as string,
+    })),
+  };
 }
