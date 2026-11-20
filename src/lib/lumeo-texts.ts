@@ -34,12 +34,6 @@ export const LUMEO_TEXTS = {
 export const LUMEO_DASHBOARD_TEXTS = {
   label: "LUMEO",
   later: "Plus tard",
-  bienvenue: {
-    title: "Bienvenue ! Je suis Lumeo. On commence par ton CV, ça prend 5 minutes.",
-    detail: "Je t'accompagne ensuite pour chaque candidature.",
-    primary: "Créer mon CV",
-    secondary: "J'ai déjà un CV",
-  },
   premiere: {
     title: "La première candidature est partie. Bravo. Je te rappelle de relancer dans 7 jours, si tu n'as pas de réponse.",
     detail: "Tu peux suivre sa réponse dans Candidatures.",

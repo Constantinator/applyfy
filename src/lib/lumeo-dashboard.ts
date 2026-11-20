@@ -7,14 +7,11 @@ import { LUMEO_DASHBOARD_TEXTS as T } from "./lumeo-texts";
 import type { Application } from "./types";
 
 export type LumeoDashboardMessage =
-  | { kind: "bienvenue" }
   | { kind: "premiere"; applicationId: string }
   | { kind: "objectif"; sent: number; goal: number }
   | { kind: "relance"; applicationId: string; company: string; days: number };
 
 export type LumeoDashboardInput = {
-  /** Dernier CV : null s'il n'y en a pas, undefined si la lecture a échoué (pas de bandeau « sans CV »). */
-  hasCv: boolean | undefined;
   applications: Application[];
   /** Envoyées cette semaine : null si la lecture a échoué. */
   weekSent: number | null;
@@ -23,21 +20,18 @@ export type LumeoDashboardInput = {
 };
 
 /** Message prioritaire, ou null (aucun bandeau). */
-export function pickLumeoMessage({ hasCv, applications, weekSent, weeklyGoal, now }: LumeoDashboardInput): LumeoDashboardMessage | null {
-  // 1. Compte sans CV (lecture réussie seulement : pas de « Crée ton CV » trompeur).
-  if (hasCv === false) return { kind: "bienvenue" };
-
+export function pickLumeoMessage({ applications, weekSent, weeklyGoal, now }: LumeoDashboardInput): LumeoDashboardMessage | null {
   const real = applications.filter((app) => !app.is_example);
 
-  // 2. Première candidature envoyée.
+  // 1. Première candidature envoyée.
   if (real.length === 1 && real[0].status === "envoyee") return { kind: "premiere", applicationId: real[0].id };
 
-  // 3. Objectif de la semaine presque atteint (au moins un envoi : jamais « 0 candidature »).
+  // 2. Objectif de la semaine presque atteint (au moins un envoi : jamais « 0 candidature »).
   if (weeklyGoal !== null && weekSent !== null && weekSent >= 1 && weekSent === weeklyGoal - 1) {
     return { kind: "objectif", sent: weekSent, goal: weeklyGoal };
   }
 
-  // 4. Relance : la même que la première ligne de « À faire » (attente la plus longue).
+  // 3. Relance : la même que la première ligne de « À faire » (attente la plus longue).
   const first = buildTodo(applications, now).find((item) => item.kind === "relance");
   const app = first && real.find((candidate) => candidate.id === first.id);
   if (first && app) {
@@ -89,27 +83,16 @@ export function isLumeoHidden(message: LumeoDashboardMessage, stored: string | n
 }
 
 export type LumeoBannerContent = {
-  expression: "salue" | "felicite" | "content" | "neutre";
+  expression: "felicite" | "content" | "neutre";
   tone: "neutral" | "success";
   title: string;
   detail: string;
   primary: { label: string; href: string };
-  /** Bienvenue : second lien (« J'ai déjà un CV ») ; « Plus tard » devient un lien texte discret. */
-  secondary: { label: string; href: string } | null;
 };
 
 /** Textes, expression et liens du bandeau. */
 export function lumeoBannerContent(message: LumeoDashboardMessage): LumeoBannerContent {
   switch (message.kind) {
-    case "bienvenue":
-      return {
-        expression: "salue",
-        tone: "neutral",
-        title: T.bienvenue.title,
-        detail: T.bienvenue.detail,
-        primary: { label: T.bienvenue.primary, href: "/cv-builder" },
-        secondary: { label: T.bienvenue.secondary, href: "/cv-builder/importer" },
-      };
     case "premiere":
       return {
         expression: "felicite",
@@ -117,7 +100,6 @@ export function lumeoBannerContent(message: LumeoDashboardMessage): LumeoBannerC
         title: T.premiere.title,
         detail: T.premiere.detail,
         primary: { label: T.premiere.primary, href: `/candidatures/${message.applicationId}` },
-        secondary: null,
       };
     case "objectif":
       return {
@@ -126,7 +108,6 @@ export function lumeoBannerContent(message: LumeoDashboardMessage): LumeoBannerC
         title: T.objectif.title(message.sent),
         detail: T.objectif.detail,
         primary: { label: T.objectif.primary, href: "/offres" },
-        secondary: null,
       };
     case "relance":
       return {
@@ -135,7 +116,6 @@ export function lumeoBannerContent(message: LumeoDashboardMessage): LumeoBannerC
         title: T.relance.title(message.company, message.days),
         detail: T.relance.detail,
         primary: { label: T.relance.primary, href: `/candidatures/${message.applicationId}#relance` },
-        secondary: null,
       };
   }
 }

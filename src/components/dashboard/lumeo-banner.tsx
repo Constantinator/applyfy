@@ -114,23 +114,9 @@ export function LumeoBanner({ message }: { message: LumeoDashboardMessage }) {
         <p className="mt-1 text-sm text-muted dark:text-slate-300">{content.detail}</p>
       </div>
       <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
-        {/* Bienvenue : « Plus tard » en lien discret, sous les boutons sur mobile, à leur gauche sinon. */}
-        <button
-          type="button"
-          onClick={later}
-          className={
-            content.secondary
-              ? "ui-focus order-last inline-flex min-h-11 items-center justify-center px-2 text-sm font-medium text-muted hover:text-ink sm:order-first dark:text-slate-400 dark:hover:text-white"
-              : "ui-btn-secondary w-full sm:w-auto"
-          }
-        >
+        <button type="button" onClick={later} className="ui-btn-secondary w-full sm:w-auto">
           {LUMEO_DASHBOARD_TEXTS.later}
         </button>
-        {content.secondary && (
-          <Link href={content.secondary.href} className="ui-btn-secondary w-full sm:w-auto">
-            {content.secondary.label}
-          </Link>
-        )}
         <Link href={content.primary.href} className="ui-btn-primary w-full sm:w-auto">
           {content.primary.label}
         </Link>

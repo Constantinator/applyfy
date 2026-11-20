@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { IconBell, IconPencil, IconPlus, IconSparkles } from "@/components/icons";
-import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { TODO_MAX_LINES, TODO_MAX_LINES_MOBILE, remainingTodo, type TodoItem } from "@/lib/dashboard-todo";
 import { FOLLOW_UP_FILTER } from "@/lib/follow-up";
 import { FUNCTION_TINTS, type FunctionTint } from "@/lib/ui-tints";
@@ -79,12 +78,10 @@ export function TodoCard({ items, hasRealApplication }: { items: TodoItem[]; has
           <p className="text-muted dark:text-slate-300">
             Ajoute l&apos;offre qui t&apos;intéresse : Applyfy t&apos;aide à adapter ton CV, à écrire ta lettre et à relancer au bon moment.
           </p>
-          <OnboardingTip id="nouvelle-candidature" text="Clique ici pour ajouter une offre">
-            <Link href="/candidatures/nouvelle" className="ui-btn-primary">
-              <IconPlus className="h-4 w-4" />
-              Ajouter ta première candidature
-            </Link>
-          </OnboardingTip>
+          <Link href="/candidatures/nouvelle" className="ui-btn-primary">
+            <IconPlus className="h-4 w-4" />
+            Ajouter ta première candidature
+          </Link>
         </div>
       ) : items.length === 0 ? (
         <div className="mt-3 flex items-center gap-3">

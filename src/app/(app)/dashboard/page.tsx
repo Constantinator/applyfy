@@ -5,7 +5,6 @@ import { Suspense } from "react";
 
 import { BetaJoinDialog } from "@/components/beta/beta-join-dialog";
 import { CvCard, type LatestCv } from "@/components/dashboard/cv-card";
-import { GettingStarted } from "@/components/dashboard/getting-started";
 import { GoogleAdsConversion } from "@/components/dashboard/google-ads-conversion";
 import { LumeoBanner } from "@/components/dashboard/lumeo-banner";
 import { FreePlanCard } from "@/components/dashboard/free-plan-card";
@@ -15,7 +14,7 @@ import { OffersForYou } from "@/components/dashboard/offers-for-you";
 import { Reveal } from "@/components/dashboard/reveal";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { TodoCard } from "@/components/dashboard/todo-card";
-import { getAccountCreatedAt, getAccountName } from "@/lib/account";
+import { getAccountName } from "@/lib/account";
 import { isAdminEmail } from "@/lib/admin-metrics";
 import { getFreePlanCounts } from "@/lib/ai-usage";
 import { getApplications, getResponseEvents } from "@/lib/applications";
@@ -26,7 +25,6 @@ import { getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { scoreCv, weakestCategory } from "@/lib/cv-score";
 import { loadBuilderCvScoring } from "@/lib/cv-score-context";
-import { buildStartSteps, isNewAccount } from "@/lib/dashboard-start";
 import { buildTodo, todayLabel, todoCountLabel } from "@/lib/dashboard-todo";
 import { buildPeriodStats } from "@/lib/dashboard-week";
 import { FOLLOW_UP_AFTER_DAYS, needsFollowUp } from "@/lib/follow-up";
@@ -94,7 +92,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     subscription,
     beta,
     accountName,
-    accountCreatedAt,
     latestCv,
     responseEvents,
     weeklyGoal,
@@ -104,8 +101,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     getMyBeta(),
     // Non bloquant : sans nom, « Bonjour » seul.
     getAccountName().catch(() => null),
-    // Non bloquant : sans date, pas de bloc « Pour bien démarrer ».
-    getAccountCreatedAt().catch(() => null),
     loadLatestCv(),
     getResponseEvents().catch((error) => {
       console.error("[dashboard] lecture des réponses", error);
@@ -131,13 +126,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // Lecture des réponses en échec : pas de carte, plutôt que des chiffres faux.
   const periodStats = responseEvents && buildPeriodStats(applications, responseEvents, now);
   const betaReport = pendingBetaReport(beta, now);
-  // Lecture du CV en échec : étapes inconnues, pas de bloc.
-  const startSteps =
-    latestCv !== undefined && isNewAccount(accountCreatedAt, now) ? buildStartSteps(latestCv, applications) : null;
 
   // Bandeau de Lumeo : un message à la fois, à partir des données déjà lues (aucune requête).
   const lumeoMessage = pickLumeoMessage({
-    hasCv: latestCv === undefined ? undefined : latestCv !== null,
     applications,
     weekSent: periodStats ? periodStats.week.sent : null,
     weeklyGoal: weeklyGoal.goal,
@@ -225,12 +216,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </Reveal>
           )}
         </div>
-
-        {startSteps && (
-          <Reveal index={nextReveal()}>
-            <GettingStarted steps={startSteps} />
-          </Reveal>
-        )}
 
         {periodStats && (
           <Reveal index={nextReveal()}>

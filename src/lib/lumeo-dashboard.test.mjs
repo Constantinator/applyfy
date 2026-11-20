@@ -45,19 +45,14 @@ const app = (fields = {}) => ({
 const example = (fields = {}) => app({ is_example: true, company: "Exemple", applied_at: daysAgo(30), ...fields });
 
 const pick = (input) =>
-  pickLumeoMessage({ hasCv: true, applications: [], weekSent: 0, weeklyGoal: null, now: NOW, ...input });
+  pickLumeoMessage({ applications: [], weekSent: 0, weeklyGoal: null, now: NOW, ...input });
 
-test("1. compte sans CV : bienvenue, prioritaire sur tout le reste", () => {
-  assert.deepEqual(pick({ hasCv: false }), { kind: "bienvenue" });
-  const late = app({ applied_at: daysAgo(10) });
-  assert.deepEqual(pick({ hasCv: false, applications: [late], weekSent: 2, weeklyGoal: 3 }), { kind: "bienvenue" });
+test("compte tout neuf (aucune candidature, ou seulement l'exemple) : aucun bandeau", () => {
+  assert.equal(pick({}), null);
+  assert.equal(pick({ applications: [example()] }), null);
 });
 
-test("1. lecture du CV en échec : pas de bienvenue", () => {
-  assert.equal(pick({ hasCv: undefined }), null);
-});
-
-test("2. première candidature envoyée", () => {
+test("1. première candidature envoyée", () => {
   const first = app();
   assert.deepEqual(pick({ applications: [first] }), { kind: "premiere", applicationId: first.id });
   // Brouillon, réponse reçue ou deuxième candidature : pas de carte verte.
@@ -66,7 +61,7 @@ test("2. première candidature envoyée", () => {
   assert.equal(pick({ applications: [app(), app()] }), null);
 });
 
-test("2. la candidature exemple ne compte jamais", () => {
+test("1. la candidature exemple ne compte jamais", () => {
   // L'exemple seul n'est pas une première candidature…
   assert.equal(pick({ applications: [example()] }), null);
   // … et ne transforme pas une première candidature en deuxième.
@@ -74,12 +69,12 @@ test("2. la candidature exemple ne compte jamais", () => {
   assert.deepEqual(pick({ applications: [example(), first] }), { kind: "premiere", applicationId: first.id });
 });
 
-test("2. prioritaire sur l'objectif", () => {
+test("1. prioritaire sur l'objectif", () => {
   const first = app();
   assert.equal(pick({ applications: [first], weekSent: 1, weeklyGoal: 2 }).kind, "premiere");
 });
 
-test("3. objectif presque atteint : il reste une candidature", () => {
+test("2. objectif presque atteint : il reste une candidature", () => {
   const apps = [app(), app(), app()];
   assert.deepEqual(pick({ applications: apps, weekSent: 3, weeklyGoal: 4 }), { kind: "objectif", sent: 3, goal: 4 });
   // Sans objectif, objectif atteint, plus d'une à envoyer ou aucun envoi : rien.
@@ -91,12 +86,12 @@ test("3. objectif presque atteint : il reste une candidature", () => {
   assert.equal(pick({ applications: apps, weekSent: null, weeklyGoal: 4 }), null);
 });
 
-test("3. prioritaire sur la relance", () => {
+test("2. prioritaire sur la relance", () => {
   const apps = [app({ applied_at: daysAgo(10) }), app()];
   assert.equal(pick({ applications: apps, weekSent: 1, weeklyGoal: 2 }).kind, "objectif");
 });
 
-test("4. relance : la plus ancienne, comme « À faire »", () => {
+test("3. relance : la plus ancienne, comme « À faire »", () => {
   const recent = app({ company: "Récente", applied_at: daysAgo(8) });
   const oldest = app({ company: "Ancienne", applied_at: daysAgo(12) });
   assert.deepEqual(pick({ applications: [recent, oldest, app()] }), {
@@ -110,11 +105,11 @@ test("4. relance : la plus ancienne, comme « À faire »", () => {
   assert.equal(pick({ applications: [contacted, app()] }).days, 9);
 });
 
-test("4. la candidature exemple n'est jamais à relancer", () => {
+test("3. la candidature exemple n'est jamais à relancer", () => {
   assert.equal(pick({ applications: [example(), app(), app()] }), null);
 });
 
-test("5. rien à dire : aucun bandeau", () => {
+test("4. rien à dire : aucun bandeau", () => {
   assert.equal(pick({ applications: [app(), app({ status: "entretien" })], weekSent: 2, weeklyGoal: 5 }), null);
   assert.equal(pick({}), null);
 });
@@ -127,9 +122,10 @@ test("« Plus tard » : masqué jusqu'à demain, par message", () => {
   // Une clé par message : une autre relance n'est pas masquée.
   assert.equal(lumeoMessageKey(relance), "relance-x");
   assert.notEqual(lumeoMessageKey(relance), lumeoMessageKey({ ...relance, applicationId: "y" }));
-  assert.equal(lumeoMessageKey({ kind: "bienvenue" }), "bienvenue");
-  assert.equal(isLumeoHidden({ kind: "bienvenue" }, "2026-11-09", "2026-11-09"), true);
-  assert.equal(isLumeoHidden({ kind: "bienvenue" }, "2026-11-08", "2026-11-09"), false);
+  const objectif = { kind: "objectif", sent: 1, goal: 2 };
+  assert.equal(lumeoMessageKey(objectif), "objectif");
+  assert.equal(isLumeoHidden(objectif, "2026-11-09", "2026-11-09"), true);
+  assert.equal(isLumeoHidden(objectif, "2026-11-08", "2026-11-09"), false);
 });
 
 test("carte verte : clé liée à sa candidature", () => {
@@ -138,7 +134,7 @@ test("carte verte : clé liée à sa candidature", () => {
   assert.equal(lumeoMessageKey(a1), "premiere-a1");
   assert.notEqual(lumeoMessageKey(a1), lumeoMessageKey(a2));
   assert.equal(isShownOnce(a1), true);
-  assert.equal(isShownOnce({ kind: "bienvenue" }), false);
+  assert.equal(isShownOnce({ kind: "objectif", sent: 1, goal: 2 }), false);
 });
 
 test("carte verte : visible toute la journée du premier affichage, masquée dès le lendemain", () => {
@@ -155,14 +151,12 @@ test("carte verte : « Plus tard » la ferme pour de bon, les autres jusqu'à de
   assert.equal(lumeoLaterValue(premiere, "2026-11-09"), LUMEO_CLOSED);
   assert.equal(isLumeoHidden(premiere, LUMEO_CLOSED, "2026-11-09"), true);
   assert.equal(lumeoLaterValue(relance, "2026-11-09"), "2026-11-09");
-  assert.equal(lumeoLaterValue({ kind: "bienvenue" }, "2026-11-09"), "2026-11-09");
 });
 
 test("carte verte : l'ancienne clé commune « premiere » ne masque plus rien", () => {
   // Aucun message ne produit plus la clé « premiere » seule : sa valeur n'est jamais relue.
   const messages = [
     { kind: "premiere", applicationId: "a1" },
-    { kind: "bienvenue" },
     { kind: "objectif", sent: 1, goal: 2 },
     { kind: "relance", applicationId: "x", company: "Acme", days: 8 },
   ];
@@ -176,13 +170,10 @@ test("textes : tutoiement, accords et liens", () => {
   assert.equal(relance.primary.label, "Voir la relance");
   assert.equal(lumeoBannerContent({ kind: "objectif", sent: 1, goal: 2 }).title, "1 candidature cette semaine, il t'en manque une pour ton objectif.");
   assert.equal(lumeoBannerContent({ kind: "objectif", sent: 4, goal: 5 }).title, "4 candidatures cette semaine, il t'en manque une pour ton objectif.");
-  const bienvenue = lumeoBannerContent({ kind: "bienvenue" });
-  assert.equal(bienvenue.expression, "salue");
-  assert.deepEqual([bienvenue.primary.href, bienvenue.secondary.href], ["/cv-builder", "/cv-builder/importer"]);
   const premiere = lumeoBannerContent({ kind: "premiere", applicationId: "x" });
-  assert.deepEqual([premiere.expression, premiere.tone, premiere.secondary], ["felicite", "success", null]);
+  assert.deepEqual([premiere.expression, premiere.tone], ["felicite", "success"]);
   // Aucun bouton n'envoie à la place de l'utilisateur.
-  for (const content of [relance, bienvenue, premiere]) assert.doesNotMatch(content.primary.label, /envoyer|préparer/i);
+  for (const content of [relance, premiere]) assert.doesNotMatch(content.primary.label, /envoyer|préparer/i);
 });
 
 test("jour local au format AAAA-MM-JJ", () => {
@@ -248,8 +239,8 @@ test("script d'avant affichage et isLumeoHidden : même verdict", () => {
     [{ kind: "premiere", applicationId: "a1" }, LUMEO_CLOSED],
     [{ kind: "relance", applicationId: "r1", company: "Acme", days: 8 }, today],
     [{ kind: "relance", applicationId: "r1", company: "Acme", days: 8 }, "2026-11-08"],
-    [{ kind: "bienvenue" }, today],
-    [{ kind: "bienvenue" }, "2026-11-08"],
+    [{ kind: "objectif", sent: 1, goal: 2 }, today],
+    [{ kind: "objectif", sent: 1, goal: 2 }, "2026-11-08"],
   ];
   for (const [message, stored] of cases) {
     const key = lumeoMessageKey(message);

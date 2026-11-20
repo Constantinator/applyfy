@@ -25,12 +25,6 @@ const getAuthUser = cache(async () => {
 
 const getUserMetadata = async () => (((await getAuthUser())?.user_metadata ?? {}) as Record<string, unknown>);
 
-/** Date de création du compte (ISO), ou null. Mode démo : compte tout juste créé. */
-export async function getAccountCreatedAt(): Promise<string | null> {
-  if (!isSupabaseConfigured()) return new Date().toISOString();
-  return (await getAuthUser())?.created_at ?? null;
-}
-
 /** Prénom et nom de l'utilisateur connecté, ou null s'ils ne sont pas encore renseignés. */
 export async function getAccountName(): Promise<AccountName | null> {
   if (!isSupabaseConfigured()) return demoStore.accountName ?? null;

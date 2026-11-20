@@ -607,27 +607,6 @@ body {
   }
 }
 
-/* Apparition des bulles d'aide (onboarding). */
-@keyframes tip-in {
-  /* transform (et non translate) : ne remplace pas le centrage -translate-x-1/2. */
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@utility animate-tip-in {
-  animation: tip-in 0.25s ease-out both;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
-}
-
 /* Dashboard de démonstration (landing) : cartes et lignes qui arrivent une à une. */
 @keyframes demo-in {
   from {

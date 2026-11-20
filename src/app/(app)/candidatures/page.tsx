@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ApplicationsView } from "@/components/dashboard/applications-view";
 import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
 import { IconPlus } from "@/components/icons";
-import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { getApplications } from "@/lib/applications";
 import { loadCompanyDomains } from "@/lib/company-domains-store";
 import { companyLogo } from "@/lib/company-logos";
@@ -69,12 +68,10 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <OnboardingTip id="nouvelle-candidature" text="Clique ici pour ajouter une offre" align="end">
-              <Link href="/candidatures/nouvelle" className="ui-btn-primary">
-                <IconPlus className="h-4 w-4" />
-                Nouvelle candidature
-              </Link>
-            </OnboardingTip>
+            <Link href="/candidatures/nouvelle" className="ui-btn-primary">
+              <IconPlus className="h-4 w-4" />
+              Nouvelle candidature
+            </Link>
           </div>
         </div>
 
