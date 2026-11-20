@@ -3,7 +3,7 @@
 // - API officielles France Travail et Adzuna, via les clients de l'application
 //   (src/lib/france-travail.ts, src/lib/adzuna.ts) et leurs identifiants habituels ;
 // - API publiques des logiciels de recrutement (Greenhouse, Lever, Ashby, SmartRecruiters)
-//   pour les entreprises de src/lib/ats-companies.json (source « ats »), seule source du cron
+//   pour les entreprises de src/lib/career-companies.json (source « ats »), seule source du cron
 //   hebdomadaire (app/api/cron/collecte) ;
 // - pages publiques de WTTJ, Indeed, APEC, Cadremploi et JobTeaser.
 // Les offres collées par les utilisateurs arrivent par l'application (src/lib/user-job-offers.ts).
@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 import type { Sector } from "../src/lib/cv-sector-context";
-import type { AtsCompany, RawOffer } from "../src/lib/job-collect";
+import type { CareerCompany, RawOffer } from "../src/lib/job-collect";
 import type { OfferListing } from "../src/lib/offer-types";
 
 const MIN_DELAY_MS = 3_000;
@@ -68,9 +68,18 @@ type Hooks = {
 });
 
 const { SECTORS, matchSectorKeywords } = await import("../src/lib/cv-sector-context");
-const { collectSector, collectUserAgent, createAtsClient, decodeEntities, decodeHtml, refreshTrends, saveOffers } = await import(
-  "../src/lib/job-collect",
-);
+const {
+  collectSector,
+  collectUserAgent,
+  companiesForSector,
+  companyKey,
+  createAtsClient,
+  decodeEntities,
+  decodeHtml,
+  loadExclusions,
+  refreshTrends,
+  saveOffers,
+} = await import("../src/lib/job-collect");
 const USER_AGENT = collectUserAgent();
 
 /** Recherche lancée sur chaque source pour un secteur. */
@@ -157,19 +166,31 @@ const adzuna: Collector = {
 // Logique partagée avec le cron (src/lib/job-collect.ts). Pour cette source, --limit compte les
 // offres par entreprise.
 
-const ATS_COMPANIES = JSON.parse(readFileSync(new URL("../src/lib/ats-companies.json", import.meta.url), "utf8")) as Record<
-  Sector,
-  AtsCompany[]
->;
+const CAREER_COMPANIES = JSON.parse(
+  readFileSync(new URL("../src/lib/career-companies.json", import.meta.url), "utf8"),
+) as CareerCompany[];
 const atsGet = createAtsClient({ log: (message) => console.warn(`  ${message}`) });
+
+/** Entreprises retirées par le cron (job_collect_exclusions) : jamais relues, même à la main. */
+let exclusions: Promise<Set<string>> | null = null;
+const excludedCompanies = () =>
+  (exclusions ??=
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? loadExclusions(createAdminClient())
+      : Promise.resolve(new Set<string>()));
 
 const ats: Collector = {
   id: "ats",
   async collect(sector, limit) {
     const offers: RawOffer[] = [];
+    const excluded = await excludedCompanies();
     await collectSector({
       sector,
-      companies: ATS_COMPANIES[sector] ?? [],
+      companies: companiesForSector(CAREER_COMPANIES, sector).filter((company) => {
+        if (!excluded.has(companyKey(company))) return true;
+        console.log(`  ${company.name} : retirée de la collecte (job_collect_exclusions), ignorée`);
+        return false;
+      }),
       limit,
       get: atsGet,
       onCompany(company, found) {
@@ -394,10 +415,9 @@ function createCollectors(ids: string[]): Collector[] {
 
 // --- Mots-clés et enregistrement -------------------------------------------------------------
 
-/** Produits des entreprises de ats-companies.json, par nom d'entreprise. */
+/** Produits des entreprises de career-companies.json, par nom d'entreprise. */
 const PRODUCTS = new Map(
-  Object.values(ATS_COMPANIES)
-    .flat()
+  CAREER_COMPANIES
     .filter((company) => company.products?.length)
     .map((company) => [company.name, company.products!]),
 );

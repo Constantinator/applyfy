@@ -114,7 +114,7 @@ const displayName = (key) => [...byKey.get(key)].sort((a, b) => b[1] - a[1])[0][
 
 // --- Noms déjà connus : liste vérifiée (et alias), puis table ----------------------------------
 const known = new Map();
-for (const company of Object.values(JSON.parse(readFileSync(new URL("src/lib/ats-companies.json", ROOT), "utf8"))).flat()) {
+for (const company of JSON.parse(readFileSync(new URL("src/lib/career-companies.json", ROOT), "utf8"))) {
   known.set(nameKey(company.name), company.domain);
 }
 for (const [, name, domain] of readFileSync(new URL("src/lib/job-boards.ts", ROOT), "utf8").matchAll(/name: "([^"]+)", domain: "([^"]+)"/g)) {

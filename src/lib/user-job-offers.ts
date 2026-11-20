@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import { after } from "next/server";
 
+import { maskContacts } from "./contact-mask";
 import { detectSector, matchSectorKeywords } from "./cv-sector-context";
 import { createAdminClient, isAdminConfigured } from "./supabase/admin";
 
@@ -15,9 +16,6 @@ import { createAdminClient, isAdminConfigured } from "./supabase/admin";
 /** En dessous : extrait ou texte incomplet, sans intérêt pour les statistiques. */
 const MIN_DESCRIPTION_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 20_000;
-
-const EMAIL = /[\w.+-]+@[\w-]+(\.[\w-]+)+/g;
-const PHONE = /(\+33\s?|0)[1-9]([\s.-]?\d{2}){4}/g;
 
 /**
  * Enregistre l'offre après l'envoi de la réponse (`after`) : n'allonge pas l'action et ses
@@ -36,7 +34,7 @@ export function recordUserJobOffer(offer: { title: string; company: string | nul
 }
 
 async function saveUserJobOffer({ title, company, description }: { title: string; company: string | null; description: string }) {
-  const text = description.replace(EMAIL, "[email]").replace(PHONE, "[téléphone]");
+  const text = maskContacts(description);
   // detectSector lit un CV en JSON ; un texte brut est accepté (repli sur ses mots-clés).
   const sector = detectSector(text, title);
   // Même offre collée par plusieurs utilisateurs : une seule ligne, mots-clés comptés une fois.

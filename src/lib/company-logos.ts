@@ -1,6 +1,6 @@
 import "server-only";
 
-import atsCompanies from "@/lib/ats-companies.json";
+import careerCompanies from "@/lib/career-companies.json";
 import { companyDomain, nameKey, withAliases, type CompanyDomainInput, type SharedDomainRow } from "@/lib/company-domain";
 import { JOB_BOARD_COMPANIES } from "@/lib/job-boards";
 
@@ -10,9 +10,7 @@ import { JOB_BOARD_COMPANIES } from "@/lib/job-boards";
 
 /** Domaines vérifiés à la main (pages carrières de « Trouver une offre », entreprises collectées), plus leurs alias. */
 export const KNOWN_COMPANY_DOMAINS: ReadonlyMap<string, string> = withAliases(new Map([
-  ...Object.values(atsCompanies as Record<string, { name: string; domain: string }[]>)
-    .flat()
-    .map((company) => [nameKey(company.name), company.domain] as const),
+  ...(careerCompanies as { name: string; domain: string }[]).map((company) => [nameKey(company.name), company.domain] as const),
   ...JOB_BOARD_COMPANIES.map((company) => [nameKey(company.name), company.domain] as const),
 ]));
 

@@ -2,19 +2,20 @@ import { timingSafeEqual } from "node:crypto";
 
 import type { NextRequest } from "next/server";
 
-import atsCompanies from "@/lib/ats-companies.json";
+import careerCompanies from "@/lib/career-companies.json";
 import { matchSectorKeywords, SECTORS, type Sector } from "@/lib/cv-sector-context";
-import { createAtsClient, runSectorCollection, type AtsCompany } from "@/lib/job-collect";
+import { companiesForSector, createAtsClient, runSectorCollection, type CareerCompany } from "@/lib/job-collect";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 
 // Collecte hebdomadaire d'un secteur, sur les pages carrières uniquement (Vercel Cron, une entrée
 // par secteur dans vercel.json). France Travail et Adzuna ne sont pas appelés ici.
 // Vercel appelle cette route avec « Authorization: Bearer <CRON_SECRET> ».
-// ?dry=1 : lit les pages carrières et renvoie le bilan, sans aucun accès à la base.
+// ?dry=1 : lit les pages carrières et renvoie le bilan (offres par entreprise comprises), sans
+// aucun accès à la base.
 
 export const maxDuration = 300;
 
-const COMPANIES = atsCompanies as unknown as Record<Sector, AtsCompany[]>;
+const COMPANIES = careerCompanies as unknown as CareerCompany[];
 
 function isAuthorized(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/cron
   const sector = secteur as Sector;
   const run = await runSectorCollection({
     sector,
-    companies: COMPANIES[sector] ?? [],
+    companies: companiesForSector(COMPANIES, sector),
     supabase: dryRun ? null : createAdminClient(),
     get: createAtsClient(),
     matchKeywords: matchSectorKeywords,

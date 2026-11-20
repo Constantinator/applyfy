@@ -73,9 +73,9 @@ test("nom normalisé (nameKey) : accents, casse, ponctuation, formes juridiques,
 test("lot 2b : clés modifiées par la règle du lieu — liste exacte ; aucune dans la liste vérifiée ; ancienne clé pour relire la table", async () => {
   const { readFileSync } = await import("node:fs");
   const { legacyNameKey } = await import("./company-domain.ts");
-  const ats = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const ats = JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
   const boards = [...readFileSync(new URL("./job-boards.ts", import.meta.url), "utf8").matchAll(/name: "([^"]+)", domain: "/g)].map((m) => m[1]);
-  const curated = [...Object.values(ats).flat().map((company) => company.name), ...boards, ...Object.keys(COMPANY_ALIASES), ...Object.values(COMPANY_ALIASES)];
+  const curated = [...ats.map((company) => company.name), ...boards, ...Object.keys(COMPANY_ALIASES), ...Object.values(COMPANY_ALIASES)];
   assert.deepEqual([...new Set(curated)].filter((name) => nameKey(name) !== legacyNameKey(name)), [], "clés de la liste vérifiée modifiées : ajouter un alias");
   // Noms suivis (lignes admin de la table comprises) : seules ces clés changent.
   const tracked = [
@@ -188,10 +188,10 @@ test("cohérence nom/domaine : homonymes et agences → initiales", () => {
   assert.equal(domainOf("BNP Paribas", "https://group.bnpparibas/emploi"), null);
 });
 
-test("ats-companies.json : chaque entreprise a un domaine principal valide, hors plateformes et messageries", async () => {
+test("career-companies.json : chaque entreprise a un domaine principal valide, hors plateformes et messageries", async () => {
   const { readFileSync } = await import("node:fs");
-  const data = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
-  const companies = Object.values(data).flat();
+  const data = JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
+  const companies = data;
   const byName = new Map();
   for (const company of companies) {
     const { domain } = company;
@@ -208,8 +208,8 @@ test("ats-companies.json : chaque entreprise a un domaine principal valide, hors
 
 test("alias : anciens noms et noms juridiques sûrs → domaine de la liste vérifiée", async () => {
   const { readFileSync } = await import("node:fs");
-  const data = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
-  const base = new Map(Object.values(data).flat().map((company) => [nameKey(company.name), company.domain]));
+  const data = JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
+  const base = new Map(data.map((company) => [nameKey(company.name), company.domain]));
   const known = withAliases(base);
   const of = (name, offerUrl = null) => companyDomain({ name, offerUrl }, known);
   // Offres SmartRecruiters (og:site_name « MAZARS ») et ancien nom.
@@ -268,9 +268,9 @@ test("ordre : blocked (initiales) > liste vérifiée > table partagée « verifi
 test("domaines explicites : chaque nom donne le bon domaine ; aucune autre clé ne change", async () => {
   const { readFileSync } = await import("node:fs");
   const { EXPLICIT_DOMAINS } = await import("./company-domain.ts");
-  const ats = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const ats = JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
   const boards = [...readFileSync(new URL("./job-boards.ts", import.meta.url), "utf8").matchAll(/name: "([^"]+)", domain: "([^"]+)"/g)].map((m) => ({ name: m[1], domain: m[2] }));
-  const base = new Map([...Object.values(ats).flat(), ...boards].map((company) => [nameKey(company.name), company.domain]));
+  const base = new Map([...ats, ...boards].map((company) => [nameKey(company.name), company.domain]));
   const all = withAliases(base);
   for (const [name, domain] of [
     ["BCG France", "bcg.com"], ["BCG", "bcg.com"], ["ING France", "ing.com"], ["ING", "ing.com"], ["AXA France", "axa.fr"], ["AXA", "axa.fr"],

@@ -12,18 +12,24 @@ registerHooks({
 });
 const {
   ATS_OFFERS_PER_COMPANY,
+  AtsBlockedError,
   COLLECT_BUDGET_MS,
   COLLECTED_OFFERS_MAX_DAYS,
   PURGE_MIN_REMAINING_MS,
+  STORED_DESCRIPTION_MAX_LENGTH,
   USER_OFFERS_MAX_DAYS,
   purgeCutoffs,
   collectSector,
+  companiesForSector,
+  companyKey,
   createAtsClient,
   planOfferSave,
   readCompanyOffers,
   runSectorCollection,
   saveOffers,
+  storedDescription,
 } = await import("./job-collect.ts");
+const { maskContacts } = await import("./contact-mask.ts");
 
 /** Base simulée : lignes de job_offers_raw, appels à increment_job_keywords. */
 function fakeDb(rows = [], { failOn, conflict = [] } = {}) {
@@ -171,11 +177,11 @@ test("Ashby : lieux « Madrid Office; Paris Office » nettoyés en « Paris »",
 });
 
 test("sources corrigées : Doctolib sur Ashby, Aircall sur Greenhouse (aircallioinc)", () => {
-  const sectors = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
-  const entries = (name) => Object.values(sectors).flat().filter((c) => c.name === name);
+  const companies = JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
+  const entries = (name) => companies.filter((c) => c.name === name);
   const doctolib = entries("Doctolib");
-  assert.equal(doctolib.length, 4);
-  for (const c of doctolib) assert.deepEqual([c.platform, c.slug], ["ashby", "doctolib"]);
+  assert.equal(doctolib.length, 1);
+  assert.deepEqual([doctolib[0].platform, doctolib[0].slug, doctolib[0].sectors.length], ["ashby", "doctolib", 4]);
   assert.deepEqual(entries("Aircall").map((c) => [c.platform, c.slug]), [["greenhouse", "aircallioinc"]]);
   const boards = readFileSync(new URL("./job-boards.ts", import.meta.url), "utf8");
   assert.match(boards, /key: "doctolib",[^}]*ats: "ashby", slug: "doctolib"/);
@@ -184,11 +190,9 @@ test("sources corrigées : Doctolib sur Ashby, Aircall sur Greenhouse (aircallio
 });
 
 test("Mistral AI : collecté dans le secteur tech, sur Ashby (mistral.ai)", async () => {
-  const sectors = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
-  const found = Object.entries(sectors).flatMap(([sector, companies]) =>
-    companies.filter((c) => c.name === "Mistral AI").map((c) => [sector, c.platform, c.slug]),
-  );
-  assert.deepEqual(found, [["tech", "ashby", "mistral.ai"]]);
+  const companies = JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
+  const found = companies.filter((c) => c.name === "Mistral AI").map((c) => [c.sectors, c.platform, c.slug]);
+  assert.deepEqual(found, [[["tech"], "ashby", "mistral.ai"]]);
   const get = fakeGet({ "job-board/mistral.ai": { jobs: [{ id: "m1", title: "AI Scientist", jobUrl: "https://jobs.ashbyhq.com/mistral/m1", location: "Paris" }] } });
   const { offers, failed } = await readCompanyOffers({ name: "Mistral AI", platform: "ashby", slug: "mistral.ai" }, 10, all, get);
   assert.deepEqual(get.calls, ["https://api.ashbyhq.com/posting-api/job-board/mistral.ai"]);
@@ -295,7 +299,18 @@ test("secteur : entreprises en erreur listées, produits transmis, bilan exact",
       received.push([c.slug, offers.map((o) => o.products)]);
     },
   });
-  assert.deepEqual(result, { companiesRead: 2, companiesTotal: 2, companiesFailed: ["Panne"], offersRead: 1, partial: false });
+  assert.deepEqual(result, {
+    companiesRead: 2,
+    companiesTotal: 2,
+    companiesFailed: ["Panne"],
+    companiesEmpty: [],
+    offersRead: 1,
+    perCompany: [
+      { name: "Acme", offers: 1, failed: false },
+      { name: "Panne", offers: 0, failed: true },
+    ],
+    partial: false,
+  });
   assert.deepEqual(received, [["ok", [["Produit"]]], ["panne", []]]);
 });
 
@@ -582,9 +597,9 @@ test("nettoyage : journal en panne, nettoyage lancé quand même et bilan dans l
 
 test("cron : une entrée hebdomadaire par secteur, à des heures différentes", () => {
   const { crons } = JSON.parse(readFileSync(new URL("../../vercel.json", import.meta.url), "utf8"));
-  const companies = JSON.parse(readFileSync(new URL("./ats-companies.json", import.meta.url), "utf8"));
+  const companies = JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
   const collect = crons.filter((cron) => cron.path.startsWith("/api/cron/collecte/"));
-  assert.deepEqual(collect.map((cron) => cron.path.split("/").pop()).sort(), Object.keys(companies).sort());
+  assert.deepEqual(collect.map((cron) => cron.path.split("/").pop()).sort(), [...new Set(companies.flatMap((c) => c.sectors))].sort());
   for (const cron of collect) assert.match(cron.schedule, /^0 \d+ \* \* 0$/);
   assert.equal(new Set(collect.map((cron) => cron.schedule)).size, collect.length);
 });
@@ -621,4 +636,353 @@ test("client : délai entre deux requêtes, robot identifié, erreurs sans excep
   assert.equal(await get("https://x/panne"), null);
   assert.deepEqual(waits, [1000, 1000]);
   assert.match(sent[0], /^ApplyfyBot\//);
+});
+
+// --- Lot 1a : fichier unique, retraits automatiques, journal, données gardées ------------------
+
+// Liste par secteur d'avant le fichier unique (ats-companies.json, supprimé), figée : 148 couples
+// (secteur, entreprise), dont 55 avec le filtre du métier.
+const LEGACY_SECTORS = {
+  finance: ["Pennylane","Qonto","Younited","Agicap","Finary","Seyna","N26","Point72"],
+  conseil: ["Forvis Mazars","Devoteam","Artefact","Theodo","Alten","Assystem"],
+  tech: ["Datadog","Mirakl","Scaleway","Dataiku","Algolia","Dashlane","Ledger","Photoroom","Dust","Mistral AI","lemlist","Sorare","BlaBlaCar","Swile","Ivalua","MongoDB"],
+  marketing: ["Brevo","SeLoger","Too Good To Go","Heetch","Spotify","Red Bull","Media Participations","Braze","Taboola","Voodoo","Ubisoft","Veepee","Back Market","Doctolib","Alan","Qonto","Pennylane","SMCP","Salomon","Sisley","Kiabi","Accor","Believe","360Learning","Malt","Swile","BlaBlaCar","Deliveroo","Airbnb"],
+  creatif: ["Ubisoft","Voodoo","Gameloft","Believe","Figma","ElevenLabs","Synthesia","Media Participations","Back Market","Doctolib","Qonto","Alan","Pennylane","Photoroom","Mirakl","Datadog","SMCP","Jacquemus","Salomon","Sisley","Petit Bateau","Veepee","Deliveroo","BlaBlaCar","Swile","Malt"],
+  commercial: ["Doctolib","SumUp","Aircall","Pigment","Deliveroo","Veepee","Doctrine","360Learning","Malt","Stripe","Airbnb","Boulanger","Loxam"],
+  rh: ["Accor","Kiabi","Nexity","Saint-Gobain","Bosch","Talan","Media Participations","Ubisoft","Alten","Assystem","Devoteam","Forvis Mazars","Eurofins","Loxam","Boulanger","SMCP","Sisley","Salomon","Petit Bateau","Doctolib","Alan","Pennylane","Qonto","Voodoo","Back Market","Datadog","Theodo","Veepee","Malt","BlaBlaCar","Swile","360Learning"],
+  sante: ["Alan","Eurofins","Lifen","Owkin","Inato","Nabla"],
+  etudiant: ["Back Market","Salomon","Ubisoft","Alten","Devoteam","Alan","Vestiaire Collective"],
+  luxe: ["SMCP","Sisley","Jacquemus","Vestiaire Collective","Petit Bateau"],
+};
+const LEGACY_FILTERED = ["marketing:Brevo","marketing:SeLoger","marketing:Too Good To Go","marketing:Heetch","marketing:Spotify","marketing:Red Bull","marketing:Media Participations","marketing:Braze","marketing:Taboola","marketing:Voodoo","marketing:Ubisoft","marketing:Veepee","marketing:Back Market","marketing:Doctolib","marketing:Alan","marketing:Qonto","marketing:Pennylane","marketing:SMCP","marketing:Salomon","marketing:Sisley","marketing:Kiabi","marketing:Accor","marketing:Believe","marketing:360Learning","marketing:Malt","marketing:Swile","marketing:BlaBlaCar","marketing:Deliveroo","marketing:Airbnb","creatif:Ubisoft","creatif:Voodoo","creatif:Gameloft","creatif:Believe","creatif:Figma","creatif:ElevenLabs","creatif:Synthesia","creatif:Media Participations","creatif:Back Market","creatif:Doctolib","creatif:Qonto","creatif:Alan","creatif:Pennylane","creatif:Photoroom","creatif:Mirakl","creatif:Datadog","creatif:SMCP","creatif:Jacquemus","creatif:Salomon","creatif:Sisley","creatif:Petit Bateau","creatif:Veepee","creatif:Deliveroo","creatif:BlaBlaCar","creatif:Swile","creatif:Malt"];
+const careerCompanies = () => JSON.parse(readFileSync(new URL("./career-companies.json", import.meta.url), "utf8"));
+const exclusionsMigration = readFileSync(new URL("../../supabase/migrations/0043_job_collect_exclusions.sql", import.meta.url), "utf8");
+
+/** Console muette le temps d'un passage (avertissements attendus). */
+async function quiet(fn) {
+  const original = { warn: console.warn, error: console.error, info: console.info };
+  console.warn = console.error = console.info = () => {};
+  try {
+    return await fn();
+  } finally {
+    Object.assign(console, original);
+  }
+}
+
+/**
+ * Base simulée pour les retraits : job_collect_exclusions, journal relu (passages précédents),
+ * offres déjà connues. `missingMigration` : table et colonnes de la migration 0043 absentes.
+ */
+function fakeGuardDb({ exclusions = [], previousRuns = [], known = [], missingMigration = false } = {}) {
+  const db = { excluded: [], inserts: [], logs: [], rows: [] };
+  const ok = (data) => ({ data, error: null });
+  const noTable = { data: null, error: { code: "PGRST205", message: "Could not find the table 'public.job_collect_exclusions'" } };
+  db.from = (table) => {
+    if (table === "job_collect_exclusions") {
+      return {
+        select: async () => (missingMigration ? noTable : ok(exclusions.map((company_key) => ({ company_key })))),
+        upsert: async (row) => (missingMigration ? noTable : (db.excluded.push(row), { error: null })),
+      };
+    }
+    if (table === "job_collect_runs") {
+      return {
+        select: () => ({
+          order: () => ({
+            limit: async () =>
+              missingMigration ? { data: null, error: { code: "42703", message: "column job_collect_runs.companies_rate_limited does not exist" } } : ok(previousRuns),
+          }),
+        }),
+        insert: (row) => ({
+          select: () => ({
+            single: async () => {
+              db.inserts.push(row);
+              if (missingMigration && "companies_empty" in row)
+                return { data: null, error: { code: "PGRST204", message: "Could not find the 'companies_empty' column of 'job_collect_runs' in the schema cache" } };
+              db.logs.push({ id: `log${db.logs.length}`, ...row });
+              return ok({ id: `log${db.logs.length - 1}` });
+            },
+          }),
+        }),
+        update: (patch) => ({ eq: async (_column, id) => (Object.assign(db.logs.find((log) => log.id === id), patch), { error: null }) }),
+      };
+    }
+    if (table === "job_keywords") {
+      const chain = { select: () => chain, eq: () => chain, order: () => chain, limit: async () => ok([]) };
+      return chain;
+    }
+    if (table === "sector_trends") return { upsert: async () => ({ error: null }) };
+    const lookup = {
+      eq: () => lookup,
+      in: async (_column, ids) => ok(known.filter((id) => ids.includes(id)).map((external_id) => ({ id: external_id, external_id }))),
+    };
+    return {
+      select: () => lookup,
+      update: () => ({ in: async () => ({ error: null }) }),
+      upsert: (row) => ({ select: async () => (db.rows.push(row), ok([{ id: row.external_id }])) }),
+    };
+  };
+  db.rpc = async (name) => (name === "purge_stale_job_offers" ? ok(0) : { error: null });
+  return db;
+}
+/** Réponses d'Ashby : l'entreprise `blockedSlug` refuse l'accès (`reason`), « b » a une offre. */
+const refusingGet = (reason, blockedSlug = "a", calls = []) => async (url) => {
+  calls.push(url);
+  if (url.endsWith(`job-board/${blockedSlug}`)) throw new AtsBlockedError(reason, reason === "challenge" ? 429 : Number(reason.slice(5)), url);
+  return runGet("b")(url);
+};
+
+test("fichier unique : les 148 couples (secteur, entreprise) et les 55 filtres d'avant, une ligne par entreprise", () => {
+  const companies = careerCompanies();
+  const legacy = new Set(Object.values(LEGACY_SECTORS).flat());
+  let couples = 0;
+  for (const [sector, names] of Object.entries(LEGACY_SECTORS)) {
+    const derived = companiesForSector(companies, sector).filter((company) => legacy.has(company.name));
+    assert.deepEqual(derived.map((company) => company.name).sort(), [...names].sort(), sector);
+    couples += derived.length;
+  }
+  assert.equal(couples, 148);
+  const filtered = Object.keys(LEGACY_SECTORS).flatMap((sector) =>
+    companiesForSector(companies, sector)
+      .filter((company) => legacy.has(company.name) && company.filterTitles)
+      .map((company) => `${sector}:${company.name}`),
+  );
+  assert.deepEqual(filtered.sort(), [...LEGACY_FILTERED].sort());
+  assert.equal(new Set(companies.map(companyKey)).size, companies.length, "entreprise en double");
+  assert.equal(new Set(companies.map((company) => company.name)).size, companies.length, "nom en double");
+  for (const company of companies) {
+    assert.ok(company.sectors.length > 0 && company.sectors.every((sector) => sector in LEGACY_SECTORS), company.name);
+    for (const sector of company.filterTitles ?? []) assert.ok(company.sectors.includes(sector), `${company.name} : filtre hors de ses secteurs`);
+  }
+});
+
+test("fichier unique : filtre du métier et produits résolus par secteur", () => {
+  const companies = careerCompanies();
+  const pennylane = (sector) => companiesForSector(companies, sector).find((company) => company.name === "Pennylane");
+  assert.equal(pennylane("finance").filterTitles, undefined);
+  assert.equal(pennylane("marketing").filterTitles, true);
+  assert.equal(pennylane("rh").filterTitles, undefined);
+  assert.deepEqual(pennylane("finance").sectors, ["finance", "marketing", "creatif", "rh"]);
+  const withProducts = companies.filter((company) => company.products?.length);
+  for (const company of withProducts)
+    for (const sector of company.sectors) assert.deepEqual(companiesForSector(companies, sector).find((c) => c.name === company.name).products, company.products);
+});
+
+test("ordre de lecture : dans chaque secteur, les anciennes entreprises avant les nouvelles", () => {
+  const legacy = new Set(Object.values(LEGACY_SECTORS).flat());
+  const companies = careerCompanies();
+  const firstNew = companies.findIndex((company) => !legacy.has(company.name));
+  if (firstNew >= 0) assert.ok(companies.slice(firstNew).every((company) => !legacy.has(company.name)), "nouvelle entreprise avant une ancienne");
+  const added = [...companies, { name: "Nouvelle", domain: "nouvelle.fr", platform: "ashby", slug: "nouvelle", sectors: ["rh", "tech"] }];
+  for (const sector of ["rh", "tech"]) assert.equal(companiesForSector(added, sector).at(-1).name, "Nouvelle");
+});
+
+test("clés des retraits : chaque entreprise du fichier respecte le format de job_collect_exclusions", () => {
+  const pattern = new RegExp(/company_key ~ '([^']+)'/.exec(exclusionsMigration)[1]);
+  for (const company of careerCompanies()) assert.match(companyKey(company), pattern, company.name);
+  assert.equal(companyKey({ platform: "smartrecruiters", slug: "Ubisoft2" }), "smartrecruiters:Ubisoft2");
+});
+
+test("client : 401, 403, cf-mitigated, page HTML et 429 sont des refus ; 5xx et 404 non", async () => {
+  const responses = {
+    "/401": () => new Response("", { status: 401 }),
+    "/403": () => new Response("", { status: 403 }),
+    "/defi": () => new Response("<html>", { status: 429, headers: { "cf-mitigated": "challenge", "content-type": "text/html" } }),
+    "/defi-200": () => Response.json({ jobs: [] }, { headers: { "cf-mitigated": "challenge" } }),
+    "/html": () => new Response("<html>", { status: 200, headers: { "content-type": "text/html; charset=UTF-8" } }),
+    "/429": () => new Response("", { status: 429 }),
+    "/503": () => new Response("<html>maintenance</html>", { status: 503, headers: { "content-type": "text/html" } }),
+    "/404": () => new Response("<html>introuvable</html>", { status: 404, headers: { "content-type": "text/html" } }),
+  };
+  const get = createAtsClient({ delayMs: 0, log: () => {}, fetchImpl: async (url) => responses[new URL(url).pathname]() });
+  const reason = async (path) => {
+    try {
+      await get(`https://x${path}`);
+      return "aucun";
+    } catch (error) {
+      assert.ok(error instanceof AtsBlockedError);
+      return error.reason;
+    }
+  };
+  const reasons = [];
+  for (const path of ["/401", "/403", "/defi", "/defi-200", "/html", "/429"]) reasons.push(await reason(path));
+  assert.deepEqual(reasons, ["http_401", "http_403", "challenge", "challenge", "challenge", "http_429"]);
+  assert.equal(await get("https://x/503"), null);
+  assert.equal(await get("https://x/404"), null);
+});
+
+test("refus d'accès : l'entreprise s'arrête aussitôt, les suivantes sont lues, entreprise sans offre signalée", async () => {
+  const calls = [];
+  const blocked = [];
+  const result = await collectSector({
+    sector: "tech",
+    companies: runCompanies,
+    get: refusingGet("http_403", "a", calls),
+    onCompany: () => {},
+    onBlocked: (company, block) => blocked.push([company.name, block.reason, block.status]),
+  });
+  assert.deepEqual(blocked, [["A", "http_403", 403]]);
+  assert.equal(calls.filter((url) => url.endsWith("job-board/a")).length, 1);
+  assert.deepEqual([result.companiesRead, result.companiesFailed, result.companiesEmpty], [3, ["A"], ["C"]]);
+  assert.deepEqual(result.perCompany, [
+    { name: "A", offers: 0, failed: true },
+    { name: "B", offers: 1, failed: false },
+    { name: "C", offers: 0, failed: false },
+  ]);
+});
+
+test("refus au milieu des détails SmartRecruiters : offres déjà lues gardées, plus aucune requête", async () => {
+  const calls = [];
+  const get = async (url) => {
+    calls.push(url);
+    if (url.includes("postings?country=fr"))
+      return { content: ["p1", "p2", "p3"].map((id) => ({ id, name: `Poste ${id}`, location: { country: "fr", city: "Paris" } })) };
+    if (url.endsWith("/p2")) throw new AtsBlockedError("http_403", 403, url);
+    return { postingUrl: `https://jobs.smartrecruiters.com/acme/${url.slice(-2)}`, jobAd: { sections: { a: { text: "Texte" } } } };
+  };
+  const read = await readCompanyOffers(company("smartrecruiters"), 10, all, get);
+  assert.deepEqual([read.failed, read.blocked.reason, read.offers.map((offer) => offer.externalId)], [true, "http_403", ["smartrecruiters-acme-p1"]]);
+  assert.equal(calls.some((url) => url.endsWith("/p3")), false);
+});
+
+test("passage : un 403 retire l'entreprise (table et journal) ; au passage suivant, elle n'est plus appelée", async () => {
+  const db = fakeGuardDb();
+  const run = await quiet(() => runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: refusingGet("http_403"), matchKeywords: match }));
+  assert.deepEqual([run.error, run.companiesExcluded, run.companiesFailed, run.offersCreated], [null, ["A"], ["A"], 1]);
+  assert.deepEqual(db.excluded.map((row) => [row.company_key, row.company_name, row.reason]), [["ashby:a", "A", "http_403"]]);
+  assert.match(db.excluded[0].detail, /^HTTP 403 https:\/\/api\.ashbyhq\.com\//);
+  assert.deepEqual([db.logs[0].companies_excluded, db.logs[0].companies_empty, db.logs[0].companies_rate_limited], [["A"], ["C"], []]);
+
+  const next = fakeGuardDb({ exclusions: ["ashby:a"] });
+  const calls = [];
+  const again = await quiet(() =>
+    runSectorCollection({ sector: "tech", companies: runCompanies, supabase: next, get: async (url) => (calls.push(url), runGet("b")(url)), matchKeywords: match }),
+  );
+  assert.equal(calls.some((url) => url.endsWith("job-board/a")), false);
+  assert.deepEqual([again.companiesRead, again.companiesTotal, again.companiesExcluded, again.partial], [2, 3, ["A"], false]);
+});
+
+test("passage : 401 et défi anti-robot retirent aussi tout de suite", async () => {
+  for (const reason of ["http_401", "challenge"]) {
+    const db = fakeGuardDb();
+    const run = await quiet(() => runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: refusingGet(reason), matchKeywords: match }));
+    assert.deepEqual([run.companiesExcluded, db.excluded.map((row) => row.reason)], [["A"], [reason]], reason);
+  }
+});
+
+test("429 sans défi : arrêtée pour le passage, retirée seulement au deuxième passage consécutif", async () => {
+  const companies = runCompanies.map((c) => ({ ...c, sectors: ["tech", "rh"] }));
+  const run = (db) => quiet(() => runSectorCollection({ sector: "tech", companies, supabase: db, get: refusingGet("http_429"), matchKeywords: match }));
+
+  const first = fakeGuardDb({ previousRuns: [{ sector: "rh", companies_rate_limited: [] }] });
+  const run1 = await run(first);
+  assert.deepEqual([run1.companiesRateLimited, run1.companiesExcluded, run1.companiesFailed, first.excluded.length], [["A"], [], ["A"], 0]);
+  assert.deepEqual(first.logs[0].companies_rate_limited, ["A"]);
+
+  // Passage précédent de A : le plus récent de ses secteurs (rh), déjà en 429.
+  const second = fakeGuardDb({ previousRuns: [{ sector: "rh", companies_rate_limited: ["A"] }, { sector: "tech", companies_rate_limited: [] }] });
+  const run2 = await run(second);
+  assert.deepEqual([run2.companiesRateLimited, run2.companiesExcluded], [[], ["A"]]);
+  assert.deepEqual(second.excluded.map((row) => [row.company_key, row.reason]), [["ashby:a", "http_429"]]);
+
+  // Un passage sans 429 entre les deux : compteur remis à zéro.
+  const reset = fakeGuardDb({ previousRuns: [{ sector: "tech", companies_rate_limited: [] }, { sector: "rh", companies_rate_limited: ["A"] }] });
+  const run3 = await run(reset);
+  assert.deepEqual([run3.companiesRateLimited, run3.companiesExcluded, reset.excluded.length], [["A"], [], 0]);
+});
+
+test("panne 5xx (réponse illisible) : échec ordinaire, personne n'est retiré ni compté en 429", async () => {
+  const db = fakeGuardDb();
+  const get = async (url) => (url.endsWith("job-board/a") ? null : runGet("b")(url));
+  const run = await quiet(() => runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get, matchKeywords: match }));
+  assert.deepEqual([run.companiesFailed, run.companiesExcluded, run.companiesRateLimited, run.companiesEmpty, db.excluded.length], [["A"], [], [], ["C"], 0]);
+});
+
+test("essai à blanc : refus signalés sans rien écrire, offres par entreprise dans le bilan", async () => {
+  const run = await runSectorCollection({ sector: "tech", companies: runCompanies, supabase: null, get: refusingGet("http_403"), matchKeywords: match });
+  assert.deepEqual([run.dryRun, run.companiesExcluded, run.companiesEmpty], [true, ["A"], ["C"]]);
+  assert.deepEqual(run.perCompany.map((entry) => [entry.name, entry.offers]), [["A", 0], ["B", 1], ["C", 0]]);
+});
+
+test("migration 0043 absente : la collecte tourne, le journal est écrit sans les nouvelles colonnes", async () => {
+  const db = fakeGuardDb({ missingMigration: true });
+  const run = await quiet(() => runSectorCollection({ sector: "tech", companies: runCompanies, supabase: db, get: refusingGet("http_403"), matchKeywords: match }));
+  assert.deepEqual([run.error, run.offersCreated, run.companiesExcluded, run.partial], [null, 1, ["A"], false]);
+  assert.equal(db.inserts.length, 2);
+  assert.ok("companies_empty" in db.inserts[0]);
+  assert.ok(!("companies_empty" in db.inserts[1]) && !("companies_excluded" in db.inserts[1]));
+  assert.equal(db.logs.length, 1);
+  assert.equal(db.logs[0].offers_deleted, 0, "nettoyage inscrit sur la ligne du journal");
+});
+
+test("description lue seulement pour les offres nouvelles (SmartRecruiters), offres connues revues", async () => {
+  const get = fakeGet({
+    "postings?country=fr": { content: [{ id: "p1", name: "Analyste", location: { country: "fr", city: "Paris" } }, { id: "p2", name: "Juriste", location: { country: "fr", city: "Lyon" } }] },
+    "postings/p2": { postingUrl: "https://jobs.smartrecruiters.com/acme/p2", jobAd: { sections: { a: { text: "Texte" } } } },
+  });
+  const known = async (ids) => new Set(ids.filter((id) => id === "smartrecruiters-acme-p1"));
+  const { offers } = await readCompanyOffers(company("smartrecruiters"), 10, all, get, undefined, known);
+  assert.deepEqual(get.calls.filter((url) => /postings\/p\d$/.test(url)), ["https://api.smartrecruiters.com/v1/companies/acme/postings/p2"]);
+  assert.deepEqual(offers.map((offer) => [offer.externalId, offer.description]), [["smartrecruiters-acme-p1", ""], ["smartrecruiters-acme-p2", "Texte"]]);
+
+  // Passage complet : offres connues lues en base, revues sans requête de détail.
+  const db = fakeGuardDb({ known: ["smartrecruiters-acme-p1"] });
+  const passGet = fakeGet({
+    "postings?country=fr": { content: [{ id: "p1", name: "Analyste", location: { country: "fr", city: "Paris" } }, { id: "p2", name: "Juriste", location: { country: "fr", city: "Lyon" } }] },
+    "postings/p2": { jobAd: { sections: { a: { text: "SQL" } } } },
+  });
+  const run = await quiet(() => runSectorCollection({ sector: "tech", companies: [company("smartrecruiters")], supabase: db, get: passGet, matchKeywords: match }));
+  assert.equal(passGet.calls.filter((url) => /postings\/p\d$/.test(url)).length, 1);
+  assert.deepEqual([run.offersRead, run.offersCreated, run.offersSeen], [2, 1, 1]);
+  // Essai à blanc : rien n'est connu, toutes les descriptions sont lues (comme avant).
+  const dryGet = fakeGet({ "postings?country=fr": { content: [{ id: "p1", name: "Analyste", location: { country: "fr", city: "Paris" } }] }, "postings/p1": { jobAd: { sections: {} } } });
+  await runSectorCollection({ sector: "tech", companies: [company("smartrecruiters")], supabase: null, get: dryGet, matchKeywords: match });
+  assert.equal(dryGet.calls.filter((url) => /postings\/p\d$/.test(url)).length, 1);
+});
+
+test("10 offres au plus par entreprise et par secteur", async () => {
+  assert.equal(ATS_OFFERS_PER_COMPANY, 10);
+  const jobs = Array.from({ length: 15 }, (_, i) => ({ id: i, title: `Poste ${i}`, absolute_url: `https://a.fr/${i}`, location: { name: "Paris, France" } }));
+  const result = await collectSector({ sector: "tech", companies: [company("greenhouse")], get: fakeGet({ "boards-api.greenhouse.io": { jobs } }), onCompany: () => {} });
+  assert.deepEqual([result.offersRead, result.perCompany[0].offers], [10, 10]);
+});
+
+test("données gardées : aucun e-mail ni téléphone, description limitée à 4 000 caractères", async () => {
+  assert.equal(STORED_DESCRIPTION_MAX_LENGTH, 4_000);
+  const db = fakeDb();
+  const description = `Écrire à rh.paris@acme.fr, au 06 12 34 56 78 ou au +33 1 23 45 67 89. ${"x".repeat(5_000)} fin`;
+  await saveOffers(db, [toSave("1", { title: "Stage – écrire à jobs@acme.fr", description })]);
+  const row = db.rows[0];
+  assert.equal(row.description.length, STORED_DESCRIPTION_MAX_LENGTH);
+  for (const text of [row.title, row.description]) {
+    assert.doesNotMatch(text, /@/);
+    assert.doesNotMatch(text, /(\+33\s?|0)[1-9]([\s.-]?\d{2}){4}/);
+  }
+  assert.match(row.description, /^Écrire à \[email\], au \[téléphone\] ou au \[téléphone\]\./);
+  assert.equal(row.title, "Stage – écrire à [email]");
+  assert.equal(storedDescription("court"), "court");
+});
+
+test("masquage mis en commun : les offres collées utilisent le même masquage", () => {
+  assert.equal(maskContacts("jean.dupont@acme.fr / 01.23.45.67.89"), "[email] / [téléphone]");
+  const source = readFileSync(new URL("./user-job-offers.ts", import.meta.url), "utf8");
+  assert.match(source, /import \{ maskContacts \} from "\.\/contact-mask"/);
+  assert.match(source, /const text = maskContacts\(description\)/);
+  assert.doesNotMatch(source, /const (EMAIL|PHONE) =/);
+});
+
+test("migration 0043 : ajouts seulement, rejouable, table fermée aux clients, retour arrière en commentaire", () => {
+  const code = exclusionsMigration.replace(/--.*$/gm, "");
+  assert.doesNotMatch(code, /\b(delete|drop|truncate|update|insert)\b/i);
+  assert.equal(code.match(/add column if not exists/g).length, 3);
+  for (const column of ["companies_empty", "companies_excluded", "companies_rate_limited"])
+    assert.match(code, new RegExp(`add column if not exists ${column} text\\[\\] not null default '\\{\\}'`));
+  assert.match(code, /create table if not exists job_collect_exclusions/);
+  assert.match(code, /alter table job_collect_exclusions enable row level security;/);
+  assert.match(code, /revoke all on job_collect_exclusions from anon, authenticated;/);
+  assert.doesNotMatch(code, /create policy|\bgrant\b/i);
+  assert.match(exclusionsMigration, /-- Retour arrière : drop table if exists job_collect_exclusions;/);
+  assert.match(exclusionsMigration, /--\s+delete from job_collect_exclusions where company_key = '[^']+';/);
+  // Raisons admises par la table = raisons notées par la collecte (+ robots, pour les nouveaux connecteurs).
+  const reasons = /reason in \(([^)]+)\)/.exec(code)[1].match(/'([^']+)'/g).map((r) => r.slice(1, -1));
+  assert.deepEqual(reasons, ["http_401", "http_403", "http_429", "challenge", "robots"]);
 });
