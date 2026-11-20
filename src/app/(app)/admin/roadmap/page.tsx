@@ -23,7 +23,7 @@ export default async function RoadmapAdminPage() {
   const items = await listRoadmapItems();
 
   return (
-    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page flex-1 space-y-8">
         <div>
           <Link href="/admin" className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white">

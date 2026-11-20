@@ -154,7 +154,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const newApps = m.newApplications;
 
   return (
-    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page flex-1 space-y-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

@@ -31,7 +31,7 @@ export async function OffersForYou({
         {offers.map((offer) => (
           <li
             key={offer.id}
-            className="flex min-w-0 flex-col items-start rounded-card border border-line bg-surface p-5 dark:border-slate-800 dark:bg-slate-900"
+            className="flex min-w-0 flex-col items-start rounded-card border border-line bg-card p-5 dark:border-slate-800 dark:bg-slate-900"
           >
             <span
               aria-hidden="true"

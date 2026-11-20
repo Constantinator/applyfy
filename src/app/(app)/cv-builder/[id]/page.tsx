@@ -30,7 +30,7 @@ export default async function CvBuilderEditorPage({ params, searchParams }: Page
 
   return (
     // Éditeur en plein écran (sans barre de navigation de l'application, cf. app-nav-context).
-    <main className="w-full flex-1">
+    <main className="w-full flex-1 bg-card dark:bg-slate-950">
       <CvBuilderEditor
         cv={cv}
         scoring={scoring}

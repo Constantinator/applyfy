@@ -47,7 +47,7 @@ export default async function PremiumPage({ searchParams }: PageProps<"/premium"
   const paymentEnabled = isSupabaseConfigured() && isStripeConfigured();
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
+    <div className="flex flex-1 flex-col bg-page">
       <main className="ui-page-narrow flex-1 space-y-8">
         <Link href="/dashboard" className="ui-focus -my-3 inline-flex min-h-11 items-center text-sm text-muted hover:text-ink">
           Retour au tableau de bord

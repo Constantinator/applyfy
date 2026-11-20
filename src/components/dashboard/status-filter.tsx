@@ -23,7 +23,7 @@ export function StatusFilter({
             className={`ui-focus ui-hit relative rounded-full px-3.5 py-2 text-[13px] leading-[18px] transition-colors ${
               isActive
                 ? "bg-ink font-semibold text-white dark:bg-white dark:text-slate-900"
-                : "bg-box font-medium text-[#3F3F46] hover:bg-[#E9E9EB] dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                : "bg-card font-medium text-[#3F3F46] ring-1 ring-line-strong ring-inset hover:bg-[#E9E9EB] dark:bg-slate-800 dark:ring-0 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
             {option.label}

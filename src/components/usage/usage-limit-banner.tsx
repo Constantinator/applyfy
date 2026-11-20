@@ -27,7 +27,7 @@ export function UsageLimitBanner({
   premiumBadge?: boolean;
 }) {
   return (
-    <div role="alert" className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[20px] border border-line bg-surface px-5 py-[18px] text-[14.5px]">
+    <div role="alert" className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[20px] border border-line bg-card px-5 py-[18px] text-[14.5px]">
       <div className="min-w-[220px] flex-1">
         {premiumBadge && (
           <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-pill px-2.5 py-1 text-xs font-semibold text-ink ring-1 ring-line">

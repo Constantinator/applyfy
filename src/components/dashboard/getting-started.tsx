@@ -69,7 +69,7 @@ export function GettingStarted({ steps }: { steps: StartStep[] }) {
   return (
     <section
       aria-labelledby="start-title"
-      className="rounded-[28px] border border-line bg-surface p-5 sm:px-8 sm:py-7 dark:border-slate-800 dark:bg-slate-900"
+      className="rounded-[28px] border border-line bg-card p-5 sm:px-8 sm:py-7 dark:border-slate-800 dark:bg-slate-900"
     >
       <div className="flex flex-wrap items-baseline gap-x-2">
         <h2 id="start-title" className="ui-title">

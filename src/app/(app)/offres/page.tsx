@@ -142,7 +142,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
 
   const label = "sr-only";
   return (
-    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page flex-1 space-y-8">
         <div>
           <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink dark:text-white">Trouver une offre</h1>

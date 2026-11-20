@@ -29,7 +29,7 @@ export default async function CvImportPage({ searchParams }: PageProps<"/cv-buil
   const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
 
   return (
-    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page flex-1 space-y-8">
         <CvImportFlow
           resetLabel={formatResetDate(usage.resetsOn)}

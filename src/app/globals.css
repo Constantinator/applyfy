@@ -756,6 +756,14 @@ body {
 }
 
 /*
+ * Pages qui restent en clair comme une feuille (data-theme-off : éditeur de lettre) : fond blanc,
+ * pour que la zone #F7F7F8 autour de la feuille ne se confonde pas avec le fond de page #FAFAFA.
+ */
+body:has([data-theme-off]) {
+  background-color: var(--color-card);
+}
+
+/*
  * Bouton rond de Lumeo (espace connecté, ordinateur ≥ 1024 px) : espace libre en bas de page pour
  * qu'aucun élément, pied de page compris, ne reste sous le bouton une fois la page défilée jusqu'en
  * bas. Mobile : le bouton est dans la barre du haut, rien ne change. Sans bouton (landing, éditeur

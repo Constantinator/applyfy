@@ -145,7 +145,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
     : "CV Builder";
 
   return (
-    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page flex-1 space-y-8">
         <div className="space-y-5">
           <div>

@@ -16,7 +16,7 @@ export default async function NewApplicationPage({ searchParams }: PageProps<"/c
   const [usage, { lien }] = await Promise.all([readAiUsage(), searchParams]);
   const offerLink = parseOfferLink(lien);
   return (
-    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page-narrow flex-1">
         {/* Retiré de l'adresse dès l'arrivée : recharger la page ne relance pas l'import. */}
         {lien !== undefined && <ClearSearchParams />}

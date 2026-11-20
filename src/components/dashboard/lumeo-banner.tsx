@@ -100,7 +100,7 @@ export function LumeoBanner({ message }: { message: LumeoDashboardMessage }) {
       className={`animate-card-in flex flex-col gap-4 rounded-3xl border p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6 ${
         success
           ? "border-[#D4EBDA] bg-[#F3FAF5] dark:border-emerald-900 dark:bg-emerald-950/40"
-          : "border-line bg-[#F7F7F8] dark:border-slate-800 dark:bg-slate-900"
+          : "border-line bg-card dark:border-slate-800 dark:bg-slate-900"
       }`}
     >
       <LumeoAvatar size={72} expression={content.expression} celebrate={success} />

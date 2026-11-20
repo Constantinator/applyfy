@@ -151,7 +151,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     realApplications.filter((app) => app.status === status).length;
 
   return (
-    <div className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
       <main className="ui-page flex-1 space-y-8">
         {source === "demo" && (
           <p className="ui-notice px-4 py-2 text-sm">
