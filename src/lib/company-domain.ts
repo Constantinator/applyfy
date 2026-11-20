@@ -157,18 +157,31 @@ export type CompanyDomainInput = {
   contactEmail?: string | null;
 };
 
+/** Ligne de la table partagée company_domains (migration 0041), indexée par nameKey. */
+export type SharedDomainRow = { domain: string | null; status: "verified" | "ambiguous" | "none" | "blocked" };
+
 /**
- * Domaine fiable de l'entreprise, ou null (initiales, aucune requête vers Logo.dev).
- * `known` : domaines vérifiés à la main, indexés par nameKey(nom).
+ * Domaine fiable de l'entreprise, ou null (initiales, aucune requête vers Logo.dev). Ordre :
+ * ligne « blocked » de la table (initiales, toujours) ; liste vérifiée à la main (`known`) ;
+ * ligne « verified » de la table partagée (`shared`) ; puis déduction par l'adresse de l'offre ou
+ * l'e-mail du contact, avec contrôle de cohérence, pour l'affichage de cette personne seulement
+ * (jamais écrite dans la table).
  */
 export function companyDomain(
   { name, offerUrl, contactEmail }: CompanyDomainInput,
   known: ReadonlyMap<string, string>,
+  shared: ReadonlyMap<string, SharedDomainRow> = new Map(),
 ): string | null {
   const key = nameKey(name);
   if (!key) return null;
+  const row = shared.get(key);
+  if (row?.status === "blocked") return null;
   const listed = known.get(key);
   if (listed) return listed;
+  if (row?.status === "verified" && row.domain) {
+    const domain = registrableDomain(row.domain);
+    if (domain && !isPlatformHost(domain)) return domain;
+  }
 
   const host = urlHost(offerUrl);
   if (host && !isPlatformHost(host)) {

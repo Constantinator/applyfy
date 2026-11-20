@@ -6,6 +6,7 @@ import { EmptyDashboard } from "@/components/dashboard/empty-dashboard";
 import { IconPlus } from "@/components/icons";
 import { OnboardingTip } from "@/components/onboarding/onboarding-tip";
 import { getApplications } from "@/lib/applications";
+import { loadCompanyDomains } from "@/lib/company-domains-store";
 import { companyLogo } from "@/lib/company-logos";
 import { FOLLOW_UP_FILTER } from "@/lib/follow-up";
 import { DEFAULT_SORT, isSortKey } from "@/lib/sort-applications";
@@ -23,11 +24,13 @@ export default async function ApplicationsPage({ searchParams }: PageProps<"/can
   const { applications, source } = await getApplications();
   // Date de référence unique, transmise au client pour des calculs identiques des deux côtés.
   const now = new Date();
-  // Logos calculés côté serveur (la clé Logo.dev n'est lue qu'ici), transmis à la liste client.
+  // Logos calculés côté serveur (la clé Logo.dev n'est lue qu'ici), transmis à la liste client ;
+  // domaines de la table partagée lus en une seule requête pour toutes les candidatures affichées.
+  const sharedDomains = await loadCompanyDomains(applications.map((app) => app.company));
   const logos = Object.fromEntries(
     applications.map((app) => [
       app.id,
-      companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 36),
+      companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 36, sharedDomains),
     ]),
   );
 

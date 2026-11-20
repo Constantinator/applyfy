@@ -200,3 +200,30 @@ test("alias : anciens noms et noms juridiques sûrs → domaine de la liste vér
     assert.ok(!base.has(nameKey(alias)), `${alias} est déjà une entreprise de la liste`);
   }
 });
+
+test("ordre : blocked (initiales) > liste vérifiée > table partagée « verified » > déduction de cette personne", () => {
+  const shared = new Map([
+    ["kpmg", { domain: "kpmg.com", status: "verified" }],
+    ["alan", { domain: "alan-autre.com", status: "verified" }],
+    ["backmarket", { domain: null, status: "blocked" }],
+    ["acme", { domain: null, status: "blocked" }],
+    ["groupealpha", { domain: null, status: "none" }],
+    ["emalec", { domain: null, status: "ambiguous" }],
+    ["piege", { domain: "piege.lever.co", status: "verified" }],
+  ]);
+  const of = (name, offerUrl = null, contactEmail = null) => companyDomain({ name, offerUrl, contactEmail }, KNOWN, shared);
+  assert.equal(of("KPMG France"), "kpmg.com");
+  // La liste vérifiée l'emporte sur la table.
+  assert.equal(of("Alan"), "alan.com");
+  // blocked : initiales, même pour la liste vérifiée et malgré une adresse cohérente.
+  assert.equal(of("Back Market"), null);
+  assert.equal(of("Acme", "https://www.acme.com/jobs/1", "rh@acme.com"), null);
+  // none / ambiguous : la déduction de cette personne reste possible.
+  assert.equal(of("Groupe Alpha", "https://careers.groupealpha.com/1"), "groupealpha.com");
+  assert.equal(of("Emalec"), null);
+  // Un domaine de plateforme dans la table n'est jamais affiché.
+  assert.equal(of("Piege"), null);
+  // Sans table (migration non lancée) : comportement du lot 1.
+  assert.equal(companyDomain({ name: "KPMG France" }, KNOWN), null);
+  assert.equal(companyDomain({ name: "Alan" }, KNOWN), "alan.com");
+});

@@ -30,6 +30,7 @@ import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { isClaudeConfigured } from "@/lib/claude";
 import { companyLogo } from "@/lib/company-logos";
+import { loadCompanyDomains } from "@/lib/company-domains-store";
 import { showLumeoSentLine } from "@/lib/lumeo-fiche";
 import { RELANCE_STATUSES } from "@/lib/lumeo-relance";
 import { LUMEO_FICHE_TEXTS } from "@/lib/lumeo-texts";
@@ -97,6 +98,8 @@ export default async function ApplicationPage({
   if (!detail) notFound();
 
   const { application: app, events, source } = detail;
+  // Domaine de l'entreprise dans la table partagée (une requête, table vide si indisponible).
+  const sharedDomains = await loadCompanyDomains([app.company]);
   // CV de l'éditeur pour cette candidature : celui du CV Builder, sinon celui de l'ancien éditeur.
   const hasEditorCv = Boolean(linkedCv || app.cv_improved_html);
   // « S'aider du CV en cours » (lettre) : le chat reçoit le CV de la candidature, à défaut
@@ -147,7 +150,7 @@ export default async function ApplicationPage({
             <div className="flex min-w-0 flex-[1_1_18rem] items-center gap-4">
               <CompanyLogo
                 name={app.company}
-                src={companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 56)}
+                src={companyLogo({ name: app.company, offerUrl: app.offer_url, contactEmail: app.contact_email }, 56, sharedDomains)}
                 size={56}
                 mobileSize={44}
               />

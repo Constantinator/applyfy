@@ -1,7 +1,7 @@
 import "server-only";
 
 import atsCompanies from "@/lib/ats-companies.json";
-import { companyDomain, nameKey, withAliases, type CompanyDomainInput } from "@/lib/company-domain";
+import { companyDomain, nameKey, withAliases, type CompanyDomainInput, type SharedDomainRow } from "@/lib/company-domain";
 import { JOB_BOARD_COMPANIES } from "@/lib/job-boards";
 
 // Adresses des logos d'entreprises (Logo.dev), calculées côté serveur : la clé publique
@@ -31,8 +31,15 @@ export function logoUrl(domain: string, size: LogoSize): string | null {
   return `https://img.logo.dev/${encodeURIComponent(domain)}?${params}`;
 }
 
-/** Logo de l'entreprise, ou null sans domaine fiable (aucune requête vers Logo.dev, initiales). */
-export function companyLogo(input: CompanyDomainInput, size: LogoSize): string | null {
-  const domain = companyDomain(input, KNOWN_DOMAINS);
+/**
+ * Logo de l'entreprise, ou null sans domaine fiable (aucune requête vers Logo.dev, initiales).
+ * `shared` : lignes de la table company_domains lues une fois pour la page (loadCompanyDomains).
+ */
+export function companyLogo(
+  input: CompanyDomainInput,
+  size: LogoSize,
+  shared?: ReadonlyMap<string, SharedDomainRow>,
+): string | null {
+  const domain = companyDomain(input, KNOWN_DOMAINS, shared);
   return domain && logoUrl(domain, size);
 }

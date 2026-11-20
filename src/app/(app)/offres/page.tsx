@@ -13,6 +13,7 @@ import { SectorPill } from "@/components/sector-pill";
 import { requireUser } from "@/lib/auth";
 import { detectOfferSector } from "@/lib/cv-sector-context";
 import type { Department } from "@/lib/geo";
+import { loadCompanyDomains } from "@/lib/company-domains-store";
 import { companyLogo } from "@/lib/company-logos";
 import { isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
@@ -125,8 +126,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   }
 
   const pageCount = result?.pageCount ?? 0;
-  /** Logo de l'entreprise (liste vérifiée, sinon site de l'offre hors plateformes), ou null. */
-  const logoOf = (offer: OfferListing, size: 36 | 48) => companyLogo({ name: offer.company, offerUrl: offer.url }, size);
+  // Domaines de la table partagée pour les entreprises affichées (une seule requête).
+  const sharedDomains = await loadCompanyDomains([...(result?.offers ?? []).map((offer) => offer.company), selected?.company]);
+  /** Logo de l'entreprise (liste vérifiée, table partagée, sinon site de l'offre hors plateformes), ou null. */
+  const logoOf = (offer: OfferListing, size: 36 | 48) => companyLogo({ name: offer.company, offerUrl: offer.url }, size, sharedDomains);
   /** Recherche effectuée (mots-clés recommandés compris), pour retrouver une offre à l'ajout. */
   const searchParamsOf = (target: number) => offerQueryParams({ ...query, page: target });
   const href = (target: number, offre: string | null = null) => {

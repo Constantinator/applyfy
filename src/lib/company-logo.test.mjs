@@ -34,7 +34,7 @@ test("adresse Logo.dev : construite côté serveur seulement, PNG au double de l
   const logos = source("lib/company-logos.ts");
   assert.match(logos, /^import "server-only";/);
   assert.match(logos, /size: String\(size \* 2\), format: "png", fallback: "404"/);
-  assert.match(logos, /const domain = companyDomain\(input, KNOWN_DOMAINS\);\s+return domain && logoUrl\(domain, size\);/);
+  assert.match(logos, /const domain = companyDomain\(input, KNOWN_DOMAINS, shared\);\s+return domain && logoUrl\(domain, size\);/);
   // La clé n'est lue nulle part ailleurs.
   for (const path of ["components/company-logo.tsx", "components/dashboard/applications-list.tsx", "components/dashboard/applications-view.tsx", "components/offers/offer-details.tsx"]) {
     assert.doesNotMatch(source(path), /LOGO_DEV_TOKEN|img\.logo\.dev/, path);
@@ -46,9 +46,13 @@ test("écrans : logo dans Offres pour toi, /offres (liste et panneau), /candidat
   assert.match(source("app/(app)/offres/page.tsx"), /src=\{logoOf\(offer, 36\)\}/);
   assert.match(source("app/(app)/offres/page.tsx"), /logo=\{logoOf\(selected, 48\)\}/);
   assert.match(source("components/offers/offer-details.tsx"), /<CompanyLogo name=\{offer\.company\} src=\{logo\} fallbackSrc=\{sourceLogo\} size=\{48\} \/>/);
-  assert.match(source("app/(app)/candidatures/page.tsx"), /companyLogo\(\{ name: app\.company, offerUrl: app\.offer_url, contactEmail: app\.contact_email \}, 36\)/);
+  assert.match(source("app/(app)/candidatures/page.tsx"), /companyLogo\(\{ name: app\.company, offerUrl: app\.offer_url, contactEmail: app\.contact_email \}, 36, sharedDomains\)/);
   assert.match(source("components/dashboard/applications-list.tsx"), /<CompanyLogo name=\{app\.company\} src=\{logos\[app\.id\] \?\? null\} \/>/);
-  assert.match(source("app/(app)/candidatures/[id]/page.tsx"), /companyLogo\(\{ name: app\.company, offerUrl: app\.offer_url, contactEmail: app\.contact_email \}, 56\)\}\s+size=\{56\}\s+mobileSize=\{44\}/);
+  // Table partagée : une seule lecture groupée par page, côté serveur.
+  for (const path of ["app/(app)/candidatures/page.tsx", "app/(app)/candidatures/[id]/page.tsx", "app/(app)/offres/page.tsx"]) {
+    assert.equal(source(path).match(/await loadCompanyDomains\(/g)?.length, 1, path);
+  }
+  assert.match(source("app/(app)/candidatures/[id]/page.tsx"), /companyLogo\(\{ name: app\.company, offerUrl: app\.offer_url, contactEmail: app\.contact_email \}, 56, sharedDomains\)\}\s+size=\{56\}\s+mobileSize=\{44\}/);
   for (const path of ["components/dashboard/todo-card.tsx", "components/landing/demo-dashboard.tsx", "lib/email/reminder-email.ts"]) {
     assert.doesNotMatch(source(path), /CompanyLogo|companyLogo|logo\.dev/i, path);
   }
