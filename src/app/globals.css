@@ -46,6 +46,9 @@
   --color-ink-hover: #262626;
   --color-accent: #2563eb;
   --color-muted: #6b6b6b;
+  /* Fond de page gris très léger, cartes blanches par-dessus. */
+  --color-page: #fafafa;
+  --color-card: #ffffff;
   --color-surface: #fafafa;
   --color-pill: #f3f4f6;
   --color-line: #ececec;
@@ -329,11 +332,11 @@ body {
   }
 }
 
-/* Bandeau d'information, de succès ou de démonstration : neutre. */
+/* Bandeau d'information, de succès ou de démonstration : neutre, blanc sur le fond de page. */
 @utility ui-notice {
   border-radius: var(--radius-block);
   border: 1px solid var(--color-line);
-  background-color: var(--color-surface);
+  background-color: var(--color-card);
   color: var(--color-ink);
 
   @variant dark {
@@ -405,7 +408,7 @@ body {
   gap: 0.5rem;
   border-radius: 9999px;
   border: 1px solid var(--color-line-strong);
-  background-color: white;
+  background-color: var(--color-card);
   padding: 10px 18px;
   color: var(--color-ink);
   font-size: 14px;
@@ -446,7 +449,7 @@ body {
 @utility ui-card {
   border-radius: var(--radius-card);
   border: 1px solid var(--color-line);
-  background-color: white;
+  background-color: var(--color-card);
 
   @variant dark {
     border-color: var(--color-slate-800);
@@ -454,11 +457,11 @@ body {
   }
 }
 
-/* Carte douce : fond très clair, pour les blocs mis à part. */
+/* Carte douce : blanche comme ui-card sur le fond de page gris (#FAFAFA), bordure fine. */
 @utility ui-card-soft {
   border-radius: var(--radius-card);
   border: 1px solid var(--color-line);
-  background-color: var(--color-surface);
+  background-color: var(--color-card);
 
   @variant dark {
     border-color: var(--color-slate-800);
@@ -505,7 +508,7 @@ body {
   gap: 0.5rem;
   border-radius: 9999px;
   border: 1px solid var(--color-line-strong);
-  background-color: white;
+  background-color: var(--color-card);
   padding: 10px 18px;
   color: #b91c1c;
   font-size: 14px;
@@ -566,7 +569,7 @@ body {
   min-height: 2.75rem;
   border-radius: 14px;
   border: 1px solid var(--color-line-strong);
-  background-color: white;
+  background-color: var(--color-card);
   padding: 12px 16px;
   font-size: var(--text-sm);
   color: var(--color-ink);

@@ -42,7 +42,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Bandeau de Lumeo déjà vu ou remis à plus tard : caché avant l'affichage (pas de saut). */}
         <script dangerouslySetInnerHTML={{ __html: LUMEO_PREPAINT_SCRIPT }} />
       </head>
-      <body className="flex min-h-full flex-col bg-white text-ink dark:bg-slate-950 dark:text-slate-100">
+      <body className="flex min-h-full flex-col bg-page text-ink dark:bg-slate-950 dark:text-slate-100">
         {children}
         <SiteFooter />
         {/* Meta Pixel et Google Ads : chargés seulement après acceptation dans le bandeau. */}
