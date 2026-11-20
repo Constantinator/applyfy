@@ -260,9 +260,28 @@ export const COMPANY_ALIASES: Readonly<Record<string, string>> = {
   "Ubisoft Entertainment": "Ubisoft",
 };
 
-/** Domaines vérifiés complétés par les alias (un alias n'écrase jamais une entrée existante). */
+/**
+ * Domaines vérifiés à la main pour des entreprises absentes de la liste (sigles trop courts pour
+ * la recherche par nom). « BCG France » et « BCG » donnent la même clé (bcg), etc.
+ */
+export const EXPLICIT_DOMAINS: Readonly<Record<string, string>> = {
+  "BCG France": "bcg.com",
+  BCG: "bcg.com",
+  "ING France": "ing.com",
+  ING: "ing.com",
+  "AXA France": "axa.fr",
+  AXA: "axa.fr",
+};
+
+/**
+ * Domaines vérifiés complétés par les alias et les domaines explicites (jamais une entrée
+ * existante écrasée).
+ */
 export function withAliases(known: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
   const all = new Map(known);
+  for (const [name, domain] of Object.entries(EXPLICIT_DOMAINS)) {
+    if (!all.has(nameKey(name))) all.set(nameKey(name), domain);
+  }
   for (const [alias, official] of Object.entries(COMPANY_ALIASES)) {
     const domain = known.get(nameKey(official));
     if (domain && !all.has(nameKey(alias))) all.set(nameKey(alias), domain);
