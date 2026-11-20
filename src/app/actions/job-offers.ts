@@ -12,6 +12,7 @@ import { normalizeCompanyName } from "@/lib/normalize";
 import { OFFER_DESCRIPTION_MAX_LENGTH } from "@/lib/offer-limits";
 import { OfferSourceError } from "@/lib/offer-types";
 import { getOfferForApplication, isOfferSearchConfigured, readOfferQuery, resolveOfferSearch } from "@/lib/offers";
+import { POSITION_ORIGINAL_MAX, tidyImportedTitle } from "@/lib/position-title";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 export type AddOfferState = { status: "idle" } | { status: "error"; message: string };
@@ -38,10 +39,13 @@ export async function addOfferToApplicationsAction(
     const offer = await getOfferForApplication(String(formData.get("offerId") ?? ""), search);
     if (!offer) return { status: "error", message: "Cette offre n'est plus disponible." };
 
+    // Titre nettoyé (« H/F », lieu, département…) ; l'original est gardé s'il a changé.
+    const position = tidyImportedTitle(offer.title, { company: offer.company, location: offer.location });
     id = await createApplication({
       // Seul un vrai nom est normalisé (pas le texte de remplacement).
       company: clip(offer.company ? normalizeCompanyName(offer.company) : "Entreprise non communiquée", 120),
-      position: clip(offer.title, 160),
+      position: clip(position, 160),
+      position_original: position !== offer.title ? clip(offer.title, POSITION_ORIGINAL_MAX) : null,
       location: offer.location ? clip(offer.location, 120) : null,
       offer_url: offer.url.length <= 2000 ? offer.url : null,
       offer_description: offer.description ? clip(offer.description, OFFER_DESCRIPTION_MAX_LENGTH) : null,

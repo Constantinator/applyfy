@@ -6,6 +6,7 @@ import type { CvStyle } from "./cv-style";
 import { detectOfferSector } from "./cv-sector-context";
 import type { CvSuggestions } from "./cv-types";
 import { demoStore } from "./demo-data";
+import { insertWithOptionalColumns, isMissingColumn } from "./optional-columns";
 import type { ResponseEvent } from "./dashboard-week";
 import { createClient, isSupabaseConfigured } from "./supabase/server";
 import {
@@ -32,8 +33,15 @@ const SECTOR_COLUMN = "sector";
 
 /** Erreur « colonne sector inconnue » (migration 0038 pas encore appliquée). */
 function isMissingSectorColumn(error: { code?: string; message?: string } | null) {
-  return Boolean(error && (error.code === "42703" || error.code === "PGRST204") && /sector/.test(error.message ?? ""));
+  return isMissingColumn(error, "sector");
 }
+
+/** Colonnes facultatives d'une nouvelle candidature et la migration qui les crée. */
+const OPTIONAL_COLUMN_MIGRATION: Record<string, string> = {
+  offer_description_partial: "0015",
+  sector: "0038",
+  position_original: "0042",
+};
 
 export type DataSource = "supabase" | "demo";
 
@@ -195,6 +203,8 @@ export type NewApplicationInput = {
   offer_summary: string | null;
   /** Description incomplète (offre dont l'originale n'a pas pu être lue). */
   offer_description_partial?: boolean;
+  /** Titre d'origine d'une offre importée dont le titre a été nettoyé (migration 0042). */
+  position_original?: string | null;
 };
 
 /**
@@ -202,7 +212,7 @@ export type NewApplicationInput = {
  * avec son premier événement d'historique. Retourne son id.
  */
 export async function createApplication(input: NewApplicationInput): Promise<string> {
-  const { offer_summary, offer_description_partial, ...fields } = input;
+  const { offer_summary, offer_description_partial, position_original, ...fields } = input;
   // Secteur (migration 0038) : seulement s'il est reconnu, sinon null (pastille « Autre »).
   const sector = detectOfferSector(fields.position, fields.offer_description);
   const row = {
@@ -240,21 +250,14 @@ export async function createApplication(input: NewApplicationInput): Promise<str
   const user = await requireUser();
   const supabase = await createClient();
 
-  const insert = (values: Record<string, unknown>) =>
-    supabase.from("applications").insert(values).select("id").single();
-  const sectorField = sector ? { sector } : {};
-  let { data, error } = await insert({ ...row, ...partialFlag, ...sectorField, user_id: user.id });
-  // Migration 0038 pas encore appliquée : la candidature est créée sans secteur.
-  if (sector && isMissingSectorColumn(error)) {
-    console.error("[createApplication] colonne sector absente (migration 0038)");
-    ({ data, error } = await insert({ ...row, ...partialFlag, user_id: user.id }));
-  }
-  // Migration 0015 pas encore appliquée (colonne inconnue, code PGRST204) : la mention
-  // « description partielle » est perdue, mais la candidature est créée.
-  if (error?.code === "PGRST204" && offer_description_partial) {
-    console.error("[createApplication] colonne offer_description_partial absente (migration 0015)");
-    ({ data, error } = await insert({ ...row, user_id: user.id }));
-  }
+  // Colonnes facultatives, envoyées seulement si elles ont une valeur. Si l'une manque en base
+  // (migration pas encore appliquée), la candidature est créée sans elle : jamais d'échec pour ça.
+  const { data, error } = await insertWithOptionalColumns<{ id: string }>(
+    { ...partialFlag, ...(sector ? { sector } : {}), ...(position_original ? { position_original } : {}) },
+    (optional) => supabase.from("applications").insert({ ...row, ...optional, user_id: user.id }).select("id").single(),
+    OPTIONAL_COLUMN_MIGRATION,
+    "createApplication",
+  );
   if (error || !data) throw new Error(`Création de la candidature impossible : ${error?.message}`);
 
   const { error: eventsError } = await supabase

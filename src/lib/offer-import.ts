@@ -17,6 +17,8 @@ export type ImportedOffer = {
    * texte collé, ou page lue par l'extension navigateur).
    */
   source: "structured" | "jina" | "text" | "extension";
+  /** Titre tel que lu sur l'offre, quand le nettoyage (tidyImportedTitle) l'a changé. */
+  positionOriginal?: string;
 };
 
 /** "not_found" : l'offre n'existe plus ; "failed" : page illisible, le texte peut être collé à la main. */

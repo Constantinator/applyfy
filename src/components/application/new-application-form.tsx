@@ -20,6 +20,7 @@ import { UsageLimitBanner } from "@/components/usage/usage-limit-banner";
 import { readOpenTab } from "@/lib/extension-bridge";
 import { isLimitReached, LIMIT_REACHED_LABEL, type AiUsageCount } from "@/lib/ai-usage-limits";
 import { normalizeCompanyName } from "@/lib/normalize";
+import { POSITION_ORIGINAL_MAX } from "@/lib/position-title";
 import {
   OFFER_DESCRIPTION_MAX_LENGTH,
   OFFER_PASTED_TEXT_MAX_LENGTH,
@@ -125,6 +126,9 @@ export function NewApplicationForm({
   const [offerUrl, setOfferUrl] = useState(initialOfferUrl ?? "");
   const [description, setDescription] = useState("");
   const [summary, setSummary] = useState("");
+  // Titre d'origine de l'offre importée, quand il a été nettoyé : envoyé seulement si le titre
+  // proposé est enregistré tel quel (un titre retouché ou tapé à la main reste celui de l'utilisateur).
+  const [importedTitle, setImportedTitle] = useState<{ original: string; proposed: string } | null>(null);
 
   const [importStatus, setImportStatus] = useState<AsyncStatus>({ state: "idle" });
   const [summaryStatus, setSummaryStatus] = useState<AsyncStatus>({ state: "idle" });
@@ -227,6 +231,11 @@ export function NewApplicationForm({
         setters[field](retrieved[field]);
         filled.push(FIELD_LABELS[field]);
       }
+    }
+    if (retrieved.position && !now.position.trim()) {
+      setImportedTitle(
+        offer.positionOriginal ? { original: offer.positionOriginal.slice(0, POSITION_ORIGINAL_MAX), proposed: retrieved.position } : null,
+      );
     }
 
     const notRetrieved = IMPORTED_FIELDS.filter((field) => !retrieved[field]);
@@ -424,6 +433,9 @@ export function NewApplicationForm({
               onChange={(e) => setPosition(e.target.value)}
               className={inputClassName + highlight("position")}
             />
+            {importedTitle && position === importedTitle.proposed && (
+              <input type="hidden" name="position_original" value={importedTitle.original} />
+            )}
           </Field>
         </div>
 

@@ -21,6 +21,7 @@ import {
   OFFER_PASTED_TEXT_MAX_LENGTH,
   SUMMARY_MIN_LENGTH,
 } from "@/lib/offer-limits";
+import { tidyImportedTitle } from "@/lib/position-title";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
 // Ces actions déclenchent des requêtes sortantes et des appels payants à l'API Claude :
@@ -32,6 +33,12 @@ async function ensureAllowed() {
 export type ImportOfferResult =
   | { ok: true; offer: ImportedOffer }
   | { ok: false; error: string; kind: OfferImportErrorKind };
+
+/** Titre de l'offre nettoyé (lieu, « H/F »…) ; l'original est gardé s'il a changé. */
+function tidyOffer(offer: ImportedOffer): ImportedOffer {
+  const position = tidyImportedTitle(offer.position, { company: offer.company, location: offer.location });
+  return position === offer.position ? offer : { ...offer, position, positionOriginal: offer.position };
+}
 
 function importFailure(error: unknown, context: string): ImportOfferResult {
   if (error instanceof OfferImportError) return { ok: false, error: error.message, kind: error.kind };
@@ -46,7 +53,7 @@ export async function importOfferAction(url: string): Promise<ImportOfferResult>
   }
 
   try {
-    return { ok: true, offer: await importOfferFromUrl(url.trim()) };
+    return { ok: true, offer: tidyOffer(await importOfferFromUrl(url.trim())) };
   } catch (error) {
     return importFailure(error, "importOffer");
   }
@@ -64,7 +71,7 @@ export async function importOfferFromTextAction(text: string): Promise<ImportOff
   }
 
   try {
-    return { ok: true, offer: await importOfferFromText(trimmed) };
+    return { ok: true, offer: tidyOffer(await importOfferFromText(trimmed)) };
   } catch (error) {
     return importFailure(error, "importOfferFromText");
   }
@@ -92,7 +99,7 @@ export async function importOfferFromPageAction(page: OpenTabPage): Promise<Impo
   }
 
   try {
-    return { ok: true, offer: await importOfferFromPage({ url, title, text, jsonLd }) };
+    return { ok: true, offer: tidyOffer(await importOfferFromPage({ url, title, text, jsonLd })) };
   } catch (error) {
     return importFailure(error, "importOfferFromPage");
   }

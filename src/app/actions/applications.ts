@@ -15,6 +15,7 @@ import {
 } from "@/lib/applications";
 import { CONTACT_NAME_MAX_LENGTH, EMAIL_PATTERN, NOTES_MAX_LENGTH } from "@/lib/application-details";
 import { normalizeCompanyName } from "@/lib/normalize";
+import { POSITION_ORIGINAL_MAX } from "@/lib/position-title";
 import { OFFER_DESCRIPTION_MAX_LENGTH, OFFER_SUMMARY_MAX_LENGTH } from "@/lib/offer-limits";
 import { STATUS_LABELS, isApplicationStatus } from "@/lib/types";
 import { recordUserJobOffer } from "@/lib/user-job-offers";
@@ -275,12 +276,20 @@ export async function createApplicationAction(
     return { status: "error", message: "Corrige les champs indiqués.", fieldErrors, values };
   }
 
+  // Titre d'origine d'une offre importée (champ caché, présent seulement si le titre nettoyé
+  // proposé est enregistré sans retouche) : gardé pour pouvoir revenir en arrière.
+  const positionOriginal = String(formData.get("position_original") ?? "").trim();
+
   // Toujours créée en brouillon : le statut se change ensuite depuis la fiche.
   let id: string;
   try {
     id = await createApplication({
       company: values.company,
       position: values.position,
+      position_original:
+        positionOriginal && positionOriginal !== values.position && positionOriginal.length <= POSITION_ORIGINAL_MAX
+          ? positionOriginal
+          : null,
       location: values.location || null,
       offer_url: values.offer_url || null,
       offer_description: values.offer_description || null,
