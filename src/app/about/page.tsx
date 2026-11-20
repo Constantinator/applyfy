@@ -15,7 +15,7 @@ export const metadata: Metadata = pageMetadata({
 
 export default function AboutPage() {
   return (
-    <div className="flex flex-1 flex-col bg-white">
+    <div className="flex flex-1 flex-col bg-page">
       <SiteHeader />
       <main className="flex-1">
         <article className="ui-page">

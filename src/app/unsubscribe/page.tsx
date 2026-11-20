@@ -17,7 +17,7 @@ export default async function UnsubscribePage({ searchParams }: PageProps<"/unsu
   const action = valid ? `/api/unsubscribe?${new URLSearchParams({ token, uid })}` : "";
 
   return (
-    <main className="flex flex-1 flex-col items-center bg-white px-4 pt-14 pb-20 sm:pt-20 dark:bg-slate-950">
+    <main className="flex flex-1 flex-col items-center bg-page px-4 pt-14 pb-20 sm:pt-20 dark:bg-slate-950">
       <div className="ui-card w-full max-w-[480px] px-5 py-8 text-center sm:px-8 sm:py-10">
         <Link
           href="/"

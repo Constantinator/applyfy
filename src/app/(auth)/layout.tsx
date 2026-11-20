@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/server";
 // Layout des pages de connexion / inscription.
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex flex-1 flex-col items-center bg-white px-4 pt-12 pb-16 sm:pt-16">
+    <main className="flex flex-1 flex-col items-center bg-page px-4 pt-12 pb-16 sm:pt-16">
       <div className="ui-card w-full max-w-[440px] px-5 py-7 sm:px-8 sm:py-9">
         <Link
           href="/"

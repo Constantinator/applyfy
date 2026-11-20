@@ -58,7 +58,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
           <ArticleBody content={post.content} />
         </div>
       ) : (
-        <div className="mt-7 rounded-block border border-line bg-surface px-6 py-10 text-center text-muted">
+        <div className="mt-7 rounded-block border border-line bg-card px-6 py-10 text-center text-muted">
           Article à venir
         </div>
       )}

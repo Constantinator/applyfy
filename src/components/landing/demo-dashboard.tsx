@@ -649,7 +649,7 @@ export function DemoDashboard() {
   ));
 
   return (
-    <div className="bg-white text-left text-ink">
+    <div className="bg-page text-left text-ink">
       {/* Barre de fenêtre du navigateur, avec la mention « Exemple fictif » toujours visible. */}
       <div className="flex items-center gap-3 border-b border-line bg-box px-4 py-2.5">
         <div aria-hidden="true" className="hidden gap-1.5 sm:flex">

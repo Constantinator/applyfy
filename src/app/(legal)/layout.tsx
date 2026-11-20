@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/site/site-header";
 // Pages légales (mentions légales, confidentialité, CGU) : publiques, sans sidebar.
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col bg-white">
+    <div className="flex flex-1 flex-col bg-page">
       <SiteHeader />
       <main className="ui-page flex-1">
         <div className="mx-auto max-w-[720px]">

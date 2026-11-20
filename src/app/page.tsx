@@ -301,7 +301,7 @@ export default function LandingPage() {
 
   return (
     // overflow-x-clip : pas de défilement horizontal sur mobile (clip, pas hidden : l'en-tête reste collant).
-    <div className="flex flex-1 flex-col overflow-x-clip bg-white leading-normal tracking-[-0.011em] text-ink">
+    <div className="flex flex-1 flex-col overflow-x-clip bg-page leading-normal tracking-[-0.011em] text-ink">
       <SiteHeader />
 
       <main className="flex-1">
@@ -311,7 +311,7 @@ export default function LandingPage() {
         </Suspense>
 
         {/* Hero : halo bleu très léger (seul dégradé de la page avec la carte bêta). */}
-        <section className="bg-[radial-gradient(420px_260px_at_50%_0%,#F3F6FF_0%,#fff_75%)] pt-10 pb-8 text-center md:bg-[radial-gradient(900px_380px_at_50%_0%,#F3F6FF_0%,#fff_70%)] md:pt-[84px] md:pb-10">
+        <section className="bg-[radial-gradient(420px_260px_at_50%_0%,#F3F6FF_0%,#fafafa_75%)] pt-10 pb-8 text-center md:bg-[radial-gradient(900px_380px_at_50%_0%,#F3F6FF_0%,#fafafa_70%)] md:pt-[84px] md:pb-10">
           <div className={WRAP}>
             {betaOpen && (
               <a
@@ -429,7 +429,7 @@ export default function LandingPage() {
         <section
           id="comment-ca-marche"
           aria-labelledby="steps-title"
-          className={`border-y border-line bg-surface ${SECTION} ${SCROLL_MARGIN}`}
+          className={`border-y border-line bg-card ${SECTION} ${SCROLL_MARGIN}`}
         >
           <div className={WRAP}>
             <Reveal className="mx-auto max-w-[680px] md:text-center">
@@ -600,7 +600,7 @@ export default function LandingPage() {
               role="region"
               aria-label="Comparatif, à faire défiler"
               tabIndex={0}
-              className="ui-focus relative mt-7 overflow-x-auto rounded-card border border-line md:mt-12"
+              className="ui-focus relative mt-7 overflow-x-auto rounded-card border border-line bg-card md:mt-12"
             >
               <table className="w-full min-w-[34rem] border-collapse text-sm">
                 <caption className="sr-only">
