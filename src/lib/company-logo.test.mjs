@@ -52,3 +52,12 @@ test("écrans : logo dans Offres pour toi, /offres (liste et panneau), /candidat
     assert.doesNotMatch(source(path), /CompanyLogo|companyLogo|logo\.dev/i, path);
   }
 });
+
+test("attribution Logo.dev dans le pied de page commun (pages publiques comprises) et politique de confidentialité à jour", () => {
+  const footer = source("components/site-footer.tsx");
+  assert.match(footer, /<a href="https:\/\/logo\.dev" className=\{LINK\}>\s+Logos fournis par Logo\.dev\s+<\/a>/);
+  assert.match(source("app/layout.tsx"), /<SiteFooter \/>/);
+  const policy = source("app/(legal)/politique-confidentialite/page.tsx");
+  assert.match(policy, /Affichage des logos d'entreprises \(offres, candidatures, tableau de bord\) : ton navigateur charge chaque logo depuis les serveurs de Logo\.dev, qui reçoivent ton adresse IP et le domaine de l'entreprise concernée \(par exemple qonto\.com\), sans ton nom ni ton adresse e-mail/);
+  assert.doesNotMatch(policy, /logos d'entreprises dans « Trouver une offre »/);
+});

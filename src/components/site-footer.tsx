@@ -33,6 +33,10 @@ export function SiteFooter() {
             </Link>
           ))}
           <ConsentSettingsLink className={LINK} />
+          {/* Attribution exigée par l'offre gratuite de Logo.dev (logos des entreprises). */}
+          <a href="https://logo.dev" className={LINK}>
+            Logos fournis par Logo.dev
+          </a>
         </nav>
       </div>
     </footer>
