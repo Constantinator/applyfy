@@ -364,3 +364,19 @@ test("typographie : trait d'union insécable avant un pronom (« Enregistre-le �
   assert.equal(frenchSpaces("Télécharge-le plus tard"), "Télécharge\u2011le plus tard");
   assert.equal(frenchSpaces("mots-clés et CV"), "mots-clés et CV", "les autres mots composés ne changent pas");
 });
+
+test("pied de page pendant la phase guidée : seuls « Notre histoire » et « Blog » sont masqués", () => {
+  const footer = read("components/site-footer.tsx");
+  const marked = [...footer.matchAll(/<(?:Link|a)\b[^>]*data-guide-hidden[^>]*>\s*([^<]+?)\s*</g)].map((m) => m[1]);
+  assert.deepEqual(marked, ["Notre histoire", "Blog"]);
+  // Liens légaux, cookies et attribution jamais marqués.
+  assert.match(footer, /\{LEGAL_LINKS\.map\(\(link\) => \(\s*<Link key=\{link\.href\} href=\{link\.href\} className=\{LINK\}>/);
+  assert.match(footer, /<ConsentSettingsLink className=\{LINK\} \/>/);
+  assert.match(footer, /<a href="https:\/\/logo\.dev" className=\{LINK\}>/);
+  assert.match(read("components/onboarding/guided-footer-style.tsx"), /\[data-guide-hidden\]\{display:none!important\}/);
+  // Seulement pendant la phase guidée : import et création, éditeur guidé, /bienvenue.
+  assert.match(read("components/onboarding/guided-page-header.tsx"), /<GuidedFooterStyle \/>/);
+  assert.match(read("components/cv-builder/cv-builder-editor.tsx"), /\{guideStep && <GuidedFooterStyle \/>\}/);
+  assert.match(read("app/(onboarding)/layout.tsx"), /<GuidedFooterStyle \/>/);
+  assert.doesNotMatch(read("app/layout.tsx"), /GuidedFooterStyle/, "hors phase guidée : pied de page inchangé");
+});

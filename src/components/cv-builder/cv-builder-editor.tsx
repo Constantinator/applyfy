@@ -53,6 +53,8 @@ import { CvContentPanel } from "./cv-content-panel";
 import { CvTranslatePanel } from "./cv-translate-panel";
 import { CvStylePanel } from "./cv-style-panel";
 import { FieldEditingContext, FieldInput } from "./form-controls";
+import { GuidedFooterStyle } from "@/components/onboarding/guided-footer-style";
+
 import { GuidedHeader } from "./guided-header";
 
 export type CvBuilderUsage = {
@@ -493,6 +495,7 @@ export function CvBuilderEditor({
     // Plein écran : la page entière sur grand écran (score et chat à gauche, aperçu à droite).
     <div className="flex flex-col lg:h-dvh">
       {guideStep && <GuidedHeader step={guideStep} onSkip={() => void skipGuide()} />}
+      {guideStep && <GuidedFooterStyle />}
       {/* Barre du haut : retour, menu de l'application, titre, enregistrement, téléchargement. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-white px-3 py-2 sm:px-4 dark:border-slate-800 dark:bg-slate-900">
         {/* Phase guidée : ni « Retour » ni « Menu » (seule sortie : « Passer », dans l'en-tête guidé). */}

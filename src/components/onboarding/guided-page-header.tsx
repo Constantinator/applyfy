@@ -5,6 +5,7 @@ import { useRef } from "react";
 
 import { finishGuideAction } from "@/app/actions/onboarding";
 import { GuidedHeader } from "@/components/cv-builder/guided-header";
+import { GuidedFooterStyle } from "@/components/onboarding/guided-footer-style";
 import type { GuideEditorStep } from "@/lib/onboarding";
 
 /**
@@ -29,6 +30,7 @@ export function GuidedPageHeader({ step }: { step: GuideEditorStep }) {
   return (
     <>
       <style>{"[data-app-chrome]{display:none!important}"}</style>
+      <GuidedFooterStyle />
       <GuidedHeader step={step} onSkip={skip} />
     </>
   );

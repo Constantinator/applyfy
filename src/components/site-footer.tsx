@@ -21,10 +21,12 @@ export function SiteFooter() {
           <p>© {new Date().getFullYear()}</p>
         </div>
         <nav aria-label="Liens du site" className="flex flex-wrap items-center justify-center gap-x-6 md:gap-y-2">
-          <Link href="/about" className={LINK}>
+          {/* data-guide-hidden : masqués pendant la phase guidée (GuidedFooterStyle) ; liens légaux,
+              cookies et attribution toujours visibles. */}
+          <Link href="/about" data-guide-hidden className={LINK}>
             Notre histoire
           </Link>
-          <Link href="/blog" className={LINK}>
+          <Link href="/blog" data-guide-hidden className={LINK}>
             Blog
           </Link>
           {LEGAL_LINKS.map((link) => (
