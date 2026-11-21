@@ -123,6 +123,8 @@ export type CombinedSearchResult = {
   truncated: boolean;
   /** Source en panne alors que l'autre a répondu. */
   warning: string | null;
+  /** Sources en échec (pour décider d'une seconde recherche sans risquer la même attente). */
+  failed: OfferSource[];
 };
 
 /** Même intitulé chez le même employeur : Adzuna reprend parfois des offres France Travail. */
@@ -179,6 +181,7 @@ export async function searchAllOffers(search: OfferSearch, sources = defaultSour
     warning: failures.length
       ? `Les offres ${failures.map((f) => OFFER_SOURCES[f.source]).join(" et ")} sont momentanément indisponibles.`
       : null,
+    failed: failures.map((f) => f.source),
   };
 }
 

@@ -19,6 +19,9 @@ import { KNOWN_COMPANY_DOMAINS, companyLogo } from "@/lib/company-logos";
 import { getLatestBuilderCv } from "@/lib/cv-builder";
 import { targetJobOf } from "@/lib/cv-builder-types";
 import { isJobBoardOfferId } from "@/lib/job-boards";
+import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
+import { OFFERS_LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import { shouldFallBackToLatest } from "@/lib/offer-reco-rules";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
   CONTRACT_FILTERS,
@@ -147,6 +150,21 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           error = e instanceof OfferSourceError ? e.message : "La recherche a échoué. Réessaie dans un instant.";
         }
       }
+    }
+  }
+
+  // Recommandations sans aucune offre : les dernières offres publiées à la place (jamais de page à
+  // 0 offre quand des offres existent). Pas de bascule si France Travail a échoué (même attente).
+  let recoFallback = false;
+  if (recommending && shouldFallBackToLatest(result)) {
+    try {
+      const latest = await searchLatestOffers(page);
+      search = latestOffersSearch(page);
+      department = null;
+      result = latest;
+      recoFallback = true;
+    } catch (e) {
+      if (!(e instanceof OfferSourceError)) console.error("[offres] dernières offres (recommandations vides)", e);
     }
   }
 
@@ -325,12 +343,22 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
           </div>
         )}
 
+        {recoFallback && (
+          // Recommandations vides : Lumeo le dit, puis les dernières offres publiées.
+          <div role="status" className={`flex items-center gap-3 ${mobileHidden}`}>
+            <LumeoAvatar size={36} expression="reflechit" standalone />
+            <p className="text-sm text-ink dark:text-slate-200">{OFFERS_LUMEO_TEXTS.recoEmpty}</p>
+          </div>
+        )}
+
         {(result || selected) && (
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             {result && (
               <section aria-labelledby="offres-resultats" className={`space-y-3 ${mobileHidden}`}>
                 <h2 id="offres-resultats" className="text-sm text-muted dark:text-slate-300">
-                  {showingLatest && <span className="font-semibold text-ink dark:text-white">Dernières offres publiées · </span>}
+                  {(showingLatest || recoFallback) && (
+                    <span className="font-semibold text-ink dark:text-white">Dernières offres publiées · </span>
+                  )}
                   <strong className="font-semibold text-ink dark:text-white">
                     {numberFormatter.format(result.total)} offre{result.total > 1 ? "s" : ""}
                   </strong>

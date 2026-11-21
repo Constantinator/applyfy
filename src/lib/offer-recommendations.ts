@@ -2,6 +2,7 @@ import "server-only";
 
 import { getApplications } from "./applications";
 import { resolveDepartment } from "./geo";
+import { isLocationRecent } from "./offer-reco-rules";
 import { titleKeywords } from "./offer-title";
 import type { ContractFilter } from "./offer-types";
 import type { RecentSearch } from "./recent-searches";
@@ -99,16 +100,18 @@ export async function getRecommendationBasis(
       location: search.place,
       contract: search.contract ?? contractIn(search.keywords),
       weight: searchWeight(now - search.at),
+      ageMs: now - search.at,
     })),
     // Métier du dernier CV : pèse comme une candidature récente (seul repère d'un nouveau compte).
     ...(cvTargetJob?.trim()
-      ? [{ title: cvTargetJob.trim(), location: "", contract: contractIn(cvTargetJob), weight: 1 }]
+      ? [{ title: cvTargetJob.trim(), location: "", contract: contractIn(cvTargetJob), weight: 1, ageMs: 0 }]
       : []),
     ...applications.map((app) => ({
       title: app.position,
       location: app.location ?? "",
       contract: contractIn(app.position),
       weight: applicationWeight(now - Date.parse(app.applied_at ?? app.created_at)),
+      ageMs: now - Date.parse(app.applied_at ?? app.created_at),
     })),
   ];
 
@@ -121,10 +124,11 @@ export async function getRecommendationBasis(
   );
   if (titles.length === 0) return null;
 
-  // Première localisation reconnue parmi celles qui pèsent le plus (3 essais au plus) ;
-  // sinon, toute la France.
+  // Première localisation reconnue parmi celles qui pèsent le plus (3 essais au plus), venant
+  // d'une candidature ou d'une recherche de 30 jours au plus ; sinon, toute la France.
   const locations = byWeight(
     sources
+      .filter((source) => isLocationRecent(source.ageMs))
       .map((source) => ({ value: source.location ? cleanLocation(source.location) : "", weight: source.weight }))
       .filter((vote) => vote.value.length >= 2),
   );

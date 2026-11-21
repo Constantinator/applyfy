@@ -300,3 +300,8 @@ export const GUIDE_BANNER_TEXTS = {
   close: "Fermer",
   freeNote: (adaptations: number) => `Gratuit : ${adaptations} adaptation${adaptations > 1 ? "s" : ""} par mois.`,
 } as const;
+
+/** « Trouver une offre » : recommandations sans résultat, dernières offres affichées à la place (Lumeo « réfléchit »). */
+export const OFFERS_LUMEO_TEXTS = {
+  recoEmpty: "Je n'ai rien trouvé qui te corresponde pour l'instant. Voici les dernières offres publiées.",
+} as const;

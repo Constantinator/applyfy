@@ -101,7 +101,7 @@ test("arrivée sans recherche : recommandations si le métier du dernier CV est 
   // Métier : celui du dernier CV (poste visé, sinon intitulé), sans échec.
   assert.match(page, /targetJobOf\(cv\.data\) \|\| cv\.data\.personal\.jobTitle/);
   // Le métier du CV entre dans les recommandations (comme une candidature récente).
-  assert.match(read("lib/offer-recommendations.ts"), /\{ title: cvTargetJob\.trim\(\), location: "", contract: contractIn\(cvTargetJob\), weight: 1 \}/);
+  assert.match(read("lib/offer-recommendations.ts"), /\{ title: cvTargetJob\.trim\(\), location: "", contract: contractIn\(cvTargetJob\), weight: 1, ageMs: 0 \}/);
   // Recommandations coupées : ?reco=0, gardé dans la pagination ; la préférence n'est enregistrée que par un lien.
   const toggle = read("components/offers/recommendations-toggle.tsx");
   assert.match(toggle, /else if \(active\) router\.push\("\/offres\?reco=0", \{ scroll: false \}\);/);
@@ -124,4 +124,39 @@ test("délai maximal des sources externes : 8 s, puis source traitée comme indi
   assert.match(read("lib/offer-types.ts"), /export const SOURCE_TIMEOUT_MS = 8000;/);
   assert.equal((read("lib/france-travail.ts").match(/signal: AbortSignal\.timeout\(SOURCE_TIMEOUT_MS\)/g) ?? []).length, 2);
   assert.equal((read("lib/adzuna.ts").match(/signal: AbortSignal\.timeout\(SOURCE_TIMEOUT_MS\)/g) ?? []).length, 1);
+});
+
+const { LOCATION_MAX_AGE_DAYS, isLocationRecent, shouldFallBackToLatest } = await import("./offer-reco-rules.ts");
+const { OFFERS_LUMEO_TEXTS } = await import("./lumeo-texts.ts");
+
+test("lot 8e : recommandations à 0 offre → dernières offres publiées (sauf panne de France Travail)", () => {
+  assert.equal(shouldFallBackToLatest({ total: 0, failed: [] }), true);
+  assert.equal(shouldFallBackToLatest({ total: 0, failed: ["adzuna"] }), true, "Adzuna seule en panne : bascule quand même");
+  assert.equal(shouldFallBackToLatest({ total: 0, failed: ["france-travail"] }), false, "pas de seconde attente");
+  assert.equal(shouldFallBackToLatest({ total: 0, failed: ["france-travail", "adzuna"] }), false);
+  assert.equal(shouldFallBackToLatest({ total: 3, failed: [] }), false, "des recommandations : pas de bascule");
+  assert.equal(shouldFallBackToLatest(null), false, "recherche en échec : message habituel");
+  const page = read("app/(app)/offres/page.tsx");
+  assert.match(page, /if \(recommending && shouldFallBackToLatest\(result\)\) \{\s*try \{\s*const latest = await searchLatestOffers\(page\);/);
+  assert.match(page, /<LumeoAvatar size=\{36\} expression="reflechit" standalone \/>\s*<p[^>]*>\{OFFERS_LUMEO_TEXTS\.recoEmpty\}<\/p>/);
+  assert.match(page, /\(showingLatest \|\| recoFallback\) && \(/);
+  // ?reco=0 : jamais de recommandations, donc jamais cette bascule ni la phrase de Lumeo.
+  assert.match(page, /const wantsReco = configured && !hasManualSearch && \(explicitReco \|\| \(!recoOff && cvTargetJob !== null\)\);/);
+  assert.match(page, /const recommending = wantsReco && \(explicitReco \|\| basis !== null\);/);
+  assert.match(read("lib/offers.ts"), /failed: failures\.map\(\(f\) => f\.source\),/);
+  assert.equal(OFFERS_LUMEO_TEXTS.recoEmpty, "Je n'ai rien trouvé qui te corresponde pour l'instant. Voici les dernières offres publiées.");
+  assert.doesNotMatch(OFFERS_LUMEO_TEXTS.recoEmpty, /\d|illimit|\bvous\b/i);
+});
+
+test("lot 8e : lieu des recommandations retenu seulement s'il a 30 jours au plus", () => {
+  const day = 86_400_000;
+  assert.equal(LOCATION_MAX_AGE_DAYS, 30);
+  assert.equal(isLocationRecent(0), true);
+  assert.equal(isLocationRecent(30 * day), true);
+  assert.equal(isLocationRecent(31 * day), false);
+  assert.equal(isLocationRecent(Number.NaN), false, "date illisible : lieu ignoré");
+  const reco = read("lib/offer-recommendations.ts");
+  assert.match(reco, /\.filter\(\(source\) => isLocationRecent\(source\.ageMs\)\)\s*\.map\(\(source\) => \(\{ value: source\.location/);
+  // Le métier compte toujours, quel que soit l'âge (pas de filtre sur les intitulés).
+  assert.match(reco, /const titles = byWeight\(\s*sources\s*\.map\(\(source\) => \(\{ value: titleKeywords\(source\.title\)/);
 });
