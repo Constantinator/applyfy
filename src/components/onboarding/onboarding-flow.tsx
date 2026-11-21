@@ -140,7 +140,7 @@ function OfferLinkForm({ onSubmit, disabled }: { onSubmit: (link: string) => voi
           }}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? "ob-offer-error" : undefined}
-          className="h-14 w-full min-w-0 flex-1 rounded-2xl border-[1.5px] border-[#E4E4E7] bg-white px-4 text-base text-ink placeholder:text-muted focus:border-accent focus:outline-none focus-visible:ring-3 focus-visible:ring-accent/20 aria-invalid:border-[#B91C1C]"
+          className="h-14 w-full min-w-0 rounded-2xl sm:flex-1 border-[1.5px] border-[#E4E4E7] bg-white px-4 text-base text-ink placeholder:text-muted focus:border-accent focus:outline-none focus-visible:ring-3 focus-visible:ring-accent/20 aria-invalid:border-[#B91C1C]"
         />
         <button type="submit" disabled={disabled} className="ui-btn-primary h-14 px-6 text-[15px]">
           {T.cheminOffre.submit}

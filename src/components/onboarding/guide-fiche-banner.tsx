@@ -9,9 +9,9 @@ import { GUIDE_BANNER_TEXTS as T } from "@/lib/lumeo-texts";
 
 /**
  * Bandeau de Lumeo sur la fiche de la candidature ajoutée pendant la phase guidée : sur le côté
- * (en haut à droite sur ordinateur, au-dessus du bouton rond de Lumeo ; carte en bas sur mobile,
- * où le bouton de Lumeo est dans la barre du haut). Non bloquant : rien n'est masqué ni piégé.
- * Noté « vu » dès qu'il s'affiche dans le navigateur ; un onglet fermé avant l'affichage le
+ * (en bas à droite sur ordinateur, au-dessus du bouton rond de Lumeo, sans cacher l'en-tête de la
+ * fiche ; carte en bas sur mobile, où le bouton de Lumeo est dans la barre du haut). Non bloquant :
+ * rien n'est masqué ni piégé. Noté « vu » dès qu'il s'affiche dans le navigateur ; un onglet fermé avant l'affichage le
  * laisse pour la prochaine ouverture de cette fiche.
  */
 export function GuideFicheBanner({ applicationId, freeNote }: { applicationId: string; freeNote: string | null }) {
@@ -30,7 +30,7 @@ export function GuideFicheBanner({ applicationId, freeNote }: { applicationId: s
   return (
     <aside
       aria-labelledby={titleId}
-      className="ob-slide-in fixed inset-x-3 bottom-3 z-30 rounded-card border border-line bg-white p-4 sm:inset-x-auto sm:top-20 sm:right-6 sm:bottom-auto sm:w-[360px] sm:p-5 dark:border-slate-700 dark:bg-slate-900"
+      className="ob-slide-in fixed inset-x-3 bottom-3 z-30 rounded-card border border-line bg-white p-4 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[360px] lg:bottom-24 sm:p-5 dark:border-slate-700 dark:bg-slate-900"
     >
       <button
         type="button"

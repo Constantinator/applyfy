@@ -243,3 +243,15 @@ test("animations de la phase guidée : dans prefers-reduced-motion: no-preferenc
   assert.match(editor, /<span className="ob-hop shrink-0">\s*<LumeoAvatar size=\{36\} expression="felicite" celebrate \/>/);
   assert.match(read("components/onboarding/guide-fiche-banner.tsx"), /className="ob-slide-in fixed/);
 });
+
+test("captures : champ du lien à pleine hauteur sur mobile, bandeau sans cacher l'en-tête, mode démo sans redirection", () => {
+  const flow = read("components/onboarding/onboarding-flow.tsx");
+  // En colonne (mobile), flex-1 écrasait la hauteur du champ : seulement à partir de sm.
+  assert.match(flow, /className="h-14 w-full min-w-0 rounded-2xl sm:flex-1/);
+  const banner = read("components/onboarding/guide-fiche-banner.tsx");
+  assert.match(banner, /sm:right-6 sm:bottom-6 sm:w-\[360px\] lg:bottom-24/);
+  assert.doesNotMatch(banner, /sm:top-/);
+  const server = read("lib/onboarding-server.ts");
+  const seen = server.slice(server.indexOf("export async function markGuideBannerSeen"));
+  assert.match(seen, /if \(!isSupabaseConfigured\(\)\) return;/);
+});

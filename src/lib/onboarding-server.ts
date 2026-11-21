@@ -22,7 +22,7 @@ import {
 } from "./onboarding";
 import { isMissingTable } from "./optional-columns";
 import { createAdminClient } from "./supabase/admin";
-import { createClient } from "./supabase/server";
+import { createClient, isSupabaseConfigured } from "./supabase/server";
 
 // Parcours d'accueil : lecture et enregistrement de la progression (table onboarding_progress,
 // migration 0045). Sans échec : si la table manque ou ne se lit pas, pas de parcours, et le
@@ -250,6 +250,7 @@ export async function shouldShowGuideBanner(applicationId: string): Promise<bool
 
 /** Bandeau affiché dans le navigateur : noté comme vu (il ne réapparaîtra plus). */
 export async function markGuideBannerSeen(applicationId: string) {
+  if (!isSupabaseConfigured()) return; // mode démo : rien à enregistrer (et pas de redirection vers /login)
   const user = await requireUser();
   const supabase = await createClient();
   const { error } = await supabase
