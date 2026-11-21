@@ -1,4 +1,7 @@
 import { AppNavProvider } from "@/components/app-nav-context";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import { AppTopbar } from "@/components/app-topbar";
 import { LumeoProvider } from "@/components/lumeo/lumeo-panel";
 import { getAccountName } from "@/lib/account";
@@ -8,12 +11,22 @@ import { getMyBeta } from "@/lib/beta";
 import { isClaudeConfigured } from "@/lib/claude";
 import { lumeoMockEnabled } from "@/lib/lumeo-mock";
 import { countMyUnreadBetaMessages, countUnreadForAdmin } from "@/lib/beta-messages";
+import { PATH_HEADER } from "@/lib/onboarding";
+import { getOnboardingEntry } from "@/lib/onboarding-server";
 import { accountInitials } from "@/lib/person-name";
 import { isAdminConfigured } from "@/lib/supabase/admin";
 
 // Layout de l'application (dashboard, candidatures, profil) : barre de navigation + contenu.
 // L'accès est protégé par le proxy (redirection) et par requireUser() dans la couche de données.
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  // Filet du parcours d'accueil : /dashboard demandé sans paramètre (connexion, adresse tapée) par
+  // un compte qui doit suivre le parcours → redirection AVANT de rendre la barre (sinon elle
+  // s'affiche un instant). Avec paramètres (retour de Stripe…), la page décide, comme avant.
+  // Même règle que la page du tableau de bord ; ancien compte : aucune lecture en base.
+  if ((await headers()).get(PATH_HEADER) === "/dashboard") {
+    const onboarding = await getOnboardingEntry();
+    if (onboarding) redirect(onboarding.target.kind === "editeur" ? `/cv-builder/${onboarding.target.cvId}` : "/bienvenue");
+  }
   const user = await getCurrentUser();
   const isAdmin = isAdminEmail(user?.email);
   const [beta, unreadBeta, unreadAdmin, accountName] = await Promise.all([

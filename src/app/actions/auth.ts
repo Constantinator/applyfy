@@ -9,6 +9,7 @@ import { safeRedirectPath } from "@/lib/auth";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/password";
 import { validateAccountName } from "@/lib/person-name";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { entryPathAfterAuth } from "@/lib/onboarding";
 import { queueWelcomeEmail } from "@/lib/welcome-email";
 
 export type AuthFormState =
@@ -100,10 +101,11 @@ export async function signupAction(
   });
   if (error) return { status: "error", message: authErrorMessage(error) };
 
-  // Confirmation d'email désactivée dans Supabase : session ouverte, email de bienvenue, direction le dashboard.
+  // Confirmation d'email désactivée dans Supabase : session ouverte, email de bienvenue, puis le
+  // parcours d'accueil directement (pas de passage par le tableau de bord, donc pas de barre affichée).
   if (data.session) {
     await queueWelcomeEmail(supabase, data.user);
-    redirect("/dashboard");
+    redirect(entryPathAfterAuth("/dashboard", data.user));
   }
 
   // Sinon, l'utilisateur doit cliquer sur le lien reçu par email (→ /auth/confirm → /dashboard),

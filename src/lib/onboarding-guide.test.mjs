@@ -9,7 +9,7 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guideOfferDestination, guidedEditorStep, guidedPhaseStep, resumeTarget } =
+const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guideOfferDestination, guidedEditorStep, guidedPhaseStep, resumeTarget, entryPathAfterAuth, PATH_HEADER } =
   await import("./onboarding.ts");
 const { AI_MONTHLY_LIMITS } = await import("./ai-usage-limits.ts");
 const { frenchSpaces, guideActiveIndex, guideStepIndex } = await import("./onboarding-guide.ts");
@@ -349,4 +349,32 @@ test("éditeur guidé (8a) : un seul état, « Continuer » toujours actif, PDF 
   assert.doesNotMatch(server, /advanceGuideToDownload/);
   assert.match(server.slice(server.indexOf("export async function advanceGuideToOffer")), /!isGuidedEditorStep\(row\.step\)\) return;/);
   assert.match(server, /const isGuidedEditorStep = \(step: string \| undefined\) => step === "guide_cv" \|\| step === "guide_telecharger";/);
+});
+
+test("arrivée sans barre (8b) : /bienvenue directement après inscription, confirmation et Google", () => {
+  const recent = { created_at: after, user_metadata: {} };
+  assert.equal(entryPathAfterAuth("/dashboard", recent), "/bienvenue");
+  assert.equal(entryPathAfterAuth("/dashboard", { created_at: before, user_metadata: {} }), "/dashboard", "ancien compte");
+  assert.equal(entryPathAfterAuth("/dashboard", { created_at: after, user_metadata: { onboarding_completed_at: "2026-11-21" } }), "/dashboard");
+  assert.equal(entryPathAfterAuth("/candidatures/x", recent), "/candidatures/x", "destination demandée gardée");
+  assert.equal(entryPathAfterAuth("/dashboard", null), "/dashboard");
+  assert.match(read("app/actions/auth.ts"), /redirect\(entryPathAfterAuth\("\/dashboard", data\.user\)\);/);
+  assert.match(read("app/auth/confirm/route.ts"), /const destination = ok \? entryPathAfterAuth\(next, user\) : "\/login\?erreur=lien";/);
+  assert.match(read("app/auth/callback/route.ts"), /ok \? entryPathAfterAuth\(next, user\) : "\/login\?error=auth"/);
+});
+
+test("arrivée sans barre (8b) : filet dans le layout, avant le rendu de la barre, seulement sur /dashboard nu", () => {
+  const proxy = read("proxy.ts");
+  assert.match(proxy, /headers\.set\(PATH_HEADER, `\$\{request\.nextUrl\.pathname\}\$\{request\.nextUrl\.search\}`\);/);
+  // Toutes les réponses de session passent par forward() (le mode démo, sans comptes, non).
+  assert.equal((proxy.match(/response = forward\(\);/g) ?? []).length, 2);
+  assert.equal(PATH_HEADER, "x-applyfy-path");
+  const layout = read("app/(app)/layout.tsx");
+  const guard = layout.indexOf('if ((await headers()).get(PATH_HEADER) === "/dashboard")');
+  assert.ok(guard > 0, "filet présent");
+  assert.ok(guard < layout.indexOf("<AppTopbar"), "avant le rendu de la barre");
+  assert.ok(guard < layout.indexOf("Promise.all("), "avant toute autre lecture");
+  assert.match(layout.slice(guard), /const onboarding = await getOnboardingEntry\(\);\s*if \(onboarding\) redirect\(/);
+  // Retour de Stripe (/dashboard?premium=bienvenue&…) : la page décide, comme avant.
+  assert.match(read("app/(app)/dashboard/page.tsx"), /if \(!welcomePremium\) \{/);
 });

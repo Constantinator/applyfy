@@ -1,8 +1,9 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
+import type { EmailOtpType, User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { safeRedirectPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { entryPathAfterAuth } from "@/lib/onboarding";
 import { queueWelcomeEmail } from "@/lib/welcome-email";
 
 // Lien de confirmation d'email envoyé par Supabase après l'inscription.
@@ -16,21 +17,25 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
   let ok = false;
+  let user: User | null = null;
 
   if (tokenHash && type) {
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
     ok = !error;
+    user = data.user;
     if (ok) {
       await queueWelcomeEmail(supabase, data.user);
     }
   } else if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     ok = !error;
+    user = data.user;
     if (ok) {
       await queueWelcomeEmail(supabase, data.user);
     }
   }
 
-  const destination = ok ? next : "/login?erreur=lien";
+  // Compte qui doit suivre le parcours d'accueil : directement /bienvenue (pas de barre affichée).
+  const destination = ok ? entryPathAfterAuth(next, user) : "/login?erreur=lien";
   return NextResponse.redirect(new URL(destination, request.url));
 }

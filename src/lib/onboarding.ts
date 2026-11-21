@@ -270,3 +270,22 @@ export function onboardingEmailVariant(input: {
   if (input.progress === "illisible" || input.progress?.completed) return "fini";
   return "en_cours";
 }
+
+/**
+ * Première page après l'inscription, la confirmation d'e-mail ou la connexion Google : un compte
+ * qui doit suivre le parcours (créé après la mise en ligne, parcours pas marqué terminé) va
+ * directement à /bienvenue au lieu du tableau de bord, sans afficher la barre de l'application.
+ * Une autre destination demandée (?next=) est gardée. /bienvenue renvoie au tableau de bord s'il
+ * n'y a rien à faire (table absente, parcours fini).
+ */
+export function entryPathAfterAuth(
+  next: string,
+  user: { created_at?: string | null; user_metadata?: Record<string, unknown> | null } | null | undefined,
+): string {
+  if (next !== "/dashboard" || !user) return next;
+  if (typeof user.user_metadata?.onboarding_completed_at === "string") return next;
+  return isAfterLaunch(user.created_at) ? "/bienvenue" : next;
+}
+
+/** En-tête interne posé par le proxy : chemin et paramètres demandés (filet de la redirection vers /bienvenue). */
+export const PATH_HEADER = "x-applyfy-path";

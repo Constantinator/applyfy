@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { PATH_HEADER } from "@/lib/onboarding";
+
 const PROTECTED_PREFIXES = ["/dashboard", "/candidatures", "/profil", "/offres", "/premium", "/extension", "/cv-builder", "/lumeo", "/admin", "/beta", "/bienvenue"];
 const AUTH_PAGES = ["/login", "/signup"];
 
@@ -15,7 +17,14 @@ export async function proxy(request: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return NextResponse.next(); // mode démo
 
-  let response = NextResponse.next({ request });
+  // Chemin demandé avec ses paramètres, transmis aux pages (en-tête interne, toujours réécrit :
+  // jamais celui du client). Sert au filet de la redirection vers /bienvenue dans le layout.
+  const forward = () => {
+    const headers = new Headers(request.headers);
+    headers.set(PATH_HEADER, `${request.nextUrl.pathname}${request.nextUrl.search}`);
+    return NextResponse.next({ request: { headers } });
+  };
+  let response = forward();
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -24,7 +33,7 @@ export async function proxy(request: NextRequest) {
       },
       setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
+        response = forward();
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
         );
