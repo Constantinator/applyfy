@@ -16,6 +16,8 @@ import type { Department } from "@/lib/geo";
 import { loadCompanyDomains } from "@/lib/company-domains-store";
 import { logLogoCoverage } from "@/lib/company-domain";
 import { KNOWN_COMPANY_DOMAINS, companyLogo } from "@/lib/company-logos";
+import { getLatestBuilderCv } from "@/lib/cv-builder";
+import { targetJobOf } from "@/lib/cv-builder-types";
 import { isJobBoardOfferId } from "@/lib/job-boards";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
@@ -33,8 +35,10 @@ import {
   isOfferSearchConfigured,
   offerQueryParams,
   readOfferQuery,
+  latestOffersSearch,
   resolveOfferSearch,
   searchAllOffers,
+  searchLatestOffers,
   type CombinedSearchResult,
   type OfferQuery,
 } from "@/lib/offers";
@@ -61,6 +65,21 @@ function publishedLabel(iso: string | null) {
   return `Publiée le ${dateFormatter.format(new Date(iso))}`;
 }
 
+/**
+ * Métier visé du dernier CV (« Quel poste vises-tu ? », import, sinon intitulé du CV), ou null.
+ * Sans échec : sans CV ou si la lecture échoue, null (les dernières offres s'affichent).
+ */
+async function latestCvTargetJob(): Promise<string | null> {
+  try {
+    const cv = await getLatestBuilderCv();
+    const job = cv ? (targetJobOf(cv.data) || cv.data.personal.jobTitle).trim() : "";
+    return job.length >= 2 ? job : null;
+  } catch (error) {
+    console.error("[offres] métier du dernier CV", error);
+    return null;
+  }
+}
+
 export default async function OffersPage({ searchParams }: PageProps<"/offres">) {
   if (isSupabaseConfigured()) await requireUser();
   const params = await searchParams;
@@ -72,30 +91,50 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   const selectedId = isOfferId(params.offre) ? params.offre : null;
   const configured = isOfferSearchConfigured();
 
-  // Recommandations personnalisées (?reco=1, sans recherche manuelle) : recherche
-  // construite à partir des candidatures et des recherches récentes de l'utilisateur.
-  const recommending = configured && params.reco === "1" && !hasManualSearch;
-  const recentSearches = recommending
-    ? parseRecentSearches((await cookies()).get(RECENT_SEARCHES_COOKIE)?.value)
-    : [];
-  const basis = recommending
-    ? await getRecommendationBasis(recentSearches).catch((e) => {
+  // Sans recherche manuelle : recommandations (?reco=1, ou par défaut si le métier du dernier CV
+  // est connu), sinon les dernières offres publiées. ?reco=0 : recommandations coupées.
+  const explicitReco = params.reco === "1";
+  const recoOff = params.reco === "0";
+  const cvTargetJob = configured && !hasManualSearch && !recoOff ? await latestCvTargetJob() : null;
+  const wantsReco = configured && !hasManualSearch && (explicitReco || (!recoOff && cvTargetJob !== null));
+  const recentSearches = wantsReco ? parseRecentSearches((await cookies()).get(RECENT_SEARCHES_COOKIE)?.value) : [];
+  const basis = wantsReco
+    ? await getRecommendationBasis(recentSearches, cvTargetJob).catch((e) => {
         console.error("[offres] recommandations", e);
         return null;
       })
     : null;
+  // Recommandations par défaut sans base exploitable : les dernières offres, plutôt qu'un écran vide.
+  const recommending = wantsReco && (explicitReco || basis !== null);
+  const showingLatest = configured && !hasManualSearch && !recommending;
   const query: OfferQuery = basis
-    ? { keywords: basis.keywords, place: basis.place, contract: basis.contract, sort: "recent", page: manualQuery.page }
+    ? {
+        keywords: basis.keywords,
+        place: basis.place,
+        contract: basis.contract,
+        sort: "recent",
+        sortChosen: false,
+        page: manualQuery.page,
+      }
     : manualQuery;
   const { page } = query;
-  const hasSearch = recommending ? basis !== null : hasManualSearch;
+  const hasSearch = recommending ? basis !== null : hasManualSearch || showingLatest;
 
   let search: OfferSearch | null = null;
   let department: Department | null = null;
   let result: CombinedSearchResult | null = null;
   let error: string | null = null;
 
-  if (configured) {
+  if (showingLatest) {
+    // Dernières offres publiées : résultat commun, en cache 15 minutes par source (lib/offers).
+    search = latestOffersSearch(page);
+    try {
+      result = await searchLatestOffers(page);
+    } catch (e) {
+      if (!(e instanceof OfferSourceError)) console.error("[offres] dernières offres", e);
+      error = e instanceof OfferSourceError ? e.message : "Les offres n'ont pas pu être chargées. Réessaie dans un instant.";
+    }
+  } else if (configured) {
     if (hasSearch) {
       ({ search, department } = await resolveOfferSearch(query));
       if (!search) {
@@ -137,8 +176,13 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
   const searchParamsOf = (target: number) => offerQueryParams({ ...query, page: target });
   const href = (target: number, offre: string | null = null) => {
     // En mode recommandations, l'URL garde ?reco=1 : la recherche est recalculée côté serveur.
-    const params = recommending ? new URLSearchParams({ reco: "1" }) : searchParamsOf(target);
-    if (recommending && target > 1) params.set("page", String(target));
+    // Dernières offres : rien de plus (sauf ?reco=0, gardé pour ne pas rouvrir les recommandations).
+    const params = recommending
+      ? new URLSearchParams({ reco: "1" })
+      : showingLatest
+        ? new URLSearchParams(recoOff ? { reco: "0" } : {})
+        : searchParamsOf(target);
+    if ((recommending || showingLatest) && target > 1) params.set("page", String(target));
     if (offre) params.set("offre", offre);
     return `/offres?${params}`;
   };
@@ -166,7 +210,11 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
 
         {configured && (
           <div className={mobileHidden}>
-            <RecommendationsToggle active={recommending} canAutoOpen={!hasManualSearch && !selectedId} />
+            <RecommendationsToggle
+              active={recommending}
+              fromLink={explicitReco}
+              canAutoOpen={!hasManualSearch && !selectedId && !recoOff}
+            />
           </div>
         )}
 
@@ -231,7 +279,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
                 Rechercher
               </button>
             </div>
-            <SortSelect defaultValue={sort} />
+            <SortSelect defaultValue={sort} chosen={manualQuery.sortChosen} />
           </form>
         )}
 
@@ -282,6 +330,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
             {result && (
               <section aria-labelledby="offres-resultats" className={`space-y-3 ${mobileHidden}`}>
                 <h2 id="offres-resultats" className="text-sm text-muted dark:text-slate-300">
+                  {showingLatest && <span className="font-semibold text-ink dark:text-white">Dernières offres publiées · </span>}
                   <strong className="font-semibold text-ink dark:text-white">
                     {numberFormatter.format(result.total)} offre{result.total > 1 ? "s" : ""}
                   </strong>

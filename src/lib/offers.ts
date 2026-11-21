@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { findAdzunaOffer, isAdzunaConfigured, isAdzunaOfferId, searchAdzuna } from "@/lib/adzuna";
 import {
   getFranceTravailOffer,
@@ -21,6 +23,7 @@ import {
   type ContractFilter,
   type OfferListing,
   type OfferSearch,
+  type OfferSearchResult,
   type OfferSort,
   type OfferSource,
 } from "@/lib/offer-types";
@@ -47,6 +50,8 @@ export type OfferQuery = {
   place: string;
   contract: ContractFilter | null;
   sort: OfferSort;
+  /** Tri choisi par l'utilisateur (?tri=) ; sinon, tri par défaut (pertinence avec un mot-clé). */
+  sortChosen: boolean;
   page: number;
 };
 
@@ -56,14 +61,21 @@ const text = (value: string | string[] | undefined, max = 120) =>
   (typeof value === "string" ? value : "").trim().slice(0, max);
 
 export function readOfferQuery(params: Params): OfferQuery {
+  const keywords = text(params.q);
+  const sortChosen = isOfferSort(params.tri);
   return {
-    keywords: text(params.q),
+    keywords,
     place: text(params.lieu, 80),
     contract: isContractFilter(params.contrat) ? params.contrat : null,
-    sort: isOfferSort(params.tri) ? params.tri : "recent",
+    // Sans tri choisi : « pertinence » dès qu'un mot-clé est tapé (France Travail compris).
+    sort: sortChosen ? (params.tri as OfferSort) : defaultOfferSort(keywords),
+    sortChosen,
     page: Math.max(1, Math.min(Number.parseInt(text(params.page), 10) || 1, MAX_PAGES)),
   };
 }
+
+/** Tri par défaut : le plus pertinent avec un mot-clé, le plus récent sinon. */
+export const defaultOfferSort = (keywords: string): OfferSort => (keywords.trim() ? "pertinence" : "recent");
 
 /** Paramètres d'URL d'une recherche (inverse de readOfferQuery). */
 export function offerQueryParams(query: OfferQuery): URLSearchParams {
@@ -71,7 +83,8 @@ export function offerQueryParams(query: OfferQuery): URLSearchParams {
   if (query.keywords) params.set("q", query.keywords);
   if (query.place) params.set("lieu", query.place);
   if (query.contract) params.set("contrat", query.contract);
-  if (query.sort !== "recent") params.set("tri", query.sort);
+  // Le tri n'est écrit que s'il a été choisi : sinon, il reste le tri par défaut de la recherche.
+  if (query.sortChosen) params.set("tri", query.sort);
   if (query.page > 1) params.set("page", String(query.page));
   return params;
 }
@@ -119,12 +132,18 @@ const duplicateKey = (offer: OfferListing) =>
     .normalize("NFD")
     .replace(/[^a-z0-9|]/g, "");
 
-export async function searchAllOffers(search: OfferSearch): Promise<CombinedSearchResult> {
-  const sources: [OfferSource, typeof searchFranceTravail][] = [];
+type SourceSearch = (search: OfferSearch) => Promise<OfferSearchResult>;
+
+/** Sources configurées, dans l'ordre du mélange. */
+function defaultSources(): [OfferSource, SourceSearch][] {
+  const sources: [OfferSource, SourceSearch][] = [];
   if (isFranceTravailConfigured()) sources.push(["france-travail", searchFranceTravail]);
   if (isAdzunaConfigured()) sources.push(["adzuna", searchAdzuna]);
   sources.push(["job-boards", searchJobBoards]);
+  return sources;
+}
 
+export async function searchAllOffers(search: OfferSearch, sources = defaultSources()): Promise<CombinedSearchResult> {
   const settled = await Promise.allSettled(sources.map(([, run]) => run(search)));
   const results = settled.flatMap((outcome) => (outcome.status === "fulfilled" ? [outcome.value] : []));
   const failures = settled.flatMap((outcome, i) =>
@@ -217,4 +236,42 @@ export async function getOfferForApplication(id: string, search: OfferSearch | n
     .join("\n\n");
 
   return { ...offer, description, descriptionPartial };
+}
+
+// ---------------------------------------------------------------------------
+// Dernières offres publiées (arrivée sur /offres sans recherche ni métier connu)
+// ---------------------------------------------------------------------------
+
+/** Cache du résultat commun à tout le monde, en secondes (15 minutes). */
+export const LATEST_OFFERS_REVALIDATE = 15 * 60;
+
+/** Recherche sans mot-clé ni filtre, du plus récent au plus ancien. */
+export const latestOffersSearch = (page: number): OfferSearch => ({
+  keywords: "",
+  department: null,
+  contract: null,
+  sort: "recent",
+  page,
+});
+
+// Une entrée de cache par source et par page : une source en panne (erreur) n'est jamais mise en
+// cache, les autres le restent ; les offres des pages carrières sont déjà en cache (job-boards).
+const latestFranceTravail = unstable_cache(
+  (page: number) => searchFranceTravail(latestOffersSearch(page)),
+  ["offres-dernieres-france-travail"],
+  { revalidate: LATEST_OFFERS_REVALIDATE },
+);
+const latestAdzuna = unstable_cache(
+  (page: number) => searchAdzuna(latestOffersSearch(page)),
+  ["offres-dernieres-adzuna"],
+  { revalidate: LATEST_OFFERS_REVALIDATE },
+);
+
+/** Dernières offres publiées, toutes sources (France Travail, Adzuna, pages carrières). */
+export function searchLatestOffers(page: number): Promise<CombinedSearchResult> {
+  const sources: [OfferSource, SourceSearch][] = [];
+  if (isFranceTravailConfigured()) sources.push(["france-travail", (search) => latestFranceTravail(search.page)]);
+  if (isAdzunaConfigured()) sources.push(["adzuna", (search) => latestAdzuna(search.page)]);
+  sources.push(["job-boards", searchJobBoards]);
+  return searchAllOffers(latestOffersSearch(page), sources);
 }

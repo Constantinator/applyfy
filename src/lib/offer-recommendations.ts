@@ -83,7 +83,11 @@ function byWeight(votes: Vote<string>[]): string[] {
  * Base de la recherche recommandée ; null si l'utilisateur n'a ni candidature exploitable
  * ni recherche récente. Les brouillons sont ignorés : seules comptent les candidatures envoyées.
  */
-export async function getRecommendationBasis(searches: RecentSearch[] = []): Promise<RecommendationBasis | null> {
+export async function getRecommendationBasis(
+  searches: RecentSearch[] = [],
+  /** Métier visé du dernier CV (« Quel poste vises-tu ? », import), s'il est connu. */
+  cvTargetJob: string | null = null,
+): Promise<RecommendationBasis | null> {
   const { applications: all } = await getApplications(); // de la plus récente à la plus ancienne
   const applications = all.filter((app) => app.status !== "brouillon");
   const now = Date.now();
@@ -96,6 +100,10 @@ export async function getRecommendationBasis(searches: RecentSearch[] = []): Pro
       contract: search.contract ?? contractIn(search.keywords),
       weight: searchWeight(now - search.at),
     })),
+    // Métier du dernier CV : pèse comme une candidature récente (seul repère d'un nouveau compte).
+    ...(cvTargetJob?.trim()
+      ? [{ title: cvTargetJob.trim(), location: "", contract: contractIn(cvTargetJob), weight: 1 }]
+      : []),
     ...applications.map((app) => ({
       title: app.position,
       location: app.location ?? "",

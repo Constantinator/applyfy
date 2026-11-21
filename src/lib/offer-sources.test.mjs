@@ -154,3 +154,28 @@ test("France Travail : API en HTML après un jeton valide → réponse inattendu
   assert.match(lines[0], /^\[france-travail\] échec offre : statut=500/);
   assertNoSecret(lines);
 });
+
+const timeoutError = () => Object.assign(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+
+test("Adzuna : pas de réponse à temps → délai maximal transmis, « ne répond pas », une ligne", { timeout: 3000 }, async () => {
+  const calls = mockFetch([() => { throw timeoutError(); }]);
+  const { result, lines } = await captureLogs(() => searchAdzuna(SEARCH));
+  assert.ok(calls[0].init?.signal instanceof AbortSignal, "délai maximal transmis à fetch");
+  assert.match(result.error?.message ?? "", /ne répond pas/);
+  assert.deepEqual(lines, ["[adzuna] échec recherche : réseau (TimeoutError)"]);
+  assertNoSecret(lines);
+});
+
+test("France Travail : pas de réponse à temps → délai maximal transmis, « ne répond pas », une ligne, jamais d'attente sans fin", { timeout: 3000 }, async () => {
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), init });
+    throw timeoutError();
+  };
+  const { result, lines } = await captureLogs(() => getFranceTravailOffer("FT123ABC"));
+  assert.ok(calls.length >= 1 && calls.every((call) => call.init?.signal instanceof AbortSignal), "délai maximal transmis à fetch");
+  assert.equal(result.error?.message, "Le service de France Travail ne répond pas. Réessaie dans un instant.");
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /^\[france-travail\] échec .+ : réseau \(TimeoutError\)$/);
+  assertNoSecret(lines);
+});

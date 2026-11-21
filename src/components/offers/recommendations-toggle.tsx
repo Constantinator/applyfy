@@ -47,10 +47,13 @@ function savePreference(enabled: boolean) {
  */
 export function RecommendationsToggle({
   active,
+  fromLink = false,
   canAutoOpen,
 }: {
-  /** La page affiche les recommandations (?reco=1). */
+  /** La page affiche les recommandations (?reco=1, ou par défaut quand le métier du CV est connu). */
   active: boolean;
+  /** ?reco=1 dans l'adresse : seul ce cas enregistre la préférence (pas l'affichage par défaut). */
+  fromLink?: boolean;
   /** Ni recherche manuelle ni offre ouverte : la préférence peut être appliquée. */
   canAutoOpen: boolean;
 }) {
@@ -60,15 +63,16 @@ export function RecommendationsToggle({
 
   useEffect(() => {
     // Lien ?reco=1 ouvert directement : il fait foi et devient la préférence.
-    if (active && !readPreference()) savePreference(true);
+    if (active && fromLink && !readPreference()) savePreference(true);
     else if (!active && canAutoOpen && readPreference()) router.replace("/offres?reco=1", { scroll: false });
-  }, [active, canAutoOpen, router]);
+  }, [active, fromLink, canAutoOpen, router]);
 
   function toggle() {
     const next = !enabled;
     savePreference(next);
     if (next) router.push("/offres?reco=1", { scroll: false });
-    else if (active) router.push("/offres", { scroll: false });
+    // ?reco=0 : coupées, même si le métier du CV est connu (sinon elles reviendraient par défaut).
+    else if (active) router.push("/offres?reco=0", { scroll: false });
   }
 
   return (

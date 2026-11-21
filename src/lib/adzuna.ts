@@ -3,6 +3,7 @@ import "server-only";
 import {
   OfferSourceError,
   SOURCE_PAGE_SIZE,
+  SOURCE_TIMEOUT_MS,
   type OfferListing,
   type OfferSearch,
   type OfferSearchResult,
@@ -161,6 +162,8 @@ export async function searchAdzuna(search: OfferSearch): Promise<OfferSearchResu
     response = await fetch(`${API_URL}/search/${search.page}?${params}`, {
       headers: { Accept: "application/json" },
       next: { revalidate: SEARCH_REVALIDATE_SECONDS },
+      // Pas de réponse à temps : « ne répond pas » (catch ci-dessous), autres sources affichées.
+      signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
     });
   } catch (error) {
     await logFailure("recherche", null, error);

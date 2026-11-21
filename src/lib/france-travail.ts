@@ -4,6 +4,7 @@ import {
   CONTRACT_FILTERS,
   OfferSourceError,
   SOURCE_PAGE_SIZE,
+  SOURCE_TIMEOUT_MS,
   type OfferListing,
   type OfferSearch,
   type OfferSearchResult,
@@ -76,21 +77,30 @@ async function logFailure(step: string, response: Response | null, error?: unkno
 }
 
 const UNEXPECTED = "Réponse inattendue de France Travail. Réessaie dans un instant.";
+const NO_ANSWER = "Le service de France Travail ne répond pas. Réessaie dans un instant.";
 
 async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now()) return cachedToken.value;
 
-  const response = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: process.env.FRANCE_TRAVAIL_CLIENT_ID ?? "",
-      client_secret: process.env.FRANCE_TRAVAIL_CLIENT_SECRET ?? "",
-      scope: SCOPE,
-    }),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: process.env.FRANCE_TRAVAIL_CLIENT_ID ?? "",
+        client_secret: process.env.FRANCE_TRAVAIL_CLIENT_SECRET ?? "",
+        scope: SCOPE,
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
+    });
+  } catch (error) {
+    // Pas de réponse à temps (ou réseau) : source indisponible, jamais d'attente sans fin.
+    await logFailure("jeton", null, error);
+    throw new FranceTravailError(NO_ANSWER);
+  }
   if (!response.ok || !isJson(response)) {
     // Une page HTML (page de maintenance après redirection) est une réponse inattendue.
     await logFailure("jeton", response);
@@ -106,11 +116,20 @@ async function getAccessToken(): Promise<string> {
 }
 
 async function apiGet(path: string, init?: { revalidate?: number }): Promise<Response> {
-  const call = async () =>
-    fetch(`${API_URL}${path}`, {
-      headers: { Authorization: `Bearer ${await getAccessToken()}`, Accept: "application/json" },
-      ...(init?.revalidate ? { next: { revalidate: init.revalidate } } : { cache: "no-store" as const }),
-    });
+  const call = async () => {
+    const token = await getAccessToken();
+    try {
+      return await fetch(`${API_URL}${path}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        ...(init?.revalidate ? { next: { revalidate: init.revalidate } } : { cache: "no-store" as const }),
+        signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
+      });
+    } catch (error) {
+      // Pas de réponse à temps (ou réseau) : source indisponible, jamais d'attente sans fin.
+      await logFailure(path.split("?")[0], null, error);
+      throw new FranceTravailError(NO_ANSWER);
+    }
+  };
   let response = await call();
   if (response.status === 401) {
     // Jeton expiré ou révoqué : un nouvel essai avec un jeton neuf.

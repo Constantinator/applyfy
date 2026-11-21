@@ -12,6 +12,11 @@ export type OfferSource = keyof typeof OFFER_SOURCES;
 
 /** Nombre d'offres demandées à chaque source par page de résultats. */
 export const SOURCE_PAGE_SIZE = 10;
+/**
+ * Délai maximal d'une source externe (France Travail, Adzuna) : au-delà, elle est traitée comme
+ * indisponible (message habituel, autres sources affichées) au lieu de faire attendre la page.
+ */
+export const SOURCE_TIMEOUT_MS = 8000;
 /** Résultats consultables par source (France Travail s'arrête à l'index 1149). */
 export const MAX_RESULTS_PER_SOURCE = 1150;
 export const MAX_PAGES = MAX_RESULTS_PER_SOURCE / SOURCE_PAGE_SIZE;

@@ -80,9 +80,22 @@ export function keywordGroups(keywords: string): KeywordGroup[] {
 const time = (offer: OfferListing) => (offer.publishedAt ? Date.parse(offer.publishedAt) : Number.NaN);
 
 /**
- * Ordre des résultats : date de publication (les offres sans date à la fin) ou, pour
- * « pertinence », score de correspondance avec les mots-clés puis date (plus récentes
- * d'abord). Sans mots-clés, la pertinence revient au plus récent.
+ * Rang d'une offre pour des mots-clés : 2 s'ils sont tous dans l'intitulé, 1 s'ils sont tous
+ * dans l'intitulé, l'entreprise ou la description, 0 sinon (offre gardée, en fin de liste).
+ */
+export function keywordRank(groups: KeywordGroup[], offer: OfferListing): 0 | 1 | 2 {
+  if (groups.length === 0) return 2;
+  const title = normalize(offer.title);
+  if (groups.every((matches) => matches(title))) return 2;
+  const all = normalize(`${offer.title} ${offer.company ?? ""} ${offer.description}`);
+  return groups.every((matches) => matches(all)) ? 1 : 0;
+}
+
+/**
+ * Ordre des résultats. Avec des mots-clés, d'abord le rang (intitulé, puis description, puis
+ * aucun), quel que soit le tri : une offre hors sujet ne passe jamais devant parce qu'elle est
+ * récente. Puis, dans chaque rang : date de publication (les offres sans date à la fin) ou, pour
+ * « pertinence », score de correspondance puis date (plus récentes d'abord).
  */
 export function compareOffers(sort: OfferSort, keywords: string): (a: OfferListing, b: OfferListing) => number {
   const direction = sort === "ancien" ? 1 : -1;
@@ -91,8 +104,20 @@ export function compareOffers(sort: OfferSort, keywords: string): (a: OfferListi
     if (Number.isNaN(ta) || Number.isNaN(tb)) return Number.isNaN(ta) ? (Number.isNaN(tb) ? 0 : 1) : -1;
     return direction * (ta - tb);
   };
-  const groups = sort === "pertinence" ? keywordGroups(keywords) : [];
-  if (groups.length === 0) return byDate;
+  const keywordList = keywordGroups(keywords);
+  if (keywordList.length === 0) return byDate;
+  const ranks = new Map<OfferListing, number>();
+  const rank = (offer: OfferListing) => {
+    let value = ranks.get(offer);
+    if (value === undefined) {
+      value = keywordRank(keywordList, offer);
+      ranks.set(offer, value);
+    }
+    return value;
+  };
+  const byRank = (a: OfferListing, b: OfferListing) => rank(b) - rank(a);
+  if (sort !== "pertinence") return (a, b) => byRank(a, b) || byDate(a, b);
+  const groups = keywordList;
 
   // Chaque mot-clé (ou son équivalent anglais) : 3 points dans l'intitulé, 1 ailleurs.
   const scores = new Map<OfferListing, number>();
@@ -106,5 +131,5 @@ export function compareOffers(sort: OfferSort, keywords: string): (a: OfferListi
     }
     return value;
   };
-  return (a, b) => score(b) - score(a) || byDate(a, b);
+  return (a, b) => byRank(a, b) || score(b) - score(a) || byDate(a, b);
 }
