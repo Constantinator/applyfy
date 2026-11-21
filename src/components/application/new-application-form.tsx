@@ -107,9 +107,12 @@ export function NewApplicationForm({
   summaryUsage,
   resetLabel,
   fromGuide = false,
+  cancelHref = "/candidatures",
 }: {
   /** Arrivée depuis l'écran de l'offre de la phase guidée : transmis à la création (accueil=1). */
   fromGuide?: boolean;
+  /** « Annuler » : l'écran de l'offre pendant la phase guidée, sinon la liste des candidatures. */
+  cancelHref?: string;
   /** Lien reçu dans l'adresse (tableau de bord) : importé une fois, à l'arrivée sur la page. */
   initialOfferUrl?: string | null;
   /** Lien reçu dans l'adresse, mais invalide : formulaire normal, avec un message. */
@@ -527,7 +530,7 @@ export function NewApplicationForm({
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row-reverse sm:justify-end">
         <Link
-          href="/candidatures"
+          href={cancelHref}
           className="ui-btn-secondary"
         >
           Annuler

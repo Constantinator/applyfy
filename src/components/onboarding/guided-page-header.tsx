@@ -9,12 +9,13 @@ import { GuidedFooterStyle } from "@/components/onboarding/guided-footer-style";
 import type { GuideEditorStep } from "@/lib/onboarding";
 
 /**
- * Phase guidée sur les pages d'import et de création (barre normale de l'application) : la barre
+ * Phase guidée sur les pages d'import et de création du CV, et sur le formulaire de candidature
+ * ouvert depuis l'écran de l'offre (barre normale de l'application) : la barre
  * et le bouton rond de Lumeo (repérés par data-app-chrome) sont masqués par une règle de style
  * rendue avec la page (aucun affichage furtif, rien ne reste après l'avoir quittée), et l'en-tête
  * guidé les remplace. « Passer » : seule sortie, toujours active.
  */
-export function GuidedPageHeader({ step }: { step: GuideEditorStep }) {
+export function GuidedPageHeader({ step }: { step: GuideEditorStep | "guide_offre" }) {
   const router = useRouter();
   const leaving = useRef(false);
 

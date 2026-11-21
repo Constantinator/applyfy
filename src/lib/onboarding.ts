@@ -161,6 +161,23 @@ export function choiceDestination(choice: OnboardingChoice, link = ""): string {
  * Phase guidée, écran de l'offre : le formulaire de candidature avec le lien, et `accueil=1` pour
  * que la création de la candidature termine le parcours (vérifié côté serveur).
  */
+/**
+ * Formulaire de candidature ouvert depuis l'écran de l'offre de la phase guidée (accueil=1) :
+ * verrou de la navigation seulement pour un compte récent, parcours non terminé, étape
+ * « guide_offre ». Jamais avec « Nouvelle candidature » (pas d'accueil=1).
+ */
+export function guidedOfferPhase(input: {
+  createdAt: string | null | undefined;
+  metadataCompleted: boolean;
+  doneCookie: boolean;
+  progress: { step: string; completed: boolean } | null;
+  fromGuide: boolean;
+}): boolean {
+  if (!input.fromGuide) return false;
+  if (!isAfterLaunch(input.createdAt) || input.metadataCompleted || input.doneCookie) return false;
+  return Boolean(input.progress && !input.progress.completed && input.progress.step === "guide_offre");
+}
+
 export function guideOfferDestination(link: string): string {
   return `/candidatures/nouvelle?lien=${encodeURIComponent(link)}&accueil=1`;
 }

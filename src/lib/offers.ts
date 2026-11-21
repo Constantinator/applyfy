@@ -27,6 +27,7 @@ import {
   type OfferSort,
   type OfferSource,
 } from "@/lib/offer-types";
+import { mergeSourceOffers } from "./offer-merge";
 import { compareOffers } from "@/lib/offer-sort";
 
 // Recherche d'offres sur toutes les sources configurées (France Travail, Adzuna) et sur
@@ -127,13 +128,6 @@ export type CombinedSearchResult = {
   failed: OfferSource[];
 };
 
-/** Même intitulé chez le même employeur : Adzuna reprend parfois des offres France Travail. */
-const duplicateKey = (offer: OfferListing) =>
-  `${offer.title}|${offer.company ?? ""}`
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[^a-z0-9|]/g, "");
-
 type SourceSearch = (search: OfferSearch) => Promise<OfferSearchResult>;
 
 /** Sources configurées, dans l'ordre du mélange. */
@@ -159,17 +153,8 @@ export async function searchAllOffers(search: OfferSearch, sources = defaultSour
     throw error instanceof OfferSourceError ? error : new OfferSourceError("La recherche a échoué. Réessaie dans un instant.");
   }
 
-  // Mélange sans doublons (une offre de chaque source à tour de rôle), puis tri de la page.
-  const seen = new Set<string>();
-  const offers: OfferListing[] = [];
-  for (let i = 0; i < SOURCE_PAGE_SIZE; i++) {
-    for (const result of results) {
-      const offer = result.offers[i];
-      if (!offer || seen.has(duplicateKey(offer))) continue;
-      seen.add(duplicateKey(offer));
-      offers.push(offer);
-    }
-  }
+  // Mélange sans doublons entre sources (lib/offer-merge), puis tri de la page.
+  const offers = mergeSourceOffers(results);
   offers.sort(compareOffers(search.sort, search.keywords));
 
   const reachable = Math.max(...results.map((r) => Math.min(r.total, MAX_RESULTS_PER_SOURCE)));

@@ -8,6 +8,7 @@ import { requireUser } from "./auth";
 import {
   guidedEditorStep,
   guidedPhaseStep,
+  guidedOfferPhase,
   isAfterLaunch,
   onboardingStats,
   resumeTarget,
@@ -335,5 +336,33 @@ export async function getOnboardingAdminStats(): Promise<
   } catch (error) {
     console.error("[onboarding] statistiques", error);
     return { status: "erreur" };
+  }
+}
+
+/**
+ * Formulaire de candidature ouvert depuis l'écran de l'offre (accueil=1) pendant la phase guidée :
+ * true si l'étape en cours est « guide_offre » (verrou de la navigation). Jamais pour un ancien
+ * compte, un parcours terminé ou passé, ni sans accueil=1. Sans échec.
+ */
+export async function getGuidedOfferStep(fromGuide: boolean): Promise<boolean> {
+  if (!fromGuide) return false;
+  try {
+    const account = await getOnboardingAccount();
+    if (!isAfterLaunch(account.createdAt) || account.completed) return false;
+    const user = await requireUser();
+    const doneCookie = (await cookies()).get(DONE_COOKIE)?.value === user.id;
+    if (doneCookie) return false;
+    const row = await readOwnRow(user.id);
+    if (row === "illisible" || !row) return false;
+    return guidedOfferPhase({
+      createdAt: account.createdAt,
+      metadataCompleted: account.completed,
+      doneCookie,
+      progress: { step: row.step, completed: Boolean(row.completed_at) },
+      fromGuide,
+    });
+  } catch (error) {
+    console.error("[onboarding] formulaire de candidature guidé", error);
+    return false;
   }
 }
