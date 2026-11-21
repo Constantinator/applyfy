@@ -1,8 +1,10 @@
 import Link from "next/link";
 
 import { IconBell, IconPencil, IconPlus, IconSparkles } from "@/components/icons";
+import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
 import { TODO_MAX_LINES, TODO_MAX_LINES_MOBILE, remainingTodo, type TodoItem } from "@/lib/dashboard-todo";
 import { FOLLOW_UP_FILTER } from "@/lib/follow-up";
+import { LUMEO_DASHBOARD_TEXTS } from "@/lib/lumeo-texts";
 import { FUNCTION_TINTS, type FunctionTint } from "@/lib/ui-tints";
 
 const LINKS_CLASS = "ui-link inline-flex min-h-11 items-center";
@@ -75,9 +77,11 @@ export function TodoCard({ items, hasRealApplication }: { items: TodoItem[]; has
 
       {!hasRealApplication ? (
         <div className="mt-3 space-y-4">
-          <p className="text-muted dark:text-slate-300">
-            Ajoute l&apos;offre qui t&apos;intéresse : Applyfy t&apos;aide à adapter ton CV, à écrire ta lettre et à relancer au bon moment.
-          </p>
+          {/* Lumeo « salue » : premier message de l'assistant sur le tableau de bord. */}
+          <div className="flex items-start gap-3">
+            <LumeoAvatar size={56} expression="salue" standalone />
+            <p className="min-w-0 pt-1 text-muted dark:text-slate-300">{LUMEO_DASHBOARD_TEXTS.todoEmpty}</p>
+          </div>
           <Link href="/candidatures/nouvelle" className="ui-btn-primary">
             <IconPlus className="h-4 w-4" />
             Ajouter ta première candidature

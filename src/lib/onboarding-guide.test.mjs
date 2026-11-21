@@ -13,7 +13,7 @@ const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guideOfferDestina
   await import("./onboarding.ts");
 const { AI_MONTHLY_LIMITS } = await import("./ai-usage-limits.ts");
 const { frenchSpaces, guideActiveIndex, guideStepIndex } = await import("./onboarding-guide.ts");
-const { GUIDE_BANNER_TEXTS: B, GUIDE_TEXTS: T, ONBOARDING_TEXTS: O } = await import("./lumeo-texts.ts");
+const { GUIDE_BANNER_TEXTS: B, GUIDE_TEXTS: T, LUMEO_DASHBOARD_TEXTS: D, ONBOARDING_TEXTS: O } = await import("./lumeo-texts.ts");
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const after = new Date(Date.parse(ONBOARDING_LAUNCHED_AT) + 3_600_000).toISOString();
@@ -377,4 +377,12 @@ test("arrivée sans barre (8b) : filet dans le layout, avant le rendu de la barr
   assert.match(layout.slice(guard), /const onboarding = await getOnboardingEntry\(\);\s*if \(onboarding\) redirect\(/);
   // Retour de Stripe (/dashboard?premium=bienvenue&…) : la page décide, comme avant.
   assert.match(read("app/(app)/dashboard/page.tsx"), /if \(!welcomePremium\) \{/);
+});
+
+test("Lumeo dans la carte « À faire aujourd'hui » vide (8d)", () => {
+  const card = read("components/dashboard/todo-card.tsx");
+  assert.match(card, /<LumeoAvatar size=\{56\} expression="salue" standalone \/>/);
+  assert.match(card, /\{LUMEO_DASHBOARD_TEXTS\.todoEmpty\}/);
+  assert.equal(D.todoEmpty, "Ajoute l'offre qui t'intéresse. Je t'aide à adapter ton CV, écrire ta lettre et relancer au bon moment.");
+  assert.doesNotMatch(D.todoEmpty, /\d|illimit|premium/i);
 });

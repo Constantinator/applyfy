@@ -33,6 +33,8 @@ export const LUMEO_TEXTS = {
  */
 export const LUMEO_DASHBOARD_TEXTS = {
   label: "LUMEO",
+  /** Carte « À faire aujourd'hui » sans candidature (Lumeo « salue » à côté). */
+  todoEmpty: "Ajoute l'offre qui t'intéresse. Je t'aide à adapter ton CV, écrire ta lettre et relancer au bon moment.",
   later: "Plus tard",
   premiere: {
     title: "La première candidature est partie. Bravo. Je te rappelle de relancer dans 7 jours, si tu n'as pas de réponse.",
