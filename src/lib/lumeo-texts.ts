@@ -258,23 +258,17 @@ export const COACH_LIMIT_TEXTS = {
  */
 export const GUIDE_TEXTS = {
   stepsLabel: "Étapes de ton installation",
-  steps: ["Améliore ton CV", "Enregistre-le", "Ajoute une offre"],
+  steps: ["Améliore ton CV", "Ajoute une offre"],
   done: "fait",
   skip: "Passer",
   skipLabel: "Passer et aller au tableau de bord",
   suggestions: ["Améliorer mon profil", "Reformuler mes expériences", "Vérifier les mots-clés"],
   placeholder: "Pose ta question à Lumeo",
-  note: "Tu restes ici le temps de finir. « Passer » te ramène au tableau de bord.",
-  alreadyGood: "Mon CV est déjà bon, continuer",
-  /** Étape 2 : le bouton noir de l'en-tête (le PDF n'est plus généré à ce clic). */
-  save: "Enregistrer mon CV",
+  /** Bouton noir de l'éditeur guidé : enregistre, puis écran « Bravo » (pas de PDF). */
+  continue: "Continuer",
   saving: "Enregistrement…",
   saveError: "Ton CV n'a pas pu être enregistré. Réessaie dans un instant.",
-  congrats: "Beau travail, ton CV est prêt. Enregistre-le : tu pourras toujours le modifier, et le télécharger plus tard.",
-  congratsNote: "Ensuite, on ajoute une offre qui te plaît.",
-  /** Sous la note : télécharge le PDF sans faire avancer le parcours. */
-  downloadNow: "Télécharger le PDF maintenant",
-  /** Écran « Bravo » (entre l'enregistrement et l'écran de l'offre). */
+  /** Écran « Bravo » (après « Continuer » dans l'éditeur, avant l'écran de l'offre). */
   bravo: {
     title: "Bravo, tu as fini ton premier CV.",
     subtitle: "Et si on cherchait ta première candidature ?",
@@ -286,7 +280,7 @@ export const GUIDE_TEXTS = {
   /** Import impossible (quota du mois, erreur) : l'autre façon de faire, sans Premium. */
   createFromScratch: "Le créer de zéro",
   importLimit: "Ton import de CV du mois est déjà utilisé. Tu peux créer ton CV de zéro, je te guide pas à pas.",
-  /** Écran de l'offre (étape 3) : titre, champ et liens repris du chemin B (ONBOARDING_TEXTS.cheminOffre). */
+  /** Écran de l'offre (étape 2) : titre, champ et liens repris du chemin B (ONBOARDING_TEXTS.cheminOffre). */
   offerNote: "Ensuite, on pourra adapter ton CV à cette offre.",
   offerLater: "Plus tard, aller au tableau de bord",
 } as const;

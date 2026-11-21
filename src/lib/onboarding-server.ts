@@ -190,21 +190,9 @@ export async function startGuidedPhase(state: OnboardingState): Promise<boolean>
 }
 
 /**
- * Phase guidée, étape 1 terminée (CV amélioré, ou « Mon CV est déjà bon ») : étape
- * « guide_telecharger ». Sans effet hors de l'étape « guide_cv ».
- */
-export async function advanceGuideToDownload(skipped: boolean) {
-  const user = await requireUser();
-  const row = await readOwnRow(user.id);
-  if (row === "illisible" || !row || row.completed_at || row.step !== "guide_cv") return;
-  const state = stateOf(row);
-  await saveOnboardingState({ ...(skipped ? withSkipped(state, "guide_cv") : state), step: "guide_telecharger" });
-}
-
-/**
- * CV enregistré pendant la phase guidée (« Enregistrer mon CV ») : étape « guide_offre » (écran
- * « Bravo », puis l'écran de l'offre ; la reprise mène à l'écran de l'offre). Sans effet hors des
- * étapes de l'éditeur.
+ * « Continuer » dans l'éditeur guidé (CV enregistré) : étape « guide_offre » (écran « Bravo », puis
+ * l'écran de l'offre ; la reprise mène à l'écran de l'offre). Sans effet hors des étapes de
+ * l'éditeur (guide_cv, ou guide_telecharger pour les comptes arrivés avant la simplification).
  */
 export async function advanceGuideToOffer() {
   const user = await requireUser();

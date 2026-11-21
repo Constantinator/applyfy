@@ -843,15 +843,8 @@ body:has([data-theme-off]) {
     from { opacity: 0; transform: translateX(32px); }
     to { opacity: 1; transform: none; }
   }
-  @keyframes ob-halo {
-    0% { box-shadow: 0 0 0 0 rgb(37 99 235 / 0.35); }
-    70% { box-shadow: 0 0 0 10px rgb(37 99 235 / 0); }
-    100% { box-shadow: 0 0 0 0 rgb(37 99 235 / 0); }
-  }
   /* Phase guidée : un petit saut (félicitations, bandeau de la fiche). */
   .ob-hop { animation: ob-jump 2.4s ease-in-out 0.6s 1; }
-  /* Étape 2 : halo autour de « Télécharger mon CV ». */
-  .ob-halo { animation: ob-halo 2.4s ease-out 0.6s infinite; }
   /* Bandeau de la fiche : glisse depuis la droite. */
   .ob-slide-in { animation: ob-slide 0.5s ease-out 0.2s both; }
 

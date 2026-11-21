@@ -14,11 +14,9 @@ import {
 } from "@/app/actions/cv-builder";
 import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
 import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
-import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
-import { finishGuideAction, guideReadyToDownloadAction, guideSavedAction } from "@/app/actions/onboarding";
+import { finishGuideAction, guideSavedAction } from "@/app/actions/onboarding";
 import { GUIDE_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import type { GuideEditorStep } from "@/lib/onboarding";
-import { frenchSpaces, guideContentFingerprint, isCvImproved } from "@/lib/onboarding-guide";
 import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
@@ -166,14 +164,9 @@ export function CvBuilderEditor({
   const baseTabs = cvOrigin(cv.data) === "scratch" ? SCRATCH_TABS : IMPORT_TABS;
   // Phase guidée : Lumeo d'abord.
   const [chosenTab, setTab] = useState<TabId>(openCoach || guided ? "chat" : baseTabs[0][0]);
-  // Phase guidée : étape en cours (null : terminée, passée, ou éditeur habituel).
-  const [guideStep, setGuideStep] = useState<GuideEditorStep | null>(guided);
-  const guideStepRef = useRef(guideStep);
-  useEffect(() => {
-    guideStepRef.current = guideStep;
-  }, [guideStep]);
-  // Contenu à l'ouverture : la première sauvegarde ne compte comme « amélioré » que s'il a changé.
-  const guideBaseline = useRef(guideContentFingerprint(cv.data));
+  // Phase guidée : un seul état dans l'éditeur (étape en base guide_cv, ou guide_telecharger pour
+  // les comptes arrivés avant la simplification), null pour l'éditeur habituel.
+  const guideStep = guided;
   const router = useRouter();
   const [data, setData] = useState<CvData>(cv.data);
   // Langue des titres des rubriques : celle du contenu quand elle est décidable, sinon la colonne
@@ -256,12 +249,6 @@ export function CvBuilderEditor({
       // Sauvegarde partie avant une traduction faite ici : refusée par le serveur, la traduction
       // (déjà affichée) l'a remplacée. Rien à signaler.
       if (!result.ok && result.stale && (dataRef.current.translationId ?? null) !== sent) return true;
-      // Phase guidée : contenu enregistré différent de celui de l'ouverture → étape « télécharger ».
-      if (result.ok && guideStepRef.current === "guide_cv" && isCvImproved(guideBaseline.current, data)) {
-        guideStepRef.current = "guide_telecharger";
-        setGuideStep("guide_telecharger");
-        void guideReadyToDownloadAction(false).catch(() => undefined);
-      }
       if (current !== version.current) return result.ok; // une modification plus récente suivra
       if (result.ok) {
         photoTracker.current.confirm(photo, result.photoRefused ? null : shownPhoto);
@@ -465,14 +452,14 @@ export function CvBuilderEditor({
       skipping.current = false;
       return;
     }
-    await finishGuideAction(guideStepRef.current).catch(() => undefined);
+    await finishGuideAction(guideStep).catch(() => undefined);
     router.push("/dashboard");
   }
 
-  // Phase guidée, étape 2 : « Enregistrer mon CV » enregistre d'abord la modification en attente.
-  // Échec : message, on reste sur l'étape (« Passer » reste actif). Sinon : écran « Bravo ».
+  // Phase guidée : « Continuer » (toujours actif) enregistre d'abord la modification en attente.
+  // Échec : message, on reste (« Passer » reste actif). Sinon : écran « Bravo ». Jamais de PDF ici.
   const [guideSaving, setGuideSaving] = useState(false);
-  async function saveGuide() {
+  async function continueGuide() {
     if (guideSaving) return;
     setGuideSaving(true);
     const saved = await flushSave().catch(() => false);
@@ -483,12 +470,6 @@ export function CvBuilderEditor({
     }
     await guideSavedAction().catch(() => undefined);
     router.push("/bienvenue?etape=bravo");
-  }
-
-  function alreadyGood() {
-    guideStepRef.current = "guide_telecharger";
-    setGuideStep("guide_telecharger");
-    void guideReadyToDownloadAction(true).catch(() => undefined);
   }
 
   return (
@@ -540,11 +521,21 @@ export function CvBuilderEditor({
         >
           {SAVE_LABELS[status]}
         </p>
-        {guideStep === "guide_telecharger" ? (
-          // Étape 2 de la phase guidée : enregistrer (pas de PDF), halo qui pulse doucement.
-          <button type="button" onClick={() => void saveGuide()} disabled={guideSaving} className="ob-halo ui-btn-primary px-5 py-2.5 text-[13px]">
-            {guideSaving ? GUIDE_TEXTS.saving : GUIDE_TEXTS.save}
-          </button>
+        {guideStep ? (
+          // Phase guidée : le PDF en bouton discret (n'avance jamais le parcours), « Continuer » en noir.
+          <span className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={download} disabled={downloading} className="ui-btn-secondary px-4 py-2.5 text-[13px]">
+              {downloading ? "Génération du PDF…" : "Télécharger en PDF"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void continueGuide()}
+              aria-busy={guideSaving || undefined}
+              className="ui-btn-primary px-5 py-2.5 text-[13px]"
+            >
+              {guideSaving ? GUIDE_TEXTS.saving : GUIDE_TEXTS.continue}
+            </button>
+          </span>
         ) : (
           <button type="button" onClick={download} disabled={downloading} className="ui-btn-primary px-5 py-2.5 text-[13px]">
             {downloading ? "Génération du PDF…" : "Télécharger en PDF"}
@@ -563,42 +554,6 @@ export function CvBuilderEditor({
           <div className="shrink-0">
             <CvScorePanel score={score} offerLabel={offerScoreLabel(scoringContext)} />
           </div>
-          {guideStep === "guide_telecharger" && (
-            // Félicitations de Lumeo : le bouton de l'en-tête devient « Enregistrer mon CV ».
-            <section aria-labelledby="guide-ready" className="ob-rise-1 flex shrink-0 items-start gap-3 rounded-block border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <span className="ob-hop shrink-0">
-                <LumeoAvatar size={36} expression="felicite" celebrate />
-              </span>
-              <div className="min-w-0">
-                <h2 id="guide-ready" className="text-sm font-semibold text-ink dark:text-white">
-                  {/* Espace insécable devant « : » (typographie française). */}
-                  {frenchSpaces(GUIDE_TEXTS.congrats)}
-                </h2>
-                <p className="mt-1 text-[13px] text-muted dark:text-slate-300">{GUIDE_TEXTS.congratsNote}</p>
-                {/* Télécharge le PDF tout de suite, sans faire avancer le parcours. */}
-                <button
-                  type="button"
-                  onClick={download}
-                  disabled={downloading}
-                  className="ui-focus mt-1 inline-flex min-h-11 items-center text-[13px] font-medium text-ink underline underline-offset-2 hover:text-accent disabled:opacity-60 dark:text-white"
-                >
-                  {downloading ? "Génération du PDF…" : GUIDE_TEXTS.downloadNow}
-                </button>
-              </div>
-            </section>
-          )}
-          {guideStep === "guide_cv" && (
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13px] text-muted dark:text-slate-300">
-              <p className="min-w-0">{GUIDE_TEXTS.note}</p>
-              <button
-                type="button"
-                onClick={alreadyGood}
-                className="ui-focus inline-flex min-h-11 items-center font-medium text-ink underline underline-offset-2 hover:text-accent dark:text-white"
-              >
-                {GUIDE_TEXTS.alreadyGood}
-              </button>
-            </div>
-          )}
           <div role="tablist" aria-label="Panneau de l'éditeur" className="flex shrink-0 flex-wrap gap-1.5">
             {tabs.map(([id, label]) => (
               <button

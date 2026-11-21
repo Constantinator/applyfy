@@ -5,7 +5,6 @@ import { unstable_rethrow } from "next/navigation";
 import { completeOnboarding } from "@/lib/account";
 import { parseOnboardingState } from "@/lib/onboarding";
 import {
-  advanceGuideToDownload,
   advanceGuideToOffer,
   finishGuidedPhase,
   markGuideBannerSeen,
@@ -71,21 +70,9 @@ export async function startCvPathAction(input: unknown): Promise<{ ok: boolean }
   }
 }
 
-/** Phase guidée : CV amélioré (`skipped` false) ou « Mon CV est déjà bon, continuer » (true). */
-export async function guideReadyToDownloadAction(skipped: boolean): Promise<{ ok: boolean }> {
-  try {
-    await advanceGuideToDownload(skipped === true);
-    return { ok: true };
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("[onboarding] phase guidée, étape suivante", error);
-    return { ok: false };
-  }
-}
-
 /**
- * « Enregistrer mon CV » (phase guidée, étape 2) : étape suivante. L'étape en base devient
- * « guide_offre » ; l'écran « Bravo » s'affiche d'abord (/bienvenue?etape=bravo).
+ * « Continuer » dans l'éditeur guidé : étape suivante. L'étape en base devient « guide_offre » ;
+ * l'écran « Bravo » s'affiche d'abord (/bienvenue?etape=bravo).
  */
 export async function guideSavedAction(): Promise<{ ok: boolean }> {
   try {
