@@ -33,6 +33,27 @@ export function spreadRepeats<T extends OfferListing>(offers: T[], max = MAX_SAM
 }
 
 /**
+ * Offres proposées sur l'écran de l'offre de la phase guidée : `count` offres dans l'ordre donné,
+ * d'employeurs différents si possible (complétées ensuite par les suivantes).
+ */
+export function pickDistinctEmployers<T extends OfferListing>(offers: T[], count = 3): T[] {
+  const employer = (offer: T) => (offer.company ?? "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+  const seen = new Set<string>();
+  const picks: T[] = [];
+  for (const offer of offers) {
+    if (picks.length === count) return picks;
+    if (seen.has(employer(offer))) continue;
+    seen.add(employer(offer));
+    picks.push(offer);
+  }
+  for (const offer of offers) {
+    if (picks.length === count) break;
+    if (!picks.includes(offer)) picks.push(offer);
+  }
+  return picks;
+}
+
+/**
  * Une offre de chaque source à tour de rôle, sans doublons entre sources : une page affiche toutes
  * les offres reçues de chaque source (le tri est fait ensuite).
  */

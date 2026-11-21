@@ -99,7 +99,8 @@ test("arrivée sans recherche : recommandations si le métier du dernier CV est 
   assert.match(page, /result = await searchLatestOffers\(page\);/);
   assert.match(page, /Dernières offres publiées · /);
   // Métier : celui du dernier CV (poste visé, sinon intitulé), sans échec.
-  assert.match(page, /targetJobOf\(cv\.data\) \|\| cv\.data\.personal\.jobTitle/);
+  assert.match(page, /import \{ latestCvTargetJob \} from "@\/lib\/latest-cv-job";/);
+  assert.match(read("lib/latest-cv-job.ts"), /targetJobOf\(cv\.data\) \|\| cv\.data\.personal\.jobTitle/);
   // Le métier du CV entre dans les recommandations (comme une candidature récente).
   assert.match(read("lib/offer-recommendations.ts"), /\{ title: cvTargetJob\.trim\(\), location: "", contract: contractIn\(cvTargetJob\), weight: 1, ageMs: 0 \}/);
   // Recommandations coupées : ?reco=0, gardé dans la pagination ; la préférence n'est enregistrée que par un lien.

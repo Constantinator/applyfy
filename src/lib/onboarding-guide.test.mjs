@@ -149,7 +149,7 @@ test("écran de l'offre : en-tête guidé, formulaire et liens du chemin B, aucu
   assert.equal(O.cheminOffre.subtitle, "Colle le lien, je remplis la fiche pour toi.");
   assert.equal(guideOfferDestination("https://a.fr/o?x=1"), "/candidatures/nouvelle?lien=https%3A%2F%2Fa.fr%2Fo%3Fx%3D1&accueil=1");
   // /bienvenue : l'écran de l'offre pour l'étape « guide_offre » (reprise depuis /dashboard).
-  assert.match(read("app/(onboarding)/bienvenue/page.tsx"), /const bravo = etape === "bravo";[\s\S]*?<GuideOfferScreen bravo=\{bravo\} tone=/);
+  assert.match(read("app/(onboarding)/bienvenue/page.tsx"), /const bravo = etape === "bravo";[\s\S]*?<GuideOfferScreen\s+bravo=\{bravo\}\s+tone=/);
 });
 
 test("création de la candidature : accueil=1 termine le parcours seulement à l'étape « guide_offre »", () => {

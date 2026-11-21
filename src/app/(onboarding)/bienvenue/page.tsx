@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
+import { GuideOfferPickList } from "@/components/onboarding/guide-offer-picks";
 import { GuideOfferScreen, OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { getAccountName } from "@/lib/account";
 import { AI_MONTHLY_LIMITS } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
 import { CV_IMPORT_MAX_LABEL } from "@/lib/cv-builder-types";
 import { loadBravoTone } from "@/lib/guide-bravo";
+import { loadGuideOfferPicks } from "@/lib/guide-offer-picks";
 import { ONBOARDING_TEXTS } from "@/lib/lumeo-texts";
 import { getOnboardingEntry } from "@/lib/onboarding-server";
 import { isPremium } from "@/lib/subscription";
@@ -31,7 +34,18 @@ export default async function WelcomePage({ searchParams }: PageProps<"/bienvenu
     const { etape } = await searchParams;
     const bravo = etape === "bravo";
     // Ton de « Bravo » d'après le score du CV (recalculé ici, seulement à l'arrivée sur « Bravo »).
-    return <GuideOfferScreen bravo={bravo} tone={bravo ? await loadBravoTone() : "debut"} />;
+    return (
+      <GuideOfferScreen
+        bravo={bravo}
+        tone={bravo ? await loadBravoTone() : "debut"}
+        // Offres proposées : en streaming, l'écran ne les attend jamais ; rien si elles manquent.
+        picks={
+          <Suspense fallback={null}>
+            <GuideOfferPicks />
+          </Suspense>
+        }
+      />
+    );
   }
 
   const [accountName, premium] = await Promise.all([
@@ -48,4 +62,10 @@ export default async function WelcomePage({ searchParams }: PageProps<"/bienvenu
       importMaxLabel={CV_IMPORT_MAX_LABEL}
     />
   );
+}
+
+/** 3 offres d'après le métier du CV (lib/guide-offer-picks) ; liste vide : rien n'est affiché. */
+async function GuideOfferPicks() {
+  const picks = await loadGuideOfferPicks();
+  return picks.length > 0 ? <GuideOfferPickList picks={picks} /> : null;
 }

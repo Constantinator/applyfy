@@ -446,7 +446,16 @@ export function OnboardingFlow({
  * la création termine le parcours) ; « Trouver une offre », « Plus tard » et « Passer » le terminent
  * tout de suite. Aucun lien Premium.
  */
-export function GuideOfferScreen({ bravo = false, tone = "debut" }: { bravo?: boolean; tone?: BravoTone }) {
+export function GuideOfferScreen({
+  bravo = false,
+  tone = "debut",
+  picks = null,
+}: {
+  bravo?: boolean;
+  tone?: BravoTone;
+  /** Offres proposées (rendues côté serveur, en streaming) : rien tant qu'elles ne sont pas là. */
+  picks?: ReactNode;
+}) {
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
   // Écran « Bravo » d'abord (juste après « Enregistrer mon CV ») ; ?etape=bravo est retiré de
@@ -544,6 +553,7 @@ export function GuideOfferScreen({ bravo = false, tone = "debut" }: { bravo?: bo
           {/* Lien de l'offre : vers le formulaire de candidature, sans terminer le parcours ici. */}
           <OfferLinkForm onSubmit={(link) => leave(async () => undefined, guideOfferDestination(link))} disabled={leaving} />
           <p className="ob-rise-2 text-center text-sm text-muted">{GUIDE_TEXTS.offerNote}</p>
+          {picks}
           <div className="ob-rise-2 flex flex-col items-center gap-1 text-sm text-muted">
             <p>
               {T.cheminOffre.searchIntro}{" "}

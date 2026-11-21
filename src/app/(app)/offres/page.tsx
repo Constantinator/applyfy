@@ -16,8 +16,7 @@ import type { Department } from "@/lib/geo";
 import { loadCompanyDomains } from "@/lib/company-domains-store";
 import { logLogoCoverage } from "@/lib/company-domain";
 import { KNOWN_COMPANY_DOMAINS, companyLogo } from "@/lib/company-logos";
-import { getLatestBuilderCv } from "@/lib/cv-builder";
-import { targetJobOf } from "@/lib/cv-builder-types";
+import { latestCvTargetJob } from "@/lib/latest-cv-job";
 import { isJobBoardOfferId } from "@/lib/job-boards";
 import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
 import { OFFERS_LUMEO_TEXTS } from "@/lib/lumeo-texts";
@@ -67,21 +66,6 @@ function publishedLabel(iso: string | null) {
   if (days === 1) return "Publiée hier";
   if (days < 7) return `Publiée il y a ${days} jours`;
   return `Publiée le ${dateFormatter.format(new Date(iso))}`;
-}
-
-/**
- * Métier visé du dernier CV (« Quel poste vises-tu ? », import, sinon intitulé du CV), ou null.
- * Sans échec : sans CV ou si la lecture échoue, null (les dernières offres s'affichent).
- */
-async function latestCvTargetJob(): Promise<string | null> {
-  try {
-    const cv = await getLatestBuilderCv();
-    const job = cv ? (targetJobOf(cv.data) || cv.data.personal.jobTitle).trim() : "";
-    return job.length >= 2 ? job : null;
-  } catch (error) {
-    console.error("[offres] métier du dernier CV", error);
-    return null;
-  }
 }
 
 export default async function OffersPage({ searchParams }: PageProps<"/offres">) {

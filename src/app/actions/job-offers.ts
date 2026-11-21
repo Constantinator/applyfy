@@ -9,6 +9,7 @@ import { createApplication } from "@/lib/applications";
 import { requireUser } from "@/lib/auth";
 import { isClaudeConfigured, summarizeJobOffer } from "@/lib/claude";
 import { normalizeCompanyName } from "@/lib/normalize";
+import { completeGuideWithApplication } from "@/lib/onboarding-server";
 import { OFFER_DESCRIPTION_MAX_LENGTH } from "@/lib/offer-limits";
 import { OfferSourceError } from "@/lib/offer-types";
 import { getOfferForApplication, isOfferSearchConfigured, readOfferQuery, resolveOfferSearch } from "@/lib/offers";
@@ -58,6 +59,11 @@ export async function addOfferToApplicationsAction(
     console.error("[addOfferToApplications]", error);
     return { status: "error", message: "L'ajout a échoué. Réessaie dans un instant." };
   }
+
+  // Depuis l'écran de l'offre de la phase guidée (accueil=1) : parcours terminé, candidature notée
+  // pour le bandeau de Lumeo sur sa fiche, comme avec un lien. Vérifié côté serveur (étape
+  // « guide_offre »), sans échec ; ailleurs, sans effet.
+  if (formData.get("accueil") === "1") await completeGuideWithApplication(id);
 
   revalidatePath("/candidatures");
   revalidatePath("/dashboard");

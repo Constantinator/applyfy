@@ -288,6 +288,11 @@ export const GUIDE_TEXTS = {
   /** Écran de l'offre (étape 2) : titre, champ et liens repris du chemin B (ONBOARDING_TEXTS.cheminOffre). */
   offerNote: "Ensuite, on pourra adapter ton CV à cette offre.",
   offerLater: "Plus tard, aller au tableau de bord",
+  /** Écran de l'offre : 3 offres proposées d'après le métier du CV, ajoutées en un clic. */
+  picksTitle: "Ou choisis parmi ces offres pour toi.",
+  picksSubtitle: "Je les ai choisies d'après ton CV.",
+  pickAdd: "Ajouter",
+  pickAdding: "Ajout…",
 } as const;
 
 /**

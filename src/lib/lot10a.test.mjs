@@ -42,7 +42,7 @@ test("A : score recalculé côté serveur à l'arrivée sur « Bravo », sans é
   assert.match(server, /const context = await loadBuilderCvScoring\(cv\.data, cv\.applicationId\);\s*return bravoTone\(scoreCv\(cv\.data, context\)\.score\);/);
   assert.match(server, /catch \(error\) \{[\s\S]*?return bravoTone\(null\);/);
   const page = read("app/(onboarding)/bienvenue/page.tsx");
-  assert.match(page, /<GuideOfferScreen bravo=\{bravo\} tone=\{bravo \? await loadBravoTone\(\) : "debut"\} \/>/);
+  assert.match(page, /<GuideOfferScreen\s+bravo=\{bravo\}\s+tone=\{bravo \? await loadBravoTone\(\) : "debut"\}/);
   // Le score n'est jamais transmis par l'adresse.
   assert.match(read("components/cv-builder/cv-builder-editor.tsx"), /router\.push\("\/bienvenue\?etape=bravo"\);/);
   const flow = read("components/onboarding/onboarding-flow.tsx");
