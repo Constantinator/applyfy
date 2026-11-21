@@ -114,7 +114,10 @@ export function CvImportProgress({
   onDone,
   onCancel,
   onLimitReached,
+  fallback,
 }: {
+  /** Phase guidée : action proposée à côté de « Réessayer » en cas d'échec (« Le créer de zéro »). */
+  fallback?: React.ReactNode;
   file: File;
   ext: "pdf" | "docx";
   /** Candidature à laquelle lier le CV importé. */
@@ -246,6 +249,7 @@ export function CvImportProgress({
                       <button type="button" onClick={() => void runFrom(error.step)} className="ui-btn-primary">
                         Réessayer
                       </button>
+                      {fallback}
                       {/* Le coach se prépare aussi à l'ouverture de l'éditeur : l'import peut continuer sans lui. */}
                       {error.step === COACH_STEP ? (
                         <button type="button" onClick={finish} className="ui-btn-secondary">

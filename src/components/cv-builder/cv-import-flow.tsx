@@ -15,7 +15,7 @@ import {
   type CvTemplateId,
 } from "@/lib/cv-builder-types";
 import { READY_SCORE, scoreLabel, scoreTone, type CvScore } from "@/lib/cv-score";
-import { LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import { GUIDE_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import { countLabel } from "@/lib/plan-features";
 
 import { CvImportProgress, type ImportedCv } from "./cv-import-progress";
@@ -33,7 +33,13 @@ export function CvImportFlow({
   resetLabel,
   aiEnabled,
   application = null,
+  guided = false,
 }: {
+  /**
+   * Phase guidée du parcours d'accueil : pas de lien « Mes CV », stepper en petit (détail de
+   * l'étape 1), « Le créer de zéro » après une erreur, et jamais de lien Premium.
+   */
+  guided?: boolean;
   resetLabel: string;
   aiEnabled: boolean;
   /**
@@ -67,17 +73,19 @@ export function CvImportFlow({
   return (
     <div className="space-y-8">
       <div className="space-y-4">
-        <Link
-          href={application ? `/candidatures/${application.id}` : "/cv-builder"}
-          className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white"
-        >
-          {application ? "Retour à la candidature" : "Mes CV"}
-        </Link>
+        {!guided && (
+          <Link
+            href={application ? `/candidatures/${application.id}` : "/cv-builder"}
+            className="ui-focus -my-3 inline-flex min-h-11 items-center text-[13px] text-muted hover:text-ink dark:text-slate-400 dark:hover:text-white"
+          >
+            {application ? "Retour à la candidature" : "Mes CV"}
+          </Link>
+        )}
         <h1 className="text-[36px] leading-[1.1] font-bold tracking-[-0.035em] text-ink dark:text-white">
           {application ? "Importer un CV" : "Créer un CV à partir d'un CV existant"}
         </h1>
         {replacedTitle && step === 0 && <CvReplacementNotice title={replacedTitle} />}
-        <Stepper current={step} />
+        {guided ? <GuidedStepper current={step} /> : <Stepper current={step} />}
       </div>
 
       {step === 0 && (
@@ -85,6 +93,7 @@ export function CvImportFlow({
           resetLabel={resetLabel}
           aiEnabled={aiEnabled}
           applicationId={application?.id}
+          guided={guided}
           onImported={(result) => {
             setImported(result);
             setStep(1);
@@ -133,6 +142,45 @@ export function CvImportFlow({
   );
 }
 
+/**
+ * Phase guidée : le stepper de l'import en petit, sans numéros, comme détail de l'étape 1 de
+ * l'en-tête guidé (seul à numéroter les étapes).
+ */
+function GuidedStepper({ current }: { current: number }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold text-muted dark:text-slate-300">{GUIDE_TEXTS.importStepLabel}</p>
+      <ol aria-label={GUIDE_TEXTS.importStepLabel} className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+        {STEPS.map((label, i) => {
+          const active = i === current;
+          return (
+            <li key={label} aria-current={active ? "step" : undefined} className="flex items-center gap-1.5">
+              {i > 0 && (
+                <span aria-hidden="true" className="text-muted dark:text-slate-400">
+                  →
+                </span>
+              )}
+              <span className={active ? "font-semibold text-ink dark:text-white" : "text-muted dark:text-slate-300"}>
+                {label}
+                {i < current && <span className="sr-only"> (fait)</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/** Phase guidée : l'autre façon de faire son CV, proposée après une erreur d'import. */
+function CreateFromScratchLink() {
+  return (
+    <Link href="/cv-builder?nouveau=1" className="ui-btn-secondary">
+      {GUIDE_TEXTS.createFromScratch}
+    </Link>
+  );
+}
+
 function Stepper({ current }: { current: number }) {
   return (
     <ol aria-label="Étapes" className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
@@ -173,11 +221,13 @@ function UploadStep({
   resetLabel,
   aiEnabled,
   applicationId,
+  guided,
   onImported,
 }: {
   resetLabel: string;
   aiEnabled: boolean;
   applicationId?: string;
+  guided: boolean;
   onImported: (result: ImportedCv) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -206,6 +256,7 @@ function UploadStep({
         applicationId={applicationId}
         onDone={onImported}
         onCancel={() => setPending(null)}
+        fallback={guided ? <CreateFromScratchLink /> : undefined}
         onLimitReached={() => {
           setPending(null);
           setLimitReached(true);
@@ -277,11 +328,19 @@ function UploadStep({
           {error}
         </p>
       )}
-      {limitReached && (
-        <div className="max-w-md">
-          <UsageLimitBanner resetLabel={resetLabel} />
-        </div>
-      )}
+      {guided && error && <CreateFromScratchLink />}
+      {limitReached &&
+        (guided ? (
+          // Phase guidée : jamais de lien Premium ; l'autre façon de faire son CV.
+          <div role="alert" className="max-w-md space-y-3">
+            <p className="text-sm text-ink dark:text-slate-200">{GUIDE_TEXTS.importLimit}</p>
+            <CreateFromScratchLink />
+          </div>
+        ) : (
+          <div className="max-w-md">
+            <UsageLimitBanner resetLabel={resetLabel} />
+          </div>
+        ))}
     </div>
   );
 }

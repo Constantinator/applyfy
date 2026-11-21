@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { CvImportFlow } from "@/components/cv-builder/cv-import-flow";
+import { GuidedPageHeader } from "@/components/onboarding/guided-page-header";
 import { readAiUsage } from "@/lib/ai-usage";
 import { formatResetDate } from "@/lib/ai-usage-limits";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { getBuilderCvByApplication } from "@/lib/cv-builder";
+import { getGuidedPhaseStep } from "@/lib/onboarding-server";
 
 export async function generateMetadata({ searchParams }: PageProps<"/cv-builder/importer">): Promise<Metadata> {
   const { applicationId } = await searchParams;
@@ -27,11 +29,15 @@ export default async function CvImportPage({ searchParams }: PageProps<"/cv-buil
     typeof applicationId === "string" ? getApplicationDetail(applicationId) : null,
   ]);
   const linked = detail ? await getBuilderCvByApplication(detail.application.id) : null;
+  // Phase guidée du parcours d'accueil (comptes récents) : en-tête guidé, seule sortie « Passer ».
+  const guided = detail ? null : await getGuidedPhaseStep();
 
   return (
     <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
+      {guided && <GuidedPageHeader step={guided} />}
       <main className="ui-page flex-1 space-y-8">
         <CvImportFlow
+          guided={guided !== null}
           resetLabel={formatResetDate(usage.resetsOn)}
           aiEnabled={isClaudeConfigured()}
           application={

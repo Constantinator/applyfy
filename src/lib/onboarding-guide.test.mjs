@@ -9,9 +9,8 @@ registerHooks({
     return next(/^\.\.?\/[^.]*$/.test(specifier) ? `${specifier}.ts` : specifier, context);
   },
 });
-const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guideOfferDestination, guidedEditorStep, resumeTarget } = await import(
-  "./onboarding.ts"
-);
+const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guideOfferDestination, guidedEditorStep, guidedPhaseStep, resumeTarget } =
+  await import("./onboarding.ts");
 const { AI_MONTHLY_LIMITS } = await import("./ai-usage-limits.ts");
 const { guideContentFingerprint, guideStepIndex, isCvImproved } = await import("./onboarding-guide.ts");
 const { CvDataSchema } = await import("./cv-builder-types.ts");
@@ -146,7 +145,8 @@ test("migration 0047 : étapes alignées avec le code, colonnes facultatives, re
 });
 
 test("textes : tutoiement, sans emoji, sans chiffre en dur, ni « illimité », ni Premium", () => {
-  const texts = [...Object.values(T).flat()].filter((value) => typeof value === "string").join("\n");
+  // « Étape 1 · importer ton CV » : numéro d'étape demandé tel quel, pas un chiffre mesuré.
+  const texts = [...Object.values(T).flat()].filter((value) => typeof value === "string" && value !== T.importStepLabel).join("\n");
   assert.deepEqual(T.suggestions, ["Améliorer mon profil", "Reformuler mes expériences", "Vérifier les mots-clés"]);
   assert.equal(T.placeholder, "Pose ta question à Lumeo");
   assert.equal(T.note, "Tu restes ici le temps de finir. « Passer » te ramène au tableau de bord.");
@@ -254,4 +254,45 @@ test("captures : champ du lien à pleine hauteur sur mobile, bandeau sans cacher
   const server = read("lib/onboarding-server.ts");
   const seen = server.slice(server.indexOf("export async function markGuideBannerSeen"));
   assert.match(seen, /if \(!isSupabaseConfigured\(\)\) return;/);
+});
+
+test("verrou de l'import et de la création : en-tête guidé, barre normale et bouton rond masqués", () => {
+  const base = { createdAt: after, metadataCompleted: false, doneCookie: false, progress: { step: "guide_cv", completed: false } };
+  assert.equal(guidedPhaseStep(base), "guide_cv");
+  assert.equal(guidedPhaseStep({ ...base, progress: { step: "guide_telecharger", completed: false } }), "guide_telecharger");
+  assert.equal(guidedPhaseStep({ ...base, createdAt: before }), null, "ancien compte : jamais de verrou");
+  assert.equal(guidedPhaseStep({ ...base, metadataCompleted: true }), null);
+  assert.equal(guidedPhaseStep({ ...base, doneCookie: true }), null, "parcours passé");
+  assert.equal(guidedPhaseStep({ ...base, progress: { step: "guide_cv", completed: true } }), null);
+  assert.equal(guidedPhaseStep({ ...base, progress: { step: "guide_offre", completed: false } }), null);
+  assert.equal(guidedPhaseStep({ ...base, progress: null }), null);
+  const header = read("components/onboarding/guided-page-header.tsx");
+  assert.match(header, /<style>\{"\[data-app-chrome\]\{display:none!important\}"\}<\/style>/);
+  assert.match(header, /<GuidedHeader step=\{step\} onSkip=\{skip\} \/>/);
+  assert.match(header, /finishGuideAction\(step\)[\s\S]{0,80}router\.push\("\/dashboard"\)/);
+  assert.match(read("components/app-topbar.tsx"), /<header data-app-chrome /);
+  assert.match(read("components/lumeo/lumeo-panel.tsx"), /data-app-chrome\s*className="ui-focus fixed right-/);
+  for (const page of ["app/(app)/cv-builder/importer/page.tsx", "app/(app)/cv-builder/page.tsx"]) {
+    const source = read(page);
+    assert.match(source, /const guided = detail \? null : await getGuidedPhaseStep\(\);/, page);
+    assert.match(source, /\{guided && <GuidedPageHeader step=\{guided\} \/>\}/, page);
+  }
+});
+
+test("import guidé : pas de « Mes CV », stepper en petit, « Le créer de zéro » après une erreur, jamais de Premium", () => {
+  const flow = read("components/cv-builder/cv-import-flow.tsx");
+  assert.match(flow, /\{!guided && \(\s*<Link/);
+  assert.match(flow, /\{guided \? <GuidedStepper current=\{step\} \/> : <Stepper current=\{step\} \/>\}/);
+  const stepper = flow.slice(flow.indexOf("function GuidedStepper"), flow.indexOf("function CreateFromScratchLink"));
+  assert.doesNotMatch(stepper, /i \+ 1/, "pas de numéros");
+  assert.match(stepper, /GUIDE_TEXTS\.importStepLabel/);
+  assert.match(flow, /\{guided && error && <CreateFromScratchLink \/>\}/);
+  assert.match(flow, /fallback=\{guided \? <CreateFromScratchLink \/> : undefined\}/);
+  // Quota d'import atteint : message sans Premium et « Le créer de zéro » ; bandeau Premium hors phase guidée seulement.
+  const limit = flow.slice(flow.indexOf("{limitReached &&"), flow.indexOf("{limitReached &&") + 700);
+  assert.match(limit, /guided \? \([\s\S]*GUIDE_TEXTS\.importLimit[\s\S]*<CreateFromScratchLink \/>[\s\S]*\) : \([\s\S]*<UsageLimitBanner/);
+  assert.match(flow, /href="\/cv-builder\?nouveau=1"/);
+  assert.doesNotMatch(T.importLimit, /premium|\d/i);
+  assert.equal(T.createFromScratch, "Le créer de zéro");
+  assert.match(read("components/cv-builder/cv-import-progress.tsx"), /Réessayer\s*<\/button>\s*\{fallback\}/);
 });

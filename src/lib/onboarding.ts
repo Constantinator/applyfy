@@ -123,10 +123,24 @@ export function guidedEditorStep(input: {
   cvId: string;
   latestCvId: string | null;
 }): GuideEditorStep | null {
+  const step = guidedPhaseStep(input);
+  return step && input.cvId === input.latestCvId ? step : null;
+}
+
+/**
+ * Phase guidée en cours (import, création ou éditeur) : l'étape 1 ou 2, ou null. Seulement pour un
+ * compte créé après la mise en ligne, parcours ni terminé ni passé. Sert au verrou des pages
+ * d'import et de création (pas de condition de CV : il n'existe pas encore).
+ */
+export function guidedPhaseStep(input: {
+  createdAt: string | null | undefined;
+  metadataCompleted: boolean;
+  doneCookie: boolean;
+  progress: { step: string; completed: boolean } | null;
+}): GuideEditorStep | null {
   if (!isAfterLaunch(input.createdAt) || input.metadataCompleted || input.doneCookie) return null;
   if (!input.progress || input.progress.completed) return null;
-  if (input.progress.step !== "guide_cv" && input.progress.step !== "guide_telecharger") return null;
-  return input.cvId === input.latestCvId ? input.progress.step : null;
+  return input.progress.step === "guide_cv" || input.progress.step === "guide_telecharger" ? input.progress.step : null;
 }
 
 /** Destination de chaque action des chemins A et B. `link` : lien d'offre déjà validé. */

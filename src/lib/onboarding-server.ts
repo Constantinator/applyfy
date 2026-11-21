@@ -7,6 +7,7 @@ import { listAllUsers } from "./admin-metrics";
 import { requireUser } from "./auth";
 import {
   guidedEditorStep,
+  guidedPhaseStep,
   isAfterLaunch,
   onboardingStats,
   resumeTarget,
@@ -134,6 +135,31 @@ export async function getGuidedEditorStep(cvId: string): Promise<GuideEditorStep
     });
   } catch (error) {
     console.error("[onboarding] éditeur guidé", error);
+    return null;
+  }
+}
+
+/**
+ * Phase guidée en cours (pages d'import et de création : verrou de la navigation) : l'étape 1 ou
+ * 2, ou null. Jamais pour un ancien compte, un parcours terminé ou passé. Sans échec.
+ */
+export async function getGuidedPhaseStep(): Promise<GuideEditorStep | null> {
+  try {
+    const account = await getOnboardingAccount();
+    if (!isAfterLaunch(account.createdAt) || account.completed) return null;
+    const user = await requireUser();
+    const doneCookie = (await cookies()).get(DONE_COOKIE)?.value === user.id;
+    if (doneCookie) return null;
+    const row = await readOwnRow(user.id);
+    if (row === "illisible" || !row) return null;
+    return guidedPhaseStep({
+      createdAt: account.createdAt,
+      metadataCompleted: account.completed,
+      doneCookie,
+      progress: { step: row.step, completed: Boolean(row.completed_at) },
+    });
+  } catch (error) {
+    console.error("[onboarding] phase guidée", error);
     return null;
   }
 }

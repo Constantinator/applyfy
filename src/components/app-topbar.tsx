@@ -323,7 +323,8 @@ export function AppTopbar({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-line bg-white tracking-[-0.01em] print:hidden dark:border-slate-800 dark:bg-slate-900">
+      {/* data-app-chrome : masquée pendant la phase guidée (GuidedPageHeader). */}
+      <header data-app-chrome className="sticky top-0 z-30 border-b border-line bg-white tracking-[-0.01em] print:hidden dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex h-[68px] max-w-[1180px] items-center gap-3 px-4 sm:px-8">
           {logo}
 

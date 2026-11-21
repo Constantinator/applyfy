@@ -158,6 +158,8 @@ export function LumeoProvider({ aiEnabled, children }: { aiEnabled: boolean; chi
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={(e) => state.openPanel(e.currentTarget)}
+          // data-app-chrome : masqué pendant la phase guidée (GuidedPageHeader).
+          data-app-chrome
           className="ui-focus fixed right-[max(16px,env(safe-area-inset-right))] bottom-[max(16px,env(safe-area-inset-bottom))] z-40 hidden size-13 items-center justify-center rounded-full bg-[#0A0A0A] lg:flex print:hidden dark:ring-1 dark:ring-slate-600"
         >
           <LumeoAvatar size={36} expression="neutre" inverse />

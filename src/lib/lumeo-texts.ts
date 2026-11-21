@@ -269,6 +269,11 @@ export const GUIDE_TEXTS = {
   download: "Télécharger mon CV",
   congrats: "Beau travail, ton CV est prêt. Télécharge-le pour l'avoir sous la main, tu pourras toujours le modifier ensuite.",
   downloadNote: "Un PDF prêt à envoyer. Ensuite, on ajoute une offre qui te plaît.",
+  /** Import pendant la phase guidée : le stepper de l'import, détail de l'étape 1. */
+  importStepLabel: "Étape 1 · importer ton CV",
+  /** Import impossible (quota du mois, erreur) : l'autre façon de faire, sans Premium. */
+  createFromScratch: "Le créer de zéro",
+  importLimit: "Ton import de CV du mois est déjà utilisé. Tu peux créer ton CV de zéro, je te guide pas à pas.",
   /** Écran de l'offre (étape 3) : titre, champ et liens repris du chemin B (ONBOARDING_TEXTS.cheminOffre). */
   offerNote: "Ensuite, on pourra adapter ton CV à cette offre.",
   offerLater: "Plus tard, aller au tableau de bord",

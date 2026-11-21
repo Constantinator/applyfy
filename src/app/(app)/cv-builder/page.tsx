@@ -6,11 +6,13 @@ import { ClearSearchParams } from "@/components/clear-search-params";
 import { CopyCvForOfferButton } from "@/components/cv-builder/copy-cv-button";
 import { DeleteBuilderCvButton } from "@/components/cv-builder/delete-cv-button";
 import { NewCvDialog } from "@/components/cv-builder/new-cv-dialog";
+import { GuidedPageHeader } from "@/components/onboarding/guided-page-header";
 import { IconDocument } from "@/components/icons";
 import { getAccountName } from "@/lib/account";
 import { getApplicationDetail } from "@/lib/applications";
 import { isClaudeConfigured } from "@/lib/claude";
 import { CV_BUILDER_MAX, getBuilderCvByApplication, listBuilderCvs } from "@/lib/cv-builder";
+import { getGuidedPhaseStep } from "@/lib/onboarding-server";
 import { CV_PICKER_TEMPLATES, type BuilderCvSummary } from "@/lib/cv-builder-types";
 
 export const metadata: Metadata = { title: "CV Builder — Applyfy" };
@@ -113,6 +115,8 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
 
   // Nom du compte : repris dans un CV créé depuis zéro, et montré dans les vignettes du choix du modèle.
   const accountName = await getAccountName().catch(() => null);
+  // Phase guidée du parcours d'accueil (comptes récents) : en-tête guidé, seule sortie « Passer ».
+  const guided = detail ? null : await getGuidedPhaseStep();
 
   let cvs: BuilderCvSummary[] | null = null;
   try {
@@ -147,6 +151,7 @@ export default async function CvBuilderPage({ searchParams }: PageProps<"/cv-bui
 
   return (
     <div className="flex flex-1 flex-col bg-page dark:bg-slate-950">
+      {guided && <GuidedPageHeader step={guided} />}
       <main className="ui-page flex-1 space-y-8">
         {/* Retiré de l'adresse dès l'arrivée : recharger la page ne rouvre pas la fenêtre. */}
         {nouveau !== undefined && !detail && <ClearSearchParams />}
