@@ -23,7 +23,28 @@ export function isCvImproved(baseline: string, saved: CvData): boolean {
   return guideContentFingerprint(saved) !== baseline;
 }
 
-/** Étapes de l'en-tête guidé : 0 améliorer, 1 télécharger, 2 ajouter une offre. */
-export function guideStepIndex(step: GuideStep): number {
+/** État de l'en-tête guidé : une étape, ou « bravo » (étapes 1 et 2 faites, la 3 pas encore active). */
+export type GuideHeaderStep = GuideStep | "bravo";
+
+/** Étapes de l'en-tête guidé : 0 améliorer, 1 enregistrer, 2 ajouter une offre. */
+export function guideStepIndex(step: GuideHeaderStep): number {
   return step === "guide_cv" ? 0 : step === "guide_telecharger" ? 1 : 2;
+}
+
+/** Étape en cours (aria-current) : aucune sur l'écran « Bravo ». */
+export function guideActiveIndex(step: GuideHeaderStep): number | null {
+  return step === "bravo" ? null : guideStepIndex(step);
+}
+
+/**
+ * Typographie française à l'écran : espace insécable devant « : ; ! ? » et à l'intérieur des
+ * guillemets, trait d'union insécable avant un pronom (« Enregistre-le »), pour qu'aucun signe ni
+ * morceau de mot ne se retrouve seul en début de ligne.
+ */
+export function frenchSpaces(text: string): string {
+  return text
+    .replace(/ (?=[:;!?»])/g, "\u00A0")
+    .replace(/« /g, "«\u00A0")
+    // « Enregistre-le », « Télécharge-le » : trait d'union insécable (pas de « Enregistre- / le »).
+    .replace(/(\p{L})-(le|la|les|moi|toi|lui|leur|en|y)\b/gu, "$1\u2011$2");
 }

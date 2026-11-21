@@ -17,15 +17,19 @@ export const metadata: Metadata = { title: `${ONBOARDING_TEXTS.pageTitle} — Ap
  * Parcours d'accueil (comptes créés après sa mise en ligne). Rien à proposer (parcours terminé,
  * compte plus ancien, table absente) : retour au tableau de bord, qui ne renvoie pas ici.
  */
-export default async function WelcomePage() {
+export default async function WelcomePage({ searchParams }: PageProps<"/bienvenue">) {
   await connection();
   await requireUser();
   const entry = await getOnboardingEntry();
   if (!entry) redirect("/dashboard");
   // Phase guidée en cours, CV déjà créé : on reprend dans l'éditeur.
   if (entry.target.kind === "editeur") redirect(`/cv-builder/${entry.target.cvId}`);
-  // Phase guidée, CV téléchargé : « Quelle offre t'intéresse ? ».
-  if (entry.target.kind === "offre") return <GuideOfferScreen />;
+  // Phase guidée, CV enregistré : « Bravo » juste après l'enregistrement (?etape=bravo), puis
+  // « Quelle offre t'intéresse ? ». Reprise plus tard : directement l'écran de l'offre.
+  if (entry.target.kind === "offre") {
+    const { etape } = await searchParams;
+    return <GuideOfferScreen bravo={etape === "bravo"} />;
+  }
 
   const [accountName, premium] = await Promise.all([
     getAccountName().catch(() => null),

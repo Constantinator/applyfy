@@ -83,14 +83,17 @@ export async function guideReadyToDownloadAction(skipped: boolean): Promise<{ ok
   }
 }
 
-/** CV téléchargé pendant la phase guidée : étape suivante, l'écran de l'offre. */
-export async function guideDownloadedAction(): Promise<{ ok: boolean }> {
+/**
+ * « Enregistrer mon CV » (phase guidée, étape 2) : étape suivante. L'étape en base devient
+ * « guide_offre » ; l'écran « Bravo » s'affiche d'abord (/bienvenue?etape=bravo).
+ */
+export async function guideSavedAction(): Promise<{ ok: boolean }> {
   try {
     await advanceGuideToOffer();
     return { ok: true };
   } catch (error) {
     unstable_rethrow(error);
-    console.error("[onboarding] phase guidée, téléchargement", error);
+    console.error("[onboarding] phase guidée, enregistrement", error);
     return { ok: false };
   }
 }

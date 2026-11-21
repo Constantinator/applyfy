@@ -202,8 +202,9 @@ export async function advanceGuideToDownload(skipped: boolean) {
 }
 
 /**
- * CV téléchargé pendant la phase guidée (amélioré ou non) : étape « guide_offre » (écran de
- * l'offre). Sans effet hors des étapes de l'éditeur.
+ * CV enregistré pendant la phase guidée (« Enregistrer mon CV ») : étape « guide_offre » (écran
+ * « Bravo », puis l'écran de l'offre ; la reprise mène à l'écran de l'offre). Sans effet hors des
+ * étapes de l'éditeur.
  */
 export async function advanceGuideToOffer() {
   const user = await requireUser();

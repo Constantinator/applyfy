@@ -2,15 +2,15 @@
 
 import { BrandLogo } from "@/components/logo";
 import { GUIDE_TEXTS as T } from "@/lib/lumeo-texts";
-import { guideStepIndex } from "@/lib/onboarding-guide";
-import type { GuideStep } from "@/lib/onboarding";
+import { guideActiveIndex, guideStepIndex, type GuideHeaderStep } from "@/lib/onboarding-guide";
 
 /**
  * En-tête de la phase guidée (CV Builder, puis écran de l'offre) : logo, les 3 étapes (celle en
  * cours en aria-current="step") et « Passer », seule sortie, toujours visible et jamais désactivée.
  */
-export function GuidedHeader({ step, onSkip }: { step: GuideStep; onSkip: () => void }) {
+export function GuidedHeader({ step, onSkip }: { step: GuideHeaderStep; onSkip: () => void }) {
   const current = guideStepIndex(step);
+  const activeIndex = guideActiveIndex(step);
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-white px-3 py-2 sm:px-4 dark:border-slate-800 dark:bg-slate-900">
       <BrandLogo />
@@ -18,7 +18,7 @@ export function GuidedHeader({ step, onSkip }: { step: GuideStep; onSkip: () => 
         <ol className="flex items-center justify-center gap-3 sm:gap-5">
           {T.steps.map((label, index) => {
             const done = index < current;
-            const active = index === current;
+            const active = index === activeIndex;
             return (
               <li key={label} aria-current={active ? "step" : undefined} className="flex items-center gap-2 text-sm">
                 <span
@@ -33,9 +33,15 @@ export function GuidedHeader({ step, onSkip }: { step: GuideStep; onSkip: () => 
                 >
                   {done ? "✓" : index + 1}
                 </span>
-                {/* Mobile : seul le libellé de l'étape en cours est affiché (les autres restent lus). */}
+                {/* Mobile : seul le libellé de l'étape en cours (ou à venir) est affiché ; les autres restent lus. */}
                 <span
-                  className={`${active ? "font-semibold text-ink dark:text-white" : "sr-only text-muted sm:not-sr-only dark:text-slate-300"}`}
+                  className={`${
+                    active
+                      ? "font-semibold text-ink dark:text-white"
+                      : index === current
+                        ? "text-muted dark:text-slate-300"
+                        : "sr-only text-muted sm:not-sr-only dark:text-slate-300"
+                  }`}
                 >
                   {label}
                   {done && <span className="sr-only"> ({T.done})</span>}

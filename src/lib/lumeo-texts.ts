@@ -258,7 +258,7 @@ export const COACH_LIMIT_TEXTS = {
  */
 export const GUIDE_TEXTS = {
   stepsLabel: "Étapes de ton installation",
-  steps: ["Améliore ton CV", "Télécharge-le", "Ajoute une offre"],
+  steps: ["Améliore ton CV", "Enregistre-le", "Ajoute une offre"],
   done: "fait",
   skip: "Passer",
   skipLabel: "Passer et aller au tableau de bord",
@@ -266,9 +266,21 @@ export const GUIDE_TEXTS = {
   placeholder: "Pose ta question à Lumeo",
   note: "Tu restes ici le temps de finir. « Passer » te ramène au tableau de bord.",
   alreadyGood: "Mon CV est déjà bon, continuer",
-  download: "Télécharger mon CV",
-  congrats: "Beau travail, ton CV est prêt. Télécharge-le pour l'avoir sous la main, tu pourras toujours le modifier ensuite.",
-  downloadNote: "Un PDF prêt à envoyer. Ensuite, on ajoute une offre qui te plaît.",
+  /** Étape 2 : le bouton noir de l'en-tête (le PDF n'est plus généré à ce clic). */
+  save: "Enregistrer mon CV",
+  saving: "Enregistrement…",
+  saveError: "Ton CV n'a pas pu être enregistré. Réessaie dans un instant.",
+  congrats: "Beau travail, ton CV est prêt. Enregistre-le : tu pourras toujours le modifier, et le télécharger plus tard.",
+  congratsNote: "Ensuite, on ajoute une offre qui te plaît.",
+  /** Sous la note : télécharge le PDF sans faire avancer le parcours. */
+  downloadNow: "Télécharger le PDF maintenant",
+  /** Écran « Bravo » (entre l'enregistrement et l'écran de l'offre). */
+  bravo: {
+    title: "Bravo, tu as fini ton premier CV.",
+    subtitle: "Et si on cherchait ta première candidature ?",
+    continue: "Continuer",
+    note: "Ton CV est enregistré. Tu pourras le télécharger plus tard dans le CV Builder.",
+  },
   /** Import pendant la phase guidée : le stepper de l'import, détail de l'étape 1. */
   importStepLabel: "Étape 1 · importer ton CV",
   /** Import impossible (quota du mois, erreur) : l'autre façon de faire, sans Premium. */

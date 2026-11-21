@@ -15,10 +15,10 @@ import {
 import { MissingKeywordsPanel, MissingPointsPanel } from "@/components/application/missing-points-panel";
 import { RefineChat, type ChatTurn, type RefineChatHandle } from "@/components/application/refine-chat";
 import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
-import { finishGuideAction, guideDownloadedAction, guideReadyToDownloadAction } from "@/app/actions/onboarding";
+import { finishGuideAction, guideReadyToDownloadAction, guideSavedAction } from "@/app/actions/onboarding";
 import { GUIDE_TEXTS, LUMEO_TEXTS } from "@/lib/lumeo-texts";
 import type { GuideEditorStep } from "@/lib/onboarding";
-import { guideContentFingerprint, isCvImproved } from "@/lib/onboarding-guide";
+import { frenchSpaces, guideContentFingerprint, isCvImproved } from "@/lib/onboarding-guide";
 import { useAppNav } from "@/components/app-nav-context";
 import { CVB_CHAT_LIMIT_MESSAGE, type AiUsageCount } from "@/lib/ai-usage-limits";
 import {
@@ -442,13 +442,8 @@ export function CvBuilderEditor({
       link.href = url;
       link.download = fileName(title);
       link.click();
+      // Le téléchargement ne fait jamais avancer la phase guidée.
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      // Phase guidée : CV téléchargé (amélioré ou non), étape suivante : l'écran de l'offre.
-      if (guideStepRef.current) {
-        guideStepRef.current = null;
-        await guideDownloadedAction().catch(() => undefined);
-        router.push("/bienvenue");
-      }
     } catch (error) {
       console.error("[cv-builder] PDF", error);
       setSaveError("Le PDF n'a pas pu être généré. Réessaie dans un instant.");
@@ -470,6 +465,22 @@ export function CvBuilderEditor({
     }
     await finishGuideAction(guideStepRef.current).catch(() => undefined);
     router.push("/dashboard");
+  }
+
+  // Phase guidée, étape 2 : « Enregistrer mon CV » enregistre d'abord la modification en attente.
+  // Échec : message, on reste sur l'étape (« Passer » reste actif). Sinon : écran « Bravo ».
+  const [guideSaving, setGuideSaving] = useState(false);
+  async function saveGuide() {
+    if (guideSaving) return;
+    setGuideSaving(true);
+    const saved = await flushSave().catch(() => false);
+    if (!saved) {
+      setSaveError(GUIDE_TEXTS.saveError);
+      setGuideSaving(false);
+      return;
+    }
+    await guideSavedAction().catch(() => undefined);
+    router.push("/bienvenue?etape=bravo");
   }
 
   function alreadyGood() {
@@ -526,15 +537,16 @@ export function CvBuilderEditor({
         >
           {SAVE_LABELS[status]}
         </p>
-        <button
-          type="button"
-          onClick={download}
-          disabled={downloading}
-          // Étape 2 de la phase guidée : halo qui pulse doucement (animations réduites : aucun).
-          className={`ui-btn-primary px-5 py-2.5 text-[13px] ${guideStep === "guide_telecharger" ? "ob-halo" : ""}`}
-        >
-          {downloading ? "Génération du PDF…" : guideStep === "guide_telecharger" ? GUIDE_TEXTS.download : "Télécharger en PDF"}
-        </button>
+        {guideStep === "guide_telecharger" ? (
+          // Étape 2 de la phase guidée : enregistrer (pas de PDF), halo qui pulse doucement.
+          <button type="button" onClick={() => void saveGuide()} disabled={guideSaving} className="ob-halo ui-btn-primary px-5 py-2.5 text-[13px]">
+            {guideSaving ? GUIDE_TEXTS.saving : GUIDE_TEXTS.save}
+          </button>
+        ) : (
+          <button type="button" onClick={download} disabled={downloading} className="ui-btn-primary px-5 py-2.5 text-[13px]">
+            {downloading ? "Génération du PDF…" : "Télécharger en PDF"}
+          </button>
+        )}
       </div>
       {saveError && (
         <p role="alert" className="ui-notice-error mx-3 mt-3 px-4 py-3 text-sm sm:mx-4">
@@ -549,16 +561,26 @@ export function CvBuilderEditor({
             <CvScorePanel score={score} offerLabel={offerScoreLabel(scoringContext)} />
           </div>
           {guideStep === "guide_telecharger" && (
-            // Félicitations de Lumeo : le bouton de l'en-tête devient « Télécharger mon CV ».
+            // Félicitations de Lumeo : le bouton de l'en-tête devient « Enregistrer mon CV ».
             <section aria-labelledby="guide-ready" className="ob-rise-1 flex shrink-0 items-start gap-3 rounded-block border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <span className="ob-hop shrink-0">
                 <LumeoAvatar size={36} expression="felicite" celebrate />
               </span>
               <div className="min-w-0">
                 <h2 id="guide-ready" className="text-sm font-semibold text-ink dark:text-white">
-                  {GUIDE_TEXTS.congrats}
+                  {/* Espace insécable devant « : » (typographie française). */}
+                  {frenchSpaces(GUIDE_TEXTS.congrats)}
                 </h2>
-                <p className="mt-1 text-[13px] text-muted dark:text-slate-300">{GUIDE_TEXTS.downloadNote}</p>
+                <p className="mt-1 text-[13px] text-muted dark:text-slate-300">{GUIDE_TEXTS.congratsNote}</p>
+                {/* Télécharge le PDF tout de suite, sans faire avancer le parcours. */}
+                <button
+                  type="button"
+                  onClick={download}
+                  disabled={downloading}
+                  className="ui-focus mt-1 inline-flex min-h-11 items-center text-[13px] font-medium text-ink underline underline-offset-2 hover:text-accent disabled:opacity-60 dark:text-white"
+                >
+                  {downloading ? "Génération du PDF…" : GUIDE_TEXTS.downloadNow}
+                </button>
               </div>
             </section>
           )}

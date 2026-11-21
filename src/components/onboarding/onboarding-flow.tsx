@@ -23,6 +23,7 @@ import {
   type OnboardingState,
 } from "@/lib/onboarding";
 import { GUIDE_TEXTS, ONBOARDING_TEXTS as T } from "@/lib/lumeo-texts";
+import { frenchSpaces } from "@/lib/onboarding-guide";
 import { OFFER_URL_MAX_LENGTH, parseOfferLink } from "@/lib/offer-limits";
 
 /** État du parcours affiché sur un écran de /bienvenue. */
@@ -444,9 +445,25 @@ export function OnboardingFlow({
  * la création termine le parcours) ; « Trouver une offre », « Plus tard » et « Passer » le terminent
  * tout de suite. Aucun lien Premium.
  */
-export function GuideOfferScreen() {
+export function GuideOfferScreen({ bravo = false }: { bravo?: boolean }) {
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
+  // Écran « Bravo » d'abord (juste après « Enregistrer mon CV ») ; ?etape=bravo est retiré de
+  // l'adresse : un rechargement mène directement à l'écran de l'offre.
+  const [showBravo, setShowBravo] = useState(bravo);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (bravo) window.history.replaceState(window.history.state, "", window.location.pathname);
+  }, [bravo]);
+  // Passage de « Bravo » à l'écran de l'offre : le focus va sur son titre.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    titleRef.current?.focus();
+  }, [showBravo]);
 
   function leave(task: () => Promise<unknown>, href: string) {
     if (leaving) return;
@@ -459,6 +476,42 @@ export function GuideOfferScreen() {
 
   const later = () => leave(() => finishGuideAction("guide_offre"), "/dashboard");
 
+  if (showBravo) {
+    return (
+      <div className="relative flex min-h-dvh flex-1 flex-col overflow-hidden bg-page text-ink">
+        <GuidedHeader step="bravo" onSkip={later} />
+        <Confetti />
+        <main className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:py-12">
+          <div className="flex w-full max-w-[560px] flex-col items-center gap-6 text-center">
+            <div className="ob-pop">
+              <div className="ob-hop">
+                <LumeoAvatar size={120} expression="felicite" celebrate standalone />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {/* Espaces insécables devant « ? » et « : » (typographie française), titre équilibré. */}
+              <h1 className="ob-rise-1 text-[32px] leading-[1.1] font-bold tracking-[-0.035em] text-balance text-ink sm:text-[42px]">
+                {frenchSpaces(GUIDE_TEXTS.bravo.title)}
+              </h1>
+              <p className="ob-rise-2 text-lg text-balance text-muted">{frenchSpaces(GUIDE_TEXTS.bravo.subtitle)}</p>
+            </div>
+            <button type="button" autoFocus onClick={() => setShowBravo(false)} className={`ob-rise-2 ${PRIMARY}`}>
+              {GUIDE_TEXTS.bravo.continue}
+            </button>
+            <p className="ob-rise-2 text-sm text-muted">{frenchSpaces(GUIDE_TEXTS.bravo.note)}</p>
+            <ActionLink
+              href="/dashboard"
+              onChoose={later}
+              className="ob-rise-2 ui-focus inline-flex min-h-11 items-center text-sm font-medium text-ink underline underline-offset-2 hover:text-accent"
+            >
+              {GUIDE_TEXTS.offerLater}
+            </ActionLink>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-page text-ink">
       <GuidedHeader step="guide_offre" onSkip={later} />
@@ -470,7 +523,11 @@ export function GuideOfferScreen() {
             </div>
           </div>
           <div className="space-y-2 text-center">
-            <h1 className="ob-rise-1 text-center text-[32px] leading-[1.1] font-bold tracking-[-0.035em] text-ink sm:text-[42px]">
+            <h1
+              ref={titleRef}
+              tabIndex={-1}
+              className="ob-rise-1 text-center text-[32px] leading-[1.1] font-bold tracking-[-0.035em] text-ink outline-none sm:text-[42px]"
+            >
               {T.cheminOffre.title}
             </h1>
             <p className="ob-rise-1 text-lg text-muted">{T.cheminOffre.subtitle}</p>
@@ -499,6 +556,27 @@ export function GuideOfferScreen() {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+/** Confettis de l'écran « Bravo » : décoratifs, tombent une fois ; absents si les animations sont réduites. */
+const CONFETTI = [
+  [6, 0, "#2563EB"], [14, 0.25, "#0A0A0A"], [22, 0.1, "#93C5FD"], [31, 0.4, "#2563EB"], [39, 0.15, "#0A0A0A"],
+  [47, 0.5, "#93C5FD"], [55, 0.05, "#2563EB"], [63, 0.35, "#0A0A0A"], [71, 0.2, "#93C5FD"], [79, 0.45, "#2563EB"],
+  [87, 0.3, "#0A0A0A"], [94, 0.1, "#93C5FD"],
+] as const;
+
+function Confetti() {
+  return (
+    <div aria-hidden="true" className="ob-confetti-layer pointer-events-none absolute inset-0 hidden overflow-hidden">
+      {CONFETTI.map(([left, delay, color], i) => (
+        <span
+          key={i}
+          className="ob-confetti absolute top-0 block h-2.5 w-2.5 rounded-[2px]"
+          style={{ left: `${left}%`, backgroundColor: color, animationDelay: `${delay}s` }}
+        />
+      ))}
     </div>
   );
 }

@@ -12,7 +12,7 @@ registerHooks({
 const { GUIDE_STEPS, ONBOARDING_LAUNCHED_AT, ONBOARDING_STEPS, guideOfferDestination, guidedEditorStep, guidedPhaseStep, resumeTarget } =
   await import("./onboarding.ts");
 const { AI_MONTHLY_LIMITS } = await import("./ai-usage-limits.ts");
-const { guideContentFingerprint, guideStepIndex, isCvImproved } = await import("./onboarding-guide.ts");
+const { frenchSpaces, guideActiveIndex, guideContentFingerprint, guideStepIndex, isCvImproved } = await import("./onboarding-guide.ts");
 const { CvDataSchema } = await import("./cv-builder-types.ts");
 const { GUIDE_BANNER_TEXTS: B, GUIDE_TEXTS: T, ONBOARDING_TEXTS: O } = await import("./lumeo-texts.ts");
 
@@ -75,10 +75,15 @@ test("« CV amélioré » : seul un changement du contenu enregistré compte", (
   assert.match(editor, /const guideBaseline = useRef\(guideContentFingerprint\(cv\.data\)\);/);
 });
 
-test("étapes de l'en-tête : améliorer, télécharger, ajouter une offre", () => {
+test("étapes de l'en-tête : améliorer, enregistrer, ajouter une offre ; « Bravo » sans étape active", () => {
+  // Noms en base inchangés (guide_telecharger) : seuls les libellés changent.
   assert.deepEqual(GUIDE_STEPS, ["guide_cv", "guide_telecharger", "guide_offre"]);
   assert.deepEqual(GUIDE_STEPS.map(guideStepIndex), [0, 1, 2]);
-  assert.deepEqual(T.steps, ["Améliore ton CV", "Télécharge-le", "Ajoute une offre"]);
+  assert.deepEqual(T.steps, ["Améliore ton CV", "Enregistre-le", "Ajoute une offre"]);
+  assert.equal(guideStepIndex("bravo"), 2);
+  assert.equal(guideActiveIndex("bravo"), null);
+  assert.deepEqual(GUIDE_STEPS.map(guideActiveIndex), [0, 1, 2]);
+  assert.match(read("components/cv-builder/guided-header.tsx"), /const active = index === activeIndex;/);
 });
 
 test("en-tête guidé : aria-current sur l'étape, « Passer » vrai bouton jamais désactivé", () => {
@@ -107,14 +112,22 @@ test("étape 1 sans impasse : « Mon CV est déjà bon, continuer » passe à l'
   assert.match(server, /row\.step !== "guide_cv"\) return;/);
 });
 
-test("téléchargement : bouton « Télécharger mon CV » à l'étape 2, félicitations de Lumeo", () => {
-  assert.equal(T.download, "Télécharger mon CV");
-  assert.equal(T.congrats, "Beau travail, ton CV est prêt. Télécharge-le pour l'avoir sous la main, tu pourras toujours le modifier ensuite.");
-  assert.equal(T.downloadNote, "Un PDF prêt à envoyer. Ensuite, on ajoute une offre qui te plaît.");
+test("étape 2 : « Enregistrer mon CV » (pas de PDF), enregistrement d'abord, puis « Bravo »", () => {
+  assert.equal(T.save, "Enregistrer mon CV");
+  assert.equal(T.congrats, "Beau travail, ton CV est prêt. Enregistre-le : tu pourras toujours le modifier, et le télécharger plus tard.");
+  assert.equal(T.congratsNote, "Ensuite, on ajoute une offre qui te plaît.");
+  assert.equal(T.downloadNow, "Télécharger le PDF maintenant");
   const editor = read("components/cv-builder/cv-builder-editor.tsx");
-  assert.match(editor, /guideStep === "guide_telecharger" \? GUIDE_TEXTS\.download : "Télécharger en PDF"/);
-  // Après le téléchargement (amélioré ou non) : l'écran de l'offre.
-  assert.match(editor, /if \(guideStepRef\.current\) \{\s*guideStepRef\.current = null;\s*await guideDownloadedAction\(\)\.catch\(\(\) => undefined\);\s*router\.push\("\/bienvenue"\);/);
+  assert.match(editor, /\{guideStep === "guide_telecharger" \? \(\s*\/\/[^\n]*\n\s*<button type="button" onClick=\{\(\) => void saveGuide\(\)\}/);
+  const save = editor.slice(editor.indexOf("async function saveGuide"), editor.indexOf("function alreadyGood"));
+  assert.match(save, /const saved = await flushSave\(\)\.catch\(\(\) => false\);/);
+  assert.match(save, /if \(!saved\) \{\s*setSaveError\(GUIDE_TEXTS\.saveError\);\s*setGuideSaving\(false\);\s*return;/);
+  assert.match(save, /await guideSavedAction\(\)[\s\S]{0,60}router\.push\("\/bienvenue\?etape=bravo"\);/);
+  assert.doesNotMatch(save, /pdf\(|download\(/, "aucun PDF à ce clic");
+  // Le téléchargement ne fait plus jamais avancer le parcours (étape 1, lien de la carte).
+  const download = editor.slice(editor.indexOf("async function download"), editor.indexOf("// Phase guidée : « Passer »"));
+  assert.doesNotMatch(download, /guideSavedAction|guideStepRef|router\.push/);
+  assert.match(editor, /onClick=\{download\}[\s\S]{0,600}GUIDE_TEXTS\.downloadNow/);
   const server = read("lib/onboarding-server.ts");
   const offer = server.slice(server.indexOf("export async function advanceGuideToOffer"), server.indexOf("export async function finishGuidedPhase"));
   assert.match(offer, /!isGuidedEditorStep\(row\.step\)\) return;/);
@@ -146,7 +159,16 @@ test("migration 0047 : étapes alignées avec le code, colonnes facultatives, re
 
 test("textes : tutoiement, sans emoji, sans chiffre en dur, ni « illimité », ni Premium", () => {
   // « Étape 1 · importer ton CV » : numéro d'étape demandé tel quel, pas un chiffre mesuré.
-  const texts = [...Object.values(T).flat()].filter((value) => typeof value === "string" && value !== T.importStepLabel).join("\n");
+  const texts = [...Object.values(T).flat(), ...Object.values(T.bravo)]
+    .filter((value) => typeof value === "string" && value !== T.importStepLabel)
+    .join("\n");
+  assert.equal(T.importStepLabel, "Étape 1 · importer ton CV");
+  assert.deepEqual(T.bravo, {
+    title: "Bravo, tu as fini ton premier CV.",
+    subtitle: "Et si on cherchait ta première candidature ?",
+    continue: "Continuer",
+    note: "Ton CV est enregistré. Tu pourras le télécharger plus tard dans le CV Builder.",
+  });
   assert.deepEqual(T.suggestions, ["Améliorer mon profil", "Reformuler mes expériences", "Vérifier les mots-clés"]);
   assert.equal(T.placeholder, "Pose ta question à Lumeo");
   assert.equal(T.note, "Tu restes ici le temps de finir. « Passer » te ramène au tableau de bord.");
@@ -177,7 +199,7 @@ test("écran de l'offre : en-tête guidé, formulaire et liens du chemin B, aucu
   assert.equal(O.cheminOffre.subtitle, "Colle le lien, je remplis la fiche pour toi.");
   assert.equal(guideOfferDestination("https://a.fr/o?x=1"), "/candidatures/nouvelle?lien=https%3A%2F%2Fa.fr%2Fo%3Fx%3D1&accueil=1");
   // /bienvenue : l'écran de l'offre pour l'étape « guide_offre » (reprise depuis /dashboard).
-  assert.match(read("app/(onboarding)/bienvenue/page.tsx"), /if \(entry\.target\.kind === "offre"\) return <GuideOfferScreen \/>;/);
+  assert.match(read("app/(onboarding)/bienvenue/page.tsx"), /return <GuideOfferScreen bravo=\{etape === "bravo"\} \/>;/);
 });
 
 test("création de la candidature : accueil=1 termine le parcours seulement à l'étape « guide_offre »", () => {
@@ -239,7 +261,7 @@ test("animations de la phase guidée : dans prefers-reduced-motion: no-preferenc
   const outside = css.slice(0, start) + css.slice(end + 1);
   assert.doesNotMatch(outside, /ob-(slide|halo|hop)/);
   const editor = read("components/cv-builder/cv-builder-editor.tsx");
-  assert.match(editor, /guideStep === "guide_telecharger" \? "ob-halo" : ""/);
+  assert.match(editor, /className="ob-halo ui-btn-primary/);
   assert.match(editor, /<span className="ob-hop shrink-0">\s*<LumeoAvatar size=\{36\} expression="felicite" celebrate \/>/);
   assert.match(read("components/onboarding/guide-fiche-banner.tsx"), /className="ob-slide-in fixed/);
 });
@@ -254,6 +276,35 @@ test("captures : champ du lien à pleine hauteur sur mobile, bandeau sans cacher
   const server = read("lib/onboarding-server.ts");
   const seen = server.slice(server.indexOf("export async function markGuideBannerSeen"));
   assert.match(seen, /if \(!isSupabaseConfigured\(\)\) return;/);
+});
+
+test("écran « Bravo » : textes, « Continuer » vers l'écran de l'offre, sorties, reprise sur l'offre", () => {
+  const flow = read("components/onboarding/onboarding-flow.tsx");
+  const screen = flow.slice(flow.indexOf("export function GuideOfferScreen"));
+  const bravo = screen.slice(screen.indexOf("if (showBravo)"), screen.indexOf('<GuidedHeader step="guide_offre"'));
+  assert.match(bravo, /<GuidedHeader step="bravo" onSkip=\{later\} \/>/);
+  assert.match(bravo, /<LumeoAvatar size=\{120\} expression="felicite" celebrate standalone \/>/);
+  assert.match(bravo, /onClick=\{\(\) => setShowBravo\(false\)\}/);
+  assert.match(bravo, /GUIDE_TEXTS\.bravo\.title/);
+  assert.match(bravo, /GUIDE_TEXTS\.bravo\.note/);
+  assert.match(bravo, /onChoose=\{later\}/);
+  assert.doesNotMatch(bravo, /premium/i);
+  // ?etape=bravo retiré de l'adresse : un rechargement (reprise) mène à l'écran de l'offre.
+  assert.match(screen, /if \(bravo\) window\.history\.replaceState\(window\.history\.state, "", window\.location\.pathname\);/);
+  // Pas de nouvelle étape en base : « Enregistrer mon CV » passe directement à guide_offre.
+  const server = read("lib/onboarding-server.ts");
+  assert.match(server.slice(server.indexOf("export async function advanceGuideToOffer")), /step: "guide_offre"/);
+});
+
+test("confettis : décoratifs, une seule chute, absents si les animations sont réduites", () => {
+  const flow = read("components/onboarding/onboarding-flow.tsx");
+  assert.match(flow, /<div aria-hidden="true" className="ob-confetti-layer pointer-events-none absolute inset-0 hidden/);
+  const css = read("app/globals.css");
+  const start = css.indexOf("@media (prefers-reduced-motion: no-preference) {\n  @keyframes ob-fill");
+  const block = css.slice(start);
+  assert.ok(block.indexOf(".ob-confetti-layer { display: block; }") > 0);
+  assert.match(block, /\.ob-confetti \{ animation: ob-fall 2\.6s ease-in 0\.3s 1 both; \}/);
+  assert.doesNotMatch(css.slice(0, start), /ob-confetti|ob-fall/);
 });
 
 test("verrou de l'import et de la création : en-tête guidé, barre normale et bouton rond masqués", () => {
@@ -295,4 +346,21 @@ test("import guidé : pas de « Mes CV », stepper en petit, « Le créer de zé
   assert.doesNotMatch(T.importLimit, /premium|\d/i);
   assert.equal(T.createFromScratch, "Le créer de zéro");
   assert.match(read("components/cv-builder/cv-import-progress.tsx"), /Réessayer\s*<\/button>\s*\{fallback\}/);
+});
+
+test("typographie : espace insécable devant « ? » et « : » sur l'écran Bravo et la carte de Lumeo", () => {
+  assert.equal(frenchSpaces("Et si on cherchait ta première candidature ?"), "Et si on cherchait ta première candidature\u00A0?");
+  assert.equal(frenchSpaces("Enregistre-le : tu pourras"), "Enregistre\u2011le\u00A0: tu pourras");
+  assert.equal(frenchSpaces("« Passer » te ramène"), "«\u00A0Passer\u00A0» te ramène");
+  assert.equal(frenchSpaces("Sans signe."), "Sans signe.");
+  const flow = read("components/onboarding/onboarding-flow.tsx");
+  assert.match(flow, /frenchSpaces\(GUIDE_TEXTS\.bravo\.subtitle\)/);
+  assert.match(flow, /text-balance text-ink sm:text-\[42px\]">\s*\{frenchSpaces\(GUIDE_TEXTS\.bravo\.title\)\}/);
+  assert.match(read("components/cv-builder/cv-builder-editor.tsx"), /\{frenchSpaces\(GUIDE_TEXTS\.congrats\)\}/);
+});
+
+test("typographie : trait d'union insécable avant un pronom (« Enregistre-le »)", () => {
+  assert.equal(frenchSpaces("Enregistre-le : tu pourras"), "Enregistre\u2011le\u00A0: tu pourras");
+  assert.equal(frenchSpaces("Télécharge-le plus tard"), "Télécharge\u2011le plus tard");
+  assert.equal(frenchSpaces("mots-clés et CV"), "mots-clés et CV", "les autres mots composés ne changent pas");
 });

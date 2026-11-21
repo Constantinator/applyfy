@@ -8,7 +8,7 @@ const SCREEN_LABELS: Record<OnboardingStep, string> = {
   chemin_cv: "Chemin A · importer ou créer le CV",
   chemin_offre: "Chemin B · ajouter ou trouver une offre",
   guide_cv: "Phase guidée · améliorer le CV",
-  guide_telecharger: "Phase guidée · télécharger le CV",
+  guide_telecharger: "Phase guidée · enregistrer le CV",
   guide_offre: "Phase guidée · ajouter une offre",
 };
 
