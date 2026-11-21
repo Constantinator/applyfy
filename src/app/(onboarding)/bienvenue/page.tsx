@@ -7,6 +7,7 @@ import { getAccountName } from "@/lib/account";
 import { AI_MONTHLY_LIMITS } from "@/lib/ai-usage-limits";
 import { requireUser } from "@/lib/auth";
 import { CV_IMPORT_MAX_LABEL } from "@/lib/cv-builder-types";
+import { loadBravoTone } from "@/lib/guide-bravo";
 import { ONBOARDING_TEXTS } from "@/lib/lumeo-texts";
 import { getOnboardingEntry } from "@/lib/onboarding-server";
 import { isPremium } from "@/lib/subscription";
@@ -28,7 +29,9 @@ export default async function WelcomePage({ searchParams }: PageProps<"/bienvenu
   // « Quelle offre t'intéresse ? ». Reprise plus tard : directement l'écran de l'offre.
   if (entry.target.kind === "offre") {
     const { etape } = await searchParams;
-    return <GuideOfferScreen bravo={etape === "bravo"} />;
+    const bravo = etape === "bravo";
+    // Ton de « Bravo » d'après le score du CV (recalculé ici, seulement à l'arrivée sur « Bravo »).
+    return <GuideOfferScreen bravo={bravo} tone={bravo ? await loadBravoTone() : "debut"} />;
   }
 
   const [accountName, premium] = await Promise.all([

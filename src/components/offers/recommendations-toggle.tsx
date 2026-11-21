@@ -48,18 +48,22 @@ function savePreference(enabled: boolean) {
 export function RecommendationsToggle({
   active,
   fromLink = false,
+  urlChoice = false,
   canAutoOpen,
 }: {
   /** La page affiche les recommandations (?reco=1, ou par défaut quand le métier du CV est connu). */
   active: boolean;
   /** ?reco=1 dans l'adresse : seul ce cas enregistre la préférence (pas l'affichage par défaut). */
   fromLink?: boolean;
+  /** ?reco=0 ou ?reco=1 dans l'adresse : elle prime sur la préférence enregistrée. */
+  urlChoice?: boolean;
   /** Ni recherche manuelle ni offre ouverte : la préférence peut être appliquée. */
   canAutoOpen: boolean;
 }) {
   const router = useRouter();
   const stored = useSyncExternalStore(subscribe, readPreference, () => false);
-  const enabled = active || stored;
+  // L'adresse (?reco=0 / ?reco=1) décide ; sinon, la préférence enregistrée dans ce navigateur.
+  const enabled = active || (!urlChoice && stored);
 
   useEffect(() => {
     // Lien ?reco=1 ouvert directement : il fait foi et devient la préférence.

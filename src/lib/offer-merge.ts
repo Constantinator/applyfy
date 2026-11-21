@@ -13,6 +13,26 @@ const duplicateKey = (offer: OfferListing) =>
     .replace(/[^a-z0-9|]/g, "");
 
 /**
+ * Variété d'une page de recommandations ou de dernières offres : au plus `max` cartes par employeur
+ * et intitulé dans l'ordre de la page, le surplus repoussé en fin de page (dans son ordre). Aucune
+ * offre perdue : compteur et pagination inchangés.
+ */
+export const MAX_SAME_OFFER_PER_PAGE = 2;
+
+export function spreadRepeats<T extends OfferListing>(offers: T[], max = MAX_SAME_OFFER_PER_PAGE): T[] {
+  const counts = new Map<string, number>();
+  const kept: T[] = [];
+  const pushed: T[] = [];
+  for (const offer of offers) {
+    const key = duplicateKey(offer);
+    const count = (counts.get(key) ?? 0) + 1;
+    counts.set(key, count);
+    (count <= max ? kept : pushed).push(offer);
+  }
+  return [...kept, ...pushed];
+}
+
+/**
  * Une offre de chaque source à tour de rôle, sans doublons entre sources : une page affiche toutes
  * les offres reçues de chaque source (le tri est fait ensuite).
  */

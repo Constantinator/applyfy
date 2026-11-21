@@ -9,6 +9,7 @@ import { GuidedHeader } from "@/components/cv-builder/guided-header";
 import { IconBriefcase, IconPencil, IconPuzzle, IconUpload } from "@/components/icons";
 import { BrandLogo } from "@/components/logo";
 import { LumeoAvatar, type LumeoExpression } from "@/components/lumeo/lumeo-avatar";
+import type { BravoTone } from "@/lib/guide-bravo-tone";
 import {
   ONBOARDING_SEGMENTS,
   choiceDestination,
@@ -445,7 +446,7 @@ export function OnboardingFlow({
  * la création termine le parcours) ; « Trouver une offre », « Plus tard » et « Passer » le terminent
  * tout de suite. Aucun lien Premium.
  */
-export function GuideOfferScreen({ bravo = false }: { bravo?: boolean }) {
+export function GuideOfferScreen({ bravo = false, tone = "debut" }: { bravo?: boolean; tone?: BravoTone }) {
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
   // Écran « Bravo » d'abord (juste après « Enregistrer mon CV ») ; ?etape=bravo est retiré de
@@ -477,23 +478,31 @@ export function GuideOfferScreen({ bravo = false }: { bravo?: boolean }) {
   const later = () => leave(() => finishGuideAction("guide_offre"), "/dashboard");
 
   if (showBravo) {
+    // CV prêt à postuler : félicitations et confettis ; sinon (ou score inconnu) : « bon début ».
+    const ready = tone === "bravo";
     return (
       <div className="relative flex min-h-dvh flex-1 flex-col overflow-hidden bg-page text-ink">
         <GuidedHeader step="bravo" onSkip={later} />
-        <Confetti />
+        {ready && <Confetti />}
         <main className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:py-12">
           <div className="flex w-full max-w-[560px] flex-col items-center gap-6 text-center">
             <div className="ob-pop">
-              <div className="ob-hop">
-                <LumeoAvatar size={120} expression="felicite" celebrate standalone />
-              </div>
+              {ready ? (
+                <div className="ob-hop">
+                  <LumeoAvatar size={120} expression="felicite" celebrate standalone />
+                </div>
+              ) : (
+                <LumeoAvatar size={120} expression="content" standalone />
+              )}
             </div>
             <div className="space-y-2">
               {/* Espaces insécables devant « ? » et « : » (typographie française), titre équilibré. */}
               <h1 className="ob-rise-1 text-[32px] leading-[1.1] font-bold tracking-[-0.035em] text-balance text-ink sm:text-[42px]">
-                {frenchSpaces(GUIDE_TEXTS.bravo.title)}
+                {frenchSpaces(ready ? GUIDE_TEXTS.bravo.title : GUIDE_TEXTS.bravo.startTitle)}
               </h1>
-              <p className="ob-rise-2 text-lg text-balance text-muted">{frenchSpaces(GUIDE_TEXTS.bravo.subtitle)}</p>
+              <p className="ob-rise-2 text-lg text-balance text-muted">
+                {frenchSpaces(ready ? GUIDE_TEXTS.bravo.subtitle : GUIDE_TEXTS.bravo.startSubtitle)}
+              </p>
             </div>
             <button type="button" autoFocus onClick={() => setShowBravo(false)} className={`ob-rise-2 ${PRIMARY}`}>
               {GUIDE_TEXTS.bravo.continue}

@@ -21,6 +21,7 @@ import { targetJobOf } from "@/lib/cv-builder-types";
 import { isJobBoardOfferId } from "@/lib/job-boards";
 import { LumeoAvatar } from "@/components/lumeo/lumeo-avatar";
 import { OFFERS_LUMEO_TEXTS } from "@/lib/lumeo-texts";
+import { spreadRepeats } from "@/lib/offer-merge";
 import { shouldFallBackToLatest } from "@/lib/offer-reco-rules";
 import { getRecommendationBasis } from "@/lib/offer-recommendations";
 import {
@@ -115,7 +116,9 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
         keywords: basis.keywords,
         place: basis.place,
         contract: basis.contract,
-        sort: "recent",
+        // Pertinence : les offres d'un même cabinet (même intitulé, plusieurs régions) ne
+        // remplissent plus la page comme avec le tri par date.
+        sort: "pertinence",
         sortChosen: false,
         page: manualQuery.page,
       }
@@ -167,6 +170,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
       if (!(e instanceof OfferSourceError)) console.error("[offres] dernières offres (recommandations vides)", e);
     }
   }
+
+  // Recommandations et dernières offres : au plus 2 cartes par employeur et intitulé en tête de
+  // page, le reste après (rien de perdu). Recherche manuelle : ordre demandé, inchangé.
+  if (result && (recommending || showingLatest)) result = { ...result, offers: spreadRepeats(result.offers) };
 
   // Offre sélectionnée : déjà dans les résultats, sinon lue à part (lien partagé, page changée).
   // Une offre de page carrières est toujours relue : la liste n'a pas sa description.
@@ -231,6 +238,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offres">)
             <RecommendationsToggle
               active={recommending}
               fromLink={explicitReco}
+              urlChoice={explicitReco || recoOff}
               canAutoOpen={!hasManualSearch && !selectedId && !recoOff}
             />
           </div>

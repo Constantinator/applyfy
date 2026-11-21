@@ -115,6 +115,8 @@ test("textes : tutoiement, sans emoji, sans chiffre en dur, ni « illimité », 
   assert.deepEqual(T.bravo, {
     title: "Bravo, tu as fini ton premier CV.",
     subtitle: "Et si on cherchait ta première candidature ?",
+    startTitle: "Ton premier CV est enregistré.",
+    startSubtitle: "C'est un bon début, tu pourras l'améliorer quand tu veux. Et si on cherchait ta première candidature ?",
     continue: "Continuer",
     note: "Ton CV est enregistré. Tu pourras le télécharger plus tard dans le CV Builder.",
   });
@@ -147,7 +149,7 @@ test("écran de l'offre : en-tête guidé, formulaire et liens du chemin B, aucu
   assert.equal(O.cheminOffre.subtitle, "Colle le lien, je remplis la fiche pour toi.");
   assert.equal(guideOfferDestination("https://a.fr/o?x=1"), "/candidatures/nouvelle?lien=https%3A%2F%2Fa.fr%2Fo%3Fx%3D1&accueil=1");
   // /bienvenue : l'écran de l'offre pour l'étape « guide_offre » (reprise depuis /dashboard).
-  assert.match(read("app/(onboarding)/bienvenue/page.tsx"), /return <GuideOfferScreen bravo=\{etape === "bravo"\} \/>;/);
+  assert.match(read("app/(onboarding)/bienvenue/page.tsx"), /const bravo = etape === "bravo";[\s\S]*?<GuideOfferScreen bravo=\{bravo\} tone=/);
 });
 
 test("création de la candidature : accueil=1 termine le parcours seulement à l'étape « guide_offre »", () => {
@@ -300,8 +302,8 @@ test("typographie : espace insécable devant « ? » et « : » sur l'écran Bra
   assert.equal(frenchSpaces("« Passer » te ramène"), "«\u00A0Passer\u00A0» te ramène");
   assert.equal(frenchSpaces("Sans signe."), "Sans signe.");
   const flow = read("components/onboarding/onboarding-flow.tsx");
-  assert.match(flow, /frenchSpaces\(GUIDE_TEXTS\.bravo\.subtitle\)/);
-  assert.match(flow, /text-balance text-ink sm:text-\[42px\]">\s*\{frenchSpaces\(GUIDE_TEXTS\.bravo\.title\)\}/);
+  assert.match(flow, /frenchSpaces\(ready \? GUIDE_TEXTS\.bravo\.subtitle : GUIDE_TEXTS\.bravo\.startSubtitle\)/);
+  assert.match(flow, /text-balance text-ink sm:text-\[42px\]">\s*\{frenchSpaces\(ready \? GUIDE_TEXTS\.bravo\.title : GUIDE_TEXTS\.bravo\.startTitle\)\}/);
 });
 test("typographie : trait d'union insécable avant un pronom (« Enregistre-le »)", () => {
   assert.equal(frenchSpaces("Enregistre-le : tu pourras"), "Enregistre\u2011le\u00A0: tu pourras");

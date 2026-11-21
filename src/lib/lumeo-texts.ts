@@ -274,6 +274,9 @@ export const GUIDE_TEXTS = {
   bravo: {
     title: "Bravo, tu as fini ton premier CV.",
     subtitle: "Et si on cherchait ta première candidature ?",
+    /** CV sous le seuil « prêt à postuler », ou score indisponible : pas de félicitations. */
+    startTitle: "Ton premier CV est enregistré.",
+    startSubtitle: "C'est un bon début, tu pourras l'améliorer quand tu veux. Et si on cherchait ta première candidature ?",
     continue: "Continuer",
     note: "Ton CV est enregistré. Tu pourras le télécharger plus tard dans le CV Builder.",
   },
